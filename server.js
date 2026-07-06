@@ -565,6 +565,19 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => p.sockets.delete(ws));
 });
 
+// 이미 다른 PowerTerminal이 켜져 있으면(같은 PC의 다른 폴더 사본 등) 명확히 알리고 종료
+// — 이 경우 브라우저에 뜨는 화면은 '먼저 켜져 있던' 서버(=그 사본의 버전)라는 점 주의
+server.on('error', e => {
+  if (e.code === 'EADDRINUSE') {
+    console.log('');
+    console.log('  ⚠ PowerTerminal이 이미 실행 중입니다 (포트 ' + PORT + ' 사용 중).');
+    console.log('    브라우저에 보이는 것은 먼저 켜진 서버입니다 — 다른 폴더의 구버전일 수 있어요.');
+    console.log('    최신으로 다시 시작하려면: 기존 PowerTerminal 창(node)을 닫고 start.bat을 다시 실행하세요.');
+    console.log('');
+    process.exit(0);
+  }
+  throw e;
+});
 server.listen(PORT, '0.0.0.0', () => {
   const ips = [];
   for (const [name, addrs] of Object.entries(os.networkInterfaces())) {

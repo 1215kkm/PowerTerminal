@@ -104,6 +104,8 @@
   .pick-card .pk-path { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
   .pick-card .pk-check { position: absolute; top: 6px; right: 8px; font-size: 14px; color: var(--pink); opacity: 0; }
   .pick-card.sel .pk-check { opacity: 1; }
+  .pick-card.pk-recent { opacity: .6; }
+  .pick-card.pk-recent.sel { opacity: 1; }
   .pick-card .pk-del { position: absolute; bottom: 6px; right: 6px; background: #374151; color: #f87171;
                        border-radius: 6px; width: 22px; height: 22px; font-weight: 700; line-height: 1; }
   dialog input { width: 100%; background: #111827; border: 1px solid var(--line); color: var(--fg);
@@ -258,6 +260,7 @@
     </label>
     <div style="display:flex;gap:8px">
       <button onclick="pickDlg.close()" data-i18n="pickSkip">Skip</button>
+      <button onclick="pickDlg.close(); openAdd();" data-i18n="addSession">＋ Session</button>
       <button class="primary" onclick="pickStart()" data-i18n="pickStart">▶ Open selected</button>
     </div>
   </div>
@@ -1375,16 +1378,16 @@ function renderPicker() {
   g.innerHTML = '';
   pickList.forEach(s => {
     const c = document.createElement('div');
-    c.className = 'pick-card' + (s._sel ? ' sel' : '');
+    c.className = 'pick-card' + (s._sel ? ' sel' : '') + (s._new ? ' pk-recent' : '');
     c.innerHTML = `<span class="pk-check">✔</span>
-      <div class="pk-title">${esc(s.title)}</div>
+      <div class="pk-title">${esc(s.title)}${s._new ? ' <span style="font-size:9px;color:var(--muted);font-weight:400">· closed</span>' : ''}</div>
       <div class="pk-path">${esc(s.path)}</div>
       <button class="pk-del" title="목록에서 제거">−</button>`;
     c.onclick = () => { s._sel = !s._sel; renderPicker(); };
     c.querySelector('.pk-del').onclick = async (ev) => {
       ev.stopPropagation();
       if (!confirm(T.confirmRemove.replace('{t}', s.title))) return;
-      await api('DELETE', '/api/sessions/' + s.id);
+      if (!s._new) await api('DELETE', '/api/sessions/' + s.id);   // _new(최근 닫은)은 서버 세션이 없음
       pickList = pickList.filter(x => x.id !== s.id);
       renderPicker();
       if (!pickList.length) pickDlg.close();
@@ -1395,11 +1398,18 @@ function renderPicker() {
   document.getElementById('pickAll').checked = all;
 }
 function pickToggleAll(on) { pickList.forEach(s => s._sel = on); renderPicker(); }
-function pickStart() {
+async function pickStart() {
   const chosen = pickList.filter(s => s._sel);
   pickDlg.close();
-  chosen.forEach(s => buildPane(s, grid.children.length));  // 선택한 것만 실제 실행
-  renderMinimap();
+  for (const s of chosen) {
+    if (s._new) {   // 최근 닫은 세션 → 서버에 새로 만들어 켜기
+      const ns = await api('POST', '/api/sessions', { path: s.path, title: s.title, agent: s.agent || 'claude' });
+      if (!ns.error) buildPane(ns, grid.children.length);
+    } else {
+      buildPane(s, grid.children.length);   // 저장돼 있던 세션 그대로 재개
+    }
+  }
+  renumber();
 }
 
 // ---------- 여러 창 동기화 ----------
@@ -1465,8 +1475,18 @@ applyStatic();
   applyLayout();
   renderMinimap();
 
-  if (idle.length) {
-    pickList = idle.map(s => ({ ...s, _sel: true })); // 기본: 전부 선택 → 재시작하면 이전 분할 배치 그대로 복원 (원치 않는 건 체크 해제)
+  // 선택창: 저장된 세션(idle, 기본 선택) + 최근 닫은 세션(recent, 미선택) 을 모두 보여줘 전체 구성 복원 가능
+  pickList = idle.map(s => ({ ...s, _sel: true }));
+  try {
+    const known = await api('GET', '/api/known-projects');
+    const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+    const have = new Set([...alive, ...idle].map(s => nrm(s.path)));
+    known.filter(k => k.path && !k.active && !have.has(nrm(k.path))).forEach(k => {
+      pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, _sel: false, _new: true });
+      have.add(nrm(k.path));
+    });
+  } catch (e) {}
+  if (pickList.length) {
     renderPicker();
     pickDlg.showModal();
   }
