@@ -174,9 +174,6 @@
             padding:5px 12px;border-radius:99px;white-space:nowrap;overflow:hidden;
             text-overflow:ellipsis;max-width:34vw;
             background:linear-gradient(90deg,var(--violet),var(--pink))"></a>
-  <a id="updChip" target="_blank" rel="noopener"
-     style="display:none;font-size:11px;font-weight:700;color:#111;background:#fbbf24;
-            padding:4px 10px;border-radius:99px;text-decoration:none;white-space:nowrap">🔄</a>
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
   <button id="btnFeedback" onclick="openFeedback()"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
@@ -324,7 +321,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', feedbackShort:'Request', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', feedbackShort:'Request', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -341,7 +338,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청', feedbackShort:'요청', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청', feedbackShort:'요청', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -358,7 +355,7 @@ const I18N = {
     infoHead:'📡 接続アドレス', wifi:'同じWi-Fi', lte:'外部アクセス (どこでも)', tunnelNone:'トンネル準備中またはcloudflared未設置', urlChanges:'(サーバー再起動でURLが変わります)',
     qrLte:'LTEでどこからでも: ', qrWifi:'同じWi-Fi: ',
     copyOk:'QR画像をコピーしました。', copyFail:'このブラウザではコピーできません — 💾 保存を使ってください。',
-    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', mDefault:'自動', modelTip:'AIモデル — 自動はアカウント既定を使用。Opus/Sonnet/Haikuは常に最新版。', pickTitle:'▶ セッションを再開', pickDesc:'開くセッションを選択。クリックで選択、(−)で削除。', pickAll:'すべて選択', pickSkip:'スキップ', pickStart:'▶ 選択を開く', confirmRemove:'"{t}" をリストから削除? (フォルダは残る)', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', feedbackShort:'リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ', maxT:'この画面を拡大 / 元に戻す', imgT:'画像を添付・貼り付け', imgUploading:'アップロード中…', imgFail:'画像アップロード失敗', winAskTitle:'このセッションをどこで開きますか?', winAskRows:'⚠ 1枠が300px未満に狭くなります。この画面に追加すると2段に配置されます。', winNew:'🖥 新しいウィンドウで開く', winNewHint:'推奨 — デュアルモニターがあれば別画面に移すと便利です。', winCurrent:'➕ この画面に追加', winCurrentHint:'すべてこの画面にまとめます。', updText:'アップデート', updTip:'新バージョンあり — PowerTerminal再起動で自動更新' },
+    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', mDefault:'自動', modelTip:'AIモデル — 自動はアカウント既定を使用。Opus/Sonnet/Haikuは常に最新版。', pickTitle:'▶ セッションを再開', pickDesc:'開くセッションを選択。クリックで選択、(−)で削除。', pickAll:'すべて選択', pickSkip:'スキップ', pickStart:'▶ 選択を開く', confirmRemove:'"{t}" をリストから削除? (フォルダは残る)', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', feedbackShort:'リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ', maxT:'この画面を拡大 / 元に戻す', tasksT:'タスク一覧の表示/非表示 (Ctrl+T)', imgT:'画像を添付・貼り付け', imgUploading:'アップロード中…', imgFail:'画像アップロード失敗', winAskTitle:'このセッションをどこで開きますか?', winAskRows:'⚠ 1枠が300px未満に狭くなります。この画面に追加すると2段に配置されます。', winNew:'🖥 新しいウィンドウで開く', winNewHint:'推奨 — デュアルモニターがあれば別画面に移すと便利です。', winCurrent:'➕ この画面に追加', winCurrentHint:'すべてこの画面にまとめます。', updText:'アップデート', updTip:'新バージョンあり — PowerTerminal再起動で自動更新' },
   zh: { addSession:'＋ 添加会话', qrToggle:'移动端二维码 开/关', infoBtn:'访问地址',
     qrTitle:'📱 移动端访问二维码', qrWarn:'⚠ 扫码者可同样操作会话 — 仅分享给信任的人。',
     copyImg:'📋 复制', saveImg:'💾 保存', close:'关闭', cancel:'取消', add:'添加',
@@ -375,7 +372,7 @@ const I18N = {
     infoHead:'📡 访问地址', wifi:'同一Wi-Fi', lte:'外部访问 (任何地方)', tunnelNone:'隧道启动中或未安装cloudflared', urlChanges:'(服务器重启后地址会变)',
     qrLte:'LTE 任何地方: ', qrWifi:'同一Wi-Fi: ',
     copyOk:'二维码已复制到剪贴板。', copyFail:'此浏览器禁止复制 — 请用 💾 保存。',
-    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', mDefault:'自动', modelTip:'AI模型 — 自动使用账户默认。Opus/Sonnet/Haiku自动映射到最新版本。', pickTitle:'▶ 恢复会话', pickDesc:'选择要打开的会话。点击切换，(−)移除。', pickAll:'全选', pickSkip:'跳过', pickStart:'▶ 打开所选', confirmRemove:'从列表移除 "{t}"? (文件夹保留)', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', feedbackShort:'反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器', maxT:'放大 / 还原此窗口', imgT:'附加或粘贴图片', imgUploading:'上传中…', imgFail:'图片上传失败', winAskTitle:'在哪里打开此会话?', winAskRows:'⚠ 每格将窄于 300px。添加到本窗口会自动排成 2 行。', winNew:'🖥 在新窗口打开', winNewHint:'推荐 — 如果有双显示器，拖到另一屏更方便。', winCurrent:'➕ 添加到本窗口', winCurrentHint:'全部集中在此窗口。', updText:'更新', updTip:'有新版本 — 重启 PowerTerminal 自动更新' },
+    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', mDefault:'自动', modelTip:'AI模型 — 自动使用账户默认。Opus/Sonnet/Haiku自动映射到最新版本。', pickTitle:'▶ 恢复会话', pickDesc:'选择要打开的会话。点击切换，(−)移除。', pickAll:'全选', pickSkip:'跳过', pickStart:'▶ 打开所选', confirmRemove:'从列表移除 "{t}"? (文件夹保留)', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', feedbackShort:'反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器', maxT:'放大 / 还原此窗口', tasksT:'显示/隐藏任务列表 (Ctrl+T)', imgT:'附加或粘贴图片', imgUploading:'上传中…', imgFail:'图片上传失败', winAskTitle:'在哪里打开此会话?', winAskRows:'⚠ 每格将窄于 300px。添加到本窗口会自动排成 2 行。', winNew:'🖥 在新窗口打开', winNewHint:'推荐 — 如果有双显示器，拖到另一屏更方便。', winCurrent:'➕ 添加到本窗口', winCurrentHint:'全部集中在此窗口。', updText:'更新', updTip:'有新版本 — 重启 PowerTerminal 自动更新' },
   es: { addSession:'＋ Sesión', qrToggle:'QR de acceso móvil on/off', infoBtn:'Direcciones de acceso',
     qrTitle:'📱 QR de Acceso Móvil', qrWarn:'⚠ Quien escanee este QR puede controlar las sesiones — compártelo solo con gente de confianza.',
     copyImg:'📋 Copiar', saveImg:'💾 Guardar', close:'Cerrar', cancel:'Cancelar', add:'Añadir',
@@ -392,7 +389,7 @@ const I18N = {
     infoHead:'📡 Direcciones de acceso', wifi:'Misma Wi-Fi', lte:'Acceso externo (cualquier lugar)', tunnelNone:'Túnel iniciándose o falta cloudflared', urlChanges:'(la URL cambia al reiniciar el servidor)',
     qrLte:'Desde cualquier lugar: ', qrWifi:'Misma Wi-Fi: ',
     copyOk:'Imagen QR copiada al portapapeles.', copyFail:'Copia bloqueada en este navegador — usa 💾 Guardar.',
-    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', mDefault:'Auto', modelTip:'Modelo IA — Auto usa el predet. de tu cuenta. Opus/Sonnet/Haiku van a la última versión.', pickTitle:'▶ Reanudar sesiones', pickDesc:'Elige qué sesiones abrir. Clic para alternar, (−) para quitar.', pickAll:'Todo', pickSkip:'Omitir', pickStart:'▶ Abrir seleccionadas', confirmRemove:'¿Quitar "{t}" de la lista? (la carpeta se conserva)', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', feedbackShort:'Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades', maxT:'Ampliar / restaurar este panel', imgT:'Adjuntar o pegar imagen', imgUploading:'subiendo…', imgFail:'Error al subir la imagen', winAskTitle:'¿Dónde abrir esta sesión?', winAskRows:'⚠ Los paneles quedan bajo 300px. Añadirla aquí los pondrá en 2 filas.', winNew:'🖥 Abrir en una ventana nueva', winNewHint:'Recomendado — si tienes un segundo monitor, arrástrala allí.', winCurrent:'➕ Añadir a esta ventana', winCurrentHint:'Mantiene todo aquí.', updText:'Actualizar', updTip:'Nueva versión — reinicia PowerTerminal para actualizar' }
+    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', mDefault:'Auto', modelTip:'Modelo IA — Auto usa el predet. de tu cuenta. Opus/Sonnet/Haiku van a la última versión.', pickTitle:'▶ Reanudar sesiones', pickDesc:'Elige qué sesiones abrir. Clic para alternar, (−) para quitar.', pickAll:'Todo', pickSkip:'Omitir', pickStart:'▶ Abrir seleccionadas', confirmRemove:'¿Quitar "{t}" de la lista? (la carpeta se conserva)', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', feedbackShort:'Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades', maxT:'Ampliar / restaurar este panel', tasksT:'Mostrar/ocultar la lista de tareas (Ctrl+T)', imgT:'Adjuntar o pegar imagen', imgUploading:'subiendo…', imgFail:'Error al subir la imagen', winAskTitle:'¿Dónde abrir esta sesión?', winAskRows:'⚠ Los paneles quedan bajo 300px. Añadirla aquí los pondrá en 2 filas.', winNew:'🖥 Abrir en una ventana nueva', winNewHint:'Recomendado — si tienes un segundo monitor, arrástrala allí.', winCurrent:'➕ Añadir a esta ventana', winCurrentHint:'Mantiene todo aquí.', updText:'Actualizar', updTip:'Nueva versión — reinicia PowerTerminal para actualizar' }
 };
 let LANG = localStorage.getItem('pt_lang') || 'en';
 if (!I18N[LANG]) LANG = 'en';
@@ -458,6 +455,7 @@ function buildPane(sess, idx) {
         <span class="num">${idx + 1}</span>
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
         <span class="st"></span>
+        <button class="small btnTasks" title="${T.tasksT}">☰</button>
         <button class="small btnMax" title="${T.maxT}">⛶</button>
         <button class="small btnPrev" title="${T.previewT}">👁</button>
         <button class="small btnFontM" title="${T.fontDn}">A-</button>
@@ -484,14 +482,14 @@ function buildPane(sess, idx) {
   // 터미널
   const term = new Terminal({
     fontSize: isMobile ? 11 : 13, fontFamily: 'Consolas, D2Coding, monospace',
-    theme: { background: '#1f2937' }, convertEol: false, scrollback: 5000
+    theme: { background: '#283543' }, convertEol: false, scrollback: 5000
   });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
-  // 터미널 안의 URL을 탭/클릭하면 새 탭으로 열기 (폰에서도 동작)
+  // 터미널 안의 URL 열기 — PC는 Ctrl/⌘+클릭 (실수 방지), 폰은 그냥 탭
   try {
     if (window.WebLinksAddon) term.loadAddon(new WebLinksAddon.WebLinksAddon(
-      (event, uri) => window.open(uri, '_blank', 'noopener')));
+      (event, uri) => { if (isMobile || event.ctrlKey || event.metaKey) window.open(uri, '_blank', 'noopener'); }));
   } catch (e) {}
   term.open(el.querySelector('.term'));
   fit.fit();
@@ -571,6 +569,13 @@ function buildPane(sess, idx) {
     ev.stopPropagation();
     sess.model = modelDrop.value;
     api('PATCH', '/api/sessions/' + sess.id, { model: modelDrop.value });
+  };
+
+  // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
+  el.querySelector('.btnTasks').onclick = ev => {
+    ev.stopPropagation();
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x14' }));
+    term.focus();
   };
 
   // ⛶ 확대 토글 — 이 창을 크게, 나머지는 얇게. 다시 누르면 원래대로
@@ -1076,14 +1081,7 @@ async function refreshBanner() {
       if (list.length > 1) setInterval(show, 8000);
     }
     if (b.feedbackUrl) feedbackUrl = b.feedbackUrl;
-    if (b.latestVersion && b.currentVersion &&
-        b.latestVersion.localeCompare(b.currentVersion, undefined, { numeric: true }) > 0) {
-      const u = document.getElementById('updChip');
-      u.textContent = '🔄 ' + (T.updText || 'Update');
-      u.href = b.updateUrl || '#';
-      u.title = (T.updTip || 'Update available — restart PowerTerminal to auto-update');
-      u.style.display = 'inline-block';
-    }
+    // 업데이트 알림 칩은 제거됨 — start.bat 재실행 시 git pull로 자동 업데이트되므로 불필요
   } catch (e) {}
 }
 refreshBanner();
