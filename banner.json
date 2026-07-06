@@ -1,5 +1,5 @@
 {
-  "latestVersion": "1.8.3",
+  "latestVersion": "1.8.2",
   "updateUrl": "https://github.com/1215kkm/PowerTerminal",
   "feedbackUrl": "https://github.com/1215kkm/PowerTerminal/issues/new",
   "banners": [
@@ -12,7 +12,8 @@
         "es": ""
       },
       "url": "https://crownyclass.com/community.html?board=showcase&mentorOnly=1",
-      "color": "#ec4899"
+      "color": "#ec4899",
+      "effect": "slide"
     }
   ]
 }
