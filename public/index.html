@@ -122,6 +122,9 @@
   .mp-body { padding: 12px 7px; font-size: 10px; color: var(--muted); min-height: 34px;
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mp-on { margin-left: auto; color: var(--green); font-size: 10px; flex: 0 0 auto; }
+  .mini-pane.on { border-color: var(--violet); background: #1c2740; }   /* 열려 있는 세션 = 밝게 */
+  .mini-pane.on .mp-head { background: #253352; }
+  .mini-pane.on .mp-title { color: #fff; }
   .mini-pane.off { opacity: .45; filter: grayscale(.75); }        /* 안 쓰는 세션 회색 */
   .mini-pane.off:hover { opacity: 1; filter: none; border-color: var(--green); }
 
@@ -1042,41 +1045,61 @@ function switchTab(tab) {
 
 // ---------- 세션 추가 ----------
 async function openAdd() {
-  const known = await api('GET', '/api/known-projects');
+  let known = [];
+  try { known = await api('GET', '/api/known-projects'); } catch (e) {}
   const list = document.getElementById('knownList');
-  list.className = 'known-grid';
+  list.className = '';
   list.innerHTML = '';
-  // 이전에 쓰던 세션들을 분할화면 축소판(미니 창)처럼 격자로 표시 — 클릭하면 그대로 추가
-  // 이 창에 열린 세션: path -> id (중복 생성 방지 + 클릭 시 그 창으로 이동)
   const norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
-  const openHere = new Map();
-  panes.forEach(p => openHere.set(norm(p.sess.path), p.sess.id));
-  known.forEach((k, i) => {
-    const nm = k.title || k.name || '';
+
+  const mini = (num, title, path, off) => {
     const c = document.createElement('div');
-    c.className = 'mini-pane' + (k.active ? '' : ' off');   // 안 쓰는(닫힌) 세션은 회색
-    c.title = k.path;
-    c.innerHTML = `<div class="mp-head"><span class="mp-num">${i + 1}</span>` +
-                  `<span class="mp-title">${esc(nm)}</span>` +
-                  (k.active ? '<span class="mp-on" title="열려 있음">●</span>' : '') + `</div>` +
-                  `<div class="mp-body">${esc(k.path)}</div>`;
-    c.onclick = async () => {
-      addDlg.close();
-      if (k.active) {   // 이미 열려 있음 → 새로 만들지 말고 그 창으로 이동
-        const id = openHere.get(norm(k.path));
-        const paneEl = id && grid.querySelector(`[data-id="${id}"]`);
-        if (paneEl) {
-          paneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          paneEl.style.transition = 'box-shadow .2s';
-          paneEl.style.boxShadow = '0 0 0 3px var(--pink)';
-          setTimeout(() => { paneEl.style.boxShadow = ''; }, 900);
-        }
-        return;
-      }
-      await addSession(k.path, nm, k.agent);   // 닫혀 있던 세션 → 다시 켜기
-    };
-    list.appendChild(c);
-  });
+    c.className = 'mini-pane' + (off ? ' off' : ' on');
+    c.title = path;
+    c.innerHTML = `<div class="mp-head"><span class="mp-num">${num}</span>` +
+                  `<span class="mp-title">${esc(title)}</span>` +
+                  (off ? '' : '<span class="mp-on">●</span>') + `</div>` +
+                  `<div class="mp-body">${esc(path)}</div>`;
+    return c;
+  };
+
+  // ① 현재 열린 세션 — 지금 PC 화면과 똑같은 가로 배열·순서·번호 (밝게). 클릭 = 그 창으로 이동
+  const openEls = [...grid.children];
+  const openPaths = new Set();
+  if (openEls.length) {
+    const row = document.createElement('div');
+    row.style.cssText = `display:grid;grid-template-columns:repeat(${openEls.length},1fr);gap:8px;margin-bottom:10px`;
+    openEls.forEach((paneEl, i) => {
+      const p = panes.get(paneEl.dataset.id);
+      if (!p) return;
+      openPaths.add(norm(p.sess.path));
+      const c = mini(i + 1, p.sess.title, p.sess.path, false);
+      c.onclick = () => {
+        addDlg.close();
+        paneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        paneEl.style.transition = 'box-shadow .2s';
+        paneEl.style.boxShadow = '0 0 0 3px var(--pink)';
+        setTimeout(() => { paneEl.style.boxShadow = ''; }, 900);
+      };
+      row.appendChild(c);
+    });
+    list.appendChild(row);
+  }
+
+  // ② 닫힌(안 쓰는) 세션 — 회색. 클릭 = 다시 켜기
+  const offItems = known.filter(k => k.path && !openPaths.has(norm(k.path)));
+  if (offItems.length) {
+    const offGrid = document.createElement('div');
+    offGrid.className = 'known-grid';
+    offItems.forEach((k, i) => {
+      const nm = k.title || k.name || '';
+      const c = mini(openEls.length + i + 1, nm, k.path, true);
+      c.onclick = async () => { addDlg.close(); await addSession(k.path, nm, k.agent); };
+      offGrid.appendChild(c);
+    });
+    list.appendChild(offGrid);
+  }
+
   document.getElementById('browser').style.display = 'none';
   switchTab('folder');
   addDlg.showModal();
