@@ -853,6 +853,17 @@ function renumber() {
   [...grid.children].forEach((el, i) => el.querySelector('.num').textContent = i + 1);
   renderMinimap();
 }
+// ---- 화면 배열(순서) 기억 — 재시작해도 같은 배열로 복원 ----
+const normPath = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+function saveOrder() {
+  if (!IS_MAIN) return;   // 팝업 창이 메인 배열을 덮어쓰지 않게
+  const order = [...grid.children].map(el => { const p = panes.get(el.dataset.id); return p ? normPath(p.sess.path) : null; }).filter(Boolean);
+  if (order.length) localStorage.setItem('pt_order', JSON.stringify(order));
+}
+function orderRank(path) {
+  try { const o = JSON.parse(localStorage.getItem('pt_order') || '[]'); const i = o.indexOf(normPath(path)); return i < 0 ? 999 : i; }
+  catch (e) { return 999; }
+}
 function esc(s) { return (s || '').replace(/</g, '&lt;'); }
 // 터미널 출력에서 실제 모델 감지 ("Set model to Fable 5", "Kept model as Opus 4.8" 등)
 function detectModel(text) {
@@ -894,6 +905,7 @@ function renderMinimap() {
     mm.appendChild(cell);
   });
   applyLayout();
+  saveOrder();   // 배열이 바뀔 때마다 현재 순서 기억 → 재시작 시 그대로 복원
   if (typeof syncStickyOffset === 'function') syncStickyOffset();
 }
 
@@ -1440,7 +1452,9 @@ function renderPicker() {
 function pickToggleAll(on) { pickList.forEach(s => s._sel = on); renderPicker(); }
 async function pickStart() {
   pickDlg.close();
-  for (const s of pickList) {
+  // 종료 전 화면 배열 순서대로 세움 (기억된 순서에 없던 건 뒤로)
+  const ordered = [...pickList].sort((a, b) => orderRank(a.path) - orderRank(b.path));
+  for (const s of ordered) {
     const isPane = panes.has(s.id);
     if (s._sel && !isPane) {
       if (s._new) {   // 최근 닫은 세션 → 서버에 새로 만들어 켜기
@@ -1469,6 +1483,7 @@ async function openPicker() {
       pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, _sel: false, _new: true });
     });
   } catch (e) {}
+  pickList.sort((a, b) => orderRank(a.path) - orderRank(b.path));
   renderPicker();
   pickDlg.showModal();
 }
@@ -1529,7 +1544,8 @@ applyStatic();
   }
 
   const mine  = list.filter(s => !popped.has(s.id));
-  const alive = mine.filter(s => s.alive);   // 서버가 계속 켜져 있던 경우(새로고침) — 그대로 복원
+  const alive = mine.filter(s => s.alive)    // 서버가 계속 켜져 있던 경우(새로고침) — 그대로 복원
+                    .sort((a, b) => orderRank(a.path) - orderRank(b.path));   // 기억된 화면 배열 순서로
   const idle  = mine.filter(s => !s.alive);  // 껐다 켠 경우 — 선택창으로
 
   alive.forEach((s, i) => buildPane(s, i));
@@ -1547,6 +1563,7 @@ applyStatic();
       have.add(nrm(k.path));
     });
   } catch (e) {}
+  pickList.sort((a, b) => orderRank(a.path) - orderRank(b.path));   // 선택창도 기억된 배열 순서로
   if (pickList.length) {
     renderPicker();
     pickDlg.showModal();
