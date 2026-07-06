@@ -355,15 +355,43 @@ app.post('/api/admin/banner', (req, res) => {
     feedbackUrl: b.feedbackUrl || 'https://github.com/1215kkm/PowerTerminal/issues/new',
     banners: Array.isArray(b.banners) ? b.banners : []
   };
+  // 로컬 저장은 항상 성공시키고, GitHub 푸시는 별도로 시도 (실패해도 로컬 배너는 반영됨)
   try {
     fs.writeFileSync(path.join(ROOT, 'banner.json'), JSON.stringify(out, null, 2) + '\n');
+    bannerCache = { t: 0, data: null };   // 캐시 비워 로컬 변경 즉시 반영
+  } catch (e) {
+    return res.status(500).json({ error: '로컬 저장 실패: ' + ((e.message || '') + '').slice(0, 200) });
+  }
+  try {
+    const gitId = ['-c', 'user.name=PowerTerminal', '-c', 'user.email=noreply@powerterminal'];
     execFileSync('git', ['add', 'banner.json'], { cwd: ROOT });
-    execFileSync('git', ['commit', '-m', 'banner: update'], { cwd: ROOT });
+    // 변경이 없으면 커밋 생략
+    const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: ROOT, encoding: 'utf8' });
+    if (staged.trim()) execFileSync('git', [...gitId, 'commit', '-m', 'banner: update'], { cwd: ROOT });
     execFileSync('git', ['push'], { cwd: ROOT, timeout: 30000 });
-    bannerCache = { t: 0, data: null };
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: (e.stderr || e.message || '').toString().slice(0, 300) });
+    // 로컬엔 저장됨 — 전 사용자 반영(푸시)만 실패
+    res.json({ ok: true, warning: 'GitHub 발행(푸시) 실패 — 이 PC에는 저장됐습니다. ' + (e.stderr || e.message || '').toString().slice(0, 200) });
+  }
+});
+
+// 관리자 자동 번역 (이 PC에서만) — 한글 문구를 여러 언어로. 무료 공개 번역 엔드포인트 사용
+app.get('/api/admin/translate', async (req, res) => {
+  const ip = req.socket.remoteAddress || '';
+  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) return res.status(403).json({ error: 'localhost only' });
+  const text = (req.query.text || '').toString();
+  const to = (req.query.to || 'en').toString();
+  if (!text) return res.json({ text: '' });
+  try {
+    const u = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' +
+              encodeURIComponent(to) + '&dt=t&q=' + encodeURIComponent(text);
+    const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
+    const j = await r.json();
+    const out = (j[0] || []).map(seg => seg[0]).join('');
+    res.json({ text: out || text });
+  } catch (e) {
+    res.status(500).json({ error: (e.message || '') + '' });
   }
 });
 

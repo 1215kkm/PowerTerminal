@@ -74,16 +74,26 @@ async function api(method, url, body) {
 }
 
 function bannerCard(b, i) {
+  const t = b.text || {};
   const d = document.createElement('div');
   d.className = 'card';
   d.innerHTML = `
+    <label>문구 (한국어) — 여기에 쓰고 '자동 번역'을 누르면 나머지 언어가 채워집니다</label>
     <div class="row">
-      <div><label>문구 (한국어)</label><input data-k="ko" value="${esc(b.text?.ko || '')}"></div>
-      <div><label>문구 (English)</label><input data-k="en" value="${esc(b.text?.en || '')}"></div>
+      <input data-k="ko" value="${esc(t.ko || '')}" placeholder="예: 🚀 폰에서도 Claude Code를, 어디서든">
+      <button style="flex:0 0 auto" onclick="translateBanner(${i})">🌐 자동 번역</button>
     </div>
     <div class="row">
+      <div><label>English</label><input data-k="en" value="${esc(t.en || '')}"></div>
+      <div><label>日本語</label><input data-k="ja" value="${esc(t.ja || '')}"></div>
+    </div>
+    <div class="row">
+      <div><label>中文</label><input data-k="zh" value="${esc(t.zh || '')}"></div>
+      <div><label>Español</label><input data-k="es" value="${esc(t.es || '')}"></div>
+    </div>
+    <div class="row" style="align-items:end">
       <div><label>클릭 시 이동할 주소 (페이지·유튜브 영상 등)</label><input data-k="url" value="${esc(b.url || '')}"></div>
-      <div style="flex:0 0 130px"><label>배경색 (비우면 기본)</label><input data-k="color" value="${esc(b.color || '')}" placeholder="#EC4899"></div>
+      <div style="flex:0 0 110px"><label>배경색</label><input type="color" data-k="color" value="${/^#[0-9a-fA-F]{6}$/.test(b.color || '') ? b.color : '#EC4899'}" style="height:40px;padding:2px;cursor:pointer"></div>
     </div>
     <label>이미지 주소 (선택 — 배너 안에 작은 로고/아이콘으로 표시)</label>
     <input data-k="image" value="${esc(b.image || '')}" placeholder="https://.../logo.png">
@@ -104,15 +114,32 @@ function render() {
 function collect() {
   const cards = [...document.querySelectorAll('#banners .card')];
   data.banners = cards.map(c => {
-    const v = k => c.querySelector(`[data-k="${k}"]`).value.trim();
-    const b = { text: { ko: v('ko'), en: v('en') }, url: v('url') };
+    const v = k => { const el = c.querySelector(`[data-k="${k}"]`); return el ? el.value.trim() : ''; };
+    const b = { text: { ko: v('ko'), en: v('en'), ja: v('ja'), zh: v('zh'), es: v('es') }, url: v('url') };
     if (v('color')) b.color = v('color');
     if (v('image')) b.image = v('image');
     return b;
-  }).filter(b => b.text.ko || b.text.en);
+  }).filter(b => Object.values(b.text).some(x => x));
   data.latestVersion = document.getElementById('latestVersion').value.trim();
   data.updateUrl = document.getElementById('updateUrl').value.trim();
   data.feedbackUrl = document.getElementById('feedbackUrl').value.trim();
+}
+// 한국어 문구를 영·일·중·스페인어로 자동 번역해서 채움
+async function translateBanner(i) {
+  collect();
+  const ko = (data.banners[i] && data.banners[i].text.ko || '').trim();
+  if (!ko) { alert('먼저 한국어 문구를 입력하세요.'); return; }
+  const targets = { en: 'en', ja: 'ja', zh: 'zh-CN', es: 'es' };
+  const st = document.getElementById('status');
+  st.textContent = '🌐 번역 중...';
+  for (const [key, code] of Object.entries(targets)) {
+    try {
+      const r = await api('GET', '/api/admin/translate?text=' + encodeURIComponent(ko) + '&to=' + code);
+      if (r && r.text) data.banners[i].text[key] = r.text;
+    } catch (e) {}
+  }
+  st.textContent = '✅ 번역 완료 — 문구를 확인한 뒤 아래 [발행]을 누르세요.';
+  render();
 }
 function preview() {
   const b = data.banners[0];
@@ -139,9 +166,10 @@ async function publish() {
   collect();
   document.getElementById('status').textContent = '발행 중...';
   const r = await api('POST', '/api/admin/banner', data);
-  document.getElementById('status').textContent = r.ok
-    ? '✅ 발행 완료 — 모든 사용자에게 10분 안에 반영됩니다.'
-    : '❌ 실패: ' + (r.error || '');
+  document.getElementById('status').textContent =
+      r.error   ? '❌ 실패: ' + r.error
+    : r.warning ? '⚠ ' + r.warning
+    :             '✅ 발행 완료 — 모든 사용자에게 10분 안에 반영됩니다.';
 }
 load();
 </script>
