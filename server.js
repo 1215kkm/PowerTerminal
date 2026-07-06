@@ -252,23 +252,27 @@ CLOUDFLARED_PATH = CLOUDFLARED;
 
 // ---------- AI 사용량: 공식 한도 %(그래프) + 로컬 비용($) 를 항상 같이 반환 ----------
 let usageCache = { t: 0, data: null };
-let costCache = { t: 0, val: null };   // ccusage 비용은 10분 캐시 (무겁고 자주 안 변함)
+let costCache = { t: 0, val: null, p: null };   // ccusage 비용은 10분 캐시 (무겁고 자주 안 변함)
+const USAGE_LAST = path.join(ROOT, 'usage-last.json');   // 마지막 성공 그래프 — 재시작 후에도 유지
 function refreshCost() {
-  if (Date.now() - costCache.t < 10 * 60 * 1000) return;
+  if (costCache.val !== null && Date.now() - costCache.t < 10 * 60 * 1000) return costCache.p || Promise.resolve();
   costCache.t = Date.now();
   const cli = path.join(ROOT, 'node_modules', 'ccusage', 'src', 'cli.js');
   // 비동기 실행 — 동기(execFileSync)로 돌리면 그 몇 초간 서버 전체(터미널 출력까지)가 멈춘다
-  execFile(process.execPath, [cli, 'daily', '--json'], { encoding: 'utf8', timeout: 30000, windowsHide: true },
-    (err, out) => {
-      if (err) return;   // 실패 시 이전 값 유지
-      try {
-        const j = JSON.parse(out);
-        const days = j.daily || [];
-        const today = days.find(d => d.period === new Date().toISOString().slice(0, 10)) || { totalCost: 0 };
-        const week = days.slice(-7).reduce((a, d) => a + (d.totalCost || 0), 0);
-        costCache.val = { todayCost: today.totalCost || 0, weekCost: week };
-      } catch (e) {}
-    });
+  costCache.p = new Promise(resolve => {
+    execFile(process.execPath, [cli, 'daily', '--json'], { encoding: 'utf8', timeout: 30000, windowsHide: true },
+      (err, out) => {
+        if (!err) try {
+          const j = JSON.parse(out);
+          const days = j.daily || [];
+          const today = days.find(d => d.period === new Date().toISOString().slice(0, 10)) || { totalCost: 0 };
+          const week = days.slice(-7).reduce((a, d) => a + (d.totalCost || 0), 0);
+          costCache.val = { todayCost: today.totalCost || 0, weekCost: week };
+        } catch (e) {}
+        resolve();
+      });
+  });
+  return costCache.p;
 }
 app.get('/api/usage', async (req, res) => {
   // 2분 캐시 — 너무 자주 조회하면 공식 API가 429(rate limit)로 잠시 막는다
@@ -292,13 +296,17 @@ app.get('/api/usage', async (req, res) => {
       });
     }
   } catch (e) {
-    // 일시 실패 시 직전 그래프 유지 — 그래프↔텍스트 왔다갔다 방지
+    // 일시 실패(429 등) 시 직전 그래프 유지 — 재시작 후에는 파일에서 복원
     if (usageCache.data && usageCache.data.bars && usageCache.data.bars.length) data.bars = usageCache.data.bars;
+    else { try { data.bars = readJson(USAGE_LAST) || []; } catch (e2) {} }
   }
-  refreshCost();
-  if (costCache.val) data.fallback = costCache.val;   // $비용은 그래프와 '함께' 병기
+  if (data.bars.length) { try { fs.writeFileSync(USAGE_LAST, JSON.stringify(data.bars)); } catch (e) {} }
+  const cp = refreshCost();
+  if (!costCache.val) { try { await cp; } catch (e) {} }   // 첫 조회는 $비용 계산을 기다림 (빈 화면 방지)
+  if (costCache.val) data.fallback = costCache.val;        // $비용은 그래프와 '함께' 병기
   if (!data.bars.length && !data.fallback) data.error = '사용량 조회 실패';
-  usageCache = { t: Date.now(), data };
+  // 성공은 2분 캐시, 빈 결과는 30초 후 재시도
+  usageCache = { t: data.bars.length ? Date.now() : Date.now() - 90 * 1000, data };
   res.json(data);
 });
 
