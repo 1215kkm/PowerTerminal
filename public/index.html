@@ -135,6 +135,9 @@
     /* 이미지 첨부/찾기 버튼 — 폰에서 누르기 쉽게 크게 */
     .quick .qImg { font-size: 20px; padding: 8px 12px; }
     .quick .qSend { padding: 8px 12px; }
+    /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
+    #qrCols { flex-direction: column !important; align-items: center; }
+    #qrCols > div { width: 100%; }
   }
 
   /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */
@@ -1226,7 +1229,7 @@ applyStatic();
   renderMinimap();
 
   if (idle.length) {
-    pickList = idle.map(s => ({ ...s, _sel: alive.length === 0 && idle.length === 1 })); // 딱 1개면 기본 선택
+    pickList = idle.map(s => ({ ...s, _sel: true })); // 기본: 전부 선택 → 재시작하면 이전 분할 배치 그대로 복원 (원치 않는 건 체크 해제)
     renderPicker();
     pickDlg.showModal();
   }
