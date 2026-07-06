@@ -111,6 +111,30 @@ app.get('/api/sessions', (req, res) => {
   }));
 });
 
+// 폴더 탐색 (세션 추가 시 마우스로 폴더 고르기 — 폰에서도 동작)
+app.get('/api/browse', (req, res) => {
+  const dir = (req.query.dir || '').toString();
+  try {
+    if (!dir) {
+      // 드라이브 목록
+      const drives = [];
+      for (let c = 65; c <= 90; c++) {
+        const d = String.fromCharCode(c) + ':\\';
+        try { if (fs.existsSync(d)) drives.push(d); } catch (e) {}
+      }
+      return res.json({ dir: '', parent: null, folders: drives });
+    }
+    const folders = fs.readdirSync(dir, { withFileTypes: true })
+      .filter(e => e.isDirectory() && !e.name.startsWith('$') && e.name !== 'System Volume Information')
+      .map(e => e.name)
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+    const parent = path.dirname(dir) === dir ? '' : path.dirname(dir);
+    res.json({ dir, parent, folders });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.get('/api/known-projects', (req, res) => {
   try {
     const cfg = readJson(LAUNCHER_PROJECTS);
