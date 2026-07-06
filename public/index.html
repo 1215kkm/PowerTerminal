@@ -628,7 +628,11 @@ function renderMinimap() {
       // 클릭한 탭 강조 + 연결된 화면 잠깐 반짝 → 몇번 탭이 몇번 화면인지 직관적으로
       mm.querySelectorAll('.mm-cell').forEach(c => c.classList.remove('active'));
       cell.classList.add('active');
-      paneEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // 고정 헤더+탭메뉴 높이만큼 빼서 스크롤 — 제목이 가려지지 않게
+      const hdr = document.querySelector('header');
+      const overlay = (hdr ? hdr.offsetHeight : 0) + mm.offsetHeight + 6;
+      const y = paneEl.getBoundingClientRect().top + window.scrollY - overlay;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
       paneEl.style.transition = 'box-shadow .2s';
       paneEl.style.boxShadow = '0 0 0 3px var(--pink)';
       setTimeout(() => { paneEl.style.boxShadow = ''; }, 900);
