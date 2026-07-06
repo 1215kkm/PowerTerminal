@@ -92,6 +92,20 @@
   dialog input { width: 100%; background: #111827; border: 1px solid var(--line); color: var(--fg);
                  border-radius: 8px; padding: 9px 10px; margin: 4px 0; font-family: inherit; }
 
+  /* 세션 추가창: 이전 세션을 분할화면 축소판(미니 창)처럼 표시 */
+  .known-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .mini-pane { border: 2px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer;
+               background: #111827; transition: border-color .15s, transform .1s; }
+  .mini-pane:hover { border-color: var(--violet); transform: translateY(-1px); }
+  .mp-head { display: flex; align-items: center; gap: 6px; padding: 5px 7px;
+             background: #1f2937; border-bottom: 1px solid var(--line); }
+  .mp-num { min-width: 18px; height: 18px; border-radius: 5px; font-size: 11px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+            background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
+  .mp-title { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-body { padding: 12px 7px; font-size: 10px; color: var(--muted); min-height: 34px;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* 상단 사용량 막대 (공식 사용량 화면과 같은 %) */
   #usage { display: flex; gap: 14px; align-items: center; }
   .ub { display: inline-flex; align-items: center; gap: 6px; }
@@ -217,7 +231,7 @@
 
   <!-- 로컬 폴더: 최근 프로젝트 + 폴더 탐색기(격자). 폴더 선택=즉시 추가 -->
   <div id="tab-folder">
-    <div id="knownList" style="max-height:22vh;overflow:auto;margin-bottom:8px"></div>
+    <div id="knownList" style="max-height:32vh;overflow:auto;margin-bottom:8px"></div>
     <div style="display:flex;gap:6px">
       <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
       <button onclick="toggleBrowse()" data-i18n="browse" style="white-space:nowrap">📂 찾아보기</button>
@@ -265,6 +279,21 @@
   </div>
 </dialog>
 
+<dialog id="winDlg" style="width:440px">
+  <h3 data-i18n="winAskTitle" style="margin:0 0 8px">Where should this session open?</h3>
+  <p id="winNote" style="font-size:12px;color:#fbbf24;margin:0 0 12px"></p>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button class="wc-new primary" style="text-align:left;padding:12px 14px">
+      <div style="font-weight:700" data-i18n="winNew">🖥 Open in a new window</div>
+      <div style="font-size:11px;opacity:.9;font-weight:400" data-i18n="winNewHint">Recommended — if you have a second monitor, drag it over there.</div>
+    </button>
+    <button class="wc-cur" style="text-align:left;padding:12px 14px">
+      <div style="font-weight:700" data-i18n="winCurrent">➕ Add to this window</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:400" data-i18n="winCurrentHint">Keeps everything here.</div>
+    </button>
+  </div>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script src="/vendor/qrcode.js"></script>
@@ -290,7 +319,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', feedbackShort:'Request', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', feedbackShort:'Request', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -307,7 +336,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청', feedbackShort:'요청', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청', feedbackShort:'요청', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -324,7 +353,7 @@ const I18N = {
     infoHead:'📡 接続アドレス', wifi:'同じWi-Fi', lte:'外部アクセス (どこでも)', tunnelNone:'トンネル準備中またはcloudflared未設置', urlChanges:'(サーバー再起動でURLが変わります)',
     qrLte:'LTEでどこからでも: ', qrWifi:'同じWi-Fi: ',
     copyOk:'QR画像をコピーしました。', copyFail:'このブラウザではコピーできません — 💾 保存を使ってください。',
-    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', mDefault:'自動', modelTip:'AIモデル — 自動はアカウント既定を使用。Opus/Sonnet/Haikuは常に最新版。', pickTitle:'▶ セッションを再開', pickDesc:'開くセッションを選択。クリックで選択、(−)で削除。', pickAll:'すべて選択', pickSkip:'スキップ', pickStart:'▶ 選択を開く', confirmRemove:'"{t}" をリストから削除? (フォルダは残る)', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', feedbackShort:'リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ', maxT:'この画面を拡大 / 元に戻す', imgT:'画像を添付・貼り付け', imgUploading:'アップロード中…', imgFail:'画像アップロード失敗' },
+    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', mDefault:'自動', modelTip:'AIモデル — 自動はアカウント既定を使用。Opus/Sonnet/Haikuは常に最新版。', pickTitle:'▶ セッションを再開', pickDesc:'開くセッションを選択。クリックで選択、(−)で削除。', pickAll:'すべて選択', pickSkip:'スキップ', pickStart:'▶ 選択を開く', confirmRemove:'"{t}" をリストから削除? (フォルダは残る)', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', feedbackShort:'リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ', maxT:'この画面を拡大 / 元に戻す', imgT:'画像を添付・貼り付け', imgUploading:'アップロード中…', imgFail:'画像アップロード失敗', winAskTitle:'このセッションをどこで開きますか?', winAskRows:'⚠ 1枠が300px未満に狭くなります。この画面に追加すると2段に配置されます。', winNew:'🖥 新しいウィンドウで開く', winNewHint:'推奨 — デュアルモニターがあれば別画面に移すと便利です。', winCurrent:'➕ この画面に追加', winCurrentHint:'すべてこの画面にまとめます。' },
   zh: { addSession:'＋ 添加会话', qrToggle:'移动端二维码 开/关', infoBtn:'访问地址',
     qrTitle:'📱 移动端访问二维码', qrWarn:'⚠ 扫码者可同样操作会话 — 仅分享给信任的人。',
     copyImg:'📋 复制', saveImg:'💾 保存', close:'关闭', cancel:'取消', add:'添加',
@@ -341,7 +370,7 @@ const I18N = {
     infoHead:'📡 访问地址', wifi:'同一Wi-Fi', lte:'外部访问 (任何地方)', tunnelNone:'隧道启动中或未安装cloudflared', urlChanges:'(服务器重启后地址会变)',
     qrLte:'LTE 任何地方: ', qrWifi:'同一Wi-Fi: ',
     copyOk:'二维码已复制到剪贴板。', copyFail:'此浏览器禁止复制 — 请用 💾 保存。',
-    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', mDefault:'自动', modelTip:'AI模型 — 自动使用账户默认。Opus/Sonnet/Haiku自动映射到最新版本。', pickTitle:'▶ 恢复会话', pickDesc:'选择要打开的会话。点击切换，(−)移除。', pickAll:'全选', pickSkip:'跳过', pickStart:'▶ 打开所选', confirmRemove:'从列表移除 "{t}"? (文件夹保留)', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', feedbackShort:'反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器', maxT:'放大 / 还原此窗口', imgT:'附加或粘贴图片', imgUploading:'上传中…', imgFail:'图片上传失败' },
+    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', mDefault:'自动', modelTip:'AI模型 — 自动使用账户默认。Opus/Sonnet/Haiku自动映射到最新版本。', pickTitle:'▶ 恢复会话', pickDesc:'选择要打开的会话。点击切换，(−)移除。', pickAll:'全选', pickSkip:'跳过', pickStart:'▶ 打开所选', confirmRemove:'从列表移除 "{t}"? (文件夹保留)', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', feedbackShort:'反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器', maxT:'放大 / 还原此窗口', imgT:'附加或粘贴图片', imgUploading:'上传中…', imgFail:'图片上传失败', winAskTitle:'在哪里打开此会话?', winAskRows:'⚠ 每格将窄于 300px。添加到本窗口会自动排成 2 行。', winNew:'🖥 在新窗口打开', winNewHint:'推荐 — 如果有双显示器，拖到另一屏更方便。', winCurrent:'➕ 添加到本窗口', winCurrentHint:'全部集中在此窗口。' },
   es: { addSession:'＋ Sesión', qrToggle:'QR de acceso móvil on/off', infoBtn:'Direcciones de acceso',
     qrTitle:'📱 QR de Acceso Móvil', qrWarn:'⚠ Quien escanee este QR puede controlar las sesiones — compártelo solo con gente de confianza.',
     copyImg:'📋 Copiar', saveImg:'💾 Guardar', close:'Cerrar', cancel:'Cancelar', add:'Añadir',
@@ -358,7 +387,7 @@ const I18N = {
     infoHead:'📡 Direcciones de acceso', wifi:'Misma Wi-Fi', lte:'Acceso externo (cualquier lugar)', tunnelNone:'Túnel iniciándose o falta cloudflared', urlChanges:'(la URL cambia al reiniciar el servidor)',
     qrLte:'Desde cualquier lugar: ', qrWifi:'Misma Wi-Fi: ',
     copyOk:'Imagen QR copiada al portapapeles.', copyFail:'Copia bloqueada en este navegador — usa 💾 Guardar.',
-    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', mDefault:'Auto', modelTip:'Modelo IA — Auto usa el predet. de tu cuenta. Opus/Sonnet/Haiku van a la última versión.', pickTitle:'▶ Reanudar sesiones', pickDesc:'Elige qué sesiones abrir. Clic para alternar, (−) para quitar.', pickAll:'Todo', pickSkip:'Omitir', pickStart:'▶ Abrir seleccionadas', confirmRemove:'¿Quitar "{t}" de la lista? (la carpeta se conserva)', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', feedbackShort:'Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades', maxT:'Ampliar / restaurar este panel', imgT:'Adjuntar o pegar imagen', imgUploading:'subiendo…', imgFail:'Error al subir la imagen' }
+    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', mDefault:'Auto', modelTip:'Modelo IA — Auto usa el predet. de tu cuenta. Opus/Sonnet/Haiku van a la última versión.', pickTitle:'▶ Reanudar sesiones', pickDesc:'Elige qué sesiones abrir. Clic para alternar, (−) para quitar.', pickAll:'Todo', pickSkip:'Omitir', pickStart:'▶ Abrir seleccionadas', confirmRemove:'¿Quitar "{t}" de la lista? (la carpeta se conserva)', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', feedbackShort:'Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades', maxT:'Ampliar / restaurar este panel', imgT:'Adjuntar o pegar imagen', imgUploading:'subiendo…', imgFail:'Error al subir la imagen', winAskTitle:'¿Dónde abrir esta sesión?', winAskRows:'⚠ Los paneles quedan bajo 300px. Añadirla aquí los pondrá en 2 filas.', winNew:'🖥 Abrir en una ventana nueva', winNewHint:'Recomendado — si tienes un segundo monitor, arrástrala allí.', winCurrent:'➕ Añadir a esta ventana', winCurrentHint:'Mantiene todo aquí.' }
 };
 let LANG = localStorage.getItem('pt_lang') || 'en';
 if (!I18N[LANG]) LANG = 'en';
@@ -380,6 +409,25 @@ const addDlg = document.getElementById('addDlg');
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
 const isMobile = matchMedia('(max-width: 700px)').matches;
 let maxedId = null;        // 확대(포커스) 중인 세션 id — null이면 일반 격자
+const MIN_W = 300;         // 세션 한 칸 최소 폭 — 이보다 좁아지면 2줄/새 창 안내
+
+// ---------- 여러 창 분산 (창이 좁아지면 다른 브라우저 창으로) ----------
+// 팝업 창은 URL ?wsess=<id,id> 로 자기 세션만 표시. main 창은 나머지를 표시.
+const _q = new URLSearchParams(location.search);
+const WSET = new Set((_q.get('wsess') || '').split(',').filter(Boolean));
+const IS_MAIN = WSET.size === 0;
+function getPopped() {                       // 다른 창이 가져간(=이 창에서 숨길) 세션 id 집합
+  try { return new Set(JSON.parse(localStorage.getItem('pt_popped') || '[]')); } catch (e) { return new Set(); }
+}
+function setPopped(set) { localStorage.setItem('pt_popped', JSON.stringify([...set])); }
+function addPopped(ids) { const s = getPopped(); ids.forEach(i => s.add(i)); setPopped(s); }
+function removePopped(ids) { const s = getPopped(); ids.forEach(i => s.delete(i)); setPopped(s); }
+// 이 창에 이 세션을 그릴지 여부
+function belongsHere(id) {
+  if (isMobile) return true;                 // 폰은 항상 전체 표시
+  if (!IS_MAIN) return WSET.has(id);          // 팝업 창: 자기 것만
+  return !getPopped().has(id);                // main 창: 남이 안 가져간 것만
+}
 
 async function api(method, url, body) {
   const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, {
@@ -598,7 +646,18 @@ function buildPane(sess, idx) {
     }
   });
 
-  panes.set(sess.id, { el, term, fit, ws, sess });
+  // 이 창에서만 제거 (서버 세션은 유지) — 다른 창이 가져갈 때 사용. 재접속 방지 위해 closedByUser 설정
+  const kill = () => { closedByUser = true; try { ws.close(); } catch (e) {} };
+  panes.set(sess.id, { el, term, fit, ws, sess, kill });
+}
+
+// 이 창에서만 패널 제거 (서버 세션 유지)
+function removePaneLocal(id) {
+  const p = panes.get(id);
+  if (!p) return;
+  if (p.kill) p.kill();
+  p.el.remove();
+  panes.delete(id);
 }
 
 function setDone(el, done) {
@@ -675,10 +734,13 @@ function applyLayout() {
 
   grid.style.gridTemplateRows = '';
   grid.style.height = '';
-  const cols = n <= 1 ? 1 : (n <= 4 ? 2 : 3);
+  // 1=전체 · 2=좌우 반반 · 3개↑=가로로 나란히 (한 줄).
+  // 한 칸이 MIN_W(300px) 미만으로 좁아지면 2줄로 접어서 배치.
+  if (n <= 1) { grid.style.gridTemplateColumns = '1fr'; return; }
+  if (n === 2) { grid.style.gridTemplateColumns = 'repeat(2, 1fr)'; return; }
+  const gw = grid.clientWidth || window.innerWidth;
+  const cols = (gw / n >= MIN_W) ? n : Math.ceil(n / 2);   // 한 줄로 충분하면 n열, 아니면 2줄
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  const rem = n % cols;
-  if (rem === 1 && n > 1) els[n - 1].style.gridColumn = '1 / -1';   // 마지막 홀수 칸은 전체폭
 }
 
 // ---------- 📱 QR + 접속 주소 (켜고 끄기 · 복사 · 저장) ----------
@@ -788,8 +850,7 @@ async function newProject() {
   if (r.error) { alert(r.error); return; }
   addDlg.close();
   document.getElementById('npName').value = '';
-  buildPane(r, grid.children.length);
-  renderMinimap();
+  await placeNewSession(r);
   if (r.ghError) alert('⚠ ' + r.ghError + '\n' + T.ghLocal);
   else if (r.repoUrl) console.log('GitHub: ' + r.repoUrl);
 }
@@ -844,13 +905,18 @@ function switchTab(tab) {
 async function openAdd() {
   const known = await api('GET', '/api/known-projects');
   const list = document.getElementById('knownList');
+  list.className = 'known-grid';
   list.innerHTML = '';
-  known.forEach(k => {
-    const b = document.createElement('button');
-    b.className = 'proj';
-    b.textContent = '📁 ' + k.name;
-    b.onclick = async () => { addDlg.close(); await addSession(k.path, k.name); };
-    list.appendChild(b);
+  // 이전에 쓰던 세션들을 분할화면 축소판(미니 창)처럼 격자로 표시 — 클릭하면 그대로 추가
+  known.forEach((k, i) => {
+    const c = document.createElement('div');
+    c.className = 'mini-pane';
+    c.title = k.path;
+    c.innerHTML = `<div class="mp-head"><span class="mp-num">${i + 1}</span>` +
+                  `<span class="mp-title">${esc(k.name)}</span></div>` +
+                  `<div class="mp-body">${esc(k.path)}</div>`;
+    c.onclick = async () => { addDlg.close(); await addSession(k.path, k.name); };
+    list.appendChild(c);
   });
   document.getElementById('browser').style.display = 'none';
   switchTab('folder');
@@ -882,8 +948,7 @@ async function doClone(url) {
   btn.disabled = false; btn.textContent = old;
   if (r.error) { alert(r.error); return; }
   addDlg.close();
-  buildPane(r, grid.children.length);
-  renderMinimap();
+  await placeNewSession(r);
 }
 async function addManual() {
   const p = document.getElementById('addPath').value.trim();
@@ -901,8 +966,51 @@ async function addSession(path, title, agent, cmd) {
   const pick = document.getElementById('addAgent').value;
   const s = await api('POST', '/api/sessions', { path, title, agent: agent || pick, cmd });
   if (s.error) { alert(s.error); return; }
+  await placeNewSession(s);
+}
+
+// 새 세션을 어디에 열지 결정: 이 창 / 새 창 (5개↑ 또는 폭이 너무 좁아지면 물어봄)
+async function placeNewSession(s) {
+  const next = grid.children.length + 1;
+  const gw = grid.clientWidth || window.innerWidth;
+  const tooNarrow = next >= 3 && (gw / next < MIN_W);   // 한 줄로 놓으면 한 칸이 300px 미만
+  let target = 'current';
+  if (!isMobile && (next >= 5 || tooNarrow)) {
+    target = await askWindowChoice(tooNarrow);          // 좁으면 "이 창=2줄" 안내 포함
+  }
+  if (target === 'new') openInNewWindow(s);
+  else addHere(s);
+}
+function addHere(s) {
+  if (!IS_MAIN) { WSET.add(s.id); addPopped([s.id]); syncWsessUrl(); }
+  else { removePopped([s.id]); }
   buildPane(s, grid.children.length);
+  applyLayout();
   renderMinimap();
+}
+function openInNewWindow(s) {
+  addPopped([s.id]);                                     // main 창에서 숨김
+  const url = '/?wsess=' + encodeURIComponent(s.id) + '&token=' + encodeURIComponent(TOKEN || '');
+  const w = window.open(url, 'ptwin_' + s.id, 'width=1200,height=820');
+  if (!w) { removePopped([s.id]); addHere(s); return; } // 팝업 차단 시 이 창에 추가
+}
+function syncWsessUrl() {
+  const u = new URL(location.href);
+  u.searchParams.set('wsess', [...WSET].join(','));
+  history.replaceState(null, '', u);
+}
+// 선택 다이얼로그 — twoRow=true면 "이 창에 넣으면 2줄로 배치" 안내
+function askWindowChoice(twoRow) {
+  return new Promise(resolve => {
+    const dlg = document.getElementById('winDlg');
+    document.getElementById('winNote').textContent = twoRow ? T.winAskRows : '';
+    let done = false;
+    const fin = v => { if (done) return; done = true; try { dlg.close(); } catch (e) {} resolve(v); };
+    dlg.querySelector('.wc-cur').onclick = () => fin('current');
+    dlg.querySelector('.wc-new').onclick = () => fin('new');
+    dlg.addEventListener('close', () => fin('current'), { once: true });   // ESC = 이 창
+    dlg.showModal();
+  });
 }
 
 // ---------- 시작 ----------
@@ -1003,6 +1111,7 @@ function syncStickyOffset() {
 }
 new ResizeObserver(syncStickyOffset).observe(headerEl);
 addEventListener('resize', syncStickyOffset);
+addEventListener('resize', applyLayout);   // 창 크기가 줄면 한 줄→2줄로 자동 접기
 
 // ---------- 시작 세션 선택창 ----------
 const pickDlg = document.getElementById('pickDlg');
@@ -1039,14 +1148,67 @@ function pickStart() {
   renderMinimap();
 }
 
+// ---------- 여러 창 동기화 ----------
+// 다른 창(팝업)이 살아있는지 확인하는 핸드셰이크 — 죽은 창이 남긴 세션은 main이 되찾음
+const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('pt-win') : null;
+if (bc && !IS_MAIN) {
+  bc.onmessage = e => { if (e.data && e.data.type === 'ping') bc.postMessage({ type: 'pong', ids: [...WSET] }); };
+  bc.postMessage({ type: 'pong', ids: [...WSET] });
+}
+
+// 이 창 소속으로 아직 안 그려진 세션은 그리고, 소속 아닌 세션은 제거 (서버 세션은 유지)
+async function reconcile() {
+  if (isMobile) return;
+  let list;
+  try { list = await api('GET', '/api/sessions'); } catch (e) { return; }
+  [...panes.keys()].forEach(id => {
+    if (!belongsHere(id) || !list.find(s => s.id === id)) removePaneLocal(id);
+  });
+  list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id)) buildPane(s, grid.children.length); });
+  applyLayout();
+  renderMinimap();
+}
+window.addEventListener('storage', e => { if (e.key === 'pt_popped') reconcile(); });
+window.addEventListener('focus', reconcile);
+setInterval(reconcile, 5000);
+if (!IS_MAIN) window.addEventListener('beforeunload', () => { if (WSET.size) removePopped([...WSET]); });
+
 applyStatic();
 (async () => {
   try { const inf = await api('GET', '/api/info'); document.getElementById('hverBadge').textContent = 'v' + inf.version; } catch (e) {}
   const list = await api('GET', '/api/sessions');
-  const alive = list.filter(s => s.alive);   // 서버가 계속 켜져 있던 경우(새로고침) — 그대로 복원
-  const idle  = list.filter(s => !s.alive);  // 껐다 켠 경우 — 선택창으로
+
+  if (!IS_MAIN) {
+    // 팝업 창: 내 세션(WSET)만 표시하고 main에서 숨기도록 표시
+    addPopped([...WSET]);
+    list.filter(s => WSET.has(s.id)).forEach((s, i) => buildPane(s, i));
+    applyLayout();
+    renderMinimap();
+    return;
+  }
+
+  // main 창: 죽은 팝업이 남긴 세션은 되찾기 (핸드셰이크로 살아있는 창 확인)
+  let popped = isMobile ? new Set() : getPopped();
+  if (!isMobile && popped.size) {
+    if (bc) {
+      const covered = new Set();
+      bc.onmessage = e => { if (e.data && e.data.type === 'pong') (e.data.ids || []).forEach(i => covered.add(i)); };
+      bc.postMessage({ type: 'ping' });
+      await new Promise(r => setTimeout(r, 800));         // 살아있는 창들의 응답 수집
+      const orphans = [...popped].filter(i => !covered.has(i));
+      if (orphans.length) removePopped(orphans);
+      popped = getPopped();
+    } else {
+      removePopped([...popped]); popped = new Set();      // BroadcastChannel 없으면 안전하게 전부 되찾기
+    }
+  }
+
+  const mine  = list.filter(s => !popped.has(s.id));
+  const alive = mine.filter(s => s.alive);   // 서버가 계속 켜져 있던 경우(새로고침) — 그대로 복원
+  const idle  = mine.filter(s => !s.alive);  // 껐다 켠 경우 — 선택창으로
 
   alive.forEach((s, i) => buildPane(s, i));
+  applyLayout();
   renderMinimap();
 
   if (idle.length) {
