@@ -92,14 +92,16 @@ setInterval(() => {
 const app = express();
 app.use(express.json());
 
-// 토큰 검사 (쿼리 ?token= 또는 쿠키)
+// 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
+function isLocal(sock) { return /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
 app.use((req, res, next) => {
+  if (isLocal(req.socket)) return next();
   const t = req.query.token || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
   if (t === config.token) {
     if (req.query.token) res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
     return next();
   }
-  res.status(401).send('<h2 style="font-family:sans-serif">접속 토큰이 필요합니다. 서버 콘솔에 표시된 주소로 접속하세요.</h2>');
+  res.status(401).send('<h2 style="font-family:sans-serif">Access token required. Open the URL shown in the server console (or scan the QR).</h2>');
 });
 
 app.use(express.static(path.join(ROOT, 'public')));
@@ -239,7 +241,8 @@ app.get('/api/info', (req, res) => {
   const ips = [];
   for (const addrs of Object.values(os.networkInterfaces()))
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION });
+  // token 포함: 이 API 자체가 인증 뒤에서만 응답하므로 안전 — QR/주소 생성에 사용
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token });
 });
 
 // ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------
@@ -345,7 +348,7 @@ const wss = new WebSocketServer({ server, path: '/term' });
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
-  if (url.searchParams.get('token') !== config.token) { ws.close(); return; }
+  if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token) { ws.close(); return; }
   const id = url.searchParams.get('id');
   const sess = sessions.find(x => x.id === id);
   if (!sess) { ws.close(); return; }
@@ -378,41 +381,53 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  ║   PowerTerminal 실행 중                  ║');
   console.log('  ╚══════════════════════════════════════════════════╝');
   console.log('');
-  console.log('  PC에서:    http://localhost:' + PORT + '/?token=' + config.token);
-  for (const ip of ips) {
-    console.log('  폰에서:    http://' + ip + ':' + PORT + '/?token=' + config.token + '   (같은 와이파이)');
-  }
+  const wifiUrl = ips[0] ? 'http://' + ips[0] + ':' + PORT + '/?token=' + config.token : '';
+  console.log('  ① PC (이 컴퓨터):          http://localhost:' + PORT + '   ← 토큰 없이 자동 접속');
+  if (wifiUrl) console.log('  ② 폰 — 같은 와이파이:      ' + wifiUrl);
+  console.log('  ③ 폰 — 외부 어디서든(LTE): 주소 준비 중...');
   console.log('');
-  startTunnel();
+  startTunnel(wifiUrl);
 });
 
+function printQR(label, url) {
+  try {
+    require('qrcode-terminal').generate(url, { small: true }, q => {
+      console.log('\n  📱 ' + label + ' — 폰 카메라로 스캔:\n');
+      console.log(q.split('\n').map(l => '   ' + l).join('\n'));
+    });
+  } catch (e) {}
+}
+
 // 외부(LTE) 접속: cloudflared 무료 터널 — 서버 시작 시 자동으로 외부용 주소 발급
-function startTunnel() {
+function startTunnel(wifiUrl) {
   let proc;
+  let found = false;
+  // 10초 안에 터널이 안 뜨면 와이파이 주소로라도 QR 출력
+  const fallback = setTimeout(() => { if (!found && wifiUrl) printQR('같은 와이파이 접속용', wifiUrl); }, 10000);
   try {
     proc = spawn(CLOUDFLARED, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
   } catch (e) {
-    console.log('  (외부 접속 터널 없음 — cloudflared 미설치. 같은 와이파이에서만 접속 가능)');
+    clearTimeout(fallback);
+    console.log('  ③ 외부 접속 불가 — cloudflared.exe가 이 폴더에 없습니다 (README 참고)');
+    if (wifiUrl) printQR('같은 와이파이 접속용', wifiUrl);
     return;
   }
-  let found = false;
   const onData = d => {
     const m = d.toString().match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (m && !found) {
       found = true;
+      clearTimeout(fallback);
       global.__tunnelUrl = m[0];
       const full = m[0] + '/?token=' + config.token;
-      console.log('  ▶ 외부(LTE) 어디서든:  ' + full);
-      console.log('    (서버 켤 때마다 주소가 바뀝니다 — 화면의 📱 버튼으로 QR 다시 보기)');
-      try {
-        require('qrcode-terminal').generate(full, { small: true }, q => {
-          console.log('\n  📱 폰 카메라로 스캔하면 바로 접속:\n');
-          console.log(q.split('\n').map(l => '   ' + l).join('\n'));
-        });
-      } catch (e) {}
+      console.log('  ③ 폰 — 외부 어디서든(LTE): ' + full);
+      console.log('     (서버 켤 때마다 주소가 바뀝니다 — 화면의 🔗 QR 버튼으로 언제든 확인)');
+      printQR('외부 어디서든(LTE) 접속용', full);
     }
   };
   proc.stdout.on('data', onData);
   proc.stderr.on('data', onData);
-  proc.on('error', () => console.log('  (외부 접속 터널 시작 실패 — 같은 와이파이에서만 접속 가능)'));
+  proc.on('error', () => {
+    console.log('  ③ 외부 접속 터널 시작 실패 — 같은 와이파이에서만 접속 가능');
+    if (!found && wifiUrl) printQR('같은 와이파이 접속용', wifiUrl);
+  });
 }

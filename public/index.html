@@ -531,8 +531,9 @@ function urlRow(label, url) {
 async function toggleQR() {
   if (qrDlg.open) { qrDlg.close(); return; }
   const i = await api('GET', '/api/info');
-  const wifi = i.ips[0] ? `http://${i.ips[0]}:${i.port}/?token=${TOKEN}` : '';
-  const lte = i.tunnelUrl ? `${i.tunnelUrl}/?token=${TOKEN}` : '';
+  const tok = i.token || TOKEN;   // PC(localhost)는 토큰 없이 접속하므로 서버가 알려준 토큰으로 폰용 주소 생성
+  const wifi = i.ips[0] ? `http://${i.ips[0]}:${i.port}/?token=${tok}` : '';
+  const lte = i.tunnelUrl ? `${i.tunnelUrl}/?token=${tok}` : '';
   qrUrl = lte || wifi || location.href;
   document.getElementById('qrLabel').textContent = lte ? T.qrLte : T.qrWifi;
   drawQR(document.getElementById('qrCanvas'), qrUrl);
