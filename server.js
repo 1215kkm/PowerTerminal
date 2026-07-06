@@ -63,8 +63,10 @@ function getPty(sess) {
   p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false };
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
+    const wasIdle = !p.busy || p.done;   // 작업 시작/재개 감지 → 하늘색 알림
     p.busy = true; p.lastOut = Date.now();
-    if (p.done) { p.done = false; broadcastStatus(sess.id, p); }
+    if (p.done) p.done = false;
+    if (wasIdle) broadcastStatus(sess.id, p);
     for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'out', data: d })); } catch (e) {} }
   });
   proc.onExit(() => {
