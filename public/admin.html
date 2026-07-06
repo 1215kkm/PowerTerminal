@@ -35,10 +35,14 @@
   <div id="banners"></div>
   <button onclick="addBanner()">＋ 배너 추가</button>
 
-  <h2>버전 알림</h2>
+  <h2>버전 알림 · 요청 링크</h2>
   <div class="card row">
     <div><label>최신 버전 (사용자에게 🔄 알림 기준)</label><input id="latestVersion"></div>
     <div><label>업데이트 안내 링크</label><input id="updateUrl"></div>
+  </div>
+  <div class="card">
+    <label>✉ 요청 버튼 링크 (GitHub Issues·구글폼 등 — 사용자가 요청글 남기는 곳)</label>
+    <input id="feedbackUrl" placeholder="https://github.com/1215kkm/PowerTerminal/issues/new">
   </div>
 
   <h2>미리보기 — 사용자 화면 상단에 이렇게 보입니다</h2>
@@ -90,6 +94,7 @@ function render() {
   data.banners.forEach((b, i) => wrap.appendChild(bannerCard(b, i)));
   document.getElementById('latestVersion').value = data.latestVersion || '';
   document.getElementById('updateUrl').value = data.updateUrl || '';
+  document.getElementById('feedbackUrl').value = data.feedbackUrl || '';
   preview();
 }
 function collect() {
@@ -103,6 +108,7 @@ function collect() {
   }).filter(b => b.text.ko || b.text.en);
   data.latestVersion = document.getElementById('latestVersion').value.trim();
   data.updateUrl = document.getElementById('updateUrl').value.trim();
+  data.feedbackUrl = document.getElementById('feedbackUrl').value.trim();
 }
 function preview() {
   const b = data.banners[0];

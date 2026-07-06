@@ -274,6 +274,7 @@ app.post('/api/admin/banner', (req, res) => {
   const out = {
     latestVersion: b.latestVersion || VERSION,
     updateUrl: b.updateUrl || 'https://github.com/1215kkm/PowerTerminal',
+    feedbackUrl: b.feedbackUrl || 'https://github.com/1215kkm/PowerTerminal/issues/new',
     banners: Array.isArray(b.banners) ? b.banners : []
   };
   try {
