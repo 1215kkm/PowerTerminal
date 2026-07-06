@@ -132,6 +132,9 @@
     #btnFeedback .fic { font-size: 20px; }
     #btnFeedback { padding: 6px 10px; }
     #langSel { padding: 6px; font-size: 12px; min-width: 0; }
+    /* 이미지 첨부/찾기 버튼 — 폰에서 누르기 쉽게 크게 */
+    .quick .qImg { font-size: 20px; padding: 8px 12px; }
+    .quick .qSend { padding: 8px 12px; }
   }
 
   /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */
@@ -297,6 +300,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script>
 const TOKEN = new URLSearchParams(location.search).get('token') ||
@@ -484,6 +488,11 @@ function buildPane(sess, idx) {
   });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
+  // 터미널 안의 URL을 탭/클릭하면 새 탭으로 열기 (폰에서도 동작)
+  try {
+    if (window.WebLinksAddon) term.loadAddon(new WebLinksAddon.WebLinksAddon(
+      (event, uri) => window.open(uri, '_blank', 'noopener')));
+  } catch (e) {}
   term.open(el.querySelector('.term'));
   fit.fit();
 
@@ -737,11 +746,17 @@ function applyLayout() {
   grid.style.height = '';
   // 1=전체 · 2=좌우 반반 · 3개↑=가로로 나란히 (한 줄).
   // 한 칸이 MIN_W(300px) 미만으로 좁아지면 2줄로 접어서 배치.
-  if (n <= 1) { grid.style.gridTemplateColumns = '1fr'; return; }
-  if (n === 2) { grid.style.gridTemplateColumns = 'repeat(2, 1fr)'; return; }
   const gw = grid.clientWidth || window.innerWidth;
-  const cols = (gw / n >= MIN_W) ? n : Math.ceil(n / 2);   // 한 줄로 충분하면 n열, 아니면 2줄
+  let cols, singleRow;
+  if (n <= 1) { cols = 1; singleRow = true; }
+  else if (n === 2) { cols = 2; singleRow = true; }
+  else { singleRow = (gw / n >= MIN_W); cols = singleRow ? n : Math.ceil(n / 2); }
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  if (singleRow) {   // 한 줄이면 남은 세로 공간을 꽉 채움
+    const off = (document.querySelector('header').offsetHeight || 56) + 24;
+    grid.style.gridTemplateRows = '1fr';
+    grid.style.height = `calc(100vh - ${off}px)`;
+  }
 }
 
 // ---------- 📱 QR + 접속 주소 (켜고 끄기 · 복사 · 저장) ----------
