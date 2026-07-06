@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PowerTerminal 배너 관리자</title>
+<style>
+  :root { --bg:#111827; --panel:#1f2937; --line:#374151; --violet:#7C3AED; --pink:#EC4899; --fg:#e5e7eb; --muted:#9ca3af; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:Pretendard,'Malgun Gothic',sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:20px 14px 80px; }
+  h1 { font-size:20px; background:linear-gradient(90deg,var(--violet),var(--pink)); -webkit-background-clip:text; color:transparent; }
+  h2 { font-size:15px; margin:26px 0 8px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin:10px 0; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 3px; }
+  input { width:100%; background:#111827; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 10px; font-family:inherit; }
+  .row { display:flex; gap:10px; } .row > div { flex:1; }
+  button { border:0; border-radius:8px; background:#374151; color:var(--fg); padding:9px 14px; cursor:pointer; font-family:inherit; }
+  button.primary { background:linear-gradient(90deg,var(--violet),var(--pink)); font-weight:700; }
+  button.danger { color:#f87171; }
+  /* 미리보기 — 실제 헤더와 동일 스타일 */
+  .pv-head { display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:var(--bg); overflow:hidden; }
+  .pv-head .logo { font-size:16px; font-weight:700; background:linear-gradient(90deg,var(--violet),var(--pink)); -webkit-background-clip:text; color:transparent; white-space:nowrap; }
+  .pv-banner { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#fff; text-decoration:none; padding:5px 12px; border-radius:99px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:linear-gradient(90deg,var(--violet),var(--pink)); max-width:60%; }
+  .pv-banner img { height:18px; border-radius:4px; }
+  .phone { width:360px; max-width:100%; }
+  #status { font-size:13px; margin-top:10px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>📢 PowerTerminal 배너 관리자</h1>
+  <p style="font-size:13px;color:var(--muted)">여기서 저장+발행하면 GitHub의 banner.json이 갱신되고, <b>모든 사용자에게 10분 안에 반영</b>됩니다. (이 페이지는 이 PC에서만 열림)</p>
+
+  <div id="banners"></div>
+  <button onclick="addBanner()">＋ 배너 추가</button>
+
+  <h2>버전 알림</h2>
+  <div class="card row">
+    <div><label>최신 버전 (사용자에게 🔄 알림 기준)</label><input id="latestVersion"></div>
+    <div><label>업데이트 안내 링크</label><input id="updateUrl"></div>
+  </div>
+
+  <h2>미리보기 — 사용자 화면 상단에 이렇게 보입니다</h2>
+  <label>PC</label>
+  <div class="pv-head"><span class="logo">🚀 PowerTerminal</span><a class="pv-banner" id="pvPC" target="_blank"></a><span style="flex:1"></span><span style="font-size:12px;color:var(--muted)">📱 QR · 🔗 · 🌐 · ＋</span></div>
+  <label>폰 (좁은 화면)</label>
+  <div class="phone"><div class="pv-head"><span class="logo">🚀</span><a class="pv-banner" id="pvMO" target="_blank" style="max-width:75%"></a></div></div>
+  <p style="font-size:12px;color:var(--muted)">배너가 여러 개면 8초마다 순환 표시됩니다. 영상은 배너 클릭 시 열리는 링크(유튜브 등)로 연결하세요.</p>
+
+  <div style="display:flex;gap:10px;margin-top:18px">
+    <button class="primary" onclick="publish()">🚀 저장 + GitHub 발행 (전 사용자 반영)</button>
+    <button onclick="load()">↺ 되돌리기</button>
+  </div>
+  <div id="status"></div>
+</main>
+
+<script>
+const TOKEN = new URLSearchParams(location.search).get('token') || (document.cookie.split('cc_token=')[1] || '').split(';')[0];
+let data = { banners: [], latestVersion: '', updateUrl: '' };
+
+async function api(method, url, body) {
+  const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, {
+    method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  return r.json();
+}
+
+function bannerCard(b, i) {
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.innerHTML = `
+    <div class="row">
+      <div><label>문구 (한국어)</label><input data-k="ko" value="${esc(b.text?.ko || '')}"></div>
+      <div><label>문구 (English)</label><input data-k="en" value="${esc(b.text?.en || '')}"></div>
+    </div>
+    <div class="row">
+      <div><label>클릭 시 이동할 주소 (페이지·유튜브 영상 등)</label><input data-k="url" value="${esc(b.url || '')}"></div>
+      <div style="flex:0 0 130px"><label>배경색 (비우면 기본)</label><input data-k="color" value="${esc(b.color || '')}" placeholder="#EC4899"></div>
+    </div>
+    <label>이미지 주소 (선택 — 배너 안에 작은 로고/아이콘으로 표시)</label>
+    <input data-k="image" value="${esc(b.image || '')}" placeholder="https://.../logo.png">
+    <div style="text-align:right;margin-top:8px"><button class="danger" onclick="delBanner(${i})">✕ 이 배너 삭제</button></div>`;
+  d.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { collect(); preview(); }));
+  return d;
+}
+
+function render() {
+  const wrap = document.getElementById('banners');
+  wrap.innerHTML = '';
+  data.banners.forEach((b, i) => wrap.appendChild(bannerCard(b, i)));
+  document.getElementById('latestVersion').value = data.latestVersion || '';
+  document.getElementById('updateUrl').value = data.updateUrl || '';
+  preview();
+}
+function collect() {
+  const cards = [...document.querySelectorAll('#banners .card')];
+  data.banners = cards.map(c => {
+    const v = k => c.querySelector(`[data-k="${k}"]`).value.trim();
+    const b = { text: { ko: v('ko'), en: v('en') }, url: v('url') };
+    if (v('color')) b.color = v('color');
+    if (v('image')) b.image = v('image');
+    return b;
+  }).filter(b => b.text.ko || b.text.en);
+  data.latestVersion = document.getElementById('latestVersion').value.trim();
+  data.updateUrl = document.getElementById('updateUrl').value.trim();
+}
+function preview() {
+  const b = data.banners[0];
+  for (const id of ['pvPC', 'pvMO']) {
+    const el = document.getElementById(id);
+    if (!b) { el.style.display = 'none'; continue; }
+    el.style.display = 'inline-flex';
+    el.innerHTML = (b.image ? `<img src="${esc(b.image)}">` : '') + esc(b.text.ko || b.text.en);
+    el.href = b.url || '#';
+    el.style.background = b.color || '';
+  }
+}
+function addBanner() { collect(); data.banners.push({ text: { ko: '', en: '' }, url: '' }); render(); }
+function delBanner(i) { collect(); data.banners.splice(i, 1); render(); }
+function esc(s) { return (s || '').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+async function load() {
+  data = await api('GET', '/api/banner');
+  if (!data.banners) data.banners = [];
+  render();
+}
+async function publish() {
+  collect();
+  document.getElementById('status').textContent = '발행 중...';
+  const r = await api('POST', '/api/admin/banner', data);
+  document.getElementById('status').textContent = r.ok
+    ? '✅ 발행 완료 — 모든 사용자에게 10분 안에 반영됩니다.'
+    : '❌ 실패: ' + (r.error || '');
+}
+load();
+</script>
+</body>
+</html>

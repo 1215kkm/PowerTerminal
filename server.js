@@ -232,6 +232,30 @@ app.get('/api/banner', async (req, res) => {
   res.json(data);
 });
 
+// 배너 발행 (관리자 — 이 PC에서만): banner.json 저장 후 GitHub로 푸시 → 전 사용자 반영
+app.post('/api/admin/banner', (req, res) => {
+  const ip = req.socket.remoteAddress || '';
+  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) {
+    return res.status(403).json({ error: '보안상 이 PC(localhost)에서만 발행할 수 있습니다.' });
+  }
+  const b = req.body || {};
+  const out = {
+    latestVersion: b.latestVersion || VERSION,
+    updateUrl: b.updateUrl || 'https://github.com/1215kkm/PowerTerminal',
+    banners: Array.isArray(b.banners) ? b.banners : []
+  };
+  try {
+    fs.writeFileSync(path.join(ROOT, 'banner.json'), JSON.stringify(out, null, 2) + '\n');
+    execFileSync('git', ['add', 'banner.json'], { cwd: ROOT });
+    execFileSync('git', ['commit', '-m', 'banner: update'], { cwd: ROOT });
+    execFileSync('git', ['push'], { cwd: ROOT, timeout: 30000 });
+    bannerCache = { t: 0, data: null };
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: (e.stderr || e.message || '').toString().slice(0, 300) });
+  }
+});
+
 app.post('/api/sessions', (req, res) => {
   const { path: dir, title, agent, cmd } = req.body;
   if (!dir || !fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });

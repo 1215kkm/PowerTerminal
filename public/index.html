@@ -614,7 +614,8 @@ async function refreshBanner() {
       let i = 0;
       const show = () => {
         const x = list[i % list.length];
-        el.textContent = (x.text[LANG] || x.text.en || Object.values(x.text)[0]);
+        const txt = (x.text[LANG] || x.text.en || Object.values(x.text)[0]);
+        el.innerHTML = (x.image ? `<img src="${x.image.replace(/"/g,'')}" style="height:18px;border-radius:4px;vertical-align:-4px;margin-right:6px">` : '') + esc(txt);
         el.href = x.url || '#';
         if (x.color) el.style.background = x.color;
         el.style.display = 'inline-block';
@@ -635,6 +636,15 @@ async function refreshBanner() {
 }
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
+
+// 배너 관리자(⚙)는 서버 PC(localhost)에서만 노출
+if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+  const b = document.createElement('button');
+  b.textContent = '⚙';
+  b.title = 'Banner admin';
+  b.onclick = () => location.href = '/admin.html?token=' + TOKEN;
+  document.querySelector('header').insertBefore(b, document.getElementById('langSel'));
+}
 
 applyStatic();
 (async () => {
