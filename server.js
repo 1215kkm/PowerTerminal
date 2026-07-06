@@ -452,12 +452,15 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
   if (typeof req.body.model === 'string') {
     s.model = req.body.model;
-    // 실행 중인 Claude 세션엔 /model 명령을 바로 흘려보내 즉시 전환 (재시작 불필요)
+    saveSessions();
+    // 실행 중이면 세션을 새 모델로 재시작 (실행 중 /model 은 '새 세션 기본값'만 바꿔 현재 세션은 안 바뀜)
     const p = ptys.get(s.id);
     if (p && !p.dead && (s.agent || 'claude') === 'claude') {
-      const m = req.body.model === 'default' ? '' : ' ' + req.body.model;
-      try { p.proc.write('/model' + m + '\r'); } catch (e) {}
+      try { p.proc.kill(); } catch (e) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }   // 클라이언트가 자동 재접속 → 새 모델로 새 PTY 생성
     }
+    return res.json(s);
   }
   saveSessions();
   res.json(s);

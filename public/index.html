@@ -149,6 +149,7 @@
     #hverBadge { order: 1; }
     header .sp { order: 2; }
     #btnQR { order: 3; }
+    #btnPick { order: 3; }
     #langSel { order: 4; padding: 6px; font-size: 12px; min-width: 0; }
     #banner { order: 5; max-width: 100% !important; width: 100%; text-align: center; }
     #usage { display: contents; }          /* 사용량 막대들을 헤더 줄배치에 직접 참여시킴 */
@@ -242,6 +243,7 @@
     <option value="ru" data-short="RU" data-full="Русский">🌐 Русский</option>
     <option value="hi" data-short="HI" data-full="हिन्दी">🌐 हिन्दी</option>
   </select>
+  <button id="btnPick" onclick="openPicker()" data-i18n-title="pickBtn" title="Choose sessions"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
   <button id="btnAdd" class="primary" onclick="openAdd()" data-i18n="addSession">＋ Session</button>
 </header>
 <div id="minimap"></div>
@@ -378,7 +380,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -395,7 +397,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -605,6 +607,11 @@ function buildPane(sess, idx) {
                      : m.data.includes('auto mode') ? 'auto' : null;
           if (mode) el.querySelector('.btnMode').textContent = '⇄ ' + mode;
         }
+        // 실제 모델을 출력에서 읽어 드롭다운에 반영 (거짓말 방지) — 값만 바꿈(onchange 미발동)
+        if (modelDrop) {
+          const dm = detectModel(m.data);
+          if (dm && modelDrop.value !== dm) { modelDrop.value = dm; sess.model = dm; }
+        }
       }
       else if (m.type === 'status') setState(el, m.done, m.busy);
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
@@ -663,12 +670,17 @@ function buildPane(sess, idx) {
     window.open(url, '_blank');           // 새 창
   };
 
-  // AI 모델 선택 (Claude 세션) — 실행 중이면 즉시 전환
+  // AI 모델 선택 (Claude 세션) — 확실히 바꾸려면 세션을 그 모델로 재시작 (대화는 --continue로 이어짐)
   const modelDrop = el.querySelector('.modelSel');
-  if (modelDrop) modelDrop.onchange = (ev) => {
+  if (modelDrop) modelDrop.onchange = async (ev) => {
     ev.stopPropagation();
-    sess.model = modelDrop.value;
-    api('PATCH', '/api/sessions/' + sess.id, { model: modelDrop.value });
+    const prev = sess.model || 'default';
+    const next = modelDrop.value;
+    if (next === prev) return;
+    if (!confirm(T.modelRestartAsk)) { modelDrop.value = prev; return; }
+    sess.model = next;
+    await api('PATCH', '/api/sessions/' + sess.id, { model: next });
+    // 서버가 PTY를 새 모델로 재시작하고 소켓을 닫음 → ws.onclose가 자동 재접속
   };
 
   // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
@@ -842,6 +854,18 @@ function renumber() {
   renderMinimap();
 }
 function esc(s) { return (s || '').replace(/</g, '&lt;'); }
+// 터미널 출력에서 실제 모델 감지 ("Set model to Fable 5", "Kept model as Opus 4.8" 등)
+function detectModel(text) {
+  const m = text.match(/(?:Set model to|Kept model as|Model set to|Using model:?)\s+([A-Za-z]+(?:\s*Plan)?)/i);
+  if (!m) return null;
+  const w = m[1].toLowerCase();
+  if (w.includes('plan')) return 'opusplan';
+  if (w.startsWith('opus')) return 'opus';
+  if (w.startsWith('sonnet')) return 'sonnet';
+  if (w.startsWith('haiku')) return 'haiku';
+  if (w.startsWith('fable')) return 'fable';
+  return null;
+}
 
 // 폰 상단 미니맵: PC와 같은 배치로 제목만 표시, 탭하면 그 작업창으로 스크롤
 function renderMinimap() {
@@ -1306,8 +1330,24 @@ async function refreshBanner() {
       if (list.length > 1) setInterval(show, 8000);
     }
     if (b.feedbackUrl) feedbackUrl = b.feedbackUrl;
-    // 업데이트 알림 칩은 제거됨 — start.bat 재실행 시 git pull로 자동 업데이트되므로 불필요
+    // 실행 중인 서버가 최신보다 구버전이면 경고 — 자동 업데이트가 안 되는 상황(ZIP 복사본·복사본 여러 개) 안내
+    if (b.latestVersion && b.currentVersion &&
+        b.latestVersion.localeCompare(b.currentVersion, undefined, { numeric: true }) > 0) {
+      showVersionWarning(b.currentVersion, b.latestVersion);
+    }
   } catch (e) {}
+}
+function showVersionWarning(cur, latest) {
+  let w = document.getElementById('verWarn');
+  if (!w) {
+    w = document.createElement('div');
+    w.id = 'verWarn';
+    w.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:200;background:#7f1d1d;color:#fff;' +
+      'font-size:13px;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;box-shadow:0 -2px 10px rgba(0,0,0,.4)';
+    document.body.appendChild(w);
+  }
+  w.innerHTML = `<span>${(T.verWarn || '⚠ Old version v{c} (latest v{l}). Multiple copies may be running — close all and start one.').replace('{c}', cur).replace('{l}', latest)}</span>` +
+    `<button onclick="this.parentElement.remove()" style="background:#fff2;border:0;color:#fff;border-radius:6px;padding:3px 9px;cursor:pointer">✕</button>`;
 }
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
@@ -1399,17 +1439,38 @@ function renderPicker() {
 }
 function pickToggleAll(on) { pickList.forEach(s => s._sel = on); renderPicker(); }
 async function pickStart() {
-  const chosen = pickList.filter(s => s._sel);
   pickDlg.close();
-  for (const s of chosen) {
-    if (s._new) {   // 최근 닫은 세션 → 서버에 새로 만들어 켜기
-      const ns = await api('POST', '/api/sessions', { path: s.path, title: s.title, agent: s.agent || 'claude' });
-      if (!ns.error) buildPane(ns, grid.children.length);
-    } else {
-      buildPane(s, grid.children.length);   // 저장돼 있던 세션 그대로 재개
+  for (const s of pickList) {
+    const isPane = panes.has(s.id);
+    if (s._sel && !isPane) {
+      if (s._new) {   // 최근 닫은 세션 → 서버에 새로 만들어 켜기
+        const ns = await api('POST', '/api/sessions', { path: s.path, title: s.title, agent: s.agent || 'claude' });
+        if (!ns.error) buildPane(ns, grid.children.length);
+      } else {
+        buildPane(s, grid.children.length);   // 저장돼 있던 세션 그대로 재개
+      }
+    } else if (!s._sel && isPane) {
+      removePaneLocal(s.id);   // 체크 해제 → 화면에서만 숨김 (서버 세션은 유지, 다시 선택 가능)
     }
   }
   renumber();
+}
+
+// 언제든 세션 선택창 열기 (서버가 안 꺼져 세션이 살아있어도 다시 고를 수 있게)
+async function openPicker() {
+  let list = [];
+  try { list = await api('GET', '/api/sessions'); } catch (e) {}
+  const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+  pickList = list.map(s => ({ ...s, _sel: panes.has(s.id) || s.alive }));   // 열려있거나 살아있으면 기본 체크
+  try {
+    const known = await api('GET', '/api/known-projects');
+    const have = new Set(list.map(s => nrm(s.path)));
+    known.filter(k => k.path && !k.active && !have.has(nrm(k.path))).forEach(k => {
+      pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, _sel: false, _new: true });
+    });
+  } catch (e) {}
+  renderPicker();
+  pickDlg.showModal();
 }
 
 // ---------- 여러 창 동기화 ----------
