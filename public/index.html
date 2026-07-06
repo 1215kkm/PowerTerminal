@@ -71,7 +71,8 @@
 
   /* 확대(포커스): 그 칸의 열만 넓어짐 (위치 유지) — 버튼 강조 */
   .pane.maxed .btnMax { background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
-  .quick .qImg { flex: 0 0 auto; }
+  .quick .qImg { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+  .quick .qImg svg { display: block; }
 
   .quick { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827;
            align-items: flex-end; }
@@ -163,7 +164,8 @@
     .pane-head .modelSel { font-size: 13px; padding: 5px 8px; }
     .btnMax, .btnTasks { display: none; }  /* 폰에선 확대/작업목록 버튼 숨김 */
     /* 이미지 첨부/찾기 버튼 — 폰에서 누르기 쉽게 크게 */
-    .quick .qImg { font-size: 20px; padding: 8px 12px; }
+    .quick .qImg { padding: 8px 12px; }
+    .quick .qImg svg { width: 20px; height: 20px; }
     .quick .qSend { padding: 8px 12px; }
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
@@ -533,7 +535,7 @@ function buildPane(sess, idx) {
     </div>
     <div class="quick">
       <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
-      <button class="small qImg" title="${T.imgT}">🖼</button>
+      <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
       <input type="file" class="qFile" accept="image/*" style="display:none">
       <button class="small qSend">${T.send}</button>
     </div>`;
@@ -561,12 +563,18 @@ function buildPane(sess, idx) {
     const pr = document.createElement('div'); pr.className = 'pgzone r';
     const sz = document.createElement('div'); sz.className = 'scrollzone';
     body.appendChild(pl); body.appendChild(pr); body.appendChild(sz);
-    // 가운데 존을 세로로 끌면 이 터미널만 스크롤(위 내용 보기) — 페이지는 안 움직임
+    // 가운데 존 세로 드래그: 스크롤백(위 내용) 있으면 이 터미널 스크롤, 없으면 페이지 스크롤 (항상 반응)
     let sy = 0;
     sz.addEventListener('touchstart', e => { sy = e.touches[0].clientY; sz.classList.add('touching'); }, { passive: true });
     sz.addEventListener('touchmove', e => {
       const dy = sy - e.touches[0].clientY;
-      if (Math.abs(dy) > 8) { term.scrollLines(dy > 0 ? 1 : -1); sy = e.touches[0].clientY; }
+      if (Math.abs(dy) < 4) return;
+      const buf = term.buffer.active;
+      const canUp = buf.viewportY > 0;                        // 위로 더 볼 내용
+      const canDown = buf.viewportY < buf.baseY;              // 아래로 더 볼 내용
+      if ((dy < 0 && canUp) || (dy > 0 && canDown)) term.scrollLines(dy > 0 ? 1 : -1);
+      else window.scrollBy(0, dy);                            // 스크롤백 없으면 페이지 스크롤
+      sy = e.touches[0].clientY;
     }, { passive: true });
     sz.addEventListener('touchend', () => setTimeout(() => sz.classList.remove('touching'), 250), { passive: true });
     sz.addEventListener('touchcancel', () => sz.classList.remove('touching'), { passive: true });
