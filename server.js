@@ -253,7 +253,12 @@ app.get('/api/banner', async (req, res) => {
     const r = await fetch(BANNER_URL, { signal: AbortSignal.timeout(8000) });
     if (r.ok) data = await r.json();
   } catch (e) {}
-  if (!data) { try { data = readJson(path.join(ROOT, 'banner.json')); } catch (e) { data = { banners: [] }; } }
+  // 폴백 체인: 원격(GitHub) → 로컬 파일 → 코드 내장 기본값 (로컬 파일을 지워도 배너는 유지됨)
+  if (!data) { try { data = readJson(path.join(ROOT, 'banner.json')); } catch (e) {} }
+  if (!data) data = {
+    banners: [{ text: { en: '🚀 PowerTerminal', ko: '🚀 PowerTerminal' },
+                url: 'https://github.com/1215kkm/PowerTerminal', color: '#EC4899' }]
+  };
   data.currentVersion = VERSION;
   bannerCache = { t: Date.now(), data };
   res.json(data);
