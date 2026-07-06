@@ -23,6 +23,7 @@
               background: linear-gradient(90deg, var(--violet), var(--pink));
               -webkit-background-clip: text; background-clip: text; color: transparent; }
   header .sp { flex: 1; }
+  .logo-wrap { position: relative; display: inline-flex; align-items: center; gap: 10px; }
   button { border: 0; border-radius: 8px; background: #374151; color: var(--fg);
            padding: 8px 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
   button.primary { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
@@ -159,8 +160,8 @@
   @media (max-width: 700px), (pointer: coarse) and (max-height: 520px) {
     /* 헤더 3줄 구성: ①로고+QR+언어  ②배너  ③세션%+추가버튼  ④주간%+주간Fable% */
     header { flex-wrap: wrap; row-gap: 7px; }
-    header h1 { order: 0; }
-    #hverBadge { order: 1; }
+    .logo-wrap { order: 0; display: inline-block; }   /* 폭=로고 글자 폭 → 배지 오른쪽 끝 기준 */
+    #hverBadge { position: absolute; right: 0; bottom: 100%; margin-bottom: 1px; }   /* 로고 우측 끝 바로 위 */
     header .sp { order: 2; }
     #btnQR { order: 3; }
     #btnPick { order: 3; }
@@ -233,8 +234,7 @@
 </head>
 <body>
 <header>
-  <h1>🚀 PowerTerminal</h1>
-  <span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span>
+  <span class="logo-wrap"><h1>🚀 PowerTerminal</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span></span>
   <a id="banner" target="_blank" rel="noopener"
      style="display:none;font-size:12px;font-weight:700;color:#fff;text-decoration:none;
             padding:5px 12px;border-radius:99px;white-space:nowrap;overflow:hidden;
