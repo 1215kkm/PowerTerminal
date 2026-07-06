@@ -79,26 +79,32 @@
   .ub-pct { font-size: 11px; font-weight: 700; color: var(--fg); }
   @media (max-width: 700px) {
     header { flex-wrap: wrap; }
-    #usage { order: 10; width: 100%; gap: 10px; }
+    #usage { order: 10; width: 100%; gap: 8px 12px; flex-wrap: wrap; }  /* 길면 줄바꿈 */
+    .ub { flex: 1 1 45%; }
     .ub-track { flex: 1; min-width: 40px; }
-    .ub { flex: 1; }
   }
 
-  /* 폰 전용 미니맵: PC 배치 그대로 제목만 — 탭하면 그 작업창으로 이동 */
+  /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */
   #minimap { display: none; }
   @media (max-width: 700px) {
     #grid { grid-template-columns: 1fr; padding: 6px; }
     .pane { min-height: 55vh; }
     header h1 { font-size: 14px; }
-    #minimap { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;
-               padding: 6px 8px; position: sticky; top: 45px; z-index: 49;
+    #minimap { display: flex; flex-wrap: wrap; gap: 5px;
+               padding: 6px 8px; position: sticky; top: 0; z-index: 49;
                background: var(--bg); border-bottom: 1px solid var(--line); }
-    .mm-cell { border: 2px solid var(--line); border-radius: 8px; padding: 7px 6px;
-               font-size: 12px; font-weight: 700; text-align: center; cursor: pointer;
-               overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-               background: var(--panel); transition: border-color .3s; }
+    .mm-cell { display: flex; align-items: center; gap: 5px;
+               border: 2px solid var(--line); border-radius: 8px; padding: 5px 9px;
+               font-size: 12px; font-weight: 700; cursor: pointer;
+               max-width: 46%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+               background: var(--panel); transition: border-color .2s; }
+    .mm-cell .mm-num { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 5px; font-size: 11px;
+                       display: flex; align-items: center; justify-content: center; color: #fff;
+                       background: linear-gradient(135deg, var(--violet), var(--pink)); }
+    .mm-cell .mm-title { overflow: hidden; text-overflow: ellipsis; }
+    .mm-cell.active { border-color: var(--pink); }
     .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.5); }
-    .mm-cell.busy::after { content: ' ⋯'; color: var(--pink); }
+    .mm-cell.busy .mm-title::after { content: ' ⋯'; color: var(--pink); }
   }
 </style>
 </head>
@@ -114,7 +120,6 @@
   <a id="updChip" target="_blank" rel="noopener"
      style="display:none;font-size:11px;font-weight:700;color:#111;background:#fbbf24;
             padding:4px 10px;border-radius:99px;text-decoration:none;white-space:nowrap">🔄</a>
-  <span id="conn" style="font-size:12px;color:var(--muted)"></span>
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
   <button onclick="openFeedback()" data-i18n="feedback">✉ Request</button>
@@ -245,7 +250,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청하기', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -497,14 +502,22 @@ function esc(s) { return (s || '').replace(/</g, '&lt;'); }
 function renderMinimap() {
   const mm = document.getElementById('minimap');
   mm.innerHTML = '';
-  [...grid.children].forEach(paneEl => {
+  [...grid.children].forEach((paneEl, i) => {
     const id = paneEl.dataset.id;
     const p = panes.get(id);
     const cell = document.createElement('div');
     cell.className = 'mm-cell' + (paneEl.classList.contains('done') ? ' done' : '');
     cell.dataset.mm = id;
-    cell.textContent = p ? p.sess.title : '';
-    cell.onclick = () => paneEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    cell.innerHTML = `<span class="mm-num">${i + 1}</span><span class="mm-title">${esc(p ? p.sess.title : '')}</span>`;
+    cell.onclick = () => {
+      // 클릭한 탭 강조 + 연결된 화면 잠깐 반짝 → 몇번 탭이 몇번 화면인지 직관적으로
+      mm.querySelectorAll('.mm-cell').forEach(c => c.classList.remove('active'));
+      cell.classList.add('active');
+      paneEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      paneEl.style.transition = 'box-shadow .2s';
+      paneEl.style.boxShadow = '0 0 0 3px var(--pink)';
+      setTimeout(() => { paneEl.style.boxShadow = ''; }, 900);
+    };
     mm.appendChild(cell);
   });
   applyLayout();
@@ -841,7 +854,6 @@ applyStatic();
   const list = await api('GET', '/api/sessions');
   list.forEach((s, i) => buildPane(s, i));
   renderMinimap();
-  document.getElementById('conn').textContent = location.host;
   try { const inf = await api('GET', '/api/info'); document.getElementById('hverBadge').textContent = 'v' + inf.version; } catch (e) {}
 })();
 </script>
