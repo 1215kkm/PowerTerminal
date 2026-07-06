@@ -1582,7 +1582,10 @@ applyStatic();
     });
   } catch (e) {}
   pickList.sort((a, b) => orderRank(a.path) - orderRank(b.path));   // 선택창도 기억된 배열 순서로
-  if (pickList.length) {
+  // 선택창은 '껐다 켜서 복원할 세션(idle)이 있을 때'만 자동으로 뜬다.
+  // 서버가 계속 살아있어(alive) 이미 자동 복원됐고 남은 게 최근닫은(회색)뿐이면 팝업 안 띄움
+  // — 그건 헤더의 ✔세션선택 버튼으로 언제든 열 수 있음.
+  if (idle.length) {
     renderPicker();
     pickDlg.showModal();
   }
