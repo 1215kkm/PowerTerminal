@@ -44,11 +44,12 @@ const MAX_BUF = 200 * 1024;
 // 세션별 선택: claude(기본) / codex / shell(순수 PowerShell) / custom(직접 명령)
 // 모든 세션은 실제 powershell.exe(PTY)에 붙는다 — 브라우저는 그 화면을 비추는 창일 뿐.
 function agentCommand(sess) {
+  const model = sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '';
   switch (sess.agent) {
     case 'codex':  return 'codex resume --last; if ($LASTEXITCODE -ne 0) { codex }';
     case 'shell':  return 'Write-Host "PowerShell 세션" -ForegroundColor Magenta';
     case 'custom': return sess.cmd || 'powershell';
-    default:       return 'claude --continue; if ($LASTEXITCODE -ne 0) { claude }';
+    default:       return 'claude' + model + ' --continue; if ($LASTEXITCODE -ne 0) { claude' + model + ' }';
   }
 }
 
@@ -352,6 +353,15 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (!s) return res.status(404).json({});
   if (typeof req.body.title === 'string') s.title = req.body.title;
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
+  if (typeof req.body.model === 'string') {
+    s.model = req.body.model;
+    // 실행 중인 Claude 세션엔 /model 명령을 바로 흘려보내 즉시 전환 (재시작 불필요)
+    const p = ptys.get(s.id);
+    if (p && !p.dead && (s.agent || 'claude') === 'claude') {
+      const m = req.body.model === 'default' ? '' : ' ' + req.body.model;
+      try { p.proc.write('/model' + m + '\r'); } catch (e) {}
+    }
+  }
   saveSessions();
   res.json(s);
 });
