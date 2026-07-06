@@ -1,0 +1,5 @@
+node_modules/
+cloudflared.exe
+config.json
+sessions.json
+package-lock.json

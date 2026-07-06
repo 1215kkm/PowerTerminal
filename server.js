@@ -1,0 +1,342 @@
+// PowerTerminal — Claude Code 웹 컨트롤 센터
+// PC/핸드폰 어디서든 같은 화면: 터미널 세션은 이 서버에 살아있고, 브라우저는 보기만 붙는다.
+const express = require('express');
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const pty = require('@homebridge/node-pty-prebuilt-multiarch');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
+const { execFileSync, spawn } = require('child_process');
+
+const ROOT = __dirname;
+const PORT = 7777;
+const SESSIONS_FILE = path.join(ROOT, 'sessions.json');
+const CONFIG_FILE = path.join(ROOT, 'config.json');
+const LAUNCHER_PROJECTS = path.join(ROOT, '..', 'Launcher', 'projects.json');
+
+// PowerShell이 만든 JSON은 BOM이 붙어올 수 있음 — 항상 제거 후 파싱
+function readJson(file) {
+  const raw = fs.readFileSync(file, 'utf8');
+  return JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw);
+}
+
+// ---------- 설정 (접속 토큰) ----------
+let config = {};
+try { config = readJson(CONFIG_FILE); } catch (e) {}
+if (!config.token) {
+  config.token = crypto.randomBytes(4).toString('hex');
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+// ---------- 세션 메타 ----------
+let sessions = [];
+try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
+function saveSessions() { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); }
+
+// ---------- PTY 관리 ----------
+const ptys = new Map(); // id -> {proc, buffer, sockets:Set, busy, done, lastOut}
+const MAX_BUF = 200 * 1024;
+
+// 세션별 선택: claude(기본) / codex / shell(순수 PowerShell) / custom(직접 명령)
+// 모든 세션은 실제 powershell.exe(PTY)에 붙는다 — 브라우저는 그 화면을 비추는 창일 뿐.
+function agentCommand(sess) {
+  switch (sess.agent) {
+    case 'codex':  return 'codex resume --last; if ($LASTEXITCODE -ne 0) { codex }';
+    case 'shell':  return 'Write-Host "PowerShell 세션" -ForegroundColor Magenta';
+    case 'custom': return sess.cmd || 'powershell';
+    default:       return 'claude --continue; if ($LASTEXITCODE -ne 0) { claude }';
+  }
+}
+
+function getPty(sess) {
+  let p = ptys.get(sess.id);
+  if (p && !p.dead) return p;
+  const cmd = agentCommand(sess);
+  const proc = pty.spawn('powershell.exe',
+    ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd],
+    { name: 'xterm-256color', cols: 120, rows: 34, cwd: sess.path, env: process.env });
+  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false };
+  proc.onData(d => {
+    p.buffer = (p.buffer + d).slice(-MAX_BUF);
+    p.busy = true; p.lastOut = Date.now();
+    if (p.done) { p.done = false; broadcastStatus(sess.id, p); }
+    for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'out', data: d })); } catch (e) {} }
+  });
+  proc.onExit(() => {
+    p.dead = true;
+    for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'exit' })); } catch (e) {} }
+  });
+  ptys.set(sess.id, p);
+  return p;
+}
+
+function broadcastStatus(id, p) {
+  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy });
+  for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
+}
+
+// 작업 완료 감지: 출력이 잠잠해진 지 8초 → done (초록 테두리)
+setInterval(() => {
+  for (const [id, p] of ptys) {
+    if (p.dead) continue;
+    if (p.busy && Date.now() - p.lastOut > 8000) {
+      p.busy = false; p.done = true;
+      broadcastStatus(id, p);
+    }
+  }
+}, 1500);
+
+// ---------- HTTP ----------
+const app = express();
+app.use(express.json());
+
+// 토큰 검사 (쿼리 ?token= 또는 쿠키)
+app.use((req, res, next) => {
+  const t = req.query.token || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
+  if (t === config.token) {
+    if (req.query.token) res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
+    return next();
+  }
+  res.status(401).send('<h2 style="font-family:sans-serif">접속 토큰이 필요합니다. 서버 콘솔에 표시된 주소로 접속하세요.</h2>');
+});
+
+app.use(express.static(path.join(ROOT, 'public')));
+
+app.get('/api/sessions', (req, res) => {
+  res.json(sessions.map(s => {
+    const p = ptys.get(s.id);
+    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false };
+  }));
+});
+
+app.get('/api/known-projects', (req, res) => {
+  try {
+    const cfg = readJson(LAUNCHER_PROJECTS);
+    res.json(cfg.projects || []);
+  } catch (e) { res.json([]); }
+});
+
+// gh / cloudflared는 PATH에 없을 수 있어 알려진 위치까지 확인
+function findExe(name, candidates) {
+  for (const c of candidates) if (fs.existsSync(c)) return c;
+  return name; // PATH에 있길 기대
+}
+const GH = findExe('gh', [
+  path.join(process.env.ProgramFiles || '', 'GitHub CLI', 'gh.exe'),
+  path.join(process.env.LOCALAPPDATA || '', 'Programs', 'GitHub CLI', 'gh.exe'),
+]);
+const CLOUDFLARED = findExe('cloudflared', [
+  path.join(ROOT, 'cloudflared.exe'),   // 동봉된 포터블 버전 우선
+  path.join(process.env.ProgramFiles || '', 'cloudflared', 'cloudflared.exe'),
+  path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'cloudflared.exe'),
+]);
+
+// ---------- AI 사용량: Claude 공식 한도 % (설정>사용량 화면과 동일 데이터, 60초 캐시) ----------
+let usageCache = { t: 0, data: null };
+app.get('/api/usage', async (req, res) => {
+  if (usageCache.data && Date.now() - usageCache.t < 60 * 1000) return res.json(usageCache.data);
+  const data = { user: os.userInfo().username, bars: [] };
+  try {
+    const cred = readJson(path.join(os.homedir(), '.claude', '.credentials.json'));
+    const tok = cred.claudeAiOauth && cred.claudeAiOauth.accessToken;
+    if (!tok) throw new Error('no token');
+    const r = await fetch('https://api.anthropic.com/api/oauth/usage', {
+      headers: { Authorization: 'Bearer ' + tok, 'anthropic-beta': 'oauth-2025-04-20' }
+    });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const j = await r.json();
+    for (const l of (j.limits || [])) {
+      let label = l.kind === 'session' ? '현재 세션'
+                : l.kind === 'weekly_all' ? '주간 한도'
+                : (l.scope && l.scope.model && l.scope.model.display_name) ? '주간 ' + l.scope.model.display_name
+                : l.kind;
+      data.bars.push({ label, percent: l.percent || 0, resetsAt: l.resets_at, severity: l.severity });
+    }
+  } catch (e) {
+    // 폴백: 로컬 기록 기반 비용 표시 (ccusage)
+    try {
+      const cli = path.join(ROOT, 'node_modules', 'ccusage', 'src', 'cli.js');
+      const out = execFileSync(process.execPath, [cli, 'daily', '--json'], { encoding: 'utf8', timeout: 30000, windowsHide: true });
+      const j = JSON.parse(out);
+      const days = j.daily || [];
+      const today = days.find(d => d.period === new Date().toISOString().slice(0, 10)) || { totalCost: 0 };
+      const week = days.slice(-7).reduce((a, d) => a + (d.totalCost || 0), 0);
+      data.fallback = { todayCost: today.totalCost || 0, weekCost: week };
+    } catch (e2) { data.error = '사용량 조회 실패'; }
+  }
+  usageCache = { t: Date.now(), data };
+  res.json(data);
+});
+
+// 새 프로젝트: 폴더 + git init + GitHub 비공개 저장소 + 세션 시작 (런처와 동일 기능)
+app.post('/api/new-project', (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!/^[\w.-]+$/.test(name)) return res.status(400).json({ error: '이름은 영문/숫자/-/_ 만 가능합니다 (GitHub 저장소명으로 쓰임)' });
+  let base = (req.body.base || '').trim();
+  if (!base) {
+    try { base = readJson(LAUNCHER_PROJECTS).baseDir; } catch (e) {}
+    if (!base) base = 'D:\\';
+  }
+  const dir = path.join(base, name);
+  if (fs.existsSync(dir)) return res.status(400).json({ error: '이미 존재하는 폴더: ' + dir });
+  let repoUrl = '', ghError = '';
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
+    fs.writeFileSync(path.join(dir, 'README.md'), '# ' + name + '\n');
+    execFileSync('git', ['add', '-A'], { cwd: dir });
+    execFileSync('git', ['commit', '-m', 'init: ' + name], { cwd: dir });
+    try {
+      const out = execFileSync(GH, ['repo', 'create', name, '--private', '--source', '.', '--remote', 'origin', '--push'],
+        { cwd: dir, encoding: 'utf8' });
+      repoUrl = (out.match(/https:\/\/github\.com\/\S+/) || [''])[0];
+    } catch (e) {
+      ghError = 'GitHub 저장소 생성 실패 (gh 로그인 확인): ' + (e.stderr || e.message || '').toString().slice(0, 300);
+    }
+  } catch (e) {
+    return res.status(500).json({ error: '프로젝트 생성 실패: ' + e.message });
+  }
+  const id = crypto.randomBytes(4).toString('hex');
+  const sess = { id, title: name, path: dir, previewUrl: '' };
+  sessions.push(sess);
+  saveSessions();
+  getPty(sess);
+  res.json({ ...sess, repoUrl, ghError });
+});
+
+app.get('/api/info', (req, res) => {
+  const ips = [];
+  for (const addrs of Object.values(os.networkInterfaces()))
+    for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '' });
+});
+
+app.post('/api/sessions', (req, res) => {
+  const { path: dir, title, agent, cmd } = req.body;
+  if (!dir || !fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
+  const id = crypto.randomBytes(4).toString('hex');
+  const sess = { id, title: title || path.basename(dir), path: dir, previewUrl: '',
+                 agent: agent || 'claude', cmd: cmd || '' };
+  sessions.push(sess);
+  saveSessions();
+  getPty(sess);
+  res.json(sess);
+});
+
+app.patch('/api/sessions/:id', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({});
+  if (typeof req.body.title === 'string') s.title = req.body.title;
+  if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
+  saveSessions();
+  res.json(s);
+});
+
+app.post('/api/sessions/:id/clear-done', (req, res) => {
+  const p = ptys.get(req.params.id);
+  if (p) { p.done = false; broadcastStatus(req.params.id, p); }
+  res.json({ ok: true });
+});
+
+app.post('/api/reorder', (req, res) => {
+  const order = req.body.ids || [];
+  sessions.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  saveSessions();
+  res.json({ ok: true });
+});
+
+app.delete('/api/sessions/:id', (req, res) => {
+  const p = ptys.get(req.params.id);
+  if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
+  ptys.delete(req.params.id);
+  sessions = sessions.filter(x => x.id !== req.params.id);
+  saveSessions();
+  res.json({ ok: true });
+});
+
+// 프로젝트 폴더 정적 서빙 (미리보기 토글용)
+app.use('/preview/:id', (req, res, next) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).end();
+  express.static(s.path)(req, res, next);
+});
+
+// ---------- WebSocket (터미널) ----------
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/term' });
+
+wss.on('connection', (ws, req) => {
+  const url = new URL(req.url, 'http://x');
+  if (url.searchParams.get('token') !== config.token) { ws.close(); return; }
+  const id = url.searchParams.get('id');
+  const sess = sessions.find(x => x.id === id);
+  if (!sess) { ws.close(); return; }
+  const p = getPty(sess);
+  p.sockets.add(ws);
+  // 접속 시 지금까지 화면 재생 + 상태
+  ws.send(JSON.stringify({ type: 'out', data: p.buffer }));
+  ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy }));
+
+  ws.on('message', raw => {
+    let m; try { m = JSON.parse(raw); } catch (e) { return; }
+    if (m.type === 'in') {
+      p.proc.write(m.data);
+      if (p.done) { p.done = false; broadcastStatus(id, p); }
+      p.busy = true; p.lastOut = Date.now();
+    } else if (m.type === 'resize' && m.cols > 10 && m.rows > 5) {
+      try { p.proc.resize(m.cols, m.rows); } catch (e) {}
+    }
+  });
+  ws.on('close', () => p.sockets.delete(ws));
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  const ips = [];
+  for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
+  }
+  console.log('');
+  console.log('  ╔══════════════════════════════════════════════════╗');
+  console.log('  ║   PowerTerminal 실행 중                  ║');
+  console.log('  ╚══════════════════════════════════════════════════╝');
+  console.log('');
+  console.log('  PC에서:    http://localhost:' + PORT + '/?token=' + config.token);
+  for (const ip of ips) {
+    console.log('  폰에서:    http://' + ip + ':' + PORT + '/?token=' + config.token + '   (같은 와이파이)');
+  }
+  console.log('');
+  startTunnel();
+});
+
+// 외부(LTE) 접속: cloudflared 무료 터널 — 서버 시작 시 자동으로 외부용 주소 발급
+function startTunnel() {
+  let proc;
+  try {
+    proc = spawn(CLOUDFLARED, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
+  } catch (e) {
+    console.log('  (외부 접속 터널 없음 — cloudflared 미설치. 같은 와이파이에서만 접속 가능)');
+    return;
+  }
+  let found = false;
+  const onData = d => {
+    const m = d.toString().match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    if (m && !found) {
+      found = true;
+      global.__tunnelUrl = m[0];
+      const full = m[0] + '/?token=' + config.token;
+      console.log('  ▶ 외부(LTE) 어디서든:  ' + full);
+      console.log('    (서버 켤 때마다 주소가 바뀝니다 — 화면의 📱 버튼으로 QR 다시 보기)');
+      try {
+        require('qrcode-terminal').generate(full, { small: true }, q => {
+          console.log('\n  📱 폰 카메라로 스캔하면 바로 접속:\n');
+          console.log(q.split('\n').map(l => '   ' + l).join('\n'));
+        });
+      } catch (e) {}
+    }
+  };
+  proc.stdout.on('data', onData);
+  proc.stderr.on('data', onData);
+  proc.on('error', () => console.log('  (외부 접속 터널 시작 실패 — 같은 와이파이에서만 접속 가능)'));
+}

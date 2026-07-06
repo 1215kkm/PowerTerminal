@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>PowerTerminal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<style>
+  :root {
+    --bg: #111827; --panel: #1f2937; --line: #374151;
+    --violet: #7C3AED; --pink: #EC4899; --green: #22c55e;
+    --fg: #e5e7eb; --muted: #9ca3af;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font-family: Pretendard, 'Malgun Gothic', -apple-system, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+           border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 50; }
+  header h1 { font-size: 16px; margin: 0;
+              background: linear-gradient(90deg, var(--violet), var(--pink));
+              -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header .sp { flex: 1; }
+  button { border: 0; border-radius: 8px; background: #374151; color: var(--fg);
+           padding: 8px 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
+  button.primary { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
+  button.small { padding: 4px 8px; font-size: 12px; }
+
+  #grid { display: grid; gap: 10px; padding: 10px;
+          grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); }
+  .pane { background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+          display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
+          transition: border-color .3s; }
+  .pane.done { border-color: var(--green); box-shadow: 0 0 12px rgba(34,197,94,.45); }
+  .pane.dragging { opacity: .4; }
+  .pane.dragover { outline: 2px dashed var(--pink); }
+
+  .pane-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+               background: #111827; border-bottom: 1px solid var(--line); cursor: grab; }
+  .pane-head .num { min-width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700;
+                    display: flex; align-items: center; justify-content: center;
+                    background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
+  .pane-head .title { font-weight: 700; font-size: 14px; cursor: text; padding: 2px 4px; border-radius: 4px; }
+  .pane-head .title:hover { background: #374151; }
+  .pane-head input.title-edit { font: inherit; font-weight: 700; background: #374151; color: #fff;
+                                border: 1px solid var(--violet); border-radius: 4px; padding: 2px 4px; width: 40%; }
+  .pane-head .folder { font-size: 11px; color: var(--muted); overflow: hidden;
+                       text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .pane-head .st { font-size: 11px; }
+  .pane-body { flex: 1; position: relative; min-height: 220px; }
+  .term { position: absolute; inset: 0; padding: 4px; }
+  iframe.preview { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+  .hidden { display: none !important; }
+
+  .quick { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827; }
+  .quick input { flex: 1; background: #1f2937; border: 1px solid var(--line); color: var(--fg);
+                 border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit; }
+  .quick input:focus { outline: 1px solid var(--violet); }
+
+  dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+           border-radius: 12px; max-width: 92vw; width: 460px; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog h3 { margin: 0 0 10px; }
+  dialog .proj { display: block; width: 100%; text-align: left; margin: 4px 0; }
+  dialog input { width: 100%; background: #111827; border: 1px solid var(--line); color: var(--fg);
+                 border-radius: 8px; padding: 9px 10px; margin: 4px 0; font-family: inherit; }
+
+  /* 상단 사용량 막대 (공식 사용량 화면과 같은 %) */
+  #usage { display: flex; gap: 14px; align-items: center; }
+  .ub { display: inline-flex; align-items: center; gap: 6px; }
+  .ub-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .ub-track { width: 90px; height: 6px; border-radius: 3px; background: #374151; overflow: hidden; }
+  .ub-fill { display: block; height: 100%; border-radius: 3px; transition: width .6s; }
+  .ub-pct { font-size: 11px; font-weight: 700; color: var(--fg); }
+  @media (max-width: 700px) {
+    header { flex-wrap: wrap; }
+    #usage { order: 10; width: 100%; gap: 10px; }
+    .ub-track { flex: 1; min-width: 40px; }
+    .ub { flex: 1; }
+  }
+
+  /* 폰 전용 미니맵: PC 배치 그대로 제목만 — 탭하면 그 작업창으로 이동 */
+  #minimap { display: none; }
+  @media (max-width: 700px) {
+    #grid { grid-template-columns: 1fr; padding: 6px; }
+    .pane { min-height: 55vh; }
+    header h1 { font-size: 14px; }
+    #minimap { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;
+               padding: 6px 8px; position: sticky; top: 45px; z-index: 49;
+               background: var(--bg); border-bottom: 1px solid var(--line); }
+    .mm-cell { border: 2px solid var(--line); border-radius: 8px; padding: 7px 6px;
+               font-size: 12px; font-weight: 700; text-align: center; cursor: pointer;
+               overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+               background: var(--panel); transition: border-color .3s; }
+    .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.5); }
+    .mm-cell.busy::after { content: ' ⋯'; color: var(--pink); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚀 PowerTerminal</h1>
+  <span id="conn" style="font-size:12px;color:var(--muted)"></span>
+  <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
+  <span class="sp"></span>
+  <button onclick="toggleQR()" title="모바일 접속 QR 켜기/끄기">📱 QR</button>
+  <button onclick="showInfo()" title="접속 주소 보기">🌐</button>
+  <button class="primary" onclick="openAdd()">＋ 세션 추가</button>
+</header>
+<div id="minimap"></div>
+<div id="grid"></div>
+
+<dialog id="qrDlg">
+  <h3>📱 모바일 접속 QR</h3>
+  <p id="qrLabel" style="font-size:12px;color:var(--muted);word-break:break-all"></p>
+  <div style="display:flex;justify-content:center;background:#fff;border-radius:12px;padding:12px">
+    <canvas id="qrCanvas"></canvas>
+  </div>
+  <p style="font-size:11px;color:var(--muted)">⚠ 이 QR로 접속한 사람은 똑같이 요청·조작할 수 있습니다 — 믿는 사람에게만.</p>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button onclick="copyQR()">📋 이미지 복사</button>
+    <button onclick="saveQR()">💾 저장</button>
+    <button class="primary" onclick="qrDlg.close()">닫기</button>
+  </div>
+</dialog>
+
+<dialog id="addDlg">
+  <h3>세션 추가</h3>
+  <div id="knownList" style="max-height:32vh;overflow:auto"></div>
+  <p style="font-size:12px;color:var(--muted)">또는 폴더 경로 직접 입력:</p>
+  <input id="addPath" placeholder="D:\프로젝트\폴더경로">
+  <input id="addTitle" placeholder="제목 (비우면 폴더명)">
+  <select id="addAgent" style="width:100%;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:9px 10px;margin:4px 0;font-family:inherit">
+    <option value="claude">🟣 Claude Code (기본)</option>
+    <option value="codex">🟢 Codex (OpenAI)</option>
+    <option value="shell">🔷 PowerShell만 (AI 없이)</option>
+    <option value="custom">⚙ 직접 명령 입력</option>
+  </select>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button onclick="addDlg.close()">취소</button>
+    <button class="primary" onclick="addManual()">추가</button>
+  </div>
+  <hr style="border-color:var(--line);margin:14px 0">
+  <h3>🆕 새 프로젝트 + GitHub</h3>
+  <p style="font-size:12px;color:var(--muted)">폴더 생성 + git + GitHub 비공개 저장소 연결까지 한 번에</p>
+  <input id="npName" placeholder="프로젝트 이름 (영문/숫자/-)">
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button class="primary" id="npBtn" onclick="newProject()">만들고 시작</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+const TOKEN = new URLSearchParams(location.search).get('token') ||
+              (document.cookie.split('cc_token=')[1] || '').split(';')[0];
+const grid = document.getElementById('grid');
+const addDlg = document.getElementById('addDlg');
+const panes = new Map();   // id -> {el, term, fit, ws, sess}
+const isMobile = matchMedia('(max-width: 700px)').matches;
+
+async function api(method, url, body) {
+  const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, {
+    method, headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return r.json();
+}
+
+// ---------- 세션 패널 ----------
+function buildPane(sess, idx) {
+  const el = document.createElement('div');
+  el.className = 'pane';
+  el.dataset.id = sess.id;
+  el.innerHTML = `
+    <div class="pane-head" draggable="true">
+      <span class="num">${idx + 1}</span>
+      <span class="title" title="더블클릭으로 이름 수정">${esc(sess.title)}</span>
+      ${sess.agent && sess.agent !== 'claude' ? `<span style="font-size:10px;background:#166534;border-radius:4px;padding:1px 5px">${esc(sess.agent === 'custom' ? (sess.cmd || 'custom') : sess.agent)}</span>` : ''}
+      <span class="folder">${esc(sess.path)}</span>
+      <span class="st"></span>
+      <button class="small btnPrev" title="실제 모습 미리보기 토글">👁</button>
+      <button class="small btnFontM" title="글자 작게">A-</button>
+      <button class="small btnFontP" title="글자 크게">A+</button>
+      <button class="small btnClose" title="이 세션 닫기" style="color:#f87171">✕</button>
+    </div>
+    <div class="pane-body">
+      <div class="term"></div>
+      <iframe class="preview hidden"></iframe>
+    </div>
+    <div class="quick">
+      <input placeholder="요청 입력 후 엔터 (폰에서 편하게 타이핑)" enterkeyhint="send">
+      <button class="small">전송</button>
+    </div>`;
+  grid.appendChild(el);
+
+  // 터미널
+  const term = new Terminal({
+    fontSize: isMobile ? 11 : 13, fontFamily: 'Consolas, D2Coding, monospace',
+    theme: { background: '#1f2937' }, convertEol: false, scrollback: 5000
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(el.querySelector('.term'));
+  fit.fit();
+
+  // WebSocket
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/term?id=${sess.id}&token=${TOKEN}`);
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'out') term.write(m.data);
+    else if (m.type === 'status') setDone(el, m.done);
+    else if (m.type === 'exit') term.write('\r\n\x1b[31m[세션 종료됨 — ✕로 닫거나 새로 추가하세요]\x1b[0m\r\n');
+  };
+  ws.onopen = () => { sendResize(); };
+  term.onData(d => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: d })); });
+
+  function sendResize() {
+    fit.fit();
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+  }
+  new ResizeObserver(() => sendResize()).observe(el.querySelector('.pane-body'));
+
+  // 제목 더블클릭 수정
+  const titleEl = el.querySelector('.title');
+  titleEl.addEventListener('dblclick', () => {
+    const input = document.createElement('input');
+    input.className = 'title-edit';
+    input.value = sess.title;
+    titleEl.replaceWith(input);
+    input.focus(); input.select();
+    const commit = async () => {
+      sess.title = input.value.trim() || sess.title;
+      await api('PATCH', '/api/sessions/' + sess.id, { title: sess.title });
+      input.replaceWith(titleEl);
+      titleEl.textContent = sess.title;
+      renderMinimap();
+    };
+    input.addEventListener('keydown', ev => { if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') input.replaceWith(titleEl); });
+    input.addEventListener('blur', commit);
+  });
+
+  // 초록 테두리: 클릭하면 해제
+  el.addEventListener('click', () => {
+    if (el.classList.contains('done')) {
+      api('POST', '/api/sessions/' + sess.id + '/clear-done');
+      el.classList.remove('done');
+    }
+  }, true);
+
+  // 미리보기 토글
+  const iframe = el.querySelector('iframe.preview');
+  el.querySelector('.btnPrev').onclick = async (ev) => {
+    ev.stopPropagation();
+    const showing = !iframe.classList.contains('hidden');
+    if (showing) { iframe.classList.add('hidden'); iframe.src = 'about:blank'; return; }
+    let url = sess.previewUrl;
+    if (!url) {
+      url = prompt('미리보기 주소 (개발서버면 http://localhost:3000, 정적 HTML이면 비워두세요)', '');
+      if (url === null) return;
+      if (!url) url = '/preview/' + sess.id + '/index.html?token=' + TOKEN;
+      sess.previewUrl = url;
+      api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
+    }
+    iframe.src = url.startsWith('/') ? url : url;
+    iframe.classList.remove('hidden');
+  };
+
+  // 글자 크기
+  el.querySelector('.btnFontP').onclick = ev => { ev.stopPropagation(); term.options.fontSize++; sendResize(); };
+  el.querySelector('.btnFontM').onclick = ev => { ev.stopPropagation(); term.options.fontSize = Math.max(7, term.options.fontSize - 1); sendResize(); };
+
+  // 닫기
+  el.querySelector('.btnClose').onclick = async (ev) => {
+    ev.stopPropagation();
+    if (!confirm(`"${sess.title}" 세션을 닫을까요? (터미널 종료, 폴더는 그대로)`)) return;
+    await api('DELETE', '/api/sessions/' + sess.id);
+    ws.close(); el.remove(); panes.delete(sess.id);
+    renumber();
+  };
+
+  // 하단 빠른 입력줄 (폰 타이핑용)
+  const qInput = el.querySelector('.quick input');
+  const send = () => {
+    if (!qInput.value) return;
+    ws.send(JSON.stringify({ type: 'in', data: qInput.value }));
+    setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 60);
+    qInput.value = '';
+  };
+  qInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); send(); } });
+  el.querySelector('.quick button').onclick = send;
+
+  // 드래그로 순서 바꾸기
+  const head = el.querySelector('.pane-head');
+  head.addEventListener('dragstart', ev => { el.classList.add('dragging'); ev.dataTransfer.setData('text/plain', sess.id); });
+  head.addEventListener('dragend', () => el.classList.remove('dragging'));
+  el.addEventListener('dragover', ev => { ev.preventDefault(); el.classList.add('dragover'); });
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  el.addEventListener('drop', async ev => {
+    ev.preventDefault(); el.classList.remove('dragover');
+    const fromId = ev.dataTransfer.getData('text/plain');
+    if (!fromId || fromId === sess.id) return;
+    const fromEl = grid.querySelector(`[data-id="${fromId}"]`);
+    if (fromEl) {
+      const nodes = [...grid.children];
+      grid.insertBefore(fromEl, nodes.indexOf(fromEl) < nodes.indexOf(el) ? el.nextSibling : el);
+      renumber();
+      await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) });
+    }
+  });
+
+  panes.set(sess.id, { el, term, fit, ws, sess });
+}
+
+function setDone(el, done) {
+  el.classList.toggle('done', done);
+  el.querySelector('.st').textContent = done ? '✅ 완료' : '';
+  const mm = document.querySelector(`#minimap [data-mm="${el.dataset.id}"]`);
+  if (mm) mm.classList.toggle('done', done);
+}
+function renumber() {
+  [...grid.children].forEach((el, i) => el.querySelector('.num').textContent = i + 1);
+  renderMinimap();
+}
+function esc(s) { return (s || '').replace(/</g, '&lt;'); }
+
+// 폰 상단 미니맵: PC와 같은 배치로 제목만 표시, 탭하면 그 작업창으로 스크롤
+function renderMinimap() {
+  const mm = document.getElementById('minimap');
+  mm.innerHTML = '';
+  [...grid.children].forEach(paneEl => {
+    const id = paneEl.dataset.id;
+    const p = panes.get(id);
+    const cell = document.createElement('div');
+    cell.className = 'mm-cell' + (paneEl.classList.contains('done') ? ' done' : '');
+    cell.dataset.mm = id;
+    cell.textContent = p ? p.sess.title : '';
+    cell.onclick = () => paneEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    mm.appendChild(cell);
+  });
+  applyLayout();
+}
+
+// PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
+function applyLayout() {
+  const els = [...grid.children];
+  els.forEach(el => el.style.gridColumn = '');
+  if (isMobile) { grid.style.gridTemplateColumns = ''; return; }
+  const n = els.length;
+  const cols = n <= 1 ? 1 : (n <= 4 ? 2 : 3);
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  const rem = n % cols;
+  if (rem === 1 && n > 1) els[n - 1].style.gridColumn = '1 / -1';   // 마지막 홀수 칸은 전체폭
+}
+
+// ---------- 📱 QR (켜고 끄기 · 복사 · 저장) ----------
+const qrDlg = document.getElementById('qrDlg');
+let qrUrl = '';
+async function toggleQR() {
+  if (qrDlg.open) { qrDlg.close(); return; }
+  const i = await api('GET', '/api/info');
+  qrUrl = i.tunnelUrl ? `${i.tunnelUrl}/?token=${TOKEN}`
+                      : (i.ips[0] ? `http://${i.ips[0]}:${i.port}/?token=${TOKEN}` : location.href);
+  document.getElementById('qrLabel').textContent =
+    (i.tunnelUrl ? '외부 LTE 어디서든: ' : '같은 와이파이: ') + qrUrl;
+  QRCode.toCanvas(document.getElementById('qrCanvas'), qrUrl, { width: 240, margin: 1 });
+  qrDlg.showModal();
+}
+function qrBlob() {
+  return new Promise(r => document.getElementById('qrCanvas').toBlob(r, 'image/png'));
+}
+async function copyQR() {
+  try {
+    const blob = await qrBlob();
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    alert('QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.');
+  } catch (e) {
+    alert('이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.');
+  }
+}
+async function saveQR() {
+  const blob = await qrBlob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'PowerTerminal-QR.png';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// 🌐 접속 주소 안내
+async function showInfo() {
+  const i = await api('GET', '/api/info');
+  let msg = '📡 접속 주소\n\n[같은 와이파이]\n';
+  i.ips.forEach(ip => msg += `http://${ip}:${i.port}/?token=${TOKEN}\n`);
+  msg += '\n[외부 LTE 어디서든]\n';
+  msg += i.tunnelUrl ? `${i.tunnelUrl}/?token=${TOKEN}\n(서버 재시작 시 주소 변경됨)` : '터널 준비 중이거나 cloudflared 미설치';
+  alert(msg);
+}
+
+// 새 프로젝트 + GitHub
+async function newProject() {
+  const name = document.getElementById('npName').value.trim();
+  if (!name) return;
+  const btn = document.getElementById('npBtn');
+  btn.disabled = true; btn.textContent = '생성 중...';
+  const r = await api('POST', '/api/new-project', { name });
+  btn.disabled = false; btn.textContent = '만들고 시작';
+  if (r.error) { alert(r.error); return; }
+  addDlg.close();
+  document.getElementById('npName').value = '';
+  buildPane(r, grid.children.length);
+  renderMinimap();
+  if (r.ghError) alert('⚠ ' + r.ghError + '\n(로컬 폴더와 git은 만들어졌습니다)');
+  else if (r.repoUrl) console.log('GitHub: ' + r.repoUrl);
+}
+
+// ---------- 세션 추가 ----------
+async function openAdd() {
+  const known = await api('GET', '/api/known-projects');
+  const list = document.getElementById('knownList');
+  list.innerHTML = '';
+  known.forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'proj';
+    b.textContent = '📁 ' + k.name;
+    b.onclick = async () => { addDlg.close(); await addSession(k.path, k.name); };
+    list.appendChild(b);
+  });
+  addDlg.showModal();
+}
+async function addManual() {
+  const p = document.getElementById('addPath').value.trim();
+  if (!p) return;
+  const agent = document.getElementById('addAgent').value;
+  let cmd = '';
+  if (agent === 'custom') {
+    cmd = prompt('실행할 명령 (예: codex, aider, gemini)', '');
+    if (!cmd) return;
+  }
+  addDlg.close();
+  await addSession(p, document.getElementById('addTitle').value.trim(), agent, cmd);
+}
+async function addSession(path, title, agent, cmd) {
+  const pick = document.getElementById('addAgent').value;
+  const s = await api('POST', '/api/sessions', { path, title, agent: agent || pick, cmd });
+  if (s.error) { alert(s.error); return; }
+  buildPane(s, grid.children.length);
+  renderMinimap();
+}
+
+// ---------- 시작 ----------
+// 상단 AI 사용량 — Claude 공식 한도 % 막대 (설정>사용량과 동일), 1분마다 갱신
+async function refreshUsage() {
+  try {
+    const u = await api('GET', '/api/usage');
+    const el = document.getElementById('usage');
+    if (u.bars && u.bars.length) {
+      el.innerHTML = u.bars.map(b => {
+        const col = b.percent >= 90 ? '#ef4444' : b.percent >= 70 ? '#f59e0b' : '#3b82f6';
+        const reset = b.resetsAt ? new Date(b.resetsAt).toLocaleString('ko-KR', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+        return `<span class="ub" title="${b.label} — ${reset} 재설정">
+          <span class="ub-label">${b.label}</span>
+          <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, b.percent)}%;background:${col}"></span></span>
+          <span class="ub-pct">${b.percent}%</span></span>`;
+      }).join('');
+    } else if (u.fallback) {
+      el.textContent = `📊 오늘 $${u.fallback.todayCost.toFixed(0)} / 7일 $${u.fallback.weekCost.toFixed(0)}`;
+    } else { el.textContent = ''; }
+  } catch (e) {}
+}
+refreshUsage();
+setInterval(refreshUsage, 60 * 1000);
+
+(async () => {
+  const list = await api('GET', '/api/sessions');
+  list.forEach((s, i) => buildPane(s, i));
+  renderMinimap();
+  document.getElementById('conn').textContent = location.host;
+})();
+</script>
+</body>
+</html>
