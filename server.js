@@ -147,6 +147,41 @@ app.get('/api/browse', (req, res) => {
   }
 });
 
+// 내 GitHub 저장소 목록 (clone 대상 선택용)
+app.get('/api/my-repos', (req, res) => {
+  try {
+    const out = execFileSync(GH, ['repo', 'list', '--limit', '100', '--json', 'name,url,isPrivate,updatedAt'],
+      { encoding: 'utf8', timeout: 20000 });
+    res.json(JSON.parse(out));
+  } catch (e) {
+    res.status(400).json({ error: 'GitHub CLI 미로그인 또는 미설치 (gh auth login 필요)' });
+  }
+});
+
+// GitHub 저장소 clone 후 세션 시작
+app.post('/api/clone', (req, res) => {
+  const url = (req.body.url || '').toString().trim();
+  let base = (req.body.base || '').toString().trim();
+  if (!/^https:\/\/github\.com\//.test(url) && !/^git@/.test(url)) return res.status(400).json({ error: '유효한 GitHub 주소가 아닙니다.' });
+  if (!base) { try { base = readJson(LAUNCHER_PROJECTS).baseDir; } catch (e) {} }
+  if (!base) base = process.env.USERPROFILE || 'D:\\';
+  const name = url.replace(/\.git$/, '').split('/').pop();
+  const dir = path.join(base, name);
+  try {
+    if (fs.existsSync(dir)) {
+      // 이미 있으면 clone 생략하고 그 폴더로 세션
+    } else {
+      execFileSync('git', ['clone', url, dir], { timeout: 120000 });
+    }
+  } catch (e) {
+    return res.status(500).json({ error: 'clone 실패: ' + (e.stderr || e.message || '').toString().slice(0, 300) });
+  }
+  const id = crypto.randomBytes(4).toString('hex');
+  const sess = { id, title: name, path: dir, previewUrl: '', agent: 'claude', cmd: '' };
+  sessions.push(sess); saveSessions(); getPty(sess);
+  res.json(sess);
+});
+
 app.get('/api/known-projects', (req, res) => {
   try {
     const cfg = readJson(LAUNCHER_PROJECTS);

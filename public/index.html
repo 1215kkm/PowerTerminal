@@ -61,6 +61,12 @@
   dialog::backdrop { background: rgba(0,0,0,.6); }
   dialog h3 { margin: 0 0 10px; }
   dialog .proj { display: block; width: 100%; text-align: left; margin: 4px 0; }
+  .atab { background: #374151; }
+  .atab.on { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
+  .brfolder { background: #111827; border: 1px solid var(--line); border-radius: 8px; padding: 8px 6px;
+              font-size: 12px; cursor: pointer; text-align: center; overflow: hidden;
+              white-space: nowrap; text-overflow: ellipsis; }
+  .brfolder:hover { border-color: var(--violet); }
   dialog input { width: 100%; background: #111827; border: 1px solid var(--line); color: var(--fg);
                  border-radius: 8px; padding: 9px 10px; margin: 4px 0; font-family: inherit; }
 
@@ -136,39 +142,64 @@
   <p style="font-size:11px;color:var(--muted);margin-top:10px" data-i18n="qrWarn"></p>
 </dialog>
 
-<dialog id="addDlg">
-  <h3 data-i18n="addTitleH">Add Session</h3>
-  <div id="knownList" style="max-height:32vh;overflow:auto"></div>
-  <p style="font-size:12px;color:var(--muted)" data-i18n="orManual"></p>
-  <div style="display:flex;gap:6px">
-    <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
-    <button onclick="toggleBrowse()" data-i18n="browse" style="white-space:nowrap">📂 찾아보기</button>
+<dialog id="addDlg" style="width:600px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <h3 data-i18n="addTitleH" style="margin:0;flex:1">Add Session</h3>
+    <button onclick="addDlg.close()" style="padding:4px 10px;font-weight:700" title="Close">✕</button>
   </div>
-  <div id="browser" style="display:none;border:1px solid var(--line);border-radius:8px;margin:6px 0;max-height:34vh;overflow:auto">
-    <div style="display:flex;gap:6px;align-items:center;padding:6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)">
-      <button class="small" onclick="browseUp()">⬆</button>
-      <span id="brCur" style="flex:1;font-size:12px;color:var(--muted);word-break:break-all"></span>
-      <button class="small primary" onclick="pickCurrent()" data-i18n="selectThis">✔ 이 폴더 선택</button>
+  <div id="addTabs" style="display:flex;gap:6px;margin-bottom:10px">
+    <button class="atab" data-tab="folder" data-i18n="tabFolder">📁 Local folder</button>
+    <button class="atab" data-tab="github" data-i18n="tabGithub">🐙 GitHub</button>
+    <button class="atab" data-tab="new" data-i18n="tabNew">🆕 New</button>
+  </div>
+
+  <!-- 로컬 폴더: 최근 프로젝트 + 폴더 탐색기(격자). 폴더 선택=즉시 추가 -->
+  <div id="tab-folder">
+    <div id="knownList" style="max-height:22vh;overflow:auto;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px">
+      <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
+      <button onclick="toggleBrowse()" data-i18n="browse" style="white-space:nowrap">📂 찾아보기</button>
+      <button class="primary" onclick="addManual()" data-i18n="add">Add</button>
     </div>
-    <div id="brList"></div>
+    <div id="browser" style="display:none;border:1px solid var(--line);border-radius:8px;margin-top:8px">
+      <div style="display:flex;gap:6px;align-items:center;padding:6px;border-bottom:1px solid var(--line)">
+        <button class="small" onclick="browseUp()">⬆</button>
+        <span id="brCur" style="flex:1;font-size:12px;color:var(--muted);word-break:break-all"></span>
+        <button class="small primary" onclick="pickCurrent()" data-i18n="selectThis">✔ 이 폴더 선택</button>
+      </div>
+      <div id="brList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;padding:8px;max-height:34vh;overflow:auto"></div>
+    </div>
   </div>
-  <input id="addTitle" data-i18n-ph="titlePh">
-  <select id="addAgent" style="width:100%;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:9px 10px;margin:4px 0;font-family:inherit">
-    <option value="claude" data-i18n="agClaude">🟣 Claude Code</option>
-    <option value="codex" data-i18n="agCodex">🟢 Codex (OpenAI)</option>
-    <option value="shell" data-i18n="agShell">🔷 PowerShell only</option>
-    <option value="custom" data-i18n="agCustom">⚙ Custom command</option>
-  </select>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-    <button onclick="addDlg.close()" data-i18n="cancel">Cancel</button>
-    <button class="primary" onclick="addManual()" data-i18n="add">Add</button>
+
+  <!-- GitHub 저장소 clone -->
+  <div id="tab-github" style="display:none">
+    <p style="font-size:12px;color:var(--muted)" data-i18n="ghPick"></p>
+    <div id="repoList" style="max-height:34vh;overflow:auto"></div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input id="cloneUrl" placeholder="https://github.com/user/repo" style="flex:1">
+      <button class="primary" onclick="cloneRepo()" data-i18n="cloneBtn">⬇ Clone & Start</button>
+    </div>
   </div>
-  <hr style="border-color:var(--line);margin:14px 0">
-  <h3 data-i18n="npTitle">🆕 New Project + GitHub</h3>
-  <p style="font-size:12px;color:var(--muted)" data-i18n="npDesc"></p>
-  <input id="npName" data-i18n-ph="npPh">
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-    <button class="primary" id="npBtn" onclick="newProject()" data-i18n="npGo">Create & Start</button>
+
+  <!-- 새 프로젝트 -->
+  <div id="tab-new" style="display:none">
+    <p style="font-size:12px;color:var(--muted)" data-i18n="npDesc"></p>
+    <input id="npName" data-i18n-ph="npPh">
+    <div style="text-align:right;margin-top:8px">
+      <button class="primary" id="npBtn" onclick="newProject()" data-i18n="npGo">Create & Start</button>
+    </div>
+  </div>
+
+  <hr style="border-color:var(--line);margin:12px 0 8px">
+  <div style="display:flex;gap:6px;align-items:center">
+    <span style="font-size:12px;color:var(--muted)" data-i18n="aiLabel">AI:</span>
+    <select id="addAgent" style="flex:1;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:7px 10px;font-family:inherit">
+      <option value="claude" data-i18n="agClaude">🟣 Claude Code</option>
+      <option value="codex" data-i18n="agCodex">🟢 Codex (OpenAI)</option>
+      <option value="shell" data-i18n="agShell">🔷 PowerShell only</option>
+      <option value="custom" data-i18n="agCustom">⚙ Custom command</option>
+    </select>
+    <input id="addTitle" data-i18n-ph="titlePh" style="flex:1;margin:0">
   </div>
 </dialog>
 
@@ -197,7 +228,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', noTunnel:'External access not ready — put cloudflared.exe in the folder and restart (see README).' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -214,7 +245,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청하기', noTunnel:'외부 접속 준비 안 됨 — 폴더에 cloudflared.exe 넣고 재시작하세요 (README 참고).' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청하기', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -231,7 +262,7 @@ const I18N = {
     infoHead:'📡 接続アドレス', wifi:'同じWi-Fi', lte:'外部アクセス (どこでも)', tunnelNone:'トンネル準備中またはcloudflared未設置', urlChanges:'(サーバー再起動でURLが変わります)',
     qrLte:'LTEでどこからでも: ', qrWifi:'同じWi-Fi: ',
     copyOk:'QR画像をコピーしました。', copyFail:'このブラウザではコピーできません — 💾 保存を使ってください。',
-    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', noTunnel:'外部アクセス未準備 — cloudflared.exeをフォルダに置いて再起動してください。' },
+    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ' },
   zh: { addSession:'＋ 添加会话', qrToggle:'移动端二维码 开/关', infoBtn:'访问地址',
     qrTitle:'📱 移动端访问二维码', qrWarn:'⚠ 扫码者可同样操作会话 — 仅分享给信任的人。',
     copyImg:'📋 复制', saveImg:'💾 保存', close:'关闭', cancel:'取消', add:'添加',
@@ -248,7 +279,7 @@ const I18N = {
     infoHead:'📡 访问地址', wifi:'同一Wi-Fi', lte:'外部访问 (任何地方)', tunnelNone:'隧道启动中或未安装cloudflared', urlChanges:'(服务器重启后地址会变)',
     qrLte:'LTE 任何地方: ', qrWifi:'同一Wi-Fi: ',
     copyOk:'二维码已复制到剪贴板。', copyFail:'此浏览器禁止复制 — 请用 💾 保存。',
-    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', noTunnel:'外部访问未就绪 — 把 cloudflared.exe 放入文件夹并重启。' },
+    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器' },
   es: { addSession:'＋ Sesión', qrToggle:'QR de acceso móvil on/off', infoBtn:'Direcciones de acceso',
     qrTitle:'📱 QR de Acceso Móvil', qrWarn:'⚠ Quien escanee este QR puede controlar las sesiones — compártelo solo con gente de confianza.',
     copyImg:'📋 Copiar', saveImg:'💾 Guardar', close:'Cerrar', cancel:'Cancelar', add:'Añadir',
@@ -265,7 +296,7 @@ const I18N = {
     infoHead:'📡 Direcciones de acceso', wifi:'Misma Wi-Fi', lte:'Acceso externo (cualquier lugar)', tunnelNone:'Túnel iniciándose o falta cloudflared', urlChanges:'(la URL cambia al reiniciar el servidor)',
     qrLte:'Desde cualquier lugar: ', qrWifi:'Misma Wi-Fi: ',
     copyOk:'Imagen QR copiada al portapapeles.', copyFail:'Copia bloqueada en este navegador — usa 💾 Guardar.',
-    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', noTunnel:'Acceso externo no listo — pon cloudflared.exe en la carpeta y reinicia.' }
+    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades' }
 };
 let LANG = localStorage.getItem('pt_lang') || 'en';
 if (!I18N[LANG]) LANG = 'en';
@@ -604,7 +635,7 @@ async function newProject() {
   else if (r.repoUrl) console.log('GitHub: ' + r.repoUrl);
 }
 
-// ---------- 폴더 탐색기 (📂 찾아보기) ----------
+// ---------- 폴더 탐색기 (📂 찾아보기) — 격자 표시, 폴더 선택 시 즉시 추가 ----------
 let brDir = '';
 async function toggleBrowse() {
   const b = document.getElementById('browser');
@@ -616,23 +647,38 @@ async function browseTo(dir) {
   const r = await api('GET', '/api/browse?dir=' + encodeURIComponent(dir));
   if (r.error) { if (dir) return browseTo(''); return; }
   brDir = r.dir;
-  document.getElementById('brCur').textContent = r.dir || '💻';
+  document.getElementById('brCur').textContent = r.dir || '💻 ' + (T.drives || 'Drives');
+  document.getElementById('addPath').value = r.dir || '';
   const list = document.getElementById('brList');
   list.innerHTML = '';
   r.folders.forEach(f => {
-    const btn = document.createElement('button');
-    btn.className = 'proj';
     const full = r.dir ? (r.dir.endsWith('\\') ? r.dir + f : r.dir + '\\' + f) : f;
-    btn.textContent = '📁 ' + f;
-    btn.onclick = () => browseTo(full);
-    list.appendChild(btn);
+    const cell = document.createElement('div');
+    cell.className = 'brfolder';
+    cell.title = f;
+    cell.innerHTML = '📁 ' + esc(f);
+    cell.onclick = () => browseTo(full);        // 한 번 클릭 = 들어가기
+    cell.ondblclick = () => { addDlg.close(); addSession(full, f); };  // 더블클릭 = 이 폴더로 바로 추가
+    list.appendChild(cell);
   });
   window.__brParent = r.parent;
 }
 function browseUp() { browseTo(window.__brParent || ''); }
+// [✔ 이 폴더 선택] = 지금 폴더로 바로 세션 추가
 function pickCurrent() {
-  if (brDir) document.getElementById('addPath').value = brDir;
-  document.getElementById('browser').style.display = 'none';
+  if (!brDir) return;
+  const name = brDir.replace(/[\\/]$/, '').split(/[\\/]/).pop();
+  addDlg.close();
+  addSession(brDir, name);
+}
+
+// ---------- 탭 ----------
+function switchTab(tab) {
+  ['folder', 'github', 'new'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  if (tab === 'github') loadRepos();
 }
 
 // ---------- 세션 추가 ----------
@@ -647,7 +693,38 @@ async function openAdd() {
     b.onclick = async () => { addDlg.close(); await addSession(k.path, k.name); };
     list.appendChild(b);
   });
+  document.getElementById('browser').style.display = 'none';
+  switchTab('folder');
   addDlg.showModal();
+}
+
+// ---------- GitHub 저장소 clone ----------
+async function loadRepos() {
+  const box = document.getElementById('repoList');
+  box.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">…</div>';
+  const repos = await api('GET', '/api/my-repos');
+  box.innerHTML = '';
+  if (repos.error) { box.innerHTML = `<div style="color:#fbbf24;font-size:12px;padding:8px">${esc(repos.error)}</div>`; return; }
+  repos.forEach(r => {
+    const b = document.createElement('button');
+    b.className = 'proj';
+    b.innerHTML = (r.isPrivate ? '🔒 ' : '📖 ') + esc(r.name);
+    b.onclick = () => { document.getElementById('cloneUrl').value = r.url; };
+    b.ondblclick = () => doClone(r.url);
+    box.appendChild(b);
+  });
+}
+function cloneRepo() { doClone(document.getElementById('cloneUrl').value.trim()); }
+async function doClone(url) {
+  if (!url) return;
+  const btn = document.querySelector('#tab-github .primary');
+  const old = btn.textContent; btn.disabled = true; btn.textContent = '⬇ …';
+  const r = await api('POST', '/api/clone', { url });
+  btn.disabled = false; btn.textContent = old;
+  if (r.error) { alert(r.error); return; }
+  addDlg.close();
+  buildPane(r, grid.children.length);
+  renderMinimap();
 }
 async function addManual() {
   const p = document.getElementById('addPath').value.trim();
@@ -756,6 +833,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
   checkIssues();
   setInterval(checkIssues, 10 * 60 * 1000);
 }
+
+document.querySelectorAll('.atab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
 applyStatic();
 (async () => {
