@@ -448,6 +448,24 @@ app.post('/api/sessions/:id/upload-image', (req, res) => {
   }
 });
 
+// 붙여넣은 긴/여러 줄 텍스트를 파일로 저장 → 경로 반환 (전송 시 경로만 보내 조기 제출 문제 회피, Claude가 파일을 읽음)
+app.post('/api/sessions/:id/upload-text', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  const text = (req.body && req.body.text) || '';
+  if (!text) return res.status(400).json({ error: 'no text' });
+  try {
+    const dir = path.join(s.path, '.pt-images');
+    fs.mkdirSync(dir, { recursive: true });
+    const fname = 'paste-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex') + '.txt';
+    const full = path.join(dir, fname);
+    fs.writeFileSync(full, text, 'utf8');
+    res.json({ ok: true, path: full });
+  } catch (e) {
+    res.json({ error: String((e && e.message) || e) });
+  }
+});
+
 app.post('/api/sessions/:id/clear-done', (req, res) => {
   const p = ptys.get(req.params.id);
   if (p) { p.done = false; broadcastStatus(req.params.id, p); }

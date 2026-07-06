@@ -458,7 +458,7 @@ function buildPane(sess, idx) {
   el.className = 'pane';
   el.dataset.id = sess.id;
   const isClaude = !sess.agent || sess.agent === 'claude';
-  const models = [['default', T.mDefault], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['opusplan', 'Opus Plan']];
+  const models = [['default', T.mDefault], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['fable', 'Fable'], ['opusplan', 'Opus Plan']];
   const modelSel = isClaude ? `<select class="modelSel" title="${T.modelTip}">
       ${models.map(m => `<option value="${m[0]}" ${((sess.model || 'default') === m[0]) ? 'selected' : ''}>${esc(m[1])}</option>`).join('')}
     </select>` : `<span style="font-size:10px;background:#166534;border-radius:4px;padding:2px 6px">${esc(sess.agent === 'custom' ? (sess.cmd || 'custom') : sess.agent)}</span>`;
@@ -632,12 +632,12 @@ function buildPane(sess, idx) {
     if (!val.trim()) return;
     for (const [token, att] of attachMap) {   // 칩 → 실제 내용
       if (!val.includes(token)) continue;
-      const rep = att.type === 'image' ? '"' + att.value + '"'
-                : '\x1b[200~' + att.value + '\x1b[201~';   // 긴 글: bracketed paste (개행에 조기 전송 방지)
+      // 이미지·여러줄텍스트(파일) = 경로만 / 한 줄 긴 글 = 인라인 (개행 없으니 조기 제출 없음)
+      const rep = (att.type === 'text') ? att.value : '"' + att.value + '"';
       val = val.split(token).join(rep);
     }
     ws.send(JSON.stringify({ type: 'in', data: val }));
-    setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 60);
+    setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
     qInput.value = ''; attachMap.clear(); attachN = 0;
   };
   qInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); send(); } });
@@ -656,13 +656,31 @@ function buildPane(sess, idx) {
       insertToken(token);
     } else alert((T.imgFail || 'Image upload failed') + ': ' + ((r && r.error) || ''));
   }
+  // 여러 줄 긴 글은 서버에 .txt로 저장 → 전송 시 경로만 (조기 제출 방지, Claude가 파일을 읽음)
+  async function attachText(text) {
+    qInput.disabled = true; const ph = qInput.placeholder; qInput.placeholder = '⏳ ' + (T.imgUploading || 'uploading…');
+    const r = await api('POST', '/api/sessions/' + sess.id + '/upload-text', { text });
+    qInput.disabled = false; qInput.placeholder = ph;
+    if (r && r.path) {
+      const token = '[' + T.textChip + ' #' + (++attachN) + ' · ' + text.length + T.charsUnit + ']';
+      attachMap.set(token, { type: 'file', value: r.path });
+      insertToken(token);
+    } else {
+      // 업로드 엔드포인트가 아직 없으면(서버 재시작 전) 원문 그대로 삽입
+      const b = qInput.value; qInput.value = b + (b && !/\s$/.test(b) ? ' ' : '') + text;
+    }
+  }
   qInput.addEventListener('paste', ev => {
     const cd = ev.clipboardData;
     const items = [...((cd && cd.items) || [])];
     const img = items.find(it => it.type && it.type.startsWith('image/'));
     if (img) { ev.preventDefault(); attachImage(img.getAsFile()); return; }
     const text = (cd && cd.getData && cd.getData('text')) || '';
-    if (text && (text.length > 100 || text.includes('\n'))) {   // 너무 길거나 여러 줄 → 짧은 칩으로 축약
+    if (!text) return;
+    if (text.includes('\n')) {          // 여러 줄 → 파일로 저장(안정적 제출)
+      ev.preventDefault();
+      attachText(text);
+    } else if (text.length > 100) {     // 한 줄 긴 글 → 칩(전송 시 인라인)
       ev.preventDefault();
       const token = '[' + T.textChip + ' #' + (++attachN) + ' · ' + text.length + T.charsUnit + ']';
       attachMap.set(token, { type: 'text', value: text });
