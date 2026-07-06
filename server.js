@@ -104,6 +104,11 @@ app.use((req, res, next) => {
   res.status(401).send('<h2 style="font-family:sans-serif">Access token required. Open the URL shown in the server console (or scan the QR).</h2>');
 });
 
+// HTML/JS는 캐시 금지 — 업데이트 후 옛 화면이 남지 않도록
+app.use((req, res, next) => {
+  if (/\.(html|js|css)$/.test(req.path) || req.path === '/') res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 app.use(express.static(path.join(ROOT, 'public')));
 // QR 라이브러리 내장 서빙 (CDN 의존 제거 — 오프라인/사내망에서도 동작)
 app.get('/vendor/qrcode.js', (req, res) =>
