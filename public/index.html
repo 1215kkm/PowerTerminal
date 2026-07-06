@@ -99,6 +99,14 @@
 <body>
 <header>
   <h1>🚀 PowerTerminal</h1>
+  <a id="banner" target="_blank" rel="noopener"
+     style="display:none;font-size:12px;font-weight:700;color:#fff;text-decoration:none;
+            padding:5px 12px;border-radius:99px;white-space:nowrap;overflow:hidden;
+            text-overflow:ellipsis;max-width:34vw;
+            background:linear-gradient(90deg,var(--violet),var(--pink))"></a>
+  <a id="updChip" target="_blank" rel="noopener"
+     style="display:none;font-size:11px;font-weight:700;color:#111;background:#fbbf24;
+            padding:4px 10px;border-radius:99px;text-decoration:none;white-space:nowrap">🔄</a>
   <span id="conn" style="font-size:12px;color:var(--muted)"></span>
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
@@ -595,6 +603,38 @@ async function refreshUsage() {
 }
 refreshUsage();
 setInterval(refreshUsage, 60 * 1000);
+
+// 배너 (개발자가 GitHub banner.json 수정 → 모두에게 반영) + 새 버전 알림
+async function refreshBanner() {
+  try {
+    const b = await api('GET', '/api/banner');
+    const el = document.getElementById('banner');
+    const list = (b.banners || []).filter(x => x && x.text);
+    if (list.length) {
+      let i = 0;
+      const show = () => {
+        const x = list[i % list.length];
+        el.textContent = (x.text[LANG] || x.text.en || Object.values(x.text)[0]);
+        el.href = x.url || '#';
+        if (x.color) el.style.background = x.color;
+        el.style.display = 'inline-block';
+        i++;
+      };
+      show();
+      if (list.length > 1) setInterval(show, 8000);
+    }
+    if (b.latestVersion && b.currentVersion &&
+        b.latestVersion.localeCompare(b.currentVersion, undefined, { numeric: true }) > 0) {
+      const u = document.getElementById('updChip');
+      u.textContent = '🔄 v' + b.latestVersion;
+      u.href = b.updateUrl || '#';
+      u.title = 'Update available — restart PowerTerminal to auto-update';
+      u.style.display = 'inline-block';
+    }
+  } catch (e) {}
+}
+refreshBanner();
+setInterval(refreshBanner, 10 * 60 * 1000);
 
 applyStatic();
 (async () => {

@@ -206,11 +206,30 @@ app.post('/api/new-project', (req, res) => {
   res.json({ ...sess, repoUrl, ghError });
 });
 
+const VERSION = (() => { try { return readJson(path.join(ROOT, 'package.json')).version; } catch (e) { return '0.0.0'; } })();
+
 app.get('/api/info', (req, res) => {
   const ips = [];
   for (const addrs of Object.values(os.networkInterfaces()))
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '' });
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION });
+});
+
+// ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------
+const BANNER_URL = config.bannerUrl ||
+  'https://raw.githubusercontent.com/1215kkm/PowerTerminal/main/banner.json';
+let bannerCache = { t: 0, data: null };
+app.get('/api/banner', async (req, res) => {
+  if (bannerCache.data && Date.now() - bannerCache.t < 10 * 60 * 1000) return res.json(bannerCache.data);
+  let data = null;
+  try {
+    const r = await fetch(BANNER_URL, { signal: AbortSignal.timeout(8000) });
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  if (!data) { try { data = readJson(path.join(ROOT, 'banner.json')); } catch (e) { data = { banners: [] }; } }
+  data.currentVersion = VERSION;
+  bannerCache = { t: Date.now(), data };
+  res.json(data);
 });
 
 app.post('/api/sessions', (req, res) => {
