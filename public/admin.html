@@ -25,6 +25,20 @@
   .pv-banner img { height:18px; border-radius:4px; }
   .phone { width:360px; max-width:100%; }
   #status { font-size:13px; margin-top:10px; white-space:pre-wrap; }
+  select { width:100%; background:#111827; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 10px; font-family:inherit; }
+  /* 배너 효과 미리보기 (사용자 화면과 동일 애니메이션) */
+  @keyframes fxBlink { 0%,100%{opacity:1} 50%{opacity:.25} }
+  @keyframes fxPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+  @keyframes fxGlow { 0%,100%{box-shadow:0 0 4px 1px rgba(236,72,153,.5)} 50%{box-shadow:0 0 16px 5px rgba(236,72,153,.95)} }
+  @keyframes fxShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-2px)} 40%{transform:translateX(2px)} 60%{transform:translateX(-2px)} 80%{transform:translateX(2px)} }
+  @keyframes fxSlide { 0%{transform:translateX(110%)} 100%{transform:translateX(-110%)} }
+  @keyframes fxRainbow { 0%{filter:hue-rotate(0)} 100%{filter:hue-rotate(360deg)} }
+  .pv-banner.fx-blink { animation: fxBlink 1.6s ease-in-out infinite; }
+  .pv-banner.fx-pulse { animation: fxPulse 1.4s ease-in-out infinite; }
+  .pv-banner.fx-glow { animation: fxGlow 1.6s ease-in-out infinite; }
+  .pv-banner.fx-shake { animation: fxShake 1s ease-in-out infinite; }
+  .pv-banner.fx-rainbow { animation: fxRainbow 4s linear infinite; }
+  .pv-banner.fx-slide .bn-in { display:inline-block; animation: fxSlide 9s linear infinite; }
 </style>
 </head>
 <body>
@@ -94,11 +108,20 @@ function bannerCard(b, i) {
     <div class="row" style="align-items:end">
       <div><label>클릭 시 이동할 주소 (페이지·유튜브 영상 등)</label><input data-k="url" value="${esc(b.url || '')}"></div>
       <div style="flex:0 0 110px"><label>배경색</label><input type="color" data-k="color" value="${/^#[0-9a-fA-F]{6}$/.test(b.color || '') ? b.color : '#EC4899'}" style="height:40px;padding:2px;cursor:pointer"></div>
+      <div style="flex:0 0 150px"><label>✨ 효과 (전 사용자 원격 적용)</label>
+        <select data-k="effect">
+          ${['none','blink','pulse','glow','shake','slide','rainbow'].map(fx =>
+            `<option value="${fx}" ${((b.effect || 'none') === fx) ? 'selected' : ''}>${
+              ({none:'없음',blink:'깜빡임',pulse:'두근두근',glow:'네온 빛',shake:'흔들림',slide:'흐르는 글자',rainbow:'무지개'})[fx]
+            }</option>`).join('')}
+        </select>
+      </div>
     </div>
     <label>이미지 주소 (선택 — 배너 안에 작은 로고/아이콘으로 표시)</label>
     <input data-k="image" value="${esc(b.image || '')}" placeholder="https://.../logo.png">
     <div style="text-align:right;margin-top:8px"><button class="danger" onclick="delBanner(${i})">✕ 이 배너 삭제</button></div>`;
   d.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { collect(); preview(); }));
+  d.querySelectorAll('select').forEach(sel => sel.addEventListener('change', () => { collect(); preview(); }));
   return d;
 }
 
@@ -118,6 +141,7 @@ function collect() {
     const b = { text: { ko: v('ko'), en: v('en'), ja: v('ja'), zh: v('zh'), es: v('es') }, url: v('url') };
     if (v('color')) b.color = v('color');
     if (v('image')) b.image = v('image');
+    if (v('effect') && v('effect') !== 'none') b.effect = v('effect');
     return b;
   }).filter(b => Object.values(b.text).some(x => x));
   data.latestVersion = document.getElementById('latestVersion').value.trim();
@@ -151,9 +175,10 @@ function preview() {
     const el = document.getElementById(id);
     if (!b) { el.style.display = 'none'; continue; }
     el.style.display = 'inline-flex';
-    el.innerHTML = (b.image ? `<img src="${esc(b.image)}">` : '') + esc(b.text.ko || b.text.en);
+    el.innerHTML = (b.image ? `<img src="${esc(b.image)}">` : '') + `<span class="bn-in">${esc(b.text.ko || b.text.en)}</span>`;
     el.href = b.url || '#';
     el.style.background = b.color || '';
+    el.className = 'pv-banner' + (b.effect ? ' fx-' + b.effect : '');   // 효과 실시간 미리보기
   }
 }
 function addBanner() { collect(); data.banners.push({ text: { ko: '', en: '' }, url: '' }); render(); }

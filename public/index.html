@@ -83,6 +83,20 @@
   #btnFeedback { display: none !important; }   /* 의견보내기 버튼 — 일단 숨김 */
   .ub-left { font-size: 10px; color: var(--muted); white-space: nowrap; }   /* 리셋까지 남은 시간 */
   #btnQR .qric { vertical-align: -2px; }
+
+  /* 배너 효과 엔진 — banner.json의 effect 필드로 원격 제어 (none/blink/pulse/glow/shake/slide/rainbow) */
+  @keyframes fxBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  @keyframes fxPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  @keyframes fxGlow { 0%, 100% { box-shadow: 0 0 4px 1px rgba(236,72,153,.5); } 50% { box-shadow: 0 0 16px 5px rgba(236,72,153,.95); } }
+  @keyframes fxShake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-2px); } 40% { transform: translateX(2px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+  @keyframes fxSlide { 0% { transform: translateX(110%); } 100% { transform: translateX(-110%); } }
+  @keyframes fxRainbow { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+  #banner.fx-blink { animation: fxBlink 1.6s ease-in-out infinite; }
+  #banner.fx-pulse { animation: fxPulse 1.4s ease-in-out infinite; }
+  #banner.fx-glow { animation: fxGlow 1.6s ease-in-out infinite; }
+  #banner.fx-shake { animation: fxShake 1s ease-in-out infinite; }
+  #banner.fx-rainbow { animation: fxRainbow 4s linear infinite; }
+  #banner.fx-slide .bn-in { display: inline-block; animation: fxSlide 9s linear infinite; }
   /* 모바일: 터미널 중앙 1/3 = 터미널 스크롤백 존 · 양옆 = 페이지 스크롤 */
   .scrollzone, .pgzone { display: none; }
 
@@ -1332,9 +1346,13 @@ async function refreshBanner() {
       const show = () => {
         const x = list[i % list.length];
         const txt = (x.text[LANG] || x.text.en || Object.values(x.text)[0]);
-        el.innerHTML = (x.image ? `<img src="${x.image.replace(/"/g,'')}" style="height:18px;border-radius:4px;vertical-align:-4px;margin-right:6px">` : '') + esc(txt);
+        el.innerHTML = (x.image ? `<img src="${x.image.replace(/"/g,'')}" style="height:18px;border-radius:4px;vertical-align:-4px;margin-right:6px">` : '') +
+                       `<span class="bn-in">${esc(txt)}</span>`;
         el.href = x.url || '#';
         if (x.color) el.style.background = x.color;
+        // 효과 적용 — banner.json의 effect 값으로 원격 제어
+        el.className = '';
+        if (x.effect && x.effect !== 'none') el.classList.add('fx-' + x.effect.replace(/[^a-z]/g, ''));
         el.style.display = 'inline-block';
         i++;
       };
