@@ -33,9 +33,21 @@ if (!config.token) {
 }
 
 // ---------- 세션 메타 ----------
+const RECENT_FILE = path.join(ROOT, 'recent.json');
 let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
 function saveSessions() { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); }
+
+// 최근 사용 세션 기록 — 닫아도 남아서 세션추가창에 회색으로 표시(다시 켤 수 있게)
+let recent = [];
+try { recent = readJson(RECENT_FILE); } catch (e) {}
+function saveRecent() { try { fs.writeFileSync(RECENT_FILE, JSON.stringify(recent, null, 2)); } catch (e) {} }
+function addRecent(s) {
+  recent = recent.filter(r => r.path !== s.path);
+  recent.unshift({ title: s.title, path: s.path, agent: s.agent || 'claude', model: s.model || 'default' });
+  recent = recent.slice(0, 40);
+  saveRecent();
+}
 
 // ---------- PTY 관리 ----------
 const ptys = new Map(); // id -> {proc, buffer, sockets:Set, busy, done, lastOut}
@@ -181,15 +193,31 @@ app.post('/api/clone', (req, res) => {
   }
   const id = crypto.randomBytes(4).toString('hex');
   const sess = { id, title: name, path: dir, previewUrl: '', agent: 'claude', cmd: '' };
-  sessions.push(sess); saveSessions(); getPty(sess);
+  sessions.push(sess); saveSessions(); addRecent(sess); getPty(sess);
   res.json(sess);
 });
 
 app.get('/api/known-projects', (req, res) => {
+  // 순서: ① 현재 열린 세션(실제 구성 순서, active) → ② 최근 닫은 세션(회색) → ③ 런처 폴더(회색)
+  const out = [];
+  const seen = new Set();
+  const norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+  for (const s of sessions) {
+    const k = norm(s.path); if (seen.has(k)) continue; seen.add(k);
+    out.push({ title: s.title, path: s.path, agent: s.agent || 'claude', model: s.model || 'default', active: true });
+  }
+  for (const r of recent) {
+    const k = norm(r.path); if (seen.has(k)) continue; seen.add(k);
+    out.push({ ...r, active: false });
+  }
   try {
     const cfg = readJson(LAUNCHER_PROJECTS);
-    res.json(cfg.projects || []);
-  } catch (e) { res.json([]); }
+    for (const p of (cfg.projects || [])) {
+      const k = norm(p.path); if (!p.path || seen.has(k)) continue; seen.add(k);
+      out.push({ title: p.name || p.title, path: p.path, agent: 'claude', model: 'default', active: false });
+    }
+  } catch (e) {}
+  res.json(out);
 });
 
 // gh / cloudflared는 PATH에 없을 수 있어 알려진 위치까지 확인
@@ -277,6 +305,7 @@ app.post('/api/new-project', (req, res) => {
   const sess = { id, title: name, path: dir, previewUrl: '' };
   sessions.push(sess);
   saveSessions();
+  addRecent(sess);
   getPty(sess);
   res.json({ ...sess, repoUrl, ghError });
 });
@@ -346,6 +375,7 @@ app.post('/api/sessions', (req, res) => {
                  agent: agent || 'claude', cmd: cmd || '' };
   sessions.push(sess);
   saveSessions();
+  addRecent(sess);
   getPty(sess);
   res.json(sess);
 });
@@ -407,6 +437,8 @@ app.delete('/api/sessions/:id', (req, res) => {
   const p = ptys.get(req.params.id);
   if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
   ptys.delete(req.params.id);
+  const gone = sessions.find(x => x.id === req.params.id);
+  if (gone) addRecent(gone);   // 닫아도 최근 목록엔 남겨 회색으로 다시 켤 수 있게
   sessions = sessions.filter(x => x.id !== req.params.id);
   saveSessions();
   res.json({ ok: true });
