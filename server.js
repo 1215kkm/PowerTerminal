@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { execFileSync, spawn } = require('child_process');
+const { execFileSync, execFile, spawn } = require('child_process');
 const https = require('https');
 let CLOUDFLARED_PATH;
 
@@ -250,17 +250,37 @@ const CLOUDFLARED = findExe('cloudflared', [
 ]);
 CLOUDFLARED_PATH = CLOUDFLARED;
 
-// ---------- AI 사용량: Claude 공식 한도 % (설정>사용량 화면과 동일 데이터, 60초 캐시) ----------
+// ---------- AI 사용량: 공식 한도 %(그래프) + 로컬 비용($) 를 항상 같이 반환 ----------
 let usageCache = { t: 0, data: null };
+let costCache = { t: 0, val: null };   // ccusage 비용은 10분 캐시 (무겁고 자주 안 변함)
+function refreshCost() {
+  if (Date.now() - costCache.t < 10 * 60 * 1000) return;
+  costCache.t = Date.now();
+  const cli = path.join(ROOT, 'node_modules', 'ccusage', 'src', 'cli.js');
+  // 비동기 실행 — 동기(execFileSync)로 돌리면 그 몇 초간 서버 전체(터미널 출력까지)가 멈춘다
+  execFile(process.execPath, [cli, 'daily', '--json'], { encoding: 'utf8', timeout: 30000, windowsHide: true },
+    (err, out) => {
+      if (err) return;   // 실패 시 이전 값 유지
+      try {
+        const j = JSON.parse(out);
+        const days = j.daily || [];
+        const today = days.find(d => d.period === new Date().toISOString().slice(0, 10)) || { totalCost: 0 };
+        const week = days.slice(-7).reduce((a, d) => a + (d.totalCost || 0), 0);
+        costCache.val = { todayCost: today.totalCost || 0, weekCost: week };
+      } catch (e) {}
+    });
+}
 app.get('/api/usage', async (req, res) => {
-  if (usageCache.data && Date.now() - usageCache.t < 60 * 1000) return res.json(usageCache.data);
+  // 2분 캐시 — 너무 자주 조회하면 공식 API가 429(rate limit)로 잠시 막는다
+  if (usageCache.data && Date.now() - usageCache.t < 120 * 1000) return res.json(usageCache.data);
   const data = { user: os.userInfo().username, bars: [] };
   try {
     const cred = readJson(path.join(os.homedir(), '.claude', '.credentials.json'));
     const tok = cred.claudeAiOauth && cred.claudeAiOauth.accessToken;
     if (!tok) throw new Error('no token');
     const r = await fetch('https://api.anthropic.com/api/oauth/usage', {
-      headers: { Authorization: 'Bearer ' + tok, 'anthropic-beta': 'oauth-2025-04-20' }
+      headers: { Authorization: 'Bearer ' + tok, 'anthropic-beta': 'oauth-2025-04-20' },
+      signal: AbortSignal.timeout(8000)
     });
     if (!r.ok) throw new Error('http ' + r.status);
     const j = await r.json();
@@ -272,17 +292,12 @@ app.get('/api/usage', async (req, res) => {
       });
     }
   } catch (e) {
-    // 폴백: 로컬 기록 기반 비용 표시 (ccusage)
-    try {
-      const cli = path.join(ROOT, 'node_modules', 'ccusage', 'src', 'cli.js');
-      const out = execFileSync(process.execPath, [cli, 'daily', '--json'], { encoding: 'utf8', timeout: 30000, windowsHide: true });
-      const j = JSON.parse(out);
-      const days = j.daily || [];
-      const today = days.find(d => d.period === new Date().toISOString().slice(0, 10)) || { totalCost: 0 };
-      const week = days.slice(-7).reduce((a, d) => a + (d.totalCost || 0), 0);
-      data.fallback = { todayCost: today.totalCost || 0, weekCost: week };
-    } catch (e2) { data.error = '사용량 조회 실패'; }
+    // 일시 실패 시 직전 그래프 유지 — 그래프↔텍스트 왔다갔다 방지
+    if (usageCache.data && usageCache.data.bars && usageCache.data.bars.length) data.bars = usageCache.data.bars;
   }
+  refreshCost();
+  if (costCache.val) data.fallback = costCache.val;   // $비용은 그래프와 '함께' 병기
+  if (!data.bars.length && !data.fallback) data.error = '사용량 조회 실패';
   usageCache = { t: Date.now(), data };
   res.json(data);
 });

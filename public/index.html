@@ -151,6 +151,7 @@
     .ub-weekly_all { order: 8; flex: 1 1 50%; }
     .ub-weekly_scoped { order: 9; flex: 1 1 38%; margin-left: auto; }
     .ub-weekly_all .ub-left, .ub-weekly_scoped .ub-left { display: none; }  /* 폰: 주간 막대들의 ⏳시간 숨김 (세션만 표시) */
+    .ub-cost { display: none; }   /* 폰: $비용 줄 숨김 (자리 부족) — PC에선 그래프와 함께 표시 */
     .ub-track { flex: 1; min-width: 40px; }
     #btnQR .qrtxt { display: none; }       /* QR 글자 숨기고 아이콘만 */
     /* 모바일 헤더 여유 — 터미널 헤더 두 줄 구조라 자연히 +높이 */
@@ -1206,6 +1207,10 @@ async function refreshUsage() {
   try {
     const u = await api('GET', '/api/usage');
     const el = document.getElementById('usage');
+    let costHtml = '';
+    if (u.fallback) {   // $비용 — PC에선 그래프와 함께 항상 병기
+      costHtml = `<span class="ub ub-cost"><span class="ub-label">${T.fbUsage.replace('{t}', '$' + u.fallback.todayCost.toFixed(0)).replace('{w}', '$' + u.fallback.weekCost.toFixed(0))}</span></span>`;
+    }
     if (u.bars && u.bars.length) {
       el.innerHTML = u.bars.map(b => {
         const label = b.kind === 'session' ? T.curSession
@@ -1220,9 +1225,9 @@ async function refreshUsage() {
           <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, b.percent)}%;background:${col}"></span></span>
           <span class="ub-pct">${b.percent}%</span>
           ${left ? `<span class="ub-left"${full ? ' style="color:#f87171;font-weight:700"' : ''}>⏳${left}</span>` : ''}</span>`;
-      }).join('');
-    } else if (u.fallback) {
-      el.textContent = T.fbUsage.replace('{t}', '$' + u.fallback.todayCost.toFixed(0)).replace('{w}', '$' + u.fallback.weekCost.toFixed(0));
+      }).join('') + costHtml;
+    } else if (costHtml) {
+      el.innerHTML = costHtml;
     } else { el.textContent = ''; }
   } catch (e) {}
 }
