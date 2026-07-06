@@ -5,11 +5,14 @@
   "banners": [
     {
       "text": {
-        "ko": "🚀 Fable 7월7일까지 일단락 - 이후부터 사용한만큼 토큰소모",
-        "en": "🚀 Fable will be closed for now until July 7"
+        "ko": "🚀 PowerTerminal - 분할터미널창, 모바일에서도 편하게 수정",
+        "en": "🚀 Fable will be closed for now until July 7",
+        "ja": "",
+        "zh": "",
+        "es": ""
       },
       "url": "https://crownyclass.com/community.html?board=showcase&mentorOnly=1",
-      "color": "#EC4899"
+      "color": "#ec4899"
     }
   ]
 }
