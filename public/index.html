@@ -480,11 +480,11 @@ function buildPane(sess, idx) {
   };
 
   // AI 모델 선택 (Claude 세션) — 실행 중이면 즉시 전환
-  const modelSel = el.querySelector('.modelSel');
-  if (modelSel) modelSel.onchange = (ev) => {
+  const modelDrop = el.querySelector('.modelSel');
+  if (modelDrop) modelDrop.onchange = (ev) => {
     ev.stopPropagation();
-    sess.model = modelSel.value;
-    api('PATCH', '/api/sessions/' + sess.id, { model: modelSel.value });
+    sess.model = modelDrop.value;
+    api('PATCH', '/api/sessions/' + sess.id, { model: modelDrop.value });
   };
 
   // 글자 크기
