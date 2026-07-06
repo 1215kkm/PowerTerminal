@@ -6,8 +6,16 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "claude-code",
+    "claude",
+    "terminal",
+    "web-terminal",
+    "mobile",
+    "ai-agent",
+    "windows"
+  ],
+  "author": "1215kkm",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

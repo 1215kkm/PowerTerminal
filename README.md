@@ -1,10 +1,35 @@
 # 🚀 PowerTerminal
 
-**Run Claude Code from your browser — on your PC and your phone, at the same time.**
+**Claude Code on your phone — the work runs on your Windows PC.**
 
-Open multiple Claude Code sessions side by side, watch them work, and send requests from anywhere. Sessions keep running on your PC; your phone is just a window into them.
+Open multiple Claude Code sessions side by side, watch them work, and send requests from anywhere. Sessions keep running on your PC; your phone (or any browser) is just a window into them.
 
 > It uses the real Claude Code CLI on your machine — same behavior, same usage. Just a much better view.
+
+[한국어 README](README.ko.md)
+
+<!-- Demo: record a 15–30s clip of a phone controlling a PC session (see docs/LAUNCH.md for the shot list), export a GIF ≤ 10MB, save it as docs/demo.gif, then remove this comment. -->
+![PowerTerminal demo — multi-session grid on PC, same sessions on a phone](docs/demo.gif)
+
+## Why PowerTerminal?
+
+Plenty of tools wrap Claude Code — most are Mac/Linux desktop apps or heavyweight agent orchestrators. PowerTerminal takes a different spot:
+
+|  | PowerTerminal | opcode (Claudia) | CloudCLI (claudecodeui) | Vibe Kanban |
+|---|---|---|---|---|
+| **Windows-first** | ✅ built for Windows | Mac/Linux | cross-platform | cross-platform |
+| **Phone = same live session** | ✅ your phone mirrors and controls the PC session | ❌ desktop only | ✅ remote sessions | ❌ board UI |
+| **Setup** | `git clone` + double-click `start.bat` | build/install desktop app | install + configure | install + configure |
+| **Runtime** | plain Node.js server, no build step | Tauri app | Node/web app | Rust + web app |
+| **Claude plan usage bars** | ✅ same numbers as the official app | partial | ❌ | ❌ |
+| **One-click new project** (folder + git + private GitHub repo + Claude) | ✅ | ❌ | ❌ | ❌ |
+
+If you live on Windows and want to fire off requests from your bed or your commute while your PC does the work, this is the gap PowerTerminal fills.
+
+## Requirements
+
+- **Server: Windows** (it drives real `powershell.exe` terminals). Mac/Linux support isn't there yet — but any phone, tablet, or Mac **browser** can connect as a client.
+- [Node.js](https://nodejs.org) (LTS) and [Claude Code](https://claude.com/claude-code) on the Windows PC.
 
 ## Quick Start
 
