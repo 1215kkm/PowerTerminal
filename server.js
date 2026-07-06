@@ -148,11 +148,11 @@ app.get('/api/usage', async (req, res) => {
     if (!r.ok) throw new Error('http ' + r.status);
     const j = await r.json();
     for (const l of (j.limits || [])) {
-      let label = l.kind === 'session' ? '현재 세션'
-                : l.kind === 'weekly_all' ? '주간 한도'
-                : (l.scope && l.scope.model && l.scope.model.display_name) ? '주간 ' + l.scope.model.display_name
-                : l.kind;
-      data.bars.push({ label, percent: l.percent || 0, resetsAt: l.resets_at, severity: l.severity });
+      data.bars.push({
+        kind: l.kind,
+        scopeName: (l.scope && l.scope.model && l.scope.model.display_name) || '',
+        percent: l.percent || 0, resetsAt: l.resets_at, severity: l.severity
+      });
     }
   } catch (e) {
     // 폴백: 로컬 기록 기반 비용 표시 (ccusage)
