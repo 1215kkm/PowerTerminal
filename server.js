@@ -9,6 +9,8 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
+const https = require('https');
+let CLOUDFLARED_PATH;
 
 const ROOT = __dirname;
 const PORT = 7777;
@@ -162,10 +164,11 @@ const GH = findExe('gh', [
   path.join(process.env.LOCALAPPDATA || '', 'Programs', 'GitHub CLI', 'gh.exe'),
 ]);
 const CLOUDFLARED = findExe('cloudflared', [
-  path.join(ROOT, 'cloudflared.exe'),   // 동봉된 포터블 버전 우선
+  path.join(ROOT, 'cloudflared.exe'),   // 동봉/자동다운로드 포터블 버전 우선
   path.join(process.env.ProgramFiles || '', 'cloudflared', 'cloudflared.exe'),
   path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'cloudflared.exe'),
 ]);
+CLOUDFLARED_PATH = CLOUDFLARED;
 
 // ---------- AI 사용량: Claude 공식 한도 % (설정>사용량 화면과 동일 데이터, 60초 캐시) ----------
 let usageCache = { t: 0, data: null };
@@ -389,10 +392,29 @@ server.listen(PORT, '0.0.0.0', () => {
   const wifiUrl = ips[0] ? 'http://' + ips[0] + ':' + PORT + '/?token=' + config.token : '';
   console.log('  ① PC (이 컴퓨터):          http://localhost:' + PORT + '   ← 토큰 없이 자동 접속');
   if (wifiUrl) console.log('  ② 폰 — 같은 와이파이:      ' + wifiUrl);
-  console.log('  ③ 폰 — 외부 어디서든(LTE): 주소 준비 중...');
+  console.log('  ③ 폰 — 외부 접속(LTE):     주소 준비 중...');
   console.log('');
-  startTunnel(wifiUrl);
+  ensureCloudflared().then(() => startTunnel(wifiUrl));
 });
+
+// cloudflared.exe가 없으면 자동 다운로드 (gitignore라 clone 시 안 딸려옴 — 외부 접속을 항상 가능하게)
+function ensureCloudflared() {
+  return new Promise(resolve => {
+    const local = path.join(ROOT, 'cloudflared.exe');
+    if (fs.existsSync(local) || CLOUDFLARED !== 'cloudflared') return resolve();
+    if (process.platform !== 'win32') return resolve();
+    console.log('  ⏳ 외부 접속 도구(cloudflared) 최초 1회 다운로드 중... (약 50MB)');
+    const url = 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe';
+    const file = fs.createWriteStream(local);
+    const get = u => https.get(u, { headers: { 'User-Agent': 'PowerTerminal' } }, r => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) return get(r.headers.location);
+      if (r.statusCode !== 200) { console.log('  (다운로드 실패 — 같은 와이파이만 가능)'); file.close(); try { fs.unlinkSync(local); } catch (e) {} return resolve(); }
+      r.pipe(file);
+      file.on('finish', () => { file.close(() => { CLOUDFLARED_PATH = local; console.log('  ✓ 외부 접속 도구 준비 완료'); resolve(); }); });
+    }).on('error', () => { console.log('  (다운로드 실패 — 같은 와이파이만 가능)'); resolve(); });
+    get(url);
+  });
+}
 
 function printQR(label, url) {
   try {
@@ -410,7 +432,7 @@ function startTunnel(wifiUrl) {
   // 10초 안에 터널이 안 뜨면 와이파이 주소로라도 QR 출력
   const fallback = setTimeout(() => { if (!found && wifiUrl) printQR('같은 와이파이 접속용', wifiUrl); }, 10000);
   try {
-    proc = spawn(CLOUDFLARED, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
+    proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
   } catch (e) {
     clearTimeout(fallback);
     console.log('  ③ 외부 접속 불가 — cloudflared.exe가 이 폴더에 없습니다 (README 참고)');
