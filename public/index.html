@@ -82,8 +82,8 @@
   #btnFeedback { display: none !important; }   /* 의견보내기 버튼 — 일단 숨김 */
   .ub-left { font-size: 10px; color: var(--muted); white-space: nowrap; }   /* 리셋까지 남은 시간 */
   #btnQR .qric { vertical-align: -2px; }
-  /* 모바일: 터미널 중앙 1/3 = 페이지 스크롤 존 (터치 중 하늘색 살짝) */
-  .scrollzone { display: none; }
+  /* 모바일: 터미널 중앙 1/3 = 터미널 스크롤백 존 · 양옆 = 페이지 스크롤 */
+  .scrollzone, .pgzone { display: none; }
 
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
@@ -168,10 +168,15 @@
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
     #qrCols > div { width: 100%; }
-    /* 터미널 중앙 1/3 = 페이지 스크롤 드래그 존 */
+    /* 터미널 중앙 1/3 = 그 터미널 스크롤백(위 내용 보기) · 양옆 1/3씩 = 페이지 스크롤 */
     .scrollzone { display: block; position: absolute; left: 33.3%; width: 33.4%; top: 0; bottom: 0;
-                  z-index: 5; background: transparent; transition: background .25s; }
-    .scrollzone.touching { background: rgba(56,189,248,.2); }
+                  z-index: 5; background: transparent; transition: background .25s; touch-action: none; }
+    .pgzone { display: block; position: absolute; top: 0; bottom: 0; width: 33.3%;
+              z-index: 5; touch-action: pan-y; }
+    .pgzone.l { left: 0; } .pgzone.r { right: 0; }
+    .scrollzone.touching { background: rgba(56,189,248,.35); }
+    /* 페이지 스크롤 중이면 모든 세션의 가운데 존을 하늘색으로 잠깐 표시 */
+    html.pt-scrolling .scrollzone { background: rgba(56,189,248,.2); }
   }
 
   /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */
@@ -549,12 +554,20 @@ function buildPane(sess, idx) {
   term.open(el.querySelector('.term'));
   fit.fit();
 
-  // 모바일: 터미널 중앙 1/3은 페이지 스크롤 존 (터치하는 동안 하늘색 살짝)
+  // 모바일: 가운데 1/3 = 이 터미널 스크롤백(위 내용) · 양옆 1/3 = 페이지 스크롤
   if (isMobile) {
-    const sz = document.createElement('div');
-    sz.className = 'scrollzone';
-    el.querySelector('.pane-body').appendChild(sz);
-    sz.addEventListener('touchstart', () => sz.classList.add('touching'), { passive: true });
+    const body = el.querySelector('.pane-body');
+    const pl = document.createElement('div'); pl.className = 'pgzone l';
+    const pr = document.createElement('div'); pr.className = 'pgzone r';
+    const sz = document.createElement('div'); sz.className = 'scrollzone';
+    body.appendChild(pl); body.appendChild(pr); body.appendChild(sz);
+    // 가운데 존을 세로로 끌면 이 터미널만 스크롤(위 내용 보기) — 페이지는 안 움직임
+    let sy = 0;
+    sz.addEventListener('touchstart', e => { sy = e.touches[0].clientY; sz.classList.add('touching'); }, { passive: true });
+    sz.addEventListener('touchmove', e => {
+      const dy = sy - e.touches[0].clientY;
+      if (Math.abs(dy) > 8) { term.scrollLines(dy > 0 ? 1 : -1); sy = e.touches[0].clientY; }
+    }, { passive: true });
     sz.addEventListener('touchend', () => setTimeout(() => sz.classList.remove('touching'), 250), { passive: true });
     sz.addEventListener('touchcancel', () => sz.classList.remove('touching'), { passive: true });
   }
@@ -849,6 +862,7 @@ function renderMinimap() {
 function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
+  if (typeof scheduleRefit === 'function') scheduleRefit();   // 배치 바뀌면 곧 모든 터미널 재fit
   // 확대 대상이 이미 닫혔으면 초기화
   if (maxedId && !els.some(el => el.dataset.id === maxedId)) maxedId = null;
   const hasMax = maxedId && n > 1;
@@ -1314,6 +1328,24 @@ new ResizeObserver(syncStickyOffset).observe(headerEl);
 addEventListener('resize', syncStickyOffset);
 addEventListener('resize', applyLayout);   // 창 크기가 줄면 한 줄→2줄로 자동 접기
 
+// 레이아웃/크기 변경 후 모든 터미널 재fit — pane이 커졌는데 내용이 절반만 보이는 문제 방지
+function refitAll() {
+  panes.forEach(p => { try { p.fit.fit(); if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'resize', cols: p.term.cols, rows: p.term.rows })); } catch (e) {} });
+}
+let _refitTimer;
+function scheduleRefit() { clearTimeout(_refitTimer); _refitTimer = setTimeout(refitAll, 90); }
+addEventListener('resize', () => setTimeout(refitAll, 60));
+addEventListener('orientationchange', () => setTimeout(() => { applyLayout(); refitAll(); }, 200));
+addEventListener('load', () => setTimeout(refitAll, 120));
+
+// 페이지 스크롤 중이면 가운데 존을 하늘색으로 잠깐 표시 (스크롤 영역이 어디인지 안내)
+let scrollFlag;
+addEventListener('scroll', () => {
+  document.documentElement.classList.add('pt-scrolling');
+  clearTimeout(scrollFlag);
+  scrollFlag = setTimeout(() => document.documentElement.classList.remove('pt-scrolling'), 400);
+}, { passive: true });
+
 // ---------- 시작 세션 선택창 ----------
 const pickDlg = document.getElementById('pickDlg');
 let pickList = [];
@@ -1367,7 +1399,7 @@ async function reconcile() {
     if (!belongsHere(id) || !list.find(s => s.id === id)) { removePaneLocal(id); changed = true; }
   });
   list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id)) { buildPane(s, grid.children.length); changed = true; } });
-  if (changed) { applyLayout(); renderMinimap(); }   // 변화 없으면 재렌더 안 함 (화면 덜컹임 방지)
+  if (changed) { applyLayout(); renumber(); }   // renumber()가 번호 재정렬 + 미니맵까지 갱신 (변화 없으면 재렌더 안 함)
 }
 window.addEventListener('storage', e => { if (e.key === 'pt_popped') reconcile(); });
 window.addEventListener('focus', reconcile);
