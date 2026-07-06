@@ -627,36 +627,42 @@ function printQR(label, url) {
   } catch (e) {}
 }
 
-// 외부(LTE) 접속: cloudflared 무료 터널 — 서버 시작 시 자동으로 외부용 주소 발급
+// 외부(LTE) 접속: cloudflared 무료 터널 — 실패/종료되면 자동 재시도(자가 치유)
 function startTunnel(wifiUrl) {
-  let proc;
-  let found = false;
-  // 10초 안에 터널이 안 뜨면 와이파이 주소로라도 QR 출력
-  const fallback = setTimeout(() => { if (!found && wifiUrl) printQR('같은 와이파이 접속용', wifiUrl); }, 10000);
-  try {
-    proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
-  } catch (e) {
-    clearTimeout(fallback);
-    console.log('  ③ 외부 접속 불가 — cloudflared.exe가 이 폴더에 없습니다 (README 참고)');
-    if (wifiUrl) printQR('같은 와이파이 접속용', wifiUrl);
-    return;
-  }
-  const onData = d => {
-    const m = d.toString().match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-    if (m && !found) {
-      found = true;
-      clearTimeout(fallback);
-      global.__tunnelUrl = m[0];
-      const full = m[0] + '/?token=' + config.token;
-      console.log('  ③ 폰 — 외부 어디서든(LTE): ' + full);
-      console.log('     (서버 켤 때마다 주소가 바뀝니다 — 화면의 🔗 QR 버튼으로 언제든 확인)');
-      printQR('외부 어디서든(LTE) 접속용', full);
+  let gotFirst = false;
+  let wifiShown = false;
+  const showWifiOnce = () => { if (!wifiShown && wifiUrl) { wifiShown = true; printQR('같은 와이파이 접속용', wifiUrl); } };
+  setTimeout(() => { if (!gotFirst) showWifiOnce(); }, 10000);   // 10초 안에 못 뜨면 와이파이 QR 안내
+
+  const spawnOnce = () => {
+    let proc;
+    try {
+      proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
+    } catch (e) {
+      console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도');
+      setTimeout(spawnOnce, 20000);
+      return;
     }
+    let urlThisRun = false;
+    const onData = d => {
+      const m = d.toString().match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (m && !urlThisRun) {
+        urlThisRun = true; gotFirst = true;
+        global.__tunnelUrl = m[0];
+        const full = m[0] + '/?token=' + config.token;
+        console.log('  ③ 폰 — 외부 어디서든(LTE): ' + full);
+        console.log('     (서버 켤 때마다 주소가 바뀝니다 — 화면의 QR 버튼으로 언제든 확인)');
+        printQR('외부 어디서든(LTE) 접속용', full);
+      }
+    };
+    proc.stdout.on('data', onData);
+    proc.stderr.on('data', onData);
+    proc.on('error', () => { setTimeout(spawnOnce, 20000); });
+    proc.on('exit', () => {
+      global.__tunnelUrl = '';        // 끊기면 주소 무효화 (QR에 '준비 중' 표시)
+      setTimeout(spawnOnce, urlThisRun ? 3000 : 20000);   // 잘 되다 끊긴 건 빨리, 처음부터 실패는 느긋하게 재시도
+      showWifiOnce();
+    });
   };
-  proc.stdout.on('data', onData);
-  proc.stderr.on('data', onData);
-  proc.on('error', () => {
-    console.log('  ③ 외부 접속 터널 시작 실패 — 같은 와이파이에서만 접속 가능');
-    if (!found && wifiUrl) printQR('같은 와이파이 접속용', wifiUrl);
-  });
+  spawnOnce();
 }
