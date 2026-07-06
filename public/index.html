@@ -151,7 +151,10 @@
     .ub-weekly_all { order: 8; flex: 1 1 50%; }
     .ub-weekly_scoped { order: 9; flex: 1 1 38%; margin-left: auto; }
     .ub-weekly_all .ub-left, .ub-weekly_scoped .ub-left { display: none; }  /* 폰: 주간 막대들의 ⏳시간 숨김 (세션만 표시) */
-    .ub-cost { display: none; }   /* 폰: $비용 줄 숨김 (자리 부족) — PC에선 그래프와 함께 표시 */
+    /* 폰: 현재세션 자리에서 [세션 그래프] ↔ [$비용] 이 5초마다 교대 표시 (주간 두 개는 계속) */
+    .ub-cost { display: none; }
+    html.pt-alt .ub-session { display: none; }
+    html.pt-alt .ub-cost { display: inline-flex; order: 6; flex: 1 1 52%; }
     .ub-track { flex: 1; min-width: 40px; }
     #btnQR .qrtxt { display: none; }       /* QR 글자 숨기고 아이콘만 */
     /* 모바일 헤더 여유 — 터미널 헤더 두 줄 구조라 자연히 +높이 */
@@ -1233,6 +1236,16 @@ async function refreshUsage() {
 }
 refreshUsage();
 setInterval(refreshUsage, 60 * 1000);
+
+// 폰: 현재세션 그래프 ↔ 📊 $비용 을 5초마다 교대 (PC는 CSS가 모바일에서만 적용되므로 영향 없음)
+setInterval(() => {
+  const root = document.documentElement;
+  if (isMobile && document.querySelector('#usage .ub-cost') && document.querySelector('#usage .ub-session')) {
+    root.classList.toggle('pt-alt');
+  } else {
+    root.classList.remove('pt-alt');
+  }
+}, 5000);
 
 // 배너 (개발자가 GitHub banner.json 수정 → 모두에게 반영) + 새 버전 알림
 async function refreshBanner() {
