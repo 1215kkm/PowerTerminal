@@ -73,12 +73,20 @@ function getPty(sess) {
     ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd],
     { name: 'xterm-256color', cols: 120, rows: 34, cwd: sess.path, env: process.env });
   p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false };
+  const isClaude = !sess.agent || sess.agent === 'claude';
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
-    const wasIdle = !p.busy || p.done;   // 작업 시작/재개 감지 → 하늘색 알림
-    p.busy = true; p.lastOut = Date.now();
-    if (p.done) p.done = false;
-    if (wasIdle) broadcastStatus(sess.id, p);
+    p.lastOut = Date.now();
+    if (isClaude) {
+      // Claude는 작업 중일 때 하단에 'esc to interrupt'를 계속 그림 → 이 표시로 작업중/완료 판별
+      // (사용량 정지 중 카운트다운 같은 잔출력에 상태가 흔들리지 않음)
+      if (p.buffer.slice(-1500).includes('esc to interrupt')) p.lastMarker = Date.now();
+    } else {
+      const wasIdle = !p.busy || p.done;
+      p.busy = true;
+      if (p.done) p.done = false;
+      if (wasIdle) broadcastStatus(sess.id, p);
+    }
     for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'out', data: d })); } catch (e) {} }
   });
   proc.onExit(() => {
@@ -94,11 +102,17 @@ function broadcastStatus(id, p) {
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
 }
 
-// 작업 완료 감지: 출력이 잠잠해진 지 8초 → done (초록 테두리)
+// 작업 완료 감지 — Claude: 'esc to interrupt' 표시가 4초간 안 그려지면 완료(초록) / 그 외: 8초 조용하면 완료
 setInterval(() => {
   for (const [id, p] of ptys) {
     if (p.dead) continue;
-    if (p.busy && Date.now() - p.lastOut > 8000) {
+    const sess = sessions.find(s => s.id === id);
+    const isClaude = !sess || !sess.agent || sess.agent === 'claude';
+    if (isClaude) {
+      const working = p.lastMarker && Date.now() - p.lastMarker < 4000;
+      if (working && (!p.busy || p.done)) { p.busy = true; p.done = false; broadcastStatus(id, p); }
+      else if (!working && p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p); }
+    } else if (p.busy && Date.now() - p.lastOut > 8000) {
       p.busy = false; p.done = true;
       broadcastStatus(id, p);
     }
@@ -517,8 +531,10 @@ wss.on('connection', (ws, req) => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
       p.proc.write(m.data);
-      if (p.done) { p.done = false; broadcastStatus(id, p); }
-      p.busy = true; p.lastOut = Date.now();
+      if (p.done) { p.done = false; broadcastStatus(id, p); }   // 입력하면 초록 해제
+      const isClaude = !sess.agent || sess.agent === 'claude';
+      if (!isClaude) p.busy = true;   // Claude는 'esc to interrupt' 마커가 busy를 결정
+      p.lastOut = Date.now();
     } else if (m.type === 'resize' && m.cols > 10 && m.rows > 5) {
       try { p.proc.resize(m.cols, m.rows); } catch (e) {}
     }

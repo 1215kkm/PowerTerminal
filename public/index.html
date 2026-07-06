@@ -2,8 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>PowerTerminal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%80%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
 <style>
   :root {
@@ -13,7 +14,9 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg);
-         font-family: Pretendard, 'Malgun Gothic', -apple-system, sans-serif; }
+         font-family: Pretendard, 'Malgun Gothic', -apple-system, sans-serif;
+         touch-action: pan-x pan-y; }   /* 더블탭/핀치 확대 방지 (앱처럼) */
+  button, select { touch-action: manipulation; }
   header { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
            border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 50; }
   header h1 { font-size: 16px; margin: 0;
@@ -30,9 +33,10 @@
           transition: grid-template-columns .35s ease; }
   .pane { background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
           display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
-          transition: border-color .3s, border-width .2s; }
+          transition: border-color .3s; }
   .pane.busy { border-color: var(--sky); }                    /* 작업 중(하늘색) */
-  .pane.done { border-color: var(--green); border-width: 4px; /* 전부 완료(초록·2배 두께) */
+  .pane.done { border-color: var(--green);                    /* 전부 완료(초록·2배 두께 — outline이라 레이아웃 안 흔들림) */
+               outline: 2px solid var(--green);
                box-shadow: 0 0 14px rgba(34,197,94,.55); }
   .pane.dragging { opacity: .4; }
   .pane.dragover { outline: 2px dashed var(--pink); }
@@ -69,10 +73,17 @@
   .pane.maxed .btnMax { background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
   .quick .qImg { flex: 0 0 auto; }
 
-  .quick { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827; }
-  .quick input { flex: 1; background: #000; border: 1px solid var(--line); color: var(--fg);
-                 border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit; }
-  .quick input:focus { outline: 1px solid var(--violet); }
+  .quick { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827;
+           align-items: flex-end; }
+  .quick textarea { flex: 1; background: #000; border: 1px solid var(--line); color: var(--fg);
+                    border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit;
+                    resize: none; max-height: 34vh; overflow-y: auto; line-height: 1.45; }
+  .quick textarea:focus { outline: 1px solid var(--violet); }
+  #btnFeedback { display: none !important; }   /* 의견보내기 버튼 — 일단 숨김 */
+  .ub-left { font-size: 10px; color: var(--muted); white-space: nowrap; }   /* 리셋까지 남은 시간 */
+  #btnQR .qric { vertical-align: -2px; }
+  /* 모바일: 터미널 중앙 1/3 = 페이지 스크롤 존 (터치 중 하늘색 살짝) */
+  .scrollzone { display: none; }
 
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
@@ -121,36 +132,43 @@
   .ub-track { width: 90px; height: 6px; border-radius: 3px; background: #374151; overflow: hidden; }
   .ub-fill { display: block; height: 100%; border-radius: 3px; transition: width .6s; }
   .ub-pct { font-size: 11px; font-weight: 700; color: var(--fg); }
-  @media (max-width: 700px) {
-    header { flex-wrap: wrap; }
-    header > * { order: 3; }              /* 기본: 컨트롤 버튼들 */
+  @media (max-width: 700px), (pointer: coarse) and (max-height: 520px) {
+    /* 헤더 3줄 구성: ①로고+QR+언어  ②배너  ③세션%+추가버튼  ④주간%+주간Fable% */
+    header { flex-wrap: wrap; row-gap: 7px; }
     header h1 { order: 0; }
     #hverBadge { order: 1; }
-    #updChip { display: none !important; }   /* 모바일: 업데이트 알림(노란 버전 칩) 숨김 */
-    #banner { order: 2; max-width: 100% !important; width: 100%; text-align: center; }  /* 배너 한 줄 전체 */
-    #usage { order: 10; width: 100%; gap: 8px 12px; flex-wrap: wrap; }  /* 길면 줄바꿈 */
-    .ub { flex: 1 1 45%; }
+    header .sp { order: 2; }
+    #btnQR { order: 3; }
+    #langSel { order: 4; padding: 6px; font-size: 12px; min-width: 0; }
+    #banner { order: 5; max-width: 100% !important; width: 100%; text-align: center; }
+    #usage { display: contents; }          /* 사용량 막대들을 헤더 줄배치에 직접 참여시킴 */
+    .ub { min-width: 0; }
+    .ub-session { order: 6; flex: 1 1 52%; }
+    #btnAdd { order: 7; margin-left: auto; }
+    .ub-weekly_all { order: 8; flex: 1 1 50%; }
+    .ub-weekly_scoped { order: 9; flex: 1 1 38%; margin-left: auto; }
     .ub-track { flex: 1; min-width: 40px; }
+    #btnQR .qrtxt { display: none; }       /* QR 글자 숨기고 아이콘만 */
     /* 모바일 헤더 여유 — 터미널 헤더 두 줄 구조라 자연히 +높이 */
     .pane-head { padding: 8px 10px; gap: 5px; }
     .pane-head .folder { font-size: 12px; }
     .pane-head .modelSel { font-size: 13px; padding: 5px 8px; }
-    /* 헤더 압축: 요청은 아이콘만 크게, 언어는 EN/KO 짧게 */
-    #btnFeedback .flbl { display: none; }
-    #btnFeedback .fic { font-size: 20px; }
-    #btnFeedback { padding: 6px 10px; }
-    #langSel { padding: 6px; font-size: 12px; min-width: 0; }
+    .btnMax, .btnTasks { display: none; }  /* 폰에선 확대/작업목록 버튼 숨김 */
     /* 이미지 첨부/찾기 버튼 — 폰에서 누르기 쉽게 크게 */
     .quick .qImg { font-size: 20px; padding: 8px 12px; }
     .quick .qSend { padding: 8px 12px; }
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
     #qrCols > div { width: 100%; }
+    /* 터미널 중앙 1/3 = 페이지 스크롤 드래그 존 */
+    .scrollzone { display: block; position: absolute; left: 33.3%; width: 33.4%; top: 0; bottom: 0;
+                  z-index: 5; background: transparent; transition: background .25s; }
+    .scrollzone.touching { background: rgba(56,189,248,.2); }
   }
 
   /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */
   #minimap { display: none; }
-  @media (max-width: 700px) {
+  @media (max-width: 700px), (pointer: coarse) and (max-height: 520px) {
     #grid { grid-template-columns: 1fr; padding: 6px; }
     .pane { min-height: 55vh; }
     header h1 { font-size: 14px; }
@@ -169,7 +187,7 @@
     .mm-cell .mm-title { overflow: hidden; text-overflow: ellipsis; }
     .mm-cell.active { border-color: var(--pink); }
     .mm-cell.busy { border-color: var(--sky); }
-    .mm-cell.done { border-color: var(--green); border-width: 3px; box-shadow: 0 0 6px rgba(34,197,94,.6); }
+    .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); }
     .mm-cell.busy .mm-title::after { content: ' ⋯'; color: var(--sky); }
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
     #grid.maxmode .pane.maxed { min-height: 74vh; }
@@ -188,8 +206,8 @@
             background:linear-gradient(90deg,var(--violet),var(--pink))"></a>
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
-  <button id="btnFeedback" onclick="openFeedback()"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
-  <button onclick="toggleQR()" data-i18n-title="infoBtn">🔗 QR</button>
+  <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
+  <button id="btnQR" onclick="toggleQR()" data-i18n-title="infoBtn"><svg class="qric" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm1 1h2v2H6V6zm7-3h8v8h-8V3zm2 2v4h4V5h-4zm1 1h2v2h-2V6zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm1 1h2v2H6v-2zm7-3h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg><span class="qrtxt"> QR</span></button>
   <select id="langSel" onchange="setLang(this.value)" title="Language"
           style="background:#374151;border:0;color:var(--fg);border-radius:8px;padding:8px;font-family:inherit;font-size:13px">
     <option value="en" data-short="EN" data-full="English">🌐 English</option>
@@ -197,8 +215,13 @@
     <option value="ja" data-short="JA" data-full="日本語">🌐 日本語</option>
     <option value="zh" data-short="ZH" data-full="中文">🌐 中文</option>
     <option value="es" data-short="ES" data-full="Español">🌐 Español</option>
+    <option value="de" data-short="DE" data-full="Deutsch">🌐 Deutsch</option>
+    <option value="fr" data-short="FR" data-full="Français">🌐 Français</option>
+    <option value="pt" data-short="PT" data-full="Português">🌐 Português</option>
+    <option value="ru" data-short="RU" data-full="Русский">🌐 Русский</option>
+    <option value="hi" data-short="HI" data-full="हिन्दी">🌐 हिन्दी</option>
   </select>
-  <button class="primary" onclick="openAdd()" data-i18n="addSession">＋ Session</button>
+  <button id="btnAdd" class="primary" onclick="openAdd()" data-i18n="addSession">＋ Session</button>
 </header>
 <div id="minimap"></div>
 <div id="grid"></div>
@@ -333,7 +356,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'✉ Request', feedbackShort:'Request', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -350,7 +373,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'✉ 요청', feedbackShort:'요청', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', imgChip:'이미지', textChip:'텍스트', charsUnit:'자' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -367,7 +390,7 @@ const I18N = {
     infoHead:'📡 接続アドレス', wifi:'同じWi-Fi', lte:'外部アクセス (どこでも)', tunnelNone:'トンネル準備中またはcloudflared未設置', urlChanges:'(サーバー再起動でURLが変わります)',
     qrLte:'LTEでどこからでも: ', qrWifi:'同じWi-Fi: ',
     copyOk:'QR画像をコピーしました。', copyFail:'このブラウザではコピーできません — 💾 保存を使ってください。',
-    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', mDefault:'自動', modelTip:'AIモデル — 自動はアカウント既定を使用。Opus/Sonnet/Haikuは常に最新版。', pickTitle:'▶ セッションを再開', pickDesc:'開くセッションを選択。クリックで選択、(−)で削除。', pickAll:'すべて選択', pickSkip:'スキップ', pickStart:'▶ 選択を開く', confirmRemove:'"{t}" をリストから削除? (フォルダは残る)', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', feedbackShort:'リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ', maxT:'この画面を拡大 / 元に戻す', tasksT:'タスク一覧の表示/非表示 (Ctrl+T)', imgT:'画像を添付・貼り付け', imgUploading:'アップロード中…', imgFail:'画像アップロード失敗', winAskTitle:'このセッションをどこで開きますか?', winAskRows:'⚠ 1枠が300px未満に狭くなります。この画面に追加すると2段に配置されます。', winNew:'🖥 新しいウィンドウで開く', winNewHint:'推奨 — デュアルモニターがあれば別画面に移すと便利です。', winCurrent:'➕ この画面に追加', winCurrentHint:'すべてこの画面にまとめます。', updText:'アップデート', updTip:'新バージョンあり — PowerTerminal再起動で自動更新', doneBadge:'完了', imgChip:'画像', textChip:'テキスト', charsUnit:'字' },
+    ghLocal:'(ローカルフォルダとgitは作成済み)', locale:'ja-JP', mDefault:'自動', modelTip:'AIモデル — 自動はアカウント既定を使用。Opus/Sonnet/Haikuは常に最新版。', pickTitle:'▶ セッションを再開', pickDesc:'開くセッションを選択。クリックで選択、(−)で削除。', pickAll:'すべて選択', pickSkip:'スキップ', pickStart:'▶ 選択を開く', confirmRemove:'"{t}" をリストから削除? (フォルダは残る)', browse:'📂 参照', selectThis:'✔ このフォルダを選択', feedback:'✉ リクエスト', feedbackShort:'リクエスト', noTunnel:'外部アクセス準備中 — 再起動で有効化。', tabFolder:'📁 ローカル', tabGithub:'🐙 GitHub', tabNew:'🆕 新規', ghPick:'cloneするリポジトリを選ぶかURLを貼り付け:', cloneBtn:'⬇ 取得して開始', aiLabel:'AI:', drives:'ドライブ', maxT:'この画面を拡大 / 元に戻す', tasksT:'タスク一覧の表示/非表示 (Ctrl+T)', imgT:'画像を添付・貼り付け', imgUploading:'アップロード中…', imgFail:'画像アップロード失敗', winAskTitle:'このセッションをどこで開きますか?', winAskRows:'⚠ 1枠が300px未満に狭くなります。この画面に追加すると2段に配置されます。', winNew:'🖥 新しいウィンドウで開く', winNewHint:'推奨 — デュアルモニターがあれば別画面に移すと便利です。', winCurrent:'➕ この画面に追加', winCurrentHint:'すべてこの画面にまとめます。', updText:'アップデート', updTip:'新バージョンあり — PowerTerminal再起動で自動更新', doneBadge:'完了', imgChip:'画像', textChip:'テキスト', charsUnit:'字', fbUsage:'📊 今日 {t} / 7日 {w}', modeT:'モード切替 (auto/accept edits/plan)', fontSel:'文字サイズ' },
   zh: { addSession:'＋ 添加会话', qrToggle:'移动端二维码 开/关', infoBtn:'访问地址',
     qrTitle:'📱 移动端访问二维码', qrWarn:'⚠ 扫码者可同样操作会话 — 仅分享给信任的人。',
     copyImg:'📋 复制', saveImg:'💾 保存', close:'关闭', cancel:'取消', add:'添加',
@@ -384,7 +407,7 @@ const I18N = {
     infoHead:'📡 访问地址', wifi:'同一Wi-Fi', lte:'外部访问 (任何地方)', tunnelNone:'隧道启动中或未安装cloudflared', urlChanges:'(服务器重启后地址会变)',
     qrLte:'LTE 任何地方: ', qrWifi:'同一Wi-Fi: ',
     copyOk:'二维码已复制到剪贴板。', copyFail:'此浏览器禁止复制 — 请用 💾 保存。',
-    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', mDefault:'自动', modelTip:'AI模型 — 自动使用账户默认。Opus/Sonnet/Haiku自动映射到最新版本。', pickTitle:'▶ 恢复会话', pickDesc:'选择要打开的会话。点击切换，(−)移除。', pickAll:'全选', pickSkip:'跳过', pickStart:'▶ 打开所选', confirmRemove:'从列表移除 "{t}"? (文件夹保留)', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', feedbackShort:'反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器', maxT:'放大 / 还原此窗口', tasksT:'显示/隐藏任务列表 (Ctrl+T)', imgT:'附加或粘贴图片', imgUploading:'上传中…', imgFail:'图片上传失败', winAskTitle:'在哪里打开此会话?', winAskRows:'⚠ 每格将窄于 300px。添加到本窗口会自动排成 2 行。', winNew:'🖥 在新窗口打开', winNewHint:'推荐 — 如果有双显示器，拖到另一屏更方便。', winCurrent:'➕ 添加到本窗口', winCurrentHint:'全部集中在此窗口。', updText:'更新', updTip:'有新版本 — 重启 PowerTerminal 自动更新', doneBadge:'完成', imgChip:'图片', textChip:'文本', charsUnit:'字' },
+    ghLocal:'(本地文件夹和git已创建)', locale:'zh-CN', mDefault:'自动', modelTip:'AI模型 — 自动使用账户默认。Opus/Sonnet/Haiku自动映射到最新版本。', pickTitle:'▶ 恢复会话', pickDesc:'选择要打开的会话。点击切换，(−)移除。', pickAll:'全选', pickSkip:'跳过', pickStart:'▶ 打开所选', confirmRemove:'从列表移除 "{t}"? (文件夹保留)', browse:'📂 浏览', selectThis:'✔ 选择此文件夹', feedback:'✉ 反馈', feedbackShort:'反馈', noTunnel:'外部访问准备中 — 重启后启用。', tabFolder:'📁 本地文件夹', tabGithub:'🐙 GitHub', tabNew:'🆕 新建', ghPick:'选择要 clone 的仓库或粘贴地址:', cloneBtn:'⬇ 克隆并启动', aiLabel:'AI:', drives:'驱动器', maxT:'放大 / 还原此窗口', tasksT:'显示/隐藏任务列表 (Ctrl+T)', imgT:'附加或粘贴图片', imgUploading:'上传中…', imgFail:'图片上传失败', winAskTitle:'在哪里打开此会话?', winAskRows:'⚠ 每格将窄于 300px。添加到本窗口会自动排成 2 行。', winNew:'🖥 在新窗口打开', winNewHint:'推荐 — 如果有双显示器，拖到另一屏更方便。', winCurrent:'➕ 添加到本窗口', winCurrentHint:'全部集中在此窗口。', updText:'更新', updTip:'有新版本 — 重启 PowerTerminal 自动更新', doneBadge:'完成', imgChip:'图片', textChip:'文本', charsUnit:'字', fbUsage:'📊 今天 {t} / 7天 {w}', modeT:'切换模式 (auto/accept edits/plan)', fontSel:'字体大小' },
   es: { addSession:'＋ Sesión', qrToggle:'QR de acceso móvil on/off', infoBtn:'Direcciones de acceso',
     qrTitle:'📱 QR de Acceso Móvil', qrWarn:'⚠ Quien escanee este QR puede controlar las sesiones — compártelo solo con gente de confianza.',
     copyImg:'📋 Copiar', saveImg:'💾 Guardar', close:'Cerrar', cancel:'Cancelar', add:'Añadir',
@@ -401,11 +424,16 @@ const I18N = {
     infoHead:'📡 Direcciones de acceso', wifi:'Misma Wi-Fi', lte:'Acceso externo (cualquier lugar)', tunnelNone:'Túnel iniciándose o falta cloudflared', urlChanges:'(la URL cambia al reiniciar el servidor)',
     qrLte:'Desde cualquier lugar: ', qrWifi:'Misma Wi-Fi: ',
     copyOk:'Imagen QR copiada al portapapeles.', copyFail:'Copia bloqueada en este navegador — usa 💾 Guardar.',
-    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', mDefault:'Auto', modelTip:'Modelo IA — Auto usa el predet. de tu cuenta. Opus/Sonnet/Haiku van a la última versión.', pickTitle:'▶ Reanudar sesiones', pickDesc:'Elige qué sesiones abrir. Clic para alternar, (−) para quitar.', pickAll:'Todo', pickSkip:'Omitir', pickStart:'▶ Abrir seleccionadas', confirmRemove:'¿Quitar "{t}" de la lista? (la carpeta se conserva)', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', feedbackShort:'Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades', maxT:'Ampliar / restaurar este panel', tasksT:'Mostrar/ocultar la lista de tareas (Ctrl+T)', imgT:'Adjuntar o pegar imagen', imgUploading:'subiendo…', imgFail:'Error al subir la imagen', winAskTitle:'¿Dónde abrir esta sesión?', winAskRows:'⚠ Los paneles quedan bajo 300px. Añadirla aquí los pondrá en 2 filas.', winNew:'🖥 Abrir en una ventana nueva', winNewHint:'Recomendado — si tienes un segundo monitor, arrástrala allí.', winCurrent:'➕ Añadir a esta ventana', winCurrentHint:'Mantiene todo aquí.', updText:'Actualizar', updTip:'Nueva versión — reinicia PowerTerminal para actualizar', doneBadge:'Hecho', imgChip:'Imagen', textChip:'Texto', charsUnit:' car.' }
+    ghLocal:'(la carpeta local y git fueron creados)', locale:'es-ES', mDefault:'Auto', modelTip:'Modelo IA — Auto usa el predet. de tu cuenta. Opus/Sonnet/Haiku van a la última versión.', pickTitle:'▶ Reanudar sesiones', pickDesc:'Elige qué sesiones abrir. Clic para alternar, (−) para quitar.', pickAll:'Todo', pickSkip:'Omitir', pickStart:'▶ Abrir seleccionadas', confirmRemove:'¿Quitar "{t}" de la lista? (la carpeta se conserva)', browse:'📂 Explorar', selectThis:'✔ Elegir esta carpeta', feedback:'✉ Solicitar', feedbackShort:'Solicitar', noTunnel:'Acceso externo no listo — reinicia para activar.', tabFolder:'📁 Carpeta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nuevo', ghPick:'Elige un repo para clonar o pega una URL:', cloneBtn:'⬇ Clonar e iniciar', aiLabel:'AI:', drives:'Unidades', maxT:'Ampliar / restaurar este panel', tasksT:'Mostrar/ocultar la lista de tareas (Ctrl+T)', imgT:'Adjuntar o pegar imagen', imgUploading:'subiendo…', imgFail:'Error al subir la imagen', winAskTitle:'¿Dónde abrir esta sesión?', winAskRows:'⚠ Los paneles quedan bajo 300px. Añadirla aquí los pondrá en 2 filas.', winNew:'🖥 Abrir en una ventana nueva', winNewHint:'Recomendado — si tienes un segundo monitor, arrástrala allí.', winCurrent:'➕ Añadir a esta ventana', winCurrentHint:'Mantiene todo aquí.', updText:'Actualizar', updTip:'Nueva versión — reinicia PowerTerminal para actualizar', doneBadge:'Hecho', imgChip:'Imagen', textChip:'Texto', charsUnit:' car.', fbUsage:'📊 Hoy {t} / 7d {w}', modeT:'Cambiar modo (auto/accept edits/plan)', fontSel:'Tamaño de fuente' },
+  de: { addSession:'＋ Sitzung', qrTitle:'📱 Mobiler Zugriff', qrWarn:'⚠ Wer diesen QR scannt, kann die Sitzungen steuern — nur mit Vertrauten teilen.', close:'Schließen', cancel:'Abbrechen', add:'Hinzufügen', addTitleH:'Sitzung hinzufügen', pathPh:'D:\\projekte\\ordner', titlePh:'Titel (leer = Ordnername)', agClaude:'🟣 Claude Code (Standard)', agShell:'🔷 Nur PowerShell (ohne KI)', agCustom:'⚙ Eigener Befehl', npDesc:'Ordner + git + privates GitHub-Repo in einem Schritt', npGo:'Erstellen & Starten', npCreating:'Erstelle...', curSession:'Sitzung', weeklyAll:'Wöchentlich', weeklyPfx:'Woche ', resets:'Reset', renameHint:'Doppelklick zum Umbenennen', previewT:'Live-Vorschau', closeT:'Sitzung schließen', quickPh:'Anfrage eingeben und Enter drücken', send:'Senden', done:'✅ Fertig', exitMsg:'[Sitzung beendet — mit ✕ schließen oder neu hinzufügen]', confirmClose:'Sitzung "{t}" schließen? (Terminal endet, Ordner bleibt)', infoHead:'📡 Zugriffsadressen', wifi:'Gleiches WLAN', lte:'Extern (überall)', mDefault:'Auto', modelTip:'KI-Modell — Auto nutzt den Kontostandard.', pickTitle:'▶ Sitzungen fortsetzen', pickDesc:'Wähle die zu öffnenden Sitzungen. Klicken = umschalten, (−) = entfernen.', pickAll:'Alle', pickSkip:'Überspringen', pickStart:'▶ Auswahl öffnen', confirmRemove:'"{t}" aus der Liste entfernen? (Ordner bleibt)', browse:'📂 Durchsuchen', selectThis:'✔ Diesen Ordner wählen', feedback:'Feedback an den Entwickler', tabFolder:'📁 Lokaler Ordner', tabGithub:'🐙 GitHub', tabNew:'🆕 Neu', ghPick:'Repo zum Klonen wählen oder URL einfügen:', cloneBtn:'⬇ Klonen & Starten', drives:'Laufwerke', maxT:'Dieses Fenster vergrößern / zurück', tasksT:'Aufgabenliste ein/aus (Ctrl+T)', imgT:'Bild anhängen oder einfügen', imgUploading:'lädt hoch…', imgFail:'Bild-Upload fehlgeschlagen', winAskTitle:'Wo soll diese Sitzung geöffnet werden?', winNew:'🖥 In neuem Fenster öffnen', winNewHint:'Empfohlen — bei zweitem Monitor dorthin ziehen.', winCurrent:'➕ Zu diesem Fenster', winCurrentHint:'Alles bleibt hier.', winAskRows:'⚠ Unter 300px pro Feld — hier eingefügt wird 2-zeilig angeordnet.', doneBadge:'Fertig', imgChip:'Bild', textChip:'Text', charsUnit:' Zeichen', fbUsage:'📊 Heute {t} / 7T {w}', modeT:'Modus wechseln', fontSel:'Schriftgröße', locale:'de-DE' },
+  fr: { addSession:'＋ Session', qrTitle:'📱 Accès mobile', qrWarn:'⚠ Quiconque scanne ce QR peut contrôler les sessions — à partager uniquement avec des personnes de confiance.', close:'Fermer', cancel:'Annuler', add:'Ajouter', addTitleH:'Ajouter une session', pathPh:'D:\\projets\\dossier', titlePh:'Titre (vide = nom du dossier)', agClaude:'🟣 Claude Code (défaut)', agShell:'🔷 PowerShell seul (sans IA)', agCustom:'⚙ Commande personnalisée', npDesc:'Dossier + git + dépôt GitHub privé en une fois', npGo:'Créer et démarrer', npCreating:'Création...', curSession:'Session', weeklyAll:'Hebdo', weeklyPfx:'Hebdo ', resets:'réinit.', renameHint:'Double-clic pour renommer', previewT:'Aperçu en direct', closeT:'Fermer cette session', quickPh:'Tapez une demande puis Entrée', send:'Envoyer', done:'✅ Terminé', exitMsg:'[Session terminée — fermez avec ✕ ou ajoutez-en une]', confirmClose:'Fermer la session "{t}" ? (le terminal se termine, le dossier reste)', infoHead:'📡 Adresses d\'accès', wifi:'Même Wi-Fi', lte:'Accès externe (partout)', mDefault:'Auto', modelTip:'Modèle IA — Auto utilise le modèle par défaut du compte.', pickTitle:'▶ Reprendre les sessions', pickDesc:'Choisissez les sessions à ouvrir. Clic = basculer, (−) = retirer.', pickAll:'Tout', pickSkip:'Passer', pickStart:'▶ Ouvrir la sélection', confirmRemove:'Retirer "{t}" de la liste ? (le dossier reste)', browse:'📂 Parcourir', selectThis:'✔ Choisir ce dossier', feedback:'Envoyer un avis au créateur', tabFolder:'📁 Dossier local', tabGithub:'🐙 GitHub', tabNew:'🆕 Nouveau', ghPick:'Choisissez un dépôt à cloner ou collez une URL :', cloneBtn:'⬇ Cloner et démarrer', drives:'Disques', maxT:'Agrandir / restaurer ce panneau', tasksT:'Afficher/masquer les tâches (Ctrl+T)', imgT:'Joindre ou coller une image', imgUploading:'envoi…', imgFail:'Échec de l\'envoi de l\'image', winAskTitle:'Où ouvrir cette session ?', winNew:'🖥 Ouvrir dans une nouvelle fenêtre', winNewHint:'Recommandé — avec un second écran, glissez-la dessus.', winCurrent:'➕ Ajouter à cette fenêtre', winCurrentHint:'Tout reste ici.', winAskRows:'⚠ Moins de 300px par panneau — ici, disposition sur 2 lignes.', doneBadge:'Fini', imgChip:'Image', textChip:'Texte', charsUnit:' car.', fbUsage:'📊 Auj. {t} / 7j {w}', modeT:'Changer de mode', fontSel:'Taille de police', locale:'fr-FR' },
+  pt: { addSession:'＋ Sessão', qrTitle:'📱 Acesso móvel', qrWarn:'⚠ Quem escanear este QR pode controlar as sessões — compartilhe só com quem confia.', close:'Fechar', cancel:'Cancelar', add:'Adicionar', addTitleH:'Adicionar sessão', pathPh:'D:\\projetos\\pasta', titlePh:'Título (vazio = nome da pasta)', agClaude:'🟣 Claude Code (padrão)', agShell:'🔷 Só PowerShell (sem IA)', agCustom:'⚙ Comando personalizado', npDesc:'Pasta + git + repositório privado no GitHub de uma vez', npGo:'Criar e iniciar', npCreating:'Criando...', curSession:'Sessão', weeklyAll:'Semanal', weeklyPfx:'Semanal ', resets:'reinicia', renameHint:'Duplo clique para renomear', previewT:'Prévia ao vivo', closeT:'Fechar esta sessão', quickPh:'Digite um pedido e aperte Enter', send:'Enviar', done:'✅ Pronto', exitMsg:'[Sessão encerrada — feche com ✕ ou adicione outra]', confirmClose:'Fechar a sessão "{t}"? (terminal encerra, pasta permanece)', infoHead:'📡 Endereços de acesso', wifi:'Mesmo Wi-Fi', lte:'Acesso externo (qualquer lugar)', mDefault:'Auto', modelTip:'Modelo de IA — Auto usa o padrão da conta.', pickTitle:'▶ Retomar sessões', pickDesc:'Escolha as sessões a abrir. Clique = alternar, (−) = remover.', pickAll:'Todas', pickSkip:'Pular', pickStart:'▶ Abrir seleção', confirmRemove:'Remover "{t}" da lista? (a pasta permanece)', browse:'📂 Procurar', selectThis:'✔ Escolher esta pasta', feedback:'Enviar feedback ao criador', tabFolder:'📁 Pasta local', tabGithub:'🐙 GitHub', tabNew:'🆕 Novo', ghPick:'Escolha um repo para clonar ou cole uma URL:', cloneBtn:'⬇ Clonar e iniciar', drives:'Unidades', maxT:'Ampliar / restaurar este painel', tasksT:'Mostrar/ocultar tarefas (Ctrl+T)', imgT:'Anexar ou colar imagem', imgUploading:'enviando…', imgFail:'Falha no envio da imagem', winAskTitle:'Onde abrir esta sessão?', winNew:'🖥 Abrir em nova janela', winNewHint:'Recomendado — com 2º monitor, arraste para lá.', winCurrent:'➕ Adicionar a esta janela', winCurrentHint:'Tudo fica aqui.', winAskRows:'⚠ Menos de 300px por painel — aqui ficará em 2 linhas.', doneBadge:'Pronto', imgChip:'Imagem', textChip:'Texto', charsUnit:' car.', fbUsage:'📊 Hoje {t} / 7d {w}', modeT:'Alternar modo', fontSel:'Tamanho da fonte', locale:'pt-BR' },
+  ru: { addSession:'＋ Сессия', qrTitle:'📱 Мобильный доступ', qrWarn:'⚠ Любой, кто отсканирует этот QR, сможет управлять сессиями — делитесь только с доверенными.', close:'Закрыть', cancel:'Отмена', add:'Добавить', addTitleH:'Добавить сессию', pathPh:'D:\\projects\\folder', titlePh:'Название (пусто = имя папки)', agClaude:'🟣 Claude Code (по умолч.)', agShell:'🔷 Только PowerShell (без ИИ)', agCustom:'⚙ Своя команда', npDesc:'Папка + git + приватный репозиторий GitHub за раз', npGo:'Создать и запустить', npCreating:'Создание...', curSession:'Сессия', weeklyAll:'Неделя', weeklyPfx:'Неделя ', resets:'сброс', renameHint:'Двойной клик — переименовать', previewT:'Живой предпросмотр', closeT:'Закрыть эту сессию', quickPh:'Введите запрос и нажмите Enter', send:'Отправить', done:'✅ Готово', exitMsg:'[Сессия завершена — закройте ✕ или добавьте новую]', confirmClose:'Закрыть сессию "{t}"? (терминал завершится, папка останется)', infoHead:'📡 Адреса доступа', wifi:'Та же Wi-Fi', lte:'Внешний доступ (везде)', mDefault:'Авто', modelTip:'Модель ИИ — Авто использует модель аккаунта по умолчанию.', pickTitle:'▶ Возобновить сессии', pickDesc:'Выберите сессии. Клик = выбрать, (−) = убрать.', pickAll:'Все', pickSkip:'Пропустить', pickStart:'▶ Открыть выбранные', confirmRemove:'Убрать "{t}" из списка? (папка останется)', browse:'📂 Обзор', selectThis:'✔ Выбрать эту папку', feedback:'Отправить отзыв автору', tabFolder:'📁 Локальная папка', tabGithub:'🐙 GitHub', tabNew:'🆕 Новый', ghPick:'Выберите репозиторий или вставьте URL:', cloneBtn:'⬇ Клонировать и запустить', drives:'Диски', maxT:'Развернуть / вернуть панель', tasksT:'Показать/скрыть задачи (Ctrl+T)', imgT:'Прикрепить или вставить изображение', imgUploading:'загрузка…', imgFail:'Ошибка загрузки изображения', winAskTitle:'Где открыть эту сессию?', winNew:'🖥 В новом окне', winNewHint:'Рекомендуется — при втором мониторе перетащите туда.', winCurrent:'➕ В это окно', winCurrentHint:'Всё останется здесь.', winAskRows:'⚠ Меньше 300px на панель — здесь будет 2 ряда.', doneBadge:'Готово', imgChip:'Изобр.', textChip:'Текст', charsUnit:' симв.', fbUsage:'📊 Сегодня {t} / 7д {w}', modeT:'Сменить режим', fontSel:'Размер шрифта', locale:'ru-RU' },
+  hi: { addSession:'＋ सत्र', qrTitle:'📱 मोबाइल एक्सेस', qrWarn:'⚠ यह QR स्कैन करने वाला सत्रों को नियंत्रित कर सकता है — केवल भरोसेमंद लोगों से साझा करें।', close:'बंद करें', cancel:'रद्द करें', add:'जोड़ें', addTitleH:'सत्र जोड़ें', pathPh:'D:\\projects\\folder', titlePh:'शीर्षक (खाली = फ़ोल्डर नाम)', agClaude:'🟣 Claude Code (डिफ़ॉल्ट)', agShell:'🔷 केवल PowerShell (AI के बिना)', agCustom:'⚙ कस्टम कमांड', npDesc:'फ़ोल्डर + git + निजी GitHub रिपो एक साथ', npGo:'बनाएँ और शुरू करें', npCreating:'बना रहे हैं...', curSession:'सत्र', weeklyAll:'साप्ताहिक', weeklyPfx:'साप्ताहिक ', resets:'रीसेट', renameHint:'नाम बदलने के लिए डबल-क्लिक', previewT:'लाइव प्रीव्यू', closeT:'यह सत्र बंद करें', quickPh:'अनुरोध लिखें और Enter दबाएँ', send:'भेजें', done:'✅ पूर्ण', exitMsg:'[सत्र समाप्त — ✕ से बंद करें या नया जोड़ें]', confirmClose:'सत्र "{t}" बंद करें? (टर्मिनल बंद होगा, फ़ोल्डर रहेगा)', infoHead:'📡 एक्सेस पते', wifi:'same Wi-Fi', lte:'बाहरी एक्सेस (कहीं से भी)', mDefault:'स्वतः', modelTip:'AI मॉडल — स्वतः खाते का डिफ़ॉल्ट उपयोग करता है।', pickTitle:'▶ सत्र फिर से खोलें', pickDesc:'खोलने के लिए सत्र चुनें। क्लिक = टॉगल, (−) = हटाएँ।', pickAll:'सभी', pickSkip:'छोड़ें', pickStart:'▶ चयनित खोलें', confirmRemove:'"{t}" को सूची से हटाएँ? (फ़ोल्डर रहेगा)', browse:'📂 ब्राउज़ करें', selectThis:'✔ यह फ़ोल्डर चुनें', feedback:'निर्माता को प्रतिक्रिया भेजें', tabFolder:'📁 स्थानीय फ़ोल्डर', tabGithub:'🐙 GitHub', tabNew:'🆕 नया', ghPick:'क्लोन करने के लिए रिपो चुनें या URL चिपकाएँ:', cloneBtn:'⬇ क्लोन कर शुरू करें', drives:'ड्राइव', maxT:'यह पैनल बड़ा/वापस करें', tasksT:'कार्य सूची दिखाएँ/छिपाएँ (Ctrl+T)', imgT:'छवि संलग्न करें या चिपकाएँ', imgUploading:'अपलोड हो रहा…', imgFail:'छवि अपलोड विफल', winAskTitle:'यह सत्र कहाँ खोलें?', winNew:'🖥 नई विंडो में खोलें', winNewHint:'अनुशंसित — दूसरा मॉनिटर हो तो वहाँ खींचें।', winCurrent:'➕ इसी विंडो में', winCurrentHint:'सब यहीं रहेगा।', winAskRows:'⚠ प्रति पैनल 300px से कम — यहाँ 2 पंक्तियों में होगा।', doneBadge:'पूर्ण', imgChip:'छवि', textChip:'टेक्स्ट', charsUnit:' अक्षर', fbUsage:'📊 आज {t} / 7दि {w}', modeT:'मोड बदलें', fontSel:'फ़ॉन्ट आकार', locale:'hi-IN' }
 };
 let LANG = localStorage.getItem('pt_lang') || 'en';
 if (!I18N[LANG]) LANG = 'en';
-let T = I18N[LANG];
+let T = Object.assign({}, I18N.en, I18N[LANG]);   // 빠진 키는 영어로 폴백
 function setLang(l) { localStorage.setItem('pt_lang', l); location.reload(); }
 function applyStatic() {
   const sel = document.getElementById('langSel');
@@ -414,14 +442,18 @@ function applyStatic() {
   document.querySelectorAll('[data-i18n-title]').forEach(el => { if (T[el.dataset.i18nTitle]) el.title = T[el.dataset.i18nTitle]; });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { if (T[el.dataset.i18nPh]) el.placeholder = T[el.dataset.i18nPh]; });
   // 모바일에선 언어 선택을 EN/KO 짧게 표시 (자리 절약)
-  const mobile = matchMedia('(max-width: 700px)').matches;
-  [...sel.options].forEach(o => { o.textContent = mobile ? o.dataset.short : ('🌐 ' + o.dataset.full); });
+  [...sel.options].forEach(o => { o.textContent = isMobileNow() ? o.dataset.short : ('🌐 ' + o.dataset.full); });
+}
+// 폰 세로 + 폰 가로(높이 낮음) 모두 모바일 취급 — 가로회전 시 PC 레이아웃으로 깨지지 않게
+function isMobileNow() {
+  return matchMedia('(max-width: 700px)').matches ||
+         (matchMedia('(pointer: coarse)').matches && matchMedia('(max-height: 520px)').matches);
 }
 
 const grid = document.getElementById('grid');
 const addDlg = document.getElementById('addDlg');
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
-const isMobile = matchMedia('(max-width: 700px)').matches;
+const isMobile = isMobileNow();
 let maxedId = null;        // 확대(포커스) 중인 세션 id — null이면 일반 격자
 const MIN_W = 300;         // 세션 한 칸 최소 폭 — 이보다 좁아지면 2줄/새 창 안내
 const FOCUS_FR = 3;        // 확대 시 그 칸이 차지하는 비율 (나머지 칸은 1)
@@ -471,8 +503,10 @@ function buildPane(sess, idx) {
         <button class="small btnTasks" title="${T.tasksT}">☰</button>
         <button class="small btnMax" title="${T.maxT}">⛶</button>
         <button class="small btnPrev" title="${T.previewT}">👁</button>
-        <button class="small btnFontM" title="${T.fontDn}">A-</button>
-        <button class="small btnFontP" title="${T.fontUp}">A+</button>
+        <button class="small btnMode" title="${T.modeT}">⇄</button>
+        <select class="small fontSel" title="${T.fontSel}">
+          ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>A${s}</option>`).join('')}
+        </select>
         <button class="small btnClose" title="${T.closeT}" style="color:#f87171">✕</button>
       </div>
       <div class="ph-bottom">
@@ -485,7 +519,7 @@ function buildPane(sess, idx) {
       <iframe class="preview hidden"></iframe>
     </div>
     <div class="quick">
-      <input placeholder="${T.quickPh}" enterkeyhint="send">
+      <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
       <button class="small qImg" title="${T.imgT}">🖼</button>
       <input type="file" class="qFile" accept="image/*" style="display:none">
       <button class="small qSend">${T.send}</button>
@@ -494,7 +528,7 @@ function buildPane(sess, idx) {
 
   // 터미널
   const term = new Terminal({
-    fontSize: isMobile ? 11 : 13, fontFamily: 'Consolas, D2Coding, monospace',
+    fontSize: isMobile ? 13 : 15, fontFamily: 'Consolas, D2Coding, monospace',
     theme: { background: '#283543' }, convertEol: false, scrollback: 5000
   });
   const fit = new FitAddon.FitAddon();
@@ -506,6 +540,16 @@ function buildPane(sess, idx) {
   } catch (e) {}
   term.open(el.querySelector('.term'));
   fit.fit();
+
+  // 모바일: 터미널 중앙 1/3은 페이지 스크롤 존 (터치하는 동안 하늘색 살짝)
+  if (isMobile) {
+    const sz = document.createElement('div');
+    sz.className = 'scrollzone';
+    el.querySelector('.pane-body').appendChild(sz);
+    sz.addEventListener('touchstart', () => sz.classList.add('touching'), { passive: true });
+    sz.addEventListener('touchend', () => setTimeout(() => sz.classList.remove('touching'), 250), { passive: true });
+    sz.addEventListener('touchcancel', () => sz.classList.remove('touching'), { passive: true });
+  }
 
   // WebSocket — 폰 절전/탭 전환으로 끊겨도 자동 재접속 (세션은 서버에 살아있음)
   let ws;
@@ -604,9 +648,16 @@ function buildPane(sess, idx) {
     }), 80);
   };
 
-  // 글자 크기
-  el.querySelector('.btnFontP').onclick = ev => { ev.stopPropagation(); term.options.fontSize++; sendResize(); };
-  el.querySelector('.btnFontM').onclick = ev => { ev.stopPropagation(); term.options.fontSize = Math.max(7, term.options.fontSize - 1); sendResize(); };
+  // 글자 크기 — 선택식 드롭다운
+  const fontSel = el.querySelector('.fontSel');
+  fontSel.onchange = ev => { ev.stopPropagation(); term.options.fontSize = +fontSel.value; sendResize(); };
+
+  // ⇄ 모드 전환 — Claude Code에 Shift+Tab 전송 (auto mode ↔ accept edits ↔ plan ...)
+  el.querySelector('.btnMode').onclick = ev => {
+    ev.stopPropagation();
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x1b[Z' }));
+    term.focus();
+  };
 
   // 닫기
   el.querySelector('.btnClose').onclick = async (ev) => {
@@ -618,14 +669,23 @@ function buildPane(sess, idx) {
     renumber();
   };
 
-  // 하단 빠른 입력줄 — 이미지/긴 글은 짧은 칩으로 표시하고, 전송 시 실제 내용으로 확장 (PowerShell 붙여넣기처럼)
-  const qInput = el.querySelector('.quick input[type="text"], .quick input:not([type])');
-  const attachMap = new Map();   // 칩 토큰 -> {type:'image'|'text', value}
+  // 하단 빠른 입력줄 — 여러 줄 자동 확장, Ctrl+Z/Y 되돌리기, 이미지/긴 글은 짧은 칩 (전송 시 실제 내용으로 확장)
+  const qInput = el.querySelector('.quick textarea');
+  const attachMap = new Map();   // 칩 토큰 -> {type:'image'|'file'|'text', value}
   let attachN = 0;
+  const autoGrow = () => {       // 쓸수록 위로 커지고, 전송하면 한 줄로 복귀
+    qInput.style.height = 'auto';
+    qInput.style.height = Math.min(qInput.scrollHeight, window.innerHeight * 0.34) + 'px';
+  };
+  qInput.addEventListener('input', autoGrow);
   function insertToken(token) {
-    const b = qInput.value;
-    qInput.value = b + (b && !/\s$/.test(b) ? ' ' : '') + token + ' ';
     qInput.focus();
+    const t = (qInput.value && !/\s$/.test(qInput.value) ? ' ' : '') + token + ' ';
+    // execCommand로 넣어야 브라우저 기본 undo(Ctrl+Z) 히스토리가 유지됨
+    let ok = false;
+    try { qInput.setSelectionRange(qInput.value.length, qInput.value.length); ok = document.execCommand('insertText', false, t); } catch (e) {}
+    if (!ok) qInput.value += t;
+    autoGrow();
   }
   const send = () => {
     let val = qInput.value;
@@ -636,11 +696,15 @@ function buildPane(sess, idx) {
       const rep = (att.type === 'text') ? att.value : '"' + att.value + '"';
       val = val.split(token).join(rep);
     }
+    // 직접 타이핑한 줄바꿈은 ESC+CR(제출 없는 개행)로 변환 — 여러 줄이 한 요청으로 감
+    val = val.replace(/\r?\n/g, '\x1b\r');
     ws.send(JSON.stringify({ type: 'in', data: val }));
     setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
-    qInput.value = ''; attachMap.clear(); attachN = 0;
+    qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
   };
-  qInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); send(); } });
+  qInput.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); }   // Shift+Enter = 줄바꿈
+  });
   el.querySelector('.qSend').onclick = send;
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
@@ -1102,6 +1166,11 @@ function askWindowChoice(twoRow) {
 
 // ---------- 시작 ----------
 // 상단 AI 사용량 — Claude 공식 한도 % 막대 (설정>사용량과 동일), 1분마다 갱신
+function fmtLeft(ms) {   // 리셋까지 남은 시간: '1h 23m' / '45m'
+  if (!ms || ms <= 0) return '';
+  const m = Math.ceil(ms / 60000), h = Math.floor(m / 60);
+  return h ? h + 'h ' + (m % 60) + 'm' : m + 'm';
+}
 async function refreshUsage() {
   try {
     const u = await api('GET', '/api/usage');
@@ -1113,13 +1182,16 @@ async function refreshUsage() {
                     : b.scopeName ? T.weeklyPfx + b.scopeName : (b.label || b.kind);
         const col = b.percent >= 90 ? '#ef4444' : b.percent >= 70 ? '#f59e0b' : '#3b82f6';
         const reset = b.resetsAt ? new Date(b.resetsAt).toLocaleString(T.locale, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
-        return `<span class="ub" title="${label} — ${T.resets}: ${reset}">
+        const left = b.resetsAt ? fmtLeft(new Date(b.resetsAt) - Date.now()) : '';
+        const full = b.percent >= 100;   // 다 썼으면 남은시간을 빨갛게 강조
+        return `<span class="ub ub-${b.kind}" title="${label} — ${T.resets}: ${reset}">
           <span class="ub-label">${label}</span>
           <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, b.percent)}%;background:${col}"></span></span>
-          <span class="ub-pct">${b.percent}%</span></span>`;
+          <span class="ub-pct">${b.percent}%</span>
+          ${left ? `<span class="ub-left"${full ? ' style="color:#f87171;font-weight:700"' : ''}>⏳${left}</span>` : ''}</span>`;
       }).join('');
     } else if (u.fallback) {
-      el.textContent = `📊 오늘 $${u.fallback.todayCost.toFixed(0)} / 7일 $${u.fallback.weekCost.toFixed(0)}`;
+      el.textContent = T.fbUsage.replace('{t}', '$' + u.fallback.todayCost.toFixed(0)).replace('{w}', '$' + u.fallback.weekCost.toFixed(0));
     } else { el.textContent = ''; }
   } catch (e) {}
 }
@@ -1187,7 +1259,7 @@ document.querySelectorAll('.atab').forEach(b => b.onclick = () => switchTab(b.da
 const headerEl = document.querySelector('header');
 const minimapEl = document.getElementById('minimap');
 function syncStickyOffset() {
-  minimapEl.style.top = matchMedia('(max-width: 700px)').matches ? headerEl.offsetHeight + 'px' : '';
+  minimapEl.style.top = isMobileNow() ? headerEl.offsetHeight + 'px' : '';
 }
 new ResizeObserver(syncStickyOffset).observe(headerEl);
 addEventListener('resize', syncStickyOffset);
@@ -1241,12 +1313,12 @@ async function reconcile() {
   if (isMobile) return;
   let list;
   try { list = await api('GET', '/api/sessions'); } catch (e) { return; }
+  let changed = false;
   [...panes.keys()].forEach(id => {
-    if (!belongsHere(id) || !list.find(s => s.id === id)) removePaneLocal(id);
+    if (!belongsHere(id) || !list.find(s => s.id === id)) { removePaneLocal(id); changed = true; }
   });
-  list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id)) buildPane(s, grid.children.length); });
-  applyLayout();
-  renderMinimap();
+  list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id)) { buildPane(s, grid.children.length); changed = true; } });
+  if (changed) { applyLayout(); renderMinimap(); }   // 변화 없으면 재렌더 안 함 (화면 덜컹임 방지)
 }
 window.addEventListener('storage', e => { if (e.key === 'pt_popped') reconcile(); });
 window.addEventListener('focus', reconcile);

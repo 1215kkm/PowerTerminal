@@ -132,13 +132,17 @@ async function translateBanner(i) {
   const targets = { en: 'en', ja: 'ja', zh: 'zh-CN', es: 'es' };
   const st = document.getElementById('status');
   st.textContent = '🌐 번역 중...';
+  let okCount = 0, lastErr = '';
   for (const [key, code] of Object.entries(targets)) {
     try {
       const r = await api('GET', '/api/admin/translate?text=' + encodeURIComponent(ko) + '&to=' + code);
-      if (r && r.text) data.banners[i].text[key] = r.text;
-    } catch (e) {}
+      if (r && r.text) { data.banners[i].text[key] = r.text; okCount++; }
+      else lastErr = (r && r.error) || '응답 없음';
+    } catch (e) { lastErr = '서버에 번역 기능이 없습니다 — PowerTerminal을 재시작(최신 업데이트)한 뒤 다시 시도하세요.'; }
   }
-  st.textContent = '✅ 번역 완료 — 문구를 확인한 뒤 아래 [발행]을 누르세요.';
+  st.textContent = okCount
+    ? `✅ ${okCount}개 언어 번역 완료 — 문구를 확인한 뒤 아래 [발행]을 누르세요.`
+    : '❌ 번역 실패: ' + lastErr;
   render();
 }
 function preview() {
