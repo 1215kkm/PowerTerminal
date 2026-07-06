@@ -23,23 +23,36 @@ Open multiple Claude Code sessions side by side, watch them work, and send reque
 4. **Double-click `start.bat` — that's it.** 🎉
    It auto-updates, starts the server, and opens your browser.
 
-To use it on your phone, click the **📱 QR** button and scan the code. Done.
+To use it on your phone, click the **QR** button and scan the code. Done.
 
 ## Features
 
-- **Multi-session grid** — several projects at once, auto-arranged (1 full / 2 side-by-side / 3–4 grid)
+- **Multi-session grid** — several projects at once, side by side (1 full / 2 half / 3+ in one row, wraps to 2 rows when narrow). ⛶ expands one pane in place; 5+ sessions can spill into a second browser window (nice with dual monitors)
 - **Phone = same screen** — sessions live on your PC; check and control them from anywhere
-- **Green border** when a session finishes its work — click to dismiss
-- **👁 Live preview** of the page you're building, inside the panel
-- **Drag to reorder · double-click to rename** panels
-- **Usage bars** — your Claude plan usage (session / weekly), same numbers as the official app
+- **Status borders** — sky-blue while a session is working, thick green when it's done (stays green until you send the next request)
+- **👁 Live preview** of the page you're building, in a new tab
+- **⇄ Mode button** — cycle Claude Code's auto / accept-edits / plan modes with one tap (the button shows the current mode)
+- **Paste anything** — images and long text collapse into small chips like `[Image #1]` / `[Text #1 · 597 chars]` and are delivered to Claude on send; the input box grows as you type (Shift+Enter = new line, Ctrl+Z undo)
+- **Usage bars** — your Claude plan usage (session / weekly) with time left until reset, same numbers as the official app
 - **New Project** — folder + git + private GitHub repo + Claude, in one click *(needs [GitHub CLI](https://cli.github.com), `gh auth login`)*
 - **Any AI per session** — Claude Code, Codex, plain PowerShell, or a custom command
-- **5 languages** — English, 한국어, 日本語, 中文, Español
+- **10 languages** — English, 한국어, 日本語, 中文, Español, Deutsch, Français, Português, Русский, हिन्दी
+
+## Choosing an AI model (the dropdown in each session)
+
+Each Claude session has a model dropdown on its folder row:
+
+| Option | What it does |
+|---|---|
+| **Auto** | Doesn't pick a model at all — Claude Code runs with **your account's default model** (whatever you set with `/model` or your plan's default). It does *not* switch models per question. |
+| **Opus / Sonnet / Haiku / Fable** | Pins the session to that model. Aliases always map to the **latest version** of each model. |
+| **Opus Plan** | Starts on Opus, then **automatically falls back to Sonnet** when you approach your usage limit — the only option that switches by itself. |
+
+Changing the dropdown while a session is running switches the model live (it sends `/model` for you) — no restart needed.
 
 ## Optional
 
-- **Access from outside your Wi-Fi (LTE):** download [cloudflared.exe](https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe) into the PowerTerminal folder. The server will create a public URL automatically.
+- **Access from outside your Wi-Fi (LTE):** PowerTerminal downloads [cloudflared](https://github.com/cloudflare/cloudflared) automatically on first run and creates a public URL. The QR dialog shows both the external and same-Wi-Fi addresses.
 
 ## Security
 
@@ -48,4 +61,4 @@ To use it on your phone, click the **📱 QR** button and scan the code. Done.
 
 ## Updates
 
-`start.bat` auto-updates on every launch. Running instances show a 🔄 chip when a new version is out.
+`start.bat` auto-updates on every launch — just restart to get the newest version.

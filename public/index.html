@@ -147,6 +147,7 @@
     #btnAdd { order: 7; margin-left: auto; }
     .ub-weekly_all { order: 8; flex: 1 1 50%; }
     .ub-weekly_scoped { order: 9; flex: 1 1 38%; margin-left: auto; }
+    .ub-weekly_all .ub-left, .ub-weekly_scoped .ub-left { display: none; }  /* 폰: 주간 막대들의 ⏳시간 숨김 (세션만 표시) */
     .ub-track { flex: 1; min-width: 40px; }
     #btnQR .qrtxt { display: none; }       /* QR 글자 숨기고 아이콘만 */
     /* 모바일 헤더 여유 — 터미널 헤더 두 줄 구조라 자연히 +높이 */
@@ -503,7 +504,7 @@ function buildPane(sess, idx) {
         <button class="small btnTasks" title="${T.tasksT}">☰</button>
         <button class="small btnMax" title="${T.maxT}">⛶</button>
         <button class="small btnPrev" title="${T.previewT}">👁</button>
-        <button class="small btnMode" title="${T.modeT}">⇄</button>
+        <button class="small btnMode" title="${T.modeT}" style="color:#a5b4fc;font-weight:700">⇄ auto</button>
         <select class="small fontSel" title="${T.fontSel}">
           ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>A${s}</option>`).join('')}
         </select>
@@ -562,6 +563,13 @@ function buildPane(sess, idx) {
       if (m.type === 'out') {
         if (first) { term.reset(); first = false; }   // 재접속 시 버퍼 전체 재생 — 중복 방지
         term.write(m.data);
+        // 하단 푸터에서 현재 모드를 읽어 ⇄ 버튼에 표시 (auto / accept / plan)
+        if (m.data.includes(' mode') || m.data.includes('accept edits')) {
+          const mode = m.data.includes('plan mode') ? 'plan'
+                     : m.data.includes('accept edits') ? 'accept'
+                     : m.data.includes('auto mode') ? 'auto' : null;
+          if (mode) el.querySelector('.btnMode').textContent = '⇄ ' + mode;
+        }
       }
       else if (m.type === 'status') setState(el, m.done, m.busy);
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
