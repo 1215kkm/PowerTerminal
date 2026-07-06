@@ -1,15 +1,22 @@
 {
-  "latestVersion": "1.6.2",
+  "latestVersion": "1.6.1",
   "updateUrl": "https://github.com/1215kkm/PowerTerminal",
   "feedbackUrl": "https://github.com/1215kkm/PowerTerminal/issues/new",
   "banners": [
     {
       "text": {
-        "en": "🚀 PowerTerminal — run Claude Code anywhere, even from your phone",
-        "ko": "🚀 PowerTerminal — 폰에서도 Claude Code를, 어디서든"
+        "ko": "🚀 Fable 7월7일까지 일단락 - 이후부터 사용한만큼 토큰소모",
+        "en": "🚀 Fable will be closed for now until July 7"
       },
-      "url": "https://github.com/1215kkm/PowerTerminal",
+      "url": "https://crownyclass.com/community.html?board=showcase&mentorOnly=1",
       "color": "#EC4899"
+    },
+    {
+      "text": {
+        "ko": "PowerTerminal",
+        "en": "PowerTerminal"
+      },
+      "url": ""
     }
   ]
 }
