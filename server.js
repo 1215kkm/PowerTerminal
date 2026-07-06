@@ -93,7 +93,7 @@ setInterval(() => {
 
 // ---------- HTTP ----------
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '30mb' }));   // 이미지 붙여넣기(base64) 수용
 
 // 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
 function isLocal(sock) { return /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
@@ -364,6 +364,28 @@ app.patch('/api/sessions/:id', (req, res) => {
   }
   saveSessions();
   res.json(s);
+});
+
+// 폰/PC에서 붙여넣거나 첨부한 이미지를 세션 폴더에 저장 → 절대경로 반환 (Claude가 그 경로를 읽음)
+app.post('/api/sessions/:id/upload-image', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  const data = req.body && req.body.data;
+  if (!data) return res.status(400).json({ error: 'no data' });
+  const m = /^data:image\/([a-zA-Z0-9.+-]+);base64,(.*)$/.exec(data);
+  const b64 = m ? m[2] : data;
+  let ext = (m ? m[1] : 'png').toLowerCase().replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '');
+  if (!ext) ext = 'png';
+  try {
+    const dir = path.join(s.path, '.pt-images');
+    fs.mkdirSync(dir, { recursive: true });
+    const fname = 'paste-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex') + '.' + ext;
+    const full = path.join(dir, fname);
+    fs.writeFileSync(full, Buffer.from(b64, 'base64'));
+    res.json({ ok: true, path: full });
+  } catch (e) {
+    res.json({ error: String((e && e.message) || e) });
+  }
 });
 
 app.post('/api/sessions/:id/clear-done', (req, res) => {
