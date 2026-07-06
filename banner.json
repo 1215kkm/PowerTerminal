@@ -1,14 +1,13 @@
 {
-  "latestVersion": "1.1.0",
+  "latestVersion": "1.2.0",
   "updateUrl": "https://github.com/1215kkm/PowerTerminal",
   "banners": [
     {
       "text": {
-        "en": "🚀 PowerTerminal — run Claude Code anywhere, even from your phone",
-        "ko": "🚀 PowerTerminal — 폰에서도 Claude Code를, 어디서든"
+        "en": "Test banner",
+        "ko": "Test banner"
       },
-      "url": "https://github.com/1215kkm/PowerTerminal",
-      "color": "#EC4899"
+      "url": "https://github.com/1215kkm/PowerTerminal"
     }
   ]
 }
