@@ -14,6 +14,7 @@
     "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
     "ccusage": "^20.0.14",
     "express": "^5.2.1",
+    "qrcode-generator": "^2.0.4",
     "qrcode-terminal": "^0.12.0",
     "ws": "^8.21.0"
   }

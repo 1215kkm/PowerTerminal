@@ -127,10 +127,11 @@
 
 <dialog id="qrDlg">
   <h3 data-i18n="qrTitle">📱 Mobile Access QR</h3>
-  <p id="qrLabel" style="font-size:12px;color:var(--muted);word-break:break-all"></p>
+  <p id="qrLabel" style="font-size:12px;color:var(--muted)"></p>
   <div style="display:flex;justify-content:center;background:#fff;border-radius:12px;padding:12px">
-    <canvas id="qrCanvas"></canvas>
+    <canvas id="qrCanvas" width="240" height="240"></canvas>
   </div>
+  <div id="urlRows" style="margin-top:10px"></div>
   <p style="font-size:11px;color:var(--muted)" data-i18n="qrWarn"></p>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
     <button onclick="copyQR()" data-i18n="copyImg">📋 Copy</button>
@@ -177,7 +178,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="/vendor/qrcode.js"></script>
 <script>
 const TOKEN = new URLSearchParams(location.search).get('token') ||
               (document.cookie.split('cc_token=')[1] || '').split(';')[0];
@@ -494,17 +495,51 @@ function applyLayout() {
   if (rem === 1 && n > 1) els[n - 1].style.gridColumn = '1 / -1';   // 마지막 홀수 칸은 전체폭
 }
 
-// ---------- 📱 QR (켜고 끄기 · 복사 · 저장) ----------
+// ---------- 📱 QR + 접속 주소 (켜고 끄기 · 복사 · 저장) ----------
 const qrDlg = document.getElementById('qrDlg');
 let qrUrl = '';
+function drawQR(canvas, text) {
+  const q = qrcode(0, 'M');
+  q.addData(text); q.make();
+  const n = q.getModuleCount();
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width, cell = size / (n + 4);   // 여백 2칸
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+    if (q.isDark(r, c)) ctx.fillRect((c + 2) * cell, (r + 2) * cell, cell + 0.5, cell + 0.5);
+}
+function urlRow(label, url) {
+  const d = document.createElement('div');
+  d.style.cssText = 'margin:6px 0';
+  d.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:2px">${label}</div>
+    <div style="display:flex;gap:6px">
+      <input readonly value="${url.replace(/"/g, '&quot;')}" style="flex:1;font-size:12px" onclick="this.select()">
+      <button class="small">📋</button>
+    </div>`;
+  d.querySelector('button').onclick = () => {
+    const inp = d.querySelector('input');
+    inp.select(); inp.setSelectionRange(0, 99999);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (!ok && navigator.clipboard) { navigator.clipboard.writeText(url).then(() => {}); ok = true; }
+    d.querySelector('button').textContent = ok ? '✅' : '📋';
+    setTimeout(() => d.querySelector('button').textContent = '📋', 1500);
+  };
+  return d;
+}
 async function toggleQR() {
   if (qrDlg.open) { qrDlg.close(); return; }
   const i = await api('GET', '/api/info');
-  qrUrl = i.tunnelUrl ? `${i.tunnelUrl}/?token=${TOKEN}`
-                      : (i.ips[0] ? `http://${i.ips[0]}:${i.port}/?token=${TOKEN}` : location.href);
-  document.getElementById('qrLabel').textContent =
-    (i.tunnelUrl ? T.qrLte : T.qrWifi) + qrUrl;
-  QRCode.toCanvas(document.getElementById('qrCanvas'), qrUrl, { width: 240, margin: 1 });
+  const wifi = i.ips[0] ? `http://${i.ips[0]}:${i.port}/?token=${TOKEN}` : '';
+  const lte = i.tunnelUrl ? `${i.tunnelUrl}/?token=${TOKEN}` : '';
+  qrUrl = lte || wifi || location.href;
+  document.getElementById('qrLabel').textContent = lte ? T.qrLte : T.qrWifi;
+  drawQR(document.getElementById('qrCanvas'), qrUrl);
+  const rows = document.getElementById('urlRows');
+  rows.innerHTML = '';
+  if (wifi) rows.appendChild(urlRow(T.wifi, wifi));
+  if (lte) rows.appendChild(urlRow(T.lte + ' ' + T.urlChanges, lte));
   qrDlg.showModal();
 }
 function qrBlob() {
@@ -528,15 +563,8 @@ async function saveQR() {
   URL.revokeObjectURL(a.href);
 }
 
-// 🔗 접속 주소 안내
-async function showInfo() {
-  const i = await api('GET', '/api/info');
-  let msg = T.infoHead + '\n\n' + T.wifi + '\n';
-  i.ips.forEach(ip => msg += `http://${ip}:${i.port}/?token=${TOKEN}\n`);
-  msg += '\n' + T.lte + '\n';
-  msg += i.tunnelUrl ? `${i.tunnelUrl}/?token=${TOKEN}\n${T.urlChanges}` : T.tunnelNone;
-  alert(msg);
-}
+// 🔗 접속 주소 = QR 다이얼로그와 동일 화면 (복사 버튼 포함)
+function showInfo() { toggleQR(); }
 
 // 새 프로젝트 + GitHub
 async function newProject() {

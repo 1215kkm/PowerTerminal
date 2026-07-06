@@ -103,6 +103,9 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(ROOT, 'public')));
+// QR 라이브러리 내장 서빙 (CDN 의존 제거 — 오프라인/사내망에서도 동작)
+app.get('/vendor/qrcode.js', (req, res) =>
+  res.sendFile(path.join(ROOT, 'node_modules', 'qrcode-generator', 'dist', 'qrcode.js')));
 
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {
