@@ -1036,25 +1036,26 @@ function esc(s) { return (s || '').replace(/</g, '&lt;'); }
 // 토스트는 "정직하게": 실제 성공에만 '복사됨', 아니면 '복사 실패'.
 function copySel(text) {
   if (!text) return;
-  let ok = false;
+  // execCommand 방식 (clipboard.js 검증 패턴: 현재 스크롤 위치에 off-screen textarea)
+  let ok = false, err = '';
   try {
     const ta = document.createElement('textarea');
     ta.value = text; ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;left:-9999px;top:0;font-size:16px';
+    ta.style.cssText = 'position:absolute;left:-9999px;top:' + (window.pageYOffset || document.documentElement.scrollTop || 0) + 'px;font-size:12pt';
     document.body.appendChild(ta);
-    ta.focus({ preventScroll: true }); ta.select();
-    try { ta.setSelectionRange(0, text.length); } catch (e) {}
+    ta.select(); ta.setSelectionRange(0, text.length);
     ok = document.execCommand('copy');
     document.body.removeChild(ta);
-  } catch (e) {}
-  if (ok) { flashToast(T.copied || 'Copied'); return; }
+  } catch (e) { err = 'exec:' + (e && e.name); }
+  if (ok) { flashToast((T.copied || 'Copied') + ' ·exec'); return; }   // 진단: 어느 방식이 성공했는지 표시
+  // 폴백: Clipboard API (https·localhost 보안 컨텍스트 + 포커스 필요)
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text)
-      .then(() => flashToast(T.copied || 'Copied'))
-      .catch(() => flashToast(T.copyFail || 'Copy failed'));
+      .then(() => flashToast((T.copied || 'Copied') + ' ·api'))
+      .catch(e => flashToast((T.copyFail || 'Copy failed') + ' ·api:' + (e && e.name) + ' focus=' + document.hasFocus() + ' secure=' + window.isSecureContext));
     return;
   }
-  flashToast(T.copyFail || 'Copy failed');
+  flashToast((T.copyFail || 'Copy failed') + ' ·exec=' + ok + ' ' + err + ' noClipboardAPI secure=' + window.isSecureContext);
 }
 let _toastTimer;
 function flashToast(msg) {
@@ -1067,7 +1068,7 @@ function flashToast(msg) {
     document.body.appendChild(t);
   }
   t.textContent = msg; t.style.opacity = '1';
-  clearTimeout(_toastTimer); _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 1100);
+  clearTimeout(_toastTimer); _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
 
 // 연결 끊김 크게 표시: 모든 세션 소켓이 끊기면(서버 종료·네트워크·폰 잠금 등) 상단 빨강 배너 + 화면 흐리게.
