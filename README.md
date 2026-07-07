@@ -6,24 +6,43 @@ Open multiple Claude Code sessions side by side, watch them work, and send reque
 
 > It uses the real Claude Code CLI on your machine — same behavior, same usage. Just a much better view.
 
+## ⚠️ Read this first — security
+
+PowerTerminal exposes a terminal on your machine to your browser, and (optionally) to the internet via a private link/QR. **Anyone who has that URL or scans that QR can run commands on your computer** — the same as sitting at it.
+
+- **Share the QR / link only with people you trust.** Treat it like your password.
+- Access needs a token that's generated on first run. To revoke everyone instantly: delete `config.json` and restart.
+- External (LTE) access uses a Cloudflare quick tunnel whose address changes every restart. Don't post it publicly.
+- **You are responsible for what happens if your link leaks.**
+
+## Requirements
+
+- **[Node.js](https://nodejs.org) (LTS)** — required to run. *PowerTerminal can't install this for you; install it first.* (On the first run, the launcher checks for it and points you to the download.)
+- **[Claude Code](https://claude.com/claude-code)**, signed in. The launcher offers to install it for you if it's missing:
+  ```
+  npm install -g @anthropic-ai/claude-code
+  claude        # sign in once
+  ```
+
 ## Quick Start
 
-1. Install [Node.js](https://nodejs.org) (LTS)
-2. Install and sign in to [Claude Code](https://claude.com/claude-code):
-   ```
-   npm install -g @anthropic-ai/claude-code
-   claude
-   ```
-3. Get PowerTerminal:
-   ```
-   git clone https://github.com/1215kkm/PowerTerminal.git
-   cd PowerTerminal
-   npm install
-   ```
-4. **Double-click `start.bat` — that's it.** 🎉
-   It auto-updates, starts the server, and opens your browser.
+```
+git clone https://github.com/1215kkm/PowerTerminal.git
+cd PowerTerminal
+npm install
+```
 
-To use it on your phone, click the **QR** button and scan the code. Done.
+Then launch:
+
+- **Windows:** double-click **`start.bat`**
+- **macOS / Linux:** double-click **`start.command`** (macOS) or run `./start.command`
+  *(first time on macOS: right-click → Open, to get past Gatekeeper)*
+
+That's it 🎉 — the launcher auto-updates (if you cloned with git), starts the server, and opens your browser.
+
+To use it on your phone, click the **QR** button, read the warning, and scan the code.
+
+> **Tip:** clone with `git` (above), not the "Download ZIP" button — a ZIP copy can't auto-update, so you'd be stuck on an old version.
 
 ## Features
 
