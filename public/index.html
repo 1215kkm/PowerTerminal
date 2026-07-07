@@ -350,6 +350,7 @@
   <!-- GitHub 저장소 clone -->
   <div id="tab-github" style="display:none">
     <p style="font-size:12px;color:var(--muted)" data-i18n="ghPick"></p>
+    <input id="repoSearch" data-i18n-ph="ghSearch" oninput="renderRepos()" style="width:100%;box-sizing:border-box;margin-bottom:6px">
     <div id="repoList" style="max-height:34vh;overflow:auto"></div>
     <div style="display:flex;gap:6px;margin-top:8px">
       <input id="cloneUrl" placeholder="https://github.com/user/repo" style="flex:1">
@@ -420,7 +421,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -437,7 +438,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -1256,13 +1257,28 @@ async function openAdd() {
 }
 
 // ---------- GitHub 저장소 clone ----------
+let allRepos = [];
 async function loadRepos() {
   const box = document.getElementById('repoList');
+  const s = document.getElementById('repoSearch'); if (s) s.value = '';
   box.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">…</div>';
   const repos = await api('GET', '/api/my-repos');
+  if (repos && repos.error) { allRepos = []; box.innerHTML = `<div style="color:#fbbf24;font-size:12px;padding:8px">${esc(repos.error)}</div>`; return; }
+  // 최근 수정 순으로 정렬 (updatedAt 내림차순) — 흔히 방금 쓰던 repo가 위로
+  allRepos = (Array.isArray(repos) ? repos : []).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  renderRepos();
+}
+function renderRepos() {
+  const box = document.getElementById('repoList');
+  const s = document.getElementById('repoSearch');
+  const q = (s ? s.value : '').trim().toLowerCase();
+  const list = q ? allRepos.filter(r => r.name.toLowerCase().includes(q)) : allRepos;
   box.innerHTML = '';
-  if (repos.error) { box.innerHTML = `<div style="color:#fbbf24;font-size:12px;padding:8px">${esc(repos.error)}</div>`; return; }
-  repos.forEach(r => {
+  if (!list.length) {
+    box.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px">${allRepos.length ? '검색 결과 없음' : 'No repos'}</div>`;
+    return;
+  }
+  list.forEach(r => {
     const b = document.createElement('button');
     b.className = 'proj';
     b.innerHTML = (r.isPrivate ? '🔒 ' : '📖 ') + esc(r.name);
