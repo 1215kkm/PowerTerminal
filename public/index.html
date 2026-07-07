@@ -1208,8 +1208,7 @@ function paneElByPath(path) {   // 이 창 grid에서 같은 폴더 pane 찾기
 }
 async function renderAddCards() {
   let server = [];
-  try { server = await api('GET', '/api/sessions'); } catch (e) {}   // 살아있는 세션 목록(재접속·완전삭제용)
-  const shownIds = new Set([...grid.children].map(el => el.dataset.id));
+  try { server = await api('GET', '/api/sessions'); } catch (e) {}   // 살아있는 세션 목록(종료·완전삭제용)
   const list = document.getElementById('knownList');
   list.className = 'known-grid';
   list.innerHTML = '';
@@ -1218,14 +1217,16 @@ async function renderAddCards() {
     const paneEl = paneElByPath(k.path);
     const on = !!paneEl;
     const c = miniCard(i + 1, nm, k.path, on);
-    c.onclick = async () => {   // 토글: 켜져 있으면 화면에서 빼고, 꺼져 있으면 화면에 추가 (창은 유지)
+    c.onclick = async () => {   // 토글: 켜져 있으면 세션 종료(화면에서 빠지고 안 되살아남), 꺼져 있으면 다시 켜기
       if (on) {
-        removePaneLocal(paneEl.dataset.id);   // 화면에서만 빼기 (세션은 살아있음)
+        // 세션을 실제로 종료해야 reconcile이 되살리지 않고 다른 창에서도 사라짐 (최근목록엔 남음)
+        for (const s of server.filter(s => _norm(s.path) === _norm(k.path))) {
+          if (panes.has(s.id)) removePaneLocal(s.id);
+          await api('DELETE', '/api/sessions/' + s.id);
+        }
+        if (!server.some(s => _norm(s.path) === _norm(k.path))) removePaneLocal(paneEl.dataset.id);
       } else {
-        // 살아있는데 화면에만 없는 세션이면 새로 만들지 말고 다시 붙기 (좀비 방지)
-        const alive = server.find(s => _norm(s.path) === _norm(k.path) && s.alive !== false && !shownIds.has(s.id));
-        if (alive) buildPane(alive, grid.children.length);
-        else await addSession(k.path, nm, k.agent, '', true);
+        await addSession(k.path, nm, k.agent, '', true);   // 다시 켜기 (claude --continue로 대화 이어짐)
       }
       applyLayout(); renumber(); renderAddCards();
     };
