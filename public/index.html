@@ -928,7 +928,29 @@ function speak(text) {
   try { const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 1;
         speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
 }
-function speakNum(n) { if (soundOn && n) speak(NUMWORDS[n] || String(n)); }
+let audioCtx;
+function chime() {   // 띵동(도어벨풍 2음) — Web Audio 합성, 파일 없음
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    [[988, 0], [784, 0.18]].forEach(([f, t]) => {   // B5 → G5 = 띵~동
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
+      const s = now + t;
+      g.gain.setValueAtTime(0, s);
+      g.gain.linearRampToValueAtTime(0.3, s + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, s + 0.35);
+      o.start(s); o.stop(s + 0.4);
+    });
+  } catch (e) {}
+}
+function speakNum(n) {   // 띵동 후 "session two done"
+  if (!soundOn || !n) return;
+  chime();
+  const w = NUMWORDS[n] || String(n);
+  setTimeout(() => speak('session ' + w + ' done'), 560);
+}
 function updateSoundBtn() {
   const b = document.getElementById('btnSound'); if (!b) return;
   b.querySelector('.sic').textContent = soundOn ? '🔊' : '🔇';
@@ -938,7 +960,7 @@ function toggleSound() {
   soundOn = !soundOn;
   localStorage.setItem('pt_sound', soundOn ? '1' : '0');
   updateSoundBtn();
-  if (soundOn) speak('sound on');   // 켜는 탭 제스처로 iOS 오디오 잠금 해제 겸 테스트 음성
+  if (soundOn) { chime(); setTimeout(() => speak('sound on'), 560); }   // 켜는 탭 제스처로 오디오 잠금 해제 겸 테스트
   else if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch (e) {} }
 }
 updateSoundBtn();
