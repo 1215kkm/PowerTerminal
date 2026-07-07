@@ -619,7 +619,7 @@ function buildPane(sess, idx) {
     <div class="quick">
       <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
       <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
-      <input type="file" class="qFile" accept="image/*" style="display:none">
+      <input type="file" class="qFile" accept="image/*" multiple style="display:none">
       <button class="small qSend">${T.send}</button>
     </div>`;
   grid.appendChild(el);
@@ -880,8 +880,8 @@ function buildPane(sess, idx) {
   qInput.addEventListener('paste', ev => {
     const cd = ev.clipboardData;
     const items = [...((cd && cd.items) || [])];
-    const img = items.find(it => it.type && it.type.startsWith('image/'));
-    if (img) { ev.preventDefault(); attachImage(img.getAsFile()); return; }
+    const imgs = items.filter(it => it.type && it.type.startsWith('image/'));
+    if (imgs.length) { ev.preventDefault(); (async () => { for (const it of imgs) await attachImage(it.getAsFile()); })(); return; }
     const text = (cd && cd.getData && cd.getData('text')) || '';
     if (!text) return;
     if (text.length < 200) return;      // 200자 미만은 그냥 붙여넣기 (여러 줄도 textarea가 보관, 전송 시 안전 변환)
@@ -897,7 +897,7 @@ function buildPane(sess, idx) {
   });
   const qFile = el.querySelector('.qFile');
   el.querySelector('.qImg').onclick = ev => { ev.stopPropagation(); qFile.click(); };
-  qFile.onchange = () => { if (qFile.files[0]) attachImage(qFile.files[0]); qFile.value = ''; };
+  qFile.onchange = async () => { for (const f of [...qFile.files]) await attachImage(f); qFile.value = ''; };   // 여러 장 순차 첨부
 
   // 드래그로 순서 바꾸기
   const head = el.querySelector('.pane-head');
