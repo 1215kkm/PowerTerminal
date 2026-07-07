@@ -75,6 +75,12 @@
   .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #7c8da3; }
   /* 스크롤할 내용이 있을 때만 바 표시 (Claude 전체화면 TUI엔 스크롤백이 없어 빈 트랙이 죽은 채로 보이던 문제) */
   .xterm-viewport { overflow-y: auto !important; scrollbar-width: thin; scrollbar-color: #5b6b7f #1e2833; }
+  /* 연결 끊김 표시 */
+  #connLost { position: fixed; top: 0; left: 0; right: 0; z-index: 600; background: #b91c1c; color: #fff;
+              text-align: center; padding: 12px 14px; font-weight: 700; font-size: 15px;
+              box-shadow: 0 4px 16px rgba(0,0,0,.45); animation: connPulse 1.4s ease-in-out infinite; }
+  @keyframes connPulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+  body.pt-offline #grid { opacity: .5; filter: grayscale(.45); transition: opacity .2s, filter .2s; }
   iframe.preview { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
   .hidden { display: none !important; }
 
@@ -436,7 +442,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', copyFail:'Copy failed', connLost:'⚠ Disconnected — the server (your PC) may be off, or the network dropped. Reconnecting…', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기', soundBtn:'작업이 끝나면 세션 번호를 영어로 말해줌 (켜기/끄기)',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -453,7 +459,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', newFolder:'＋ 새 폴더', newFolderPh:'새 폴더 이름 → Enter', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', copied:'복사됨', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', newFolder:'＋ 새 폴더', newFolderPh:'새 폴더 이름 → Enter', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'clone할 저장소를 고르거나 주소를 붙여넣으세요:', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', copied:'복사됨', copyFail:'복사 실패', connLost:'⚠ 연결 끊김 — 서버(PC)가 꺼졌거나 네트워크가 끊겼습니다. 재연결 시도 중…', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -673,7 +679,7 @@ function buildPane(sess, idx) {
   let closedByUser = false;
   function connect() {
     ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/term?id=${sess.id}&token=${TOKEN}`);
-    let first = true;
+    let first = true, counted = false;
     ws.onmessage = e => {
       const m = JSON.parse(e.data);
       if (m.type === 'out') {
@@ -696,8 +702,14 @@ function buildPane(sess, idx) {
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
     };
     // 접속 직후 한 번 + 레이아웃/주소창 확정 뒤 두 번 더 (모바일 반쪽 높이 방지)
-    ws.onopen = () => { sendResize(); setTimeout(sendResize, 250); setTimeout(sendResize, 900); };
-    ws.onclose = () => { if (!closedByUser) setTimeout(connect, 1500); };
+    ws.onopen = () => {
+      if (!counted) { counted = true; liveSockets++; updateConnBanner(); }
+      sendResize(); setTimeout(sendResize, 250); setTimeout(sendResize, 900);
+    };
+    ws.onclose = () => {
+      if (counted) { counted = false; liveSockets--; updateConnBanner(); }
+      if (!closedByUser) setTimeout(connect, 1500);
+    };
   }
   connect();
   term.onData(d => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: d })); });
@@ -1020,19 +1032,29 @@ function orderRank(path) {
 }
 function esc(s) { return (s || '').replace(/</g, '&lt;'); }
 
-// 터미널 선택 텍스트 복사 (https·localhost는 clipboard API, http(LAN IP)는 execCommand 폴백)
+// 터미널 선택 텍스트 복사. execCommand 우선(http·https 모두, 가장 호환성 높음) → 실패 시 Clipboard API.
+// 토스트는 "정직하게": 실제 성공에만 '복사됨', 아니면 '복사 실패'.
 function copySel(text) {
-  const done = () => flashToast(T.copied || 'Copied');
+  if (!text) return;
+  let ok = false;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;font-size:16px';
+    document.body.appendChild(ta);
+    ta.focus({ preventScroll: true }); ta.select();
+    try { ta.setSelectionRange(0, text.length); } catch (e) {}
+    ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch (e) {}
+  if (ok) { flashToast(T.copied || 'Copied'); return; }
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(() => { if (fallbackCopyText(text)) done(); });
-  } else if (fallbackCopyText(text)) done();
-}
-function fallbackCopyText(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text; ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
-  document.body.removeChild(ta); return ok;
+    navigator.clipboard.writeText(text)
+      .then(() => flashToast(T.copied || 'Copied'))
+      .catch(() => flashToast(T.copyFail || 'Copy failed'));
+    return;
+  }
+  flashToast(T.copyFail || 'Copy failed');
 }
 let _toastTimer;
 function flashToast(msg) {
@@ -1046,6 +1068,24 @@ function flashToast(msg) {
   }
   t.textContent = msg; t.style.opacity = '1';
   clearTimeout(_toastTimer); _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 1100);
+}
+
+// 연결 끊김 크게 표시: 모든 세션 소켓이 끊기면(서버 종료·네트워크·폰 잠금 등) 상단 빨강 배너 + 화면 흐리게.
+// 빠른 재연결이면 안 뜨게 2.5초 유예. 하나라도 다시 붙으면 사라짐.
+let liveSockets = 0, _connTimer;
+function updateConnBanner() {
+  clearTimeout(_connTimer);
+  if (liveSockets > 0 || panes.size === 0) { setOffline(false); return; }
+  _connTimer = setTimeout(() => setOffline(true), 2500);
+}
+function setOffline(off) {
+  document.body.classList.toggle('pt-offline', off);
+  let b = document.getElementById('connLost');
+  if (off) {
+    if (!b) { b = document.createElement('div'); b.id = 'connLost'; document.body.appendChild(b); }
+    b.textContent = T.connLost || '⚠ Disconnected — reconnecting…';
+    b.style.display = 'block';
+  } else if (b) { b.style.display = 'none'; }
 }
 
 // 카드 우측상단 아이콘 3개 (폴더 열기 · 목록에서 빼기 · 같은 폴더 하나 더 열기)
