@@ -966,13 +966,24 @@ function toggleSound() {
 updateSoundBtn();
 
 function setState(el, done, busy) {
-  // busy → done 으로 방금 바뀐 순간에만 소리 (페이지 로드 시 이미 완료된 세션은 제외)
-  const justDone = !!done && !el.classList.contains('done') && el.classList.contains('busy');
+  const wasDone = el.classList.contains('done');
+  const wasBusy = el.classList.contains('busy');
+  const nowBusy = !!busy && !done;
   el.classList.toggle('done', !!done);
-  el.classList.toggle('busy', !!busy && !done);   // 완료가 우선
+  el.classList.toggle('busy', nowBusy);   // 완료가 우선
   const mm = document.querySelector(`#minimap [data-mm="${el.dataset.id}"]`);
-  if (mm) { mm.classList.toggle('done', !!done); mm.classList.toggle('busy', !!busy && !done); }
-  if (justDone) speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
+  if (mm) { mm.classList.toggle('done', !!done); mm.classList.toggle('busy', nowBusy); }
+  // 완료 소리: Claude는 한 요청 안에서도 작업표시가 껌뻑거려 busy↔done이 여러 번 뒤집힘.
+  // → 다시 작업 시작하면 대기 소리 취소하고, done 이 3초간 유지될 때(진짜 마무리)만 한 번 울림.
+  if (nowBusy && el._doneTimer) { clearTimeout(el._doneTimer); el._doneTimer = null; }
+  if (!!done && !wasDone && wasBusy) {
+    if (el._doneTimer) clearTimeout(el._doneTimer);
+    el._doneTimer = setTimeout(() => {
+      el._doneTimer = null;
+      if (el.isConnected && el.classList.contains('done'))
+        speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
+    }, 3000);
+  }
 }
 function renumber() {
   [...grid.children].forEach((el, i) => el.querySelector('.num').textContent = i + 1);

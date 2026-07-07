@@ -13,7 +13,7 @@ const https = require('https');
 let CLOUDFLARED_PATH;
 
 const ROOT = __dirname;
-const PORT = 7777;
+const PORT = Number(process.env.PORT) || 7777;   // 포트 충돌 시 PORT 환경변수로 변경 가능
 const SESSIONS_FILE = path.join(ROOT, 'sessions.json');
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 const LAUNCHER_PROJECTS = path.join(ROOT, '..', 'Launcher', 'projects.json');
