@@ -199,6 +199,20 @@ app.get('/api/browse', (req, res) => {
   }
 });
 
+// 찾아보기 중 현재 위치에 새 폴더 만들기 (git/GitHub 없이 순수 폴더만)
+app.post('/api/mkdir', (req, res) => {
+  const dir = (req.body.dir || '').toString();
+  const name = (req.body.name || '').toString().trim();
+  if (!dir || !fs.existsSync(dir)) return res.status(400).json({ error: '상위 폴더가 없습니다.' });
+  if (!name || name === '.' || name === '..' || /[\\/:*?"<>|]/.test(name))
+    return res.status(400).json({ error: '폴더 이름에 \\ / : * ? " < > | 는 쓸 수 없어요.' });
+  const target = path.join(dir, name);
+  if (path.dirname(target) !== path.resolve(dir)) return res.status(400).json({ error: '잘못된 경로입니다.' });
+  if (fs.existsSync(target)) return res.status(400).json({ error: '이미 있는 폴더: ' + name });
+  try { fs.mkdirSync(target); res.json({ dir: target }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 내 GitHub 저장소 목록 (clone 대상 선택용)
 app.get('/api/my-repos', (req, res) => {
   try {
