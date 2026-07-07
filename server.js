@@ -55,13 +55,23 @@ const MAX_BUF = 200 * 1024;
 
 // 세션별 선택: claude(기본) / codex / shell(순수 PowerShell) / custom(직접 명령)
 // 모든 세션은 실제 powershell.exe(PTY)에 붙는다 — 브라우저는 그 화면을 비추는 창일 뿐.
+const IS_WIN = process.platform === 'win32';
 function agentCommand(sess) {
   const model = sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '';
+  if (IS_WIN) {
+    switch (sess.agent) {
+      case 'codex':  return 'codex resume --last; if ($LASTEXITCODE -ne 0) { codex }';
+      case 'shell':  return 'Write-Host "PowerShell 세션" -ForegroundColor Magenta';
+      case 'custom': return sess.cmd || 'powershell';
+      default:       return 'claude' + model + ' --continue; if ($LASTEXITCODE -ne 0) { claude' + model + ' }';
+    }
+  }
+  // Mac/Linux (POSIX 셸)
   switch (sess.agent) {
-    case 'codex':  return 'codex resume --last; if ($LASTEXITCODE -ne 0) { codex }';
-    case 'shell':  return 'Write-Host "PowerShell 세션" -ForegroundColor Magenta';
-    case 'custom': return sess.cmd || 'powershell';
-    default:       return 'claude' + model + ' --continue; if ($LASTEXITCODE -ne 0) { claude' + model + ' }';
+    case 'codex':  return 'codex resume --last || codex';
+    case 'shell':  return 'echo "shell session"';
+    case 'custom': return sess.cmd || '';
+    default:       return 'claude' + model + ' --continue || claude' + model;
   }
 }
 
@@ -69,9 +79,17 @@ function getPty(sess) {
   let p = ptys.get(sess.id);
   if (p && !p.dead) return p;
   const cmd = agentCommand(sess);
-  const proc = pty.spawn('powershell.exe',
-    ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd],
-    { name: 'xterm-256color', cols: 120, rows: 34, cwd: sess.path, env: process.env });
+  const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd: sess.path, env: process.env };
+  let proc;
+  if (IS_WIN) {
+    proc = pty.spawn('powershell.exe',
+      ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd], opts);
+  } else {
+    // Mac/Linux: 로그인 셸을 대화형으로 띄우고 명령을 흘려보냄 (명령 끝나도 셸은 유지)
+    const shell = process.env.SHELL || '/bin/zsh';
+    proc = pty.spawn(shell, ['-l'], opts);
+    if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
+  }
   p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false };
   const isClaude = !sess.agent || sess.agent === 'claude';
   proc.onData(d => {
@@ -504,6 +522,28 @@ app.post('/api/sessions/:id/upload-text', (req, res) => {
   } catch (e) {
     res.json({ error: String((e && e.message) || e) });
   }
+});
+
+// 폴더를 OS 파일 관리자로 열기 — Windows(explorer) / Mac(open) / Linux(xdg-open)
+app.post('/api/open-folder', (req, res) => {
+  const dir = (req.body && req.body.path) || '';
+  if (!dir || !fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
+  try {
+    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open';
+    const p = spawn(cmd, [dir], { detached: true, stdio: 'ignore' });
+    p.on('error', () => {});   // explorer는 종종 exit 1 — 무시
+    p.unref();
+    res.json({ ok: true });
+  } catch (e) { res.json({ error: String((e && e.message) || e) }); }
+});
+
+// 최근 사용 목록에서 제거
+app.post('/api/recent/remove', (req, res) => {
+  const dir = (req.body && req.body.path) || '';
+  const norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+  recent = recent.filter(r => norm(r.path) !== norm(dir));
+  saveRecent();
+  res.json({ ok: true });
 });
 
 app.post('/api/sessions/:id/clear-done', (req, res) => {
