@@ -61,7 +61,8 @@
   .pane-head input.title-edit { font: inherit; font-weight: 700; background: #374151; color: #fff;
                                 border: 1px solid var(--violet); border-radius: 4px; padding: 2px 4px; width: 40%; }
   .pane-head .folder { font-size: 11px; color: var(--muted); overflow: hidden;
-                       text-overflow: ellipsis; white-space: nowrap; }
+                       text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .pane-head .folder:hover { color: var(--sky); text-decoration: underline; }
   .pane-head .modelSel { background: #1f2937; border: 1px solid var(--line); color: var(--fg);
                          border-radius: 6px; padding: 3px 6px; font-size: 12px; font-family: inherit; }
   .pane-head .st { font-size: 11px; flex: 0 0 auto; }
@@ -704,6 +705,10 @@ function buildPane(sess, idx) {
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
   }
   new ResizeObserver(() => sendResize()).observe(el.querySelector('.pane-body'));
+
+  // 폴더 경로 클릭 → OS 파일 관리자로 그 폴더 열기
+  const folderEl = el.querySelector('.folder');
+  if (folderEl) folderEl.addEventListener('click', e => { e.stopPropagation(); openFolder(sess.path); });
 
   // 제목 더블클릭 수정
   const titleEl = el.querySelector('.title');
