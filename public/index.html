@@ -333,7 +333,7 @@
   <div id="tab-folder">
     <div id="knownList" style="max-height:32vh;overflow:auto;margin-bottom:8px"></div>
     <div style="display:flex;gap:6px">
-      <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
+      <input id="addPath" data-i18n-ph="pathPh" style="flex:1;text-align:right;direction:ltr">
       <button onclick="toggleBrowse()" data-i18n="browse" style="white-space:nowrap">📂 찾아보기</button>
       <button class="primary" onclick="addManual()" data-i18n="add">Add</button>
     </div>
@@ -342,7 +342,6 @@
         <button class="small" onclick="browseUp()">⬆</button>
         <span id="brCur" style="flex:1;min-width:120px;font-size:12px;color:var(--muted);word-break:break-all"></span>
         <button class="small" onclick="mkFolder()" data-i18n="newFolder">＋ 새 폴더</button>
-        <button class="small primary" onclick="pickCurrent()" data-i18n="selectThis">✔ 이 폴더 선택</button>
       </div>
       <div id="brList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;padding:8px;max-height:34vh;overflow:auto"></div>
     </div>
@@ -1198,13 +1197,6 @@ async function doMkFolder(name) {
   const r = await api('POST', '/api/mkdir', { dir: brDir, name });
   if (r && r.error) { const e = document.getElementById('mkErr'); if (e) e.textContent = r.error; return; }
   await browseTo(r.dir);   // 만든 폴더 안으로 들어감 (여기서 ✔ 이 폴더 선택하면 그 폴더로 세션 시작)
-}
-// [✔ 이 폴더 선택] = 지금 폴더로 바로 세션 추가
-function pickCurrent() {
-  if (!brDir) return;
-  const name = brDir.replace(/[\\/]$/, '').split(/[\\/]/).pop();
-  addDlg.close();
-  addSession(brDir, name);
 }
 
 // ---------- 탭 ----------
