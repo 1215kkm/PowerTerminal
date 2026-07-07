@@ -1,6 +1,6 @@
 {
   "name": "powerterminal",
-  "version": "1.9.17",
+  "version": "1.9.18",
   "description": "Run Claude Code (or any CLI AI) in your browser — multi-session, mobile, QR, usage bars",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
