@@ -1196,7 +1196,7 @@ async function openAdd() {
           await api('DELETE', '/api/sessions/' + p.sess.id);
           removePaneLocal(p.sess.id); renumber();
         },
-        async () => { addDlg.close(); await addSession(p.sess.path, p.sess.title, p.sess.agent); }));   // 중복 열기
+        async () => { addDlg.close(); await addSession(p.sess.path, p.sess.title, p.sess.agent, '', true); }));   // 중복 열기(이 창)
       row.appendChild(c);
     });
     list.appendChild(row);
@@ -1210,13 +1210,13 @@ async function openAdd() {
     offItems.forEach((k, i) => {
       const nm = k.title || k.name || '';
       const c = mini(openEls.length + i + 1, nm, k.path, true);
-      c.onclick = async () => { addDlg.close(); await addSession(k.path, nm, k.agent); };   // 클릭 = 다시 켜기
+      c.onclick = async () => { addDlg.close(); await addSession(k.path, nm, k.agent, '', true); };   // 클릭 = 다시 켜기(이 창)
       c.appendChild(cardIcons(k.path,
         async () => {   // 빼기 = 최근 목록에서 제거
           await api('POST', '/api/recent/remove', { path: k.path });
           c.remove();
         },
-        async () => { addDlg.close(); await addSession(k.path, nm, k.agent); }));   // 중복 = 새로 열기
+        async () => { addDlg.close(); await addSession(k.path, nm, k.agent, '', true); }));   // 중복 = 이 창에 하나 더
       offGrid.appendChild(c);
     });
     list.appendChild(offGrid);
@@ -1266,11 +1266,12 @@ async function addManual() {
   addDlg.close();
   await addSession(p, document.getElementById('addTitle').value.trim(), agent, cmd);
 }
-async function addSession(path, title, agent, cmd) {
+async function addSession(path, title, agent, cmd, skipPrompt) {
   const pick = document.getElementById('addAgent').value;
   const s = await api('POST', '/api/sessions', { path, title, agent: agent || pick, cmd });
   if (s.error) { alert(s.error); return; }
-  await placeNewSession(s);
+  if (skipPrompt) addHere(s);          // 이전에 쓰던 세션 다시 열기 = 새 창 묻지 않고 이 창에
+  else await placeNewSession(s);       // 완전히 새 폴더 추가 = 5개↑면 새 창 물어봄
 }
 
 // 새 세션을 어디에 열지 결정: 이 창 / 새 창 (5개↑ 또는 폭이 너무 좁아지면 물어봄)
@@ -1490,9 +1491,9 @@ function renderPicker() {
         renderPicker();
         if (!pickList.length) pickDlg.close();
       },
-      async () => {   // 중복: 같은 폴더로 세션 하나 더 열기
+      async () => {   // 중복: 같은 폴더로 세션 하나 더 열기 (이 창에)
         pickDlg.close();
-        await addSession(s.path, s.title, s.agent);
+        await addSession(s.path, s.title, s.agent, '', true);
       }));
     g.appendChild(c);
   });
