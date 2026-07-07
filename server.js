@@ -56,6 +56,12 @@ const MAX_BUF = 200 * 1024;
 // 세션별 선택: claude(기본) / codex / shell(순수 PowerShell) / custom(직접 명령)
 // 모든 세션은 실제 powershell.exe(PTY)에 붙는다 — 브라우저는 그 화면을 비추는 창일 뿐.
 const IS_WIN = process.platform === 'win32';
+// Mac/Linux 셸 선택: $SHELL(맥 기본 zsh) → zsh → bash → sh 중 실제 있는 것 (zsh 없는 리눅스 대비)
+function pickShell() {
+  if (process.env.SHELL) { try { if (fs.existsSync(process.env.SHELL)) return process.env.SHELL; } catch (e) {} }
+  for (const s of ['/bin/zsh', '/bin/bash', '/bin/sh']) { try { if (fs.existsSync(s)) return s; } catch (e) {} }
+  return '/bin/sh';
+}
 function agentCommand(sess) {
   const model = sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '';
   if (IS_WIN) {
@@ -86,8 +92,7 @@ function getPty(sess) {
       ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd], opts);
   } else {
     // Mac/Linux: 로그인 셸을 대화형으로 띄우고 명령을 흘려보냄 (명령 끝나도 셸은 유지)
-    const shell = process.env.SHELL || '/bin/zsh';
-    proc = pty.spawn(shell, ['-l'], opts);
+    proc = pty.spawn(pickShell(), ['-l'], opts);
     if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
   }
   p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false };
