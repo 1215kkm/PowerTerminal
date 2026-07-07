@@ -84,6 +84,8 @@
   #btnFeedback { display: none !important; }   /* 의견보내기 버튼 — 일단 숨김 */
   .ub-left { font-size: 10px; color: var(--muted); white-space: nowrap; }   /* 리셋까지 남은 시간 */
   #btnQR .qric { vertical-align: -2px; }
+  #btnSound .sic { font-size: 14px; line-height: 1; }
+  #btnSound.on { color: var(--sky); box-shadow: 0 0 0 1px var(--sky) inset; }
 
   /* 배너 효과 엔진 — banner.json의 effect 필드로 원격 제어 (none/blink/pulse/glow/shake/slide/rainbow) */
   @keyframes fxBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
@@ -179,6 +181,7 @@
     .logo-wrap { order: 0; display: inline-block; }   /* 폭=로고 글자 폭 → 배지 오른쪽 끝 기준 */
     #hverBadge { position: absolute; right: 0; bottom: 100%; margin-bottom: 1px; }   /* 로고 우측 끝 바로 위 */
     header .sp { order: 2; }
+    #btnSound { order: 3; }
     #btnQR { order: 3; }
     #btnPick { order: 3; }
     #langSel { order: 4; padding: 6px; font-size: 12px; min-width: 0; }
@@ -262,6 +265,7 @@
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
+  <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
   <button id="btnQR" onclick="toggleQR()" data-i18n-title="infoBtn"><svg class="qric" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm1 1h2v2H6V6zm7-3h8v8h-8V3zm2 2v4h4V5h-4zm1 1h2v2h-2V6zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm1 1h2v2H6v-2zm7-3h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg><span class="qrtxt"> QR</span></button>
   <select id="langSel" onchange="setLang(this.value)" title="Language"
           style="background:#374151;border:0;color:var(--fg);border-radius:8px;padding:8px;font-family:inherit;font-size:13px">
@@ -408,7 +412,7 @@ const TOKEN = new URLSearchParams(location.search).get('token') ||
 
 // ---------- 다국어 (기본: 영어) ----------
 const I18N = {
-  en: { addSession:'＋ Session', qrToggle:'Mobile access QR on/off', infoBtn:'Access URLs',
+  en: { addSession:'＋ Session', qrToggle:'Mobile access QR on/off', infoBtn:'Access URLs', soundBtn:'Speak the session number aloud when it finishes (on/off)',
     qrTitle:'📱 Mobile Access QR', qrWarn:'⚠ Anyone with this QR can control sessions — share only with people you trust.',
     copyImg:'📋 Copy', saveImg:'💾 Save', close:'Close', cancel:'Cancel', add:'Add',
     addTitleH:'Add Session', orManual:'Or enter a folder path directly:', pathPh:'D:\\projects\\folder', titlePh:'Title (folder name if empty)',
@@ -425,7 +429,7 @@ const I18N = {
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
     ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL:', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
-  ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기',
+  ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기', soundBtn:'작업이 끝나면 세션 번호를 영어로 말해줌 (켜기/끄기)',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
     addTitleH:'세션 추가', orManual:'또는 폴더 경로 직접 입력:', pathPh:'D:\\프로젝트\\폴더경로', titlePh:'제목 (비우면 폴더명)',
@@ -915,11 +919,38 @@ function removePaneLocal(id) {
   panes.delete(id);
 }
 
+// ---- 완료 알림 소리: 브라우저 내장 TTS로 세션 번호를 영어로 ("one","two"…) ----
+let soundOn = localStorage.getItem('pt_sound') === '1';
+const NUMWORDS = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+                  'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  try { const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 1;
+        speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+}
+function speakNum(n) { if (soundOn && n) speak(NUMWORDS[n] || String(n)); }
+function updateSoundBtn() {
+  const b = document.getElementById('btnSound'); if (!b) return;
+  b.querySelector('.sic').textContent = soundOn ? '🔊' : '🔇';
+  b.classList.toggle('on', soundOn);
+}
+function toggleSound() {
+  soundOn = !soundOn;
+  localStorage.setItem('pt_sound', soundOn ? '1' : '0');
+  updateSoundBtn();
+  if (soundOn) speak('sound on');   // 켜는 탭 제스처로 iOS 오디오 잠금 해제 겸 테스트 음성
+  else if (window.speechSynthesis) { try { speechSynthesis.cancel(); } catch (e) {} }
+}
+updateSoundBtn();
+
 function setState(el, done, busy) {
+  // busy → done 으로 방금 바뀐 순간에만 소리 (페이지 로드 시 이미 완료된 세션은 제외)
+  const justDone = !!done && !el.classList.contains('done') && el.classList.contains('busy');
   el.classList.toggle('done', !!done);
   el.classList.toggle('busy', !!busy && !done);   // 완료가 우선
   const mm = document.querySelector(`#minimap [data-mm="${el.dataset.id}"]`);
   if (mm) { mm.classList.toggle('done', !!done); mm.classList.toggle('busy', !!busy && !done); }
+  if (justDone) speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
 }
 function renumber() {
   [...grid.children].forEach((el, i) => el.querySelector('.num').textContent = i + 1);
