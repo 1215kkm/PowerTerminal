@@ -5,11 +5,11 @@
   "banners": [
     {
       "text": {
-        "ko": "🚀 PowerTerminal - 분할터미널창, 모바일에서도 편하게 수정",
-        "en": "🚀 PowerTerminal - Split terminal window, easily modified on mobile",
-        "ja": "🚀 PowerTerminal - 分割ターミナルウィンドウ、モバイルでも楽に修正",
-        "zh": "🚀 PowerTerminal - 分割终端窗口，在移动设备上轻松修改",
-        "es": "🚀 PowerTerminal: ventana de terminal dividida, fácilmente modificable en dispositivos móviles"
+        "ko": "🚀 터미널관리, 모바일에서도 수정",
+        "en": "🚀 Terminal management",
+        "ja": "🚀ターミナル管理、モバイルでも修正",
+        "zh": "🚀 终端管理，手机端也修改了",
+        "es": "🚀 Gestión de terminales, también modificada en móviles"
       },
       "url": "",
       "color": "#ec4899"
