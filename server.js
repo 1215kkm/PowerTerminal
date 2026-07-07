@@ -95,7 +95,7 @@ function getPty(sess) {
     proc = pty.spawn(pickShell(), ['-l'], opts);
     if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
   }
-  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false };
+  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0 };
   const isClaude = !sess.agent || sess.agent === 'claude';
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
@@ -598,6 +598,18 @@ app.use('/preview/:id', (req, res, next) => {
 
 // ---------- WebSocket (터미널) ----------
 const server = http.createServer(app);
+// 한 세션(PTY)을 여러 브라우저가 볼 때 크기가 하나뿐이라 충돌 → 연결된 창 중 "최대" 크기로 통일.
+// (작은 폰·백그라운드·유령 탭이 큰 PC 화면을 절반으로 줄이던 문제 방지. 떠나면 재계산해 안 남게.)
+function applyPtySize(p) {
+  let cols = 0, rows = 0;
+  for (const s of p.sockets) {
+    if (s._size) { if (s._size.cols > cols) cols = s._size.cols; if (s._size.rows > rows) rows = s._size.rows; }
+  }
+  if (cols > 10 && rows > 5 && (cols !== p.cols || rows !== p.rows)) {
+    try { p.proc.resize(cols, rows); p.cols = cols; p.rows = rows; } catch (e) {}
+  }
+}
+
 const wss = new WebSocketServer({ server, path: '/term' });
 
 wss.on('connection', (ws, req) => {
@@ -621,10 +633,11 @@ wss.on('connection', (ws, req) => {
       if (!isClaude) p.busy = true;   // Claude는 'esc to interrupt' 마커가 busy를 결정
       p.lastOut = Date.now();
     } else if (m.type === 'resize' && m.cols > 10 && m.rows > 5) {
-      try { p.proc.resize(m.cols, m.rows); } catch (e) {}
+      ws._size = { cols: m.cols, rows: m.rows };
+      applyPtySize(p);   // 여러 클라이언트가 봐도 가장 큰 창 기준 → 작은 창이 큰 화면을 줄이지 않음
     }
   });
-  ws.on('close', () => p.sockets.delete(ws));
+  ws.on('close', () => { p.sockets.delete(ws); applyPtySize(p); });   // 떠난 클라이언트 크기가 남지 않게 재계산
 });
 
 // 이미 다른 PowerTerminal이 켜져 있으면(같은 PC의 다른 폴더 사본 등) 명확히 알리고 종료
