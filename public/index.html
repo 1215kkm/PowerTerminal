@@ -159,7 +159,7 @@
   .mini-pane.mp-slim .mp-body { display: none; }
   .mini-pane.mp-slim .mp-head { padding: 8px 10px; }
   .mini-pane.mp-slim { border-radius: 8px; }
-  @media (max-width: 700px), (pointer: coarse) {
+  @media (max-width: 768px), (pointer: coarse) {
     .known-grid { grid-template-columns: 1fr; }         /* 폰: 세션 목록 한 줄에 1개 */
     .card-icons button { width: 30px; height: 30px; }   /* 폰: 아이콘 크게(누르기 쉽게) */
     .card-icons svg { width: 16px; height: 16px; }
@@ -173,7 +173,7 @@
   .ub-track { width: 90px; height: 6px; border-radius: 3px; background: #374151; overflow: hidden; }
   .ub-fill { display: block; height: 100%; border-radius: 3px; transition: width .6s; }
   .ub-pct { font-size: 11px; font-weight: 700; color: var(--fg); }
-  @media (max-width: 700px), (pointer: coarse) and (max-height: 520px) {
+  @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
     /* 헤더 3줄 구성: ①로고+QR+언어  ②배너  ③세션%+추가버튼  ④주간%+주간Fable% */
     header { flex-wrap: wrap; row-gap: 7px; }
     .logo-wrap { order: 0; display: inline-block; }   /* 폭=로고 글자 폭 → 배지 오른쪽 끝 기준 */
@@ -208,6 +208,9 @@
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
     #qrCols > div { width: 100%; }
+  }
+  /* 스크롤 오버레이는 폰뿐 아니라 아이패드 등 모든 터치기기에서 (레이아웃과 무관) */
+  @media (pointer: coarse) {
     /* 터미널 중앙 1/3 = 그 터미널 스크롤백(위 내용 보기) · 양옆 1/3씩 = 페이지 스크롤 */
     .scrollzone { display: block; position: absolute; left: 33.3%; width: 33.4%; top: 0; bottom: 0;
                   z-index: 5; background: transparent; transition: background .25s; touch-action: none; }
@@ -221,7 +224,7 @@
 
   /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */
   #minimap { display: none; }
-  @media (max-width: 700px), (pointer: coarse) and (max-height: 520px) {
+  @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
     #grid { grid-template-columns: 1fr; padding: 6px; }
     .pane { min-height: 55vh; }
     header h1 { font-size: 14px; }
@@ -524,8 +527,8 @@ function applyStatic() {
   [...sel.options].forEach(o => { o.textContent = isMobileNow() ? o.dataset.short : ('🌐 ' + o.dataset.full); });
 }
 // 폰 세로 + 폰 가로(높이 낮음) 모두 모바일 취급 — 가로회전 시 PC 레이아웃으로 깨지지 않게
-function isMobileNow() {
-  return matchMedia('(max-width: 700px)').matches ||
+function isMobileNow() {   // 아이패드 미니 세로(≤768) 이하 = 폰과 같은 모바일 레이아웃
+  return matchMedia('(max-width: 768px)').matches ||
          (matchMedia('(pointer: coarse)').matches && matchMedia('(max-height: 520px)').matches);
 }
 
@@ -533,6 +536,7 @@ const grid = document.getElementById('grid');
 const addDlg = document.getElementById('addDlg');
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
 const isMobile = isMobileNow();
+const isTouch = matchMedia('(pointer: coarse)').matches;   // 터치 기기(폰·아이패드 등) — 스크롤 오버레이용 (레이아웃과 별개)
 let maxedId = null;        // 확대(포커스) 중인 세션 id — null이면 일반 격자
 const MIN_W = 300;         // 세션 한 칸 최소 폭 — 이보다 좁아지면 2줄/새 창 안내
 const FOCUS_FR = 3;        // 확대 시 그 칸이 차지하는 비율 (나머지 칸은 1)
@@ -618,13 +622,13 @@ function buildPane(sess, idx) {
   // 터미널 안의 URL 열기 — PC는 Ctrl/⌘+클릭 (실수 방지), 폰은 그냥 탭
   try {
     if (window.WebLinksAddon) term.loadAddon(new WebLinksAddon.WebLinksAddon(
-      (event, uri) => { if (isMobile || event.ctrlKey || event.metaKey) window.open(uri, '_blank', 'noopener'); }));
+      (event, uri) => { if (isTouch || event.ctrlKey || event.metaKey) window.open(uri, '_blank', 'noopener'); }));
   } catch (e) {}
   term.open(el.querySelector('.term'));
   fit.fit();
 
-  // 모바일: 가운데 1/3 = 이 터미널 스크롤백(위 내용) · 양옆 1/3 = 페이지 스크롤
-  if (isMobile) {
+  // 터치 기기(폰·아이패드 등): 가운데 1/3 = 이 터미널 스크롤백(위 내용) · 양옆 1/3 = 페이지 스크롤
+  if (isTouch) {
     const body = el.querySelector('.pane-body');
     const pl = document.createElement('div'); pl.className = 'pgzone l';
     const pr = document.createElement('div'); pr.className = 'pgzone r';
@@ -816,7 +820,16 @@ function buildPane(sess, idx) {
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
   };
   qInput.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); }   // Shift+Enter = 줄바꿈
+    if (ev.key !== 'Enter') return;
+    if (ev.ctrlKey || ev.metaKey) {   // Ctrl/⌘+Enter = 줄바꿈 (PowerShell처럼) — 커서 위치에 개행 삽입
+      ev.preventDefault();
+      const s = qInput.selectionStart, e = qInput.selectionEnd;
+      qInput.value = qInput.value.slice(0, s) + '\n' + qInput.value.slice(e);
+      qInput.selectionStart = qInput.selectionEnd = s + 1;
+      autoGrow();
+      return;
+    }
+    if (!ev.shiftKey) { ev.preventDefault(); send(); }   // 그냥 Enter = 전송 · Shift+Enter = 줄바꿈
   });
   el.querySelector('.qSend').onclick = send;
 
