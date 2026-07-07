@@ -689,7 +689,8 @@ function buildPane(sess, idx) {
       else if (m.type === 'status') setState(el, m.done, m.busy);
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
     };
-    ws.onopen = () => { sendResize(); };
+    // 접속 직후 한 번 + 레이아웃/주소창 확정 뒤 두 번 더 (모바일 반쪽 높이 방지)
+    ws.onopen = () => { sendResize(); setTimeout(sendResize, 250); setTimeout(sendResize, 900); };
     ws.onclose = () => { if (!closedByUser) setTimeout(connect, 1500); };
   }
   connect();
@@ -1613,6 +1614,13 @@ function scheduleRefit() { clearTimeout(_refitTimer); _refitTimer = setTimeout(r
 addEventListener('resize', () => setTimeout(refitAll, 60));
 addEventListener('orientationchange', () => setTimeout(() => { applyLayout(); refitAll(); }, 200));
 addEventListener('load', () => setTimeout(refitAll, 120));
+// 모바일: 주소창 접힘/펼침은 window resize가 아니라 visualViewport 이벤트로만 옴 → 여기서 재fit (반쪽 높이 핵심 원인)
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', scheduleRefit);
+  visualViewport.addEventListener('scroll', scheduleRefit);
+}
+// 탭으로 돌아왔을 때(폰 잠금 해제 등)도 한 번 더 맞춤
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(refitAll, 150); });
 
 // 페이지 스크롤 중이면 가운데 존을 하늘색으로 잠깐 표시 (스크롤 영역이 어디인지 안내)
 let scrollFlag;
