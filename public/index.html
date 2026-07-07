@@ -1179,83 +1179,69 @@ function switchTab(tab) {
   if (tab === 'github') loadRepos();
 }
 
-// ---------- 세션 추가 ----------
-async function openAdd() {
-  let known = [];
-  try { known = await api('GET', '/api/known-projects'); } catch (e) {}
+// ---------- 세션 추가 (세션 매니저) ----------
+// 카드 = 토글(눌러서 화면에 넣고/빼고) · ✕ = 화면+목록 완전 제거 · ＋ = 같은 폴더 중복 열기. 창은 안 닫고 갱신.
+const addState = { known: [] };
+const _norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+function miniCard(num, title, path, on) {
+  const c = document.createElement('div');
+  c.className = 'mini-pane' + (on ? ' on' : ' off') + (isMobile ? ' mp-slim' : '');
+  c.title = path;
+  c.innerHTML = `<div class="mp-head"><span class="mp-num">${num}</span>` +
+                `<span class="mp-title">${esc(title)}</span>` +
+                (on ? '<span class="mp-on">●</span>' : '') + `</div>` +
+                `<div class="mp-body">${esc(path)}</div>`;
+  return c;
+}
+function paneElByPath(path) {   // 이 창 grid에서 같은 폴더 pane 찾기
+  return [...grid.children].find(el => { const p = panes.get(el.dataset.id); return p && _norm(p.sess.path) === _norm(path); });
+}
+async function renderAddCards() {
+  let server = [];
+  try { server = await api('GET', '/api/sessions'); } catch (e) {}   // 살아있는 세션 목록(재접속·완전삭제용)
+  const shownIds = new Set([...grid.children].map(el => el.dataset.id));
   const list = document.getElementById('knownList');
-  list.className = '';
+  list.className = 'known-grid';
   list.innerHTML = '';
-  const norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
-
-  const mini = (num, title, path, off) => {
-    const c = document.createElement('div');
-    c.className = 'mini-pane' + (off ? ' off' : ' on');
-    c.title = path;
-    c.innerHTML = `<div class="mp-head"><span class="mp-num">${num}</span>` +
-                  `<span class="mp-title">${esc(title)}</span>` +
-                  (off ? '' : '<span class="mp-on">●</span>') + `</div>` +
-                  `<div class="mp-body">${esc(path)}</div>`;
-    return c;
-  };
-
-  // ① 현재 열린 세션 (밝게). PC=지금 화면처럼 가로 배열 · 모바일=얇게 세로 나열. 클릭=그 창으로 이동
-  const openEls = [...grid.children];
-  const openPaths = new Set();
-  if (openEls.length) {
-    const row = document.createElement('div');
-    row.style.cssText = isMobile
-      ? 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px'
-      : `display:grid;grid-template-columns:repeat(${openEls.length},1fr);gap:8px;margin-bottom:10px`;
-    openEls.forEach((paneEl, i) => {
-      const p = panes.get(paneEl.dataset.id);
-      if (!p) return;
-      openPaths.add(norm(p.sess.path));
-      const c = mini(i + 1, p.sess.title, p.sess.path, false);
-      if (isMobile) c.classList.add('mp-slim');   // 모바일: 얇은 한 줄
-      c.onclick = () => {   // 카드 본문 클릭 = 그 창으로 이동
-        addDlg.close();
-        paneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        paneEl.style.transition = 'box-shadow .2s';
-        paneEl.style.boxShadow = '0 0 0 3px var(--pink)';
-        setTimeout(() => { paneEl.style.boxShadow = ''; }, 900);
-      };
-      c.appendChild(cardIcons(p.sess.path,
-        async () => {   // 빼기 = 이 세션 닫기
-          if (!confirm(T.confirmClose.replace('{t}', p.sess.title))) return;
-          addDlg.close();
-          await api('DELETE', '/api/sessions/' + p.sess.id);
-          removePaneLocal(p.sess.id); renumber();
-        },
-        async () => { addDlg.close(); await addSession(p.sess.path, p.sess.title, p.sess.agent, '', true); }));   // 중복 열기(이 창)
-      row.appendChild(c);
-    });
-    list.appendChild(row);
-  }
-
-  // ② 닫힌(안 쓰는) 세션 — 회색. 클릭 = 다시 켜기
-  const offItems = known.filter(k => k.path && !openPaths.has(norm(k.path)));
-  if (offItems.length) {
-    const offGrid = document.createElement('div');
-    offGrid.className = 'known-grid';
-    offItems.forEach((k, i) => {
-      const nm = k.title || k.name || '';
-      const c = mini(openEls.length + i + 1, nm, k.path, true);
-      c.onclick = async () => { addDlg.close(); await addSession(k.path, nm, k.agent, '', true); };   // 클릭 = 다시 켜기(이 창)
-      c.appendChild(cardIcons(k.path,
-        async () => {   // 빼기 = 최근 목록에서 제거
-          await api('POST', '/api/recent/remove', { path: k.path });
-          c.remove();
-        },
-        async () => { addDlg.close(); await addSession(k.path, nm, k.agent, '', true); }));   // 중복 = 이 창에 하나 더
-      offGrid.appendChild(c);
-    });
-    list.appendChild(offGrid);
-  }
-
+  addState.known.forEach((k, i) => {
+    const nm = k.title || k.name || '';
+    const paneEl = paneElByPath(k.path);
+    const on = !!paneEl;
+    const c = miniCard(i + 1, nm, k.path, on);
+    c.onclick = async () => {   // 토글: 켜져 있으면 화면에서 빼고, 꺼져 있으면 화면에 추가 (창은 유지)
+      if (on) {
+        removePaneLocal(paneEl.dataset.id);   // 화면에서만 빼기 (세션은 살아있음)
+      } else {
+        // 살아있는데 화면에만 없는 세션이면 새로 만들지 말고 다시 붙기 (좀비 방지)
+        const alive = server.find(s => _norm(s.path) === _norm(k.path) && s.alive !== false && !shownIds.has(s.id));
+        if (alive) buildPane(alive, grid.children.length);
+        else await addSession(k.path, nm, k.agent, '', true);
+      }
+      applyLayout(); renumber(); renderAddCards();
+    };
+    c.appendChild(cardIcons(k.path,
+      async () => {   // ✕ = 화면에서 닫고 + 목록·서버에서도 완전 제거
+        for (const s of server.filter(s => _norm(s.path) === _norm(k.path))) {
+          await api('DELETE', '/api/sessions/' + s.id);
+          if (panes.has(s.id)) removePaneLocal(s.id);
+        }
+        await api('POST', '/api/recent/remove', { path: k.path });
+        addState.known = addState.known.filter(x => _norm(x.path) !== _norm(k.path));
+        applyLayout(); renumber(); renderAddCards();
+      },
+      async () => {   // ＋ = 같은 폴더로 세션 하나 더 (이미 켜져 있어도 별도로 또)
+        await addSession(k.path, nm, k.agent, '', true);
+        applyLayout(); renumber(); renderAddCards();
+      }));
+    list.appendChild(c);
+  });
+}
+async function openAdd() {
+  try { addState.known = await api('GET', '/api/known-projects'); } catch (e) { addState.known = []; }
+  await renderAddCards();
   document.getElementById('browser').style.display = 'none';
   switchTab('folder');
-  addDlg.showModal();
+  if (!addDlg.open) addDlg.showModal();
 }
 
 // ---------- GitHub 저장소 clone ----------
