@@ -159,6 +159,12 @@
   .mini-pane.mp-slim .mp-body { display: none; }
   .mini-pane.mp-slim .mp-head { padding: 8px 10px; }
   .mini-pane.mp-slim { border-radius: 8px; }
+  @media (max-width: 700px), (pointer: coarse) {
+    .known-grid { grid-template-columns: 1fr; }         /* 폰: 세션 목록 한 줄에 1개 */
+    .card-icons button { width: 30px; height: 30px; }   /* 폰: 아이콘 크게(누르기 쉽게) */
+    .card-icons svg { width: 16px; height: 16px; }
+    .card-icons .ci-del:active { background: #b91c1c; }
+  }
 
   /* 상단 사용량 막대 (공식 사용량 화면과 같은 %) */
   #usage { display: flex; gap: 14px; align-items: center; }
@@ -549,11 +555,14 @@ function belongsHere(id) {
 }
 
 async function api(method, url, body) {
-  const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, {
-    method, headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  return r.json();
+  try {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    try { return await r.json(); }
+    catch (e) { return { error: 'HTTP ' + r.status, status: r.status }; }   // 404 등 비-JSON 응답에도 안 던짐 (핸들러 중단 방지)
+  } catch (e) { return { error: 'network', offline: true }; }
 }
 
 // ---------- 세션 패널 ----------
@@ -844,10 +853,11 @@ function buildPane(sess, idx) {
     if (img) { ev.preventDefault(); attachImage(img.getAsFile()); return; }
     const text = (cd && cd.getData && cd.getData('text')) || '';
     if (!text) return;
-    if (text.includes('\n')) {          // 여러 줄 → 파일로 저장(안정적 제출)
+    if (text.length < 200) return;      // 200자 미만은 그냥 붙여넣기 (여러 줄도 textarea가 보관, 전송 시 안전 변환)
+    if (text.includes('\n')) {          // 200자↑ 여러 줄 → 파일로 저장(안정적 제출)
       ev.preventDefault();
       attachText(text);
-    } else if (text.length > 100) {     // 한 줄 긴 글 → 칩(전송 시 인라인)
+    } else {                            // 200자↑ 한 줄 → 칩(전송 시 인라인)
       ev.preventDefault();
       const token = '[' + T.textChip + ' #' + (++attachN) + ' · ' + text.length + T.charsUnit + ']';
       attachMap.set(token, { type: 'text', value: text });
