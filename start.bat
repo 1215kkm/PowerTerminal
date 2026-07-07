@@ -1,6 +1,17 @@
 @echo off
 cd /d "%~dp0"
 echo [PowerTerminal] Updating...
+rem --- if this was a ZIP download (no .git) but git exists, wire it up once so it can auto-update ---
+rem     gitignored files (config.json, sessions.json, node_modules...) are untracked and preserved.
+if exist ".git" goto HAVEGIT
+where git >nul 2>nul || goto HAVEGIT
+echo   Enabling auto-update (one-time setup)...
+git init -q
+git remote add origin https://github.com/1215kkm/PowerTerminal.git
+git fetch --depth 1 origin main
+git reset --hard origin/main
+git branch -M main
+:HAVEGIT
 git pull --ff-only >nul 2>nul
 
 rem --- Node.js check (the app cannot install this itself - it needs Node to run) ---
