@@ -103,6 +103,11 @@
 
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
+  #qrDlg { position: relative; overflow: hidden; }
+  /* QR 경고 관문 — 반투명 유리(blur)로 뒤 QR이 살짝 비침 */
+  #qrGate { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+            background: rgba(17,24,39,.55); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
   dialog::backdrop { background: rgba(0,0,0,.6); }
   dialog h3 { margin: 0 0 10px; }
   dialog .proj { display: block; width: 100%; text-align: left; margin: 4px 0; }
@@ -293,16 +298,16 @@
     <span id="verBadge" style="font-size:11px;color:var(--muted);background:#374151;padding:2px 8px;border-radius:99px"></span>
     <button onclick="qrDlg.close()" style="padding:4px 10px;font-weight:700" title="Close">✕</button>
   </div>
-  <!-- 경고 관문: QR을 보기 전에 위험 고지 + 동의 -->
-  <div id="qrGate" style="text-align:center;padding:14px 6px">
-    <div style="font-size:40px">⚠️</div>
-    <p data-i18n="qrGateWarn" style="font-size:14px;line-height:1.6;color:#fca5a5;font-weight:700;margin:10px 4px"></p>
-    <p data-i18n="qrGateResp" style="font-size:12px;color:var(--muted);margin:6px 4px 16px"></p>
-    <button class="primary" onclick="qrRevealed=true;document.getElementById('qrGate').style.display='none';document.getElementById('qrBody').style.display='block'" data-i18n="qrGateOk" style="padding:10px 18px;font-weight:700">I understand — show the QR</button>
-  </div>
-  <div id="qrBody" style="display:none">
+  <!-- QR은 항상 렌더링, 그 위에 반투명 유리 경고 관문을 덮어 살짝 비치게 -->
+  <div id="qrBody">
     <div id="qrCols" style="display:flex;gap:14px"></div>
     <p style="font-size:11px;color:var(--muted);margin-top:10px" data-i18n="qrWarn"></p>
+  </div>
+  <div id="qrGate">
+    <div style="font-size:40px">⚠️</div>
+    <p data-i18n="qrGateWarn" style="font-size:14px;line-height:1.6;color:#fecaca;font-weight:700;margin:10px 14px;text-shadow:0 1px 4px rgba(0,0,0,.8)"></p>
+    <p data-i18n="qrGateResp" style="font-size:12px;color:#e5e7eb;margin:6px 14px 16px;text-shadow:0 1px 4px rgba(0,0,0,.8)"></p>
+    <button class="primary" onclick="document.getElementById('qrGate').style.display='none'" data-i18n="qrGateOk" style="padding:10px 18px;font-weight:700">I understand — show the QR</button>
   </div>
 </dialog>
 
@@ -1032,13 +1037,10 @@ function urlRow(label, url) {
   };
   return d;
 }
-let qrRevealed = false;
 async function toggleQR() {
   if (qrDlg.open) { qrDlg.close(); return; }
-  // 매번 경고 관문부터 — 동의해야 QR 표시 (유출 주의·본인 책임)
-  qrRevealed = false;
-  document.getElementById('qrGate').style.display = 'block';
-  document.getElementById('qrBody').style.display = 'none';
+  // 매번 반투명 경고 관문부터 — 동의해야 QR 선명하게 (유출 주의·본인 책임)
+  document.getElementById('qrGate').style.display = 'flex';
   await renderQR();
   qrDlg.showModal();
 }
@@ -1390,7 +1392,10 @@ async function refreshBanner() {
       let i = 0;
       const show = () => {
         const x = list[i % list.length];
-        const txt = (x.text[LANG] || x.text.en || Object.values(x.text)[0]);
+        const en = x.text.en || '';
+        let txt = (x.text[LANG] || en || Object.values(x.text)[0]);
+        // 영어보다 길게 번역된 언어는 영어로 대체 (배너가 영어 폭을 넘지 않게)
+        if (en && x.text[LANG] && x.text[LANG].length > en.length) txt = en;
         el.innerHTML = (x.image ? `<img src="${x.image.replace(/"/g,'')}" style="height:18px;border-radius:4px;vertical-align:-4px;margin-right:6px">` : '') +
                        `<span class="bn-in">${esc(txt)}</span>`;
         el.href = x.url || '#';
