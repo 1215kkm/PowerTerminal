@@ -42,13 +42,15 @@ That's it 🎉 — the launcher auto-updates (if you cloned with git), starts th
 
 To use it on your phone, click the **QR** button, read the warning, and scan the code.
 
-> **Tip:** clone with `git` (above), not the "Download ZIP" button — a ZIP copy can't auto-update, so you'd be stuck on an old version.
+> **Tip:** either way works — even a ZIP download stays current, because on the first run the launcher wires up git and auto-updates (as long as git is installed).
 
 ## Features
 
 - **Multi-session grid** — several projects at once, side by side (1 full / 2 half / 3+ in one row, wraps to 2 rows when narrow). ⛶ expands one pane in place; 5+ sessions can spill into a second browser window (nice with dual monitors)
 - **Phone = same screen** — sessions live on your PC; check and control them from anywhere
+- **Touch-first on tablets** — iPad and iPad mini too; drag the center of any terminal to scroll its history, and small screens drop to the phone layout
 - **Status borders** — sky-blue while a session is working, thick green when it's done (stays green until you send the next request)
+- **🔊 Done alerts you hear** — flip on the speaker button and each finished session is announced out loud: a *ding-dong* chime, then "session two done", spoken by the browser (built-in speech, no install, works offline). It only fires when a request truly finishes — not on Claude's intermediate steps — and plays while the tab is open (mobile suspends background tabs)
 - **👁 Live preview** of the page you're building, in a new tab
 - **⇄ Mode button** — cycle Claude Code's auto / accept-edits / plan modes with one tap (the button shows the current mode)
 - **Paste anything** — images and long text collapse into small chips like `[Image #1]` / `[Text #1 · 597 chars]` and are delivered to Claude on send; the input box grows as you type (Shift+Enter = new line, Ctrl+Z undo)
@@ -56,6 +58,19 @@ To use it on your phone, click the **QR** button, read the warning, and scan the
 - **New Project** — folder + git + private GitHub repo + Claude, in one click *(needs [GitHub CLI](https://cli.github.com), `gh auth login`)*
 - **Any AI per session** — Claude Code, Codex, plain PowerShell, or a custom command
 - **10 languages** — English, 한국어, 日本語, 中文, Español, Deutsch, Français, Português, Русский, हिन्दी
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/grid.jpg" alt="Multiple sessions on PC"><br><sub>Several Claude Code sessions side by side on your PC — each with its own folder, model and status.</sub></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/mobile.jpg" alt="On your phone"><br><sub>The same workspace on your phone in one column — tap a session tab to jump to it.</sub></td>
+</tr>
+<tr>
+<td><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/add.jpg" alt="Add a session"><br><sub>Add a session: reopen a previous folder from the grid, browse, or start a new project.</sub></td>
+<td><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/qr.jpg" alt="QR access"><br><sub>Scan the QR to open it on your phone — over Wi-Fi, or anywhere via the external link.</sub></td>
+</tr>
+</table>
 
 ## Choosing an AI model (the dropdown in each session)
 
