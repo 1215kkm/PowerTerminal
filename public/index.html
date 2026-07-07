@@ -333,8 +333,8 @@
   <div id="tab-folder">
     <div id="knownList" style="max-height:32vh;overflow:auto;margin-bottom:8px"></div>
     <div style="display:flex;gap:6px">
-      <input id="addPath" data-i18n-ph="pathPh" style="flex:1;text-align:right;direction:ltr">
-      <button onclick="toggleBrowse()" data-i18n="browse" style="white-space:nowrap">📂 찾아보기</button>
+      <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
+      <button onclick="toggleBrowse()" title="폴더 찾아보기" style="white-space:nowrap">📂</button>
       <button class="primary" onclick="addManual()" data-i18n="add">Add</button>
     </div>
     <div id="browser" style="display:none;border:2px solid var(--sky);border-radius:8px;margin-top:8px">
@@ -1157,7 +1157,9 @@ async function browseTo(dir) {
   if (r.error) { if (dir) return browseTo(''); return; }
   brDir = r.dir;
   document.getElementById('brCur').textContent = r.dir || '💻 ' + (T.drives || 'Drives');
-  document.getElementById('addPath').value = r.dir || '';
+  const ap = document.getElementById('addPath');
+  ap.value = r.dir || '';
+  ap.scrollLeft = ap.scrollWidth;   // 경로가 길면 끝(마지막 폴더)이 보이도록 스크롤
   const list = document.getElementById('brList');
   list.innerHTML = '';
   r.folders.forEach(f => {
