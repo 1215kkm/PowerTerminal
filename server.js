@@ -95,11 +95,14 @@ function getPty(sess) {
     proc = pty.spawn(pickShell(), ['-l'], opts);
     if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
   }
-  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0 };
+  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now(), resumePending: false };
   const isClaude = !sess.agent || sess.agent === 'claude';
+  // 재시작 자동 이어하기: 작업 중(busy)이던 Claude 세션이 종료됐다 다시 뜨면, 로딩이 잦아든 뒤 자동으로 continue 전송
+  if (isClaude && sess.resumeOnStart) { p.resumePending = true; sess.resumeOnStart = false; try { saveSessions(); } catch (e) {} }
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
+    if (p.resumePending) { clearTimeout(p.resumeTimer); p.resumeTimer = setTimeout(() => fireResume(p), 2500); }   // 출력이 2.5초 조용해지면 준비 완료로 보고 전송
     if (isClaude) {
       // Claude는 작업 중일 때 하단에 'esc to interrupt'를 계속 그림 → 이 표시로 작업중/완료 판별
       // (사용량 정지 중 카운트다운 같은 잔출력에 상태가 흔들리지 않음)
@@ -117,12 +120,27 @@ function getPty(sess) {
     for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'exit' })); } catch (e) {} }
   });
   ptys.set(sess.id, p);
+  if (p.resumePending) setTimeout(() => fireResume(p), 20000);   // 출력이 계속 흘러도 20초 뒤엔 한 번 시도
   return p;
 }
 
 function broadcastStatus(id, p) {
   const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy });
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
+}
+
+// 재시작 자동 이어하기: 로딩이 충분히 지나 잦아들면 "continue"를 한 번 전송
+function fireResume(p) {
+  if (!p || !p.resumePending) return;
+  if (Date.now() - p.spawnAt < 3500) { clearTimeout(p.resumeTimer); p.resumeTimer = setTimeout(() => fireResume(p), 1500); return; }
+  p.resumePending = false;
+  try { p.proc.write('Continue the previous task where you left off.\r'); } catch (e) {}
+}
+// 세션이 작업 중이었는지 여부를 sessions.json에 저장 (busy=true 저장 → 종료돼도 재시작 때 이어하기)
+function setResume(sess, val) {
+  if (!sess || !!sess.resumeOnStart === val) return;
+  sess.resumeOnStart = val;
+  try { saveSessions(); } catch (e) {}
 }
 
 // 작업 완료 감지 — Claude: 'esc to interrupt' 표시가 4초간 안 그려지면 완료(초록) / 그 외: 8초 조용하면 완료
@@ -133,8 +151,8 @@ setInterval(() => {
     const isClaude = !sess || !sess.agent || sess.agent === 'claude';
     if (isClaude) {
       const working = p.lastMarker && Date.now() - p.lastMarker < 4000;
-      if (working && (!p.busy || p.done)) { p.busy = true; p.done = false; broadcastStatus(id, p); }
-      else if (!working && p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p); }
+      if (working) { setResume(sess, true); if (!p.busy || p.done) { p.busy = true; p.done = false; broadcastStatus(id, p); } }
+      else { if (p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p); } setResume(sess, false); }
     } else if (p.busy && Date.now() - p.lastOut > 8000) {
       p.busy = false; p.done = true;
       broadcastStatus(id, p);
@@ -627,6 +645,7 @@ wss.on('connection', (ws, req) => {
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
+      if (p.resumePending) p.resumePending = false;   // 사용자가 먼저 타이핑하면 자동 이어하기 취소
       p.proc.write(m.data);
       if (p.done) { p.done = false; broadcastStatus(id, p); }   // 입력하면 초록 해제
       const isClaude = !sess.agent || sess.agent === 'claude';
