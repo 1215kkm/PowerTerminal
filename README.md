@@ -61,16 +61,21 @@ To use it on your phone, click the **QR** button, read the warning, and scan the
 
 ## Screenshots
 
-<table>
-<tr>
-<td width="50%"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/grid.jpg" alt="Multiple sessions on PC"><br><sub>Several Claude Code sessions side by side on your PC — each with its own folder, model and status.</sub></td>
-<td width="50%"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/mobile.jpg" alt="On your phone"><br><sub>The same workspace on your phone in one column — tap a session tab to jump to it.</sub></td>
-</tr>
-<tr>
-<td><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/add.jpg" alt="Add a session"><br><sub>Add a session: reopen a previous folder from the grid, browse, or start a new project.</sub></td>
-<td><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/qr.jpg" alt="QR access"><br><sub>Scan the QR to open it on your phone — over Wi-Fi, or anywhere via the external link.</sub></td>
-</tr>
-</table>
+**Several Claude Code sessions side by side on your PC** — each with its own folder, model and status.
+
+<img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/grid.jpg" alt="Multiple sessions on PC" width="100%">
+
+**Add a session** — reopen a previous folder from the grid, browse, or start a new project.
+
+<img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/add.jpg" alt="Add a session" width="100%">
+
+**Open it on your phone** — scan the QR, over Wi-Fi or anywhere via the external link.
+
+<img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/qr.jpg" alt="QR access" width="100%">
+
+**On your phone** — the same workspace in one column; tap a session tab to jump to it.
+
+<img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/mobile.jpg" alt="On your phone" width="380">
 
 ## Choosing an AI model (the dropdown in each session)
 
