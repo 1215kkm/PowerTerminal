@@ -37,12 +37,29 @@ function readJson(file) {
   return JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw);
 }
 
-// ---------- 설정 (접속 토큰) ----------
+// ---------- 설정 (접속 토큰 + 관리자 비밀번호) ----------
 let config = {};
 try { config = readJson(CONFIG_FILE); } catch (e) {}
-if (!config.token) {
-  config.token = crypto.randomBytes(4).toString('hex');
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+let configDirty = false;
+if (!config.token) { config.token = crypto.randomBytes(4).toString('hex'); configDirty = true; }
+// 관리자 비밀번호: 이 PC(localhost)는 항상 무비번 통과, 원격(폰 등)에서 배너관리자를 열려면 필요.
+// 값은 관리자 페이지에서 이 PC로 접속했을 때만 확인/재발급 가능(원격에선 절대 노출 안 함).
+if (!config.adminPassword) { config.adminPassword = crypto.randomBytes(4).toString('hex'); configDirty = true; }
+if (configDirty) fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+function isAdmin(req) {
+  if (isLocal(req.socket)) return true;
+  const cookiePw = (req.headers.cookie || '').split('cc_admin=')[1]?.split(';')[0];
+  const pw = req.query.admin || cookiePw || '';
+  return !!config.adminPassword && pw === config.adminPassword;
+}
+// 원격 관리자 로그인 시도 횟수 제한 (간단한 무차별대입 방지)
+const adminAttempts = new Map();
+function adminRateOk(ip) {
+  const now = Date.now();
+  const e = adminAttempts.get(ip);
+  if (!e || now > e.resetAt) { adminAttempts.set(ip, { count: 1, resetAt: now + 10 * 60 * 1000 }); return true; }
+  e.count++;
+  return e.count <= 8;
 }
 
 // ---------- 세션 메타 ----------
@@ -514,12 +531,33 @@ app.get('/api/banner', async (req, res) => {
   res.json(data);
 });
 
-// 배너 발행 (관리자 — 이 PC에서만): banner.json 저장 후 GitHub로 푸시 → 전 사용자 반영
-app.post('/api/admin/banner', (req, res) => {
+// 원격에서 관리자 로그인 — 비밀번호 맞으면 쿠키 발급(이후 이 기기에서 재입력 불필요). 이 PC(localhost)는 애초에 필요 없음.
+app.post('/api/admin/login', (req, res) => {
+  if (isLocal(req.socket)) return res.json({ ok: true, local: true });
   const ip = req.socket.remoteAddress || '';
-  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) {
-    return res.status(403).json({ error: '보안상 이 PC(localhost)에서만 발행할 수 있습니다.' });
+  if (!adminRateOk(ip)) return res.status(429).json({ error: '시도 횟수 초과 — 잠시 후 다시 시도하세요.' });
+  const pw = ((req.body && req.body.password) || '').toString();
+  if (pw && config.adminPassword && pw === config.adminPassword) {
+    res.setHeader('Set-Cookie', `cc_admin=${config.adminPassword}; Path=/; Max-Age=31536000`);
+    return res.json({ ok: true });
   }
+  res.status(403).json({ error: '비밀번호가 틀렸습니다.' });
+});
+// 관리자 비밀번호 확인/재발급 — 이 PC(localhost)에서만. 원격에는 절대 값을 보여주지 않음.
+app.get('/api/admin/password', (req, res) => {
+  if (!isLocal(req.socket)) return res.status(403).json({ error: 'localhost only' });
+  res.json({ password: config.adminPassword });
+});
+app.post('/api/admin/password/regenerate', (req, res) => {
+  if (!isLocal(req.socket)) return res.status(403).json({ error: 'localhost only' });
+  config.adminPassword = crypto.randomBytes(4).toString('hex');
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  res.json({ password: config.adminPassword });
+});
+
+// 배너 발행 (관리자): banner.json 저장 후 GitHub로 푸시 → 전 사용자 반영
+app.post('/api/admin/banner', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
   const b = req.body || {};
   const out = {
     latestVersion: b.latestVersion || VERSION,
@@ -555,10 +593,9 @@ app.post('/api/admin/banner', (req, res) => {
   }
 });
 
-// 관리자 자동 번역 (이 PC에서만) — 한글 문구를 여러 언어로. 무료 공개 번역 엔드포인트 사용
+// 관리자 자동 번역 (관리자만) — 한글 문구를 여러 언어로. 무료 공개 번역 엔드포인트 사용
 app.get('/api/admin/translate', async (req, res) => {
-  const ip = req.socket.remoteAddress || '';
-  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) return res.status(403).json({ error: 'localhost only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
   const text = (req.query.text || '').toString();
   const to = (req.query.to || 'en').toString();
   if (!text) return res.json({ text: '' });
@@ -714,7 +751,16 @@ app.post('/api/shutdown', (req, res) => {
   saveSessions();                            // 배열·레이아웃 먼저 저장
   res.json({ ok: true });
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
-  setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료
+  setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료 (exit 0 = 완전 종료, 런처가 다시 안 켬)
+});
+
+// 재시작(업데이트 배너 클릭 등) — exit code 75로 종료하면 start.bat/start.command가
+// 최신 코드를 다시 받아(git sync) 서버를 자동으로 재기동함. 세션은 저장돼 그대로 복원됨.
+app.post('/api/reboot', (req, res) => {
+  saveSessions();
+  res.json({ ok: true });
+  console.log('\n  🔄 재시작 요청 — 최신 버전을 받아 서버를 다시 시작합니다. (세션은 저장됨, 다음 실행 때 복원)');
+  setTimeout(() => process.exit(75), 300);   // 75 = "재시작" 신호 (런처가 감지해 루프)
 });
 
 // 프로젝트 폴더 정적 서빙 (미리보기 토글용)

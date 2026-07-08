@@ -1,5 +1,10 @@
 @echo off
+setlocal
 cd /d "%~dp0"
+title PowerTerminal
+
+if "%~1"=="waitopen" goto WAITOPEN
+
 echo [PowerTerminal] Updating...
 rem --- self-update. gitignored files (config.json, sessions.json, node_modules...) are always preserved. ---
 if exist ".git" goto GITPULL
@@ -60,17 +65,38 @@ if not exist "%USERPROFILE%\Desktop\PowerTerminal.lnk" powershell -NoProfile -Co
 
 for /f "usebackq delims=" %%v in (`node -p "require('./package.json').version" 2^>nul`) do set PTVER=%%v
 
-rem --- if already running on 7777, do not start a second node - just open the browser ---
+rem --- if already running on 7777, don't start a second node ---
 netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
-if errorlevel 1 (
-  echo   Starting PowerTerminal v%PTVER% ...
-  rem Quit button exits node with code 0 -> window closes. A crash exits non-zero -> pause keeps it visible.
-  start "PowerTerminal server" cmd /c "node server.js || pause"
-) else (
+if not errorlevel 1 (
+  if /i "%~1"=="restart" exit /b
   echo   PowerTerminal is already running - opening the browser only.
+  call :OPENCHROME
+  exit /b
 )
 
-rem --- wait up to 30s until the server actually responds (first run can be slow: npm install) ---
+echo   Starting PowerTerminal v%PTVER% ...
+rem open the browser once the server responds. Skipped after a restart - the existing tab reloads itself.
+if /i not "%~1"=="restart" (
+  start "" /min cmd /c call "%~f0" waitopen
+)
+
+node server.js
+set EC=%errorlevel%
+if "%EC%"=="75" (
+  rem 75 = restart requested (update banner). Relaunch as a fresh process so the just-updated
+  rem      start.bat is read cleanly from disk (a running .bat can misbehave if it edits itself).
+  echo   Update requested - restarting with the latest version...
+  start "" cmd /c call "%~f0" restart
+  exit /b
+)
+if not "%EC%"=="0" (
+  echo.
+  echo   === Server stopped unexpectedly - see the message above. This window can be closed. ===
+  pause
+)
+exit /b
+
+:WAITOPEN
 set /a _t=0
 :WAITSRV
 netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
@@ -80,9 +106,13 @@ if %_t% geq 30 goto SRVUP
 timeout /t 1 /nobreak >nul
 goto WAITSRV
 :SRVUP
+call :OPENCHROME
+exit /b
 
-rem --- open Chrome in its own new window (a normal tab you can drag into another Chrome window) ---
+:OPENCHROME
+rem Chrome in its own new window (a normal tab you can drag into another Chrome window), else default browser.
 set "PF86=%ProgramFiles(x86)%"
 set "CHROME="
 for %%p in ("%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%PF86%\Google\Chrome\Application\chrome.exe" "%LocalAppData%\Google\Chrome\Application\chrome.exe") do @if not defined CHROME @if exist "%%~p" set "CHROME=%%~p"
 if defined CHROME ( start "" "%CHROME%" --new-window http://localhost:7777/ ) else ( start "" "http://localhost:7777/" )
+exit /b

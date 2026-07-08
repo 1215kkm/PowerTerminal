@@ -47,7 +47,16 @@
     <h1 style="flex:1">📢 PowerTerminal 배너 관리자 <span id="verBadge" style="font-size:13px;color:var(--muted);background:#374151;padding:2px 10px;border-radius:99px;vertical-align:middle"></span></h1>
     <button onclick="goHome()" style="padding:8px 14px;font-weight:700" title="메인 화면으로">✕ 닫기</button>
   </div>
-  <p style="font-size:13px;color:var(--muted)">여기서 저장+발행하면 GitHub의 banner.json이 갱신되고, <b>모든 사용자에게 10분 안에 반영</b>됩니다. (이 페이지는 이 PC에서만 열림)</p>
+  <p style="font-size:13px;color:var(--muted)">여기서 저장+발행하면 GitHub의 banner.json이 갱신되고, <b>모든 사용자에게 10분 안에 반영</b>됩니다.</p>
+
+  <div class="card" id="pwCard" style="display:none">
+    <label>🔑 관리자 비밀번호 — 다른 기기(폰 등)에서 ⚙ 누를 때 이 비밀번호로 들어옵니다 (이 PC에서만 확인 가능)</label>
+    <div class="row" style="align-items:center">
+      <input id="pwField" readonly style="font-family:monospace;letter-spacing:1px">
+      <button style="flex:0 0 auto" onclick="copyPw()">📋 복사</button>
+      <button style="flex:0 0 auto" onclick="regenPw()">🔄 재발급</button>
+    </div>
+  </div>
 
   <div id="banners"></div>
   <button onclick="addBanner()">＋ 배너 추가</button>
@@ -106,7 +115,14 @@ function bannerCard(b, i) {
       <div><label>Español</label><input data-k="es" value="${esc(t.es || '')}"></div>
     </div>
     <div class="row" style="align-items:end">
-      <div><label>클릭 시 이동할 주소 (페이지·유튜브 영상 등)</label><input data-k="url" value="${esc(b.url || '')}"></div>
+      <div><label>클릭 시 이동할 주소 (페이지·유튜브 영상 등) — '재부팅 버튼'을 켜면 이 주소는 무시됩니다</label><input data-k="url" value="${esc(b.url || '')}" ${b.reboot ? 'disabled' : ''}></div>
+      <div style="flex:0 0 160px"><label>&nbsp;</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;padding:9px 10px;background:#111827;border:1px solid var(--line);border-radius:8px">
+          <input type="checkbox" data-k="reboot" ${b.reboot ? 'checked' : ''} style="width:auto"> 🔄 재부팅 버튼
+        </label>
+      </div>
+    </div>
+    <div class="row" style="align-items:end">
       <div style="flex:0 0 110px"><label>배경색</label><input type="color" data-k="color" value="${/^#[0-9a-fA-F]{6}$/.test(b.color || '') ? b.color : '#EC4899'}" style="height:40px;padding:2px;cursor:pointer"></div>
       <div style="flex:0 0 150px"><label>✨ 효과 (전 사용자 원격 적용)</label>
         <select data-k="effect">
@@ -120,7 +136,8 @@ function bannerCard(b, i) {
     <label>이미지 주소 (선택 — 배너 안에 작은 로고/아이콘으로 표시)</label>
     <input data-k="image" value="${esc(b.image || '')}" placeholder="https://.../logo.png">
     <div style="text-align:right;margin-top:8px"><button class="danger" onclick="delBanner(${i})">✕ 이 배너 삭제</button></div>`;
-  d.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { collect(); preview(); }));
+  d.querySelectorAll('input:not([type=checkbox])').forEach(inp => inp.addEventListener('input', () => { collect(); preview(); }));
+  d.querySelectorAll('input[type=checkbox]').forEach(inp => inp.addEventListener('change', () => { collect(); render(); }));   // 재부팅 체크 시 URL칸 활성/비활성 갱신 위해 전체 재렌더
   d.querySelectorAll('select').forEach(sel => sel.addEventListener('change', () => { collect(); preview(); }));
   return d;
 }
@@ -138,10 +155,12 @@ function collect() {
   const cards = [...document.querySelectorAll('#banners .card')];
   data.banners = cards.map(c => {
     const v = k => { const el = c.querySelector(`[data-k="${k}"]`); return el ? el.value.trim() : ''; };
+    const vc = k => { const el = c.querySelector(`[data-k="${k}"]`); return el ? el.checked : false; };
     const b = { text: { ko: v('ko'), en: v('en'), ja: v('ja'), zh: v('zh'), es: v('es') }, url: v('url') };
     if (v('color')) b.color = v('color');
     if (v('image')) b.image = v('image');
     if (v('effect') && v('effect') !== 'none') b.effect = v('effect');
+    if (vc('reboot')) b.reboot = true;
     return b;
   }).filter(b => Object.values(b.text).some(x => x));
   data.latestVersion = document.getElementById('latestVersion').value.trim();
@@ -175,8 +194,8 @@ function preview() {
     const el = document.getElementById(id);
     if (!b) { el.style.display = 'none'; continue; }
     el.style.display = 'inline-flex';
-    el.innerHTML = (b.image ? `<img src="${esc(b.image)}">` : '') + `<span class="bn-in">${esc(b.text.ko || b.text.en)}</span>`;
-    el.href = b.url || '#';
+    el.innerHTML = (b.image ? `<img src="${esc(b.image)}">` : '') + `<span class="bn-in">${esc(b.text.ko || b.text.en)}</span>` + (b.reboot ? ` <small style="opacity:.75">(재부팅)</small>` : '');
+    el.href = b.reboot ? 'javascript:void(0)' : (b.url || '#');
     el.style.background = b.color || '';
     el.className = 'pv-banner' + (b.effect ? ' fx-' + b.effect : '');   // 효과 실시간 미리보기
   }
@@ -190,6 +209,21 @@ async function load() {
   if (!data.banners) data.banners = [];
   render();
   try { const inf = await api('GET', '/api/info'); document.getElementById('verBadge').textContent = '실행 중 v' + inf.version; } catch (e) {}
+  // 관리자 비밀번호 카드 — 이 PC(localhost)에서만 값이 내려옴, 원격에선 404/403이라 카드 숨김
+  try {
+    const r = await api('GET', '/api/admin/password');
+    if (r && r.password) { document.getElementById('pwField').value = r.password; document.getElementById('pwCard').style.display = ''; }
+  } catch (e) {}
+}
+function copyPw() {
+  const f = document.getElementById('pwField');
+  f.select();
+  navigator.clipboard && navigator.clipboard.writeText(f.value);
+}
+async function regenPw() {
+  if (!confirm('비밀번호를 재발급할까요? 기존 비밀번호로 로그인해둔 다른 기기는 다시 입력해야 합니다.')) return;
+  const r = await api('POST', '/api/admin/password/regenerate');
+  if (r && r.password) document.getElementById('pwField').value = r.password;
 }
 async function publish() {
   collect();
