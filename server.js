@@ -536,6 +536,13 @@ app.post('/api/admin/banner', (req, res) => {
   }
   try {
     const gitId = ['-c', 'user.name=PowerTerminal', '-c', 'user.email=noreply@powerterminal'];
+    // 이 폴더가 원격보다 뒤처져 있으면 push가 non-fast-forward로 거부됨.
+    // → 먼저 원격 최신으로 맞추고(reset --hard) 방금 만든 배너 내용을 다시 얹은 뒤 커밋하면 항상 fast-forward.
+    try {
+      execFileSync('git', ['fetch', '--depth', '1', 'origin', 'main'], { cwd: ROOT, timeout: 30000 });
+      execFileSync('git', ['reset', '--hard', 'FETCH_HEAD'], { cwd: ROOT });
+      fs.writeFileSync(path.join(ROOT, 'banner.json'), JSON.stringify(out, null, 2) + '\n');   // 최신 위에 배너 재적용
+    } catch (e) {}
     execFileSync('git', ['add', 'banner.json'], { cwd: ROOT });
     // 변경이 없으면 커밋 생략
     const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: ROOT, encoding: 'utf8' });
