@@ -5,14 +5,15 @@
   "banners": [
     {
       "text": {
-        "ko": "🔄 새 버전 나왔어요 — 여기서 최신 받기 (세션 유지됨)",
-        "en": "🔄 New version out — get the latest here (sessions kept)",
-        "ja": "🔄 新バージョン公開 — 最新版はこちら（セッション維持）",
+        "ko": "🔄 새 버전 나왔어요 v1.9.48",
+        "en": "🔄 New version is out v1.9.48",
+        "ja": "🔄新しいバージョンが出ましたv1.9.48",
         "zh": "🔄 新版本发布 — 点此获取最新版（会话保留）",
-        "es": "🔄 Nueva versión disponible — descárgala aquí (sesiones conservadas)"
+        "es": "🔄 Ya salió la nueva versión v1.9.48"
       },
       "url": "https://pominal.com",
-      "color": "#8a38f5"
+      "color": "#8a38f5",
+      "effect": "slide"
     }
   ]
 }
