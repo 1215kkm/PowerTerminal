@@ -5,14 +5,14 @@
   "banners": [
     {
       "text": {
-        "ko": "🚀 터미널관리, 모바일에서도 수정",
-        "en": "🚀 Terminal management",
-        "ja": "🚀ターミナル管理、モバイルでも修正",
-        "zh": "🚀 终端管理，手机端也修改了",
-        "es": "🚀 Gestión de terminales, también modificada en móviles"
+        "ko": "🔄 v1.9.45 나왔어요 — 여기서 최신 받기 (세션 유지됨)",
+        "en": "🔄 v1.9.45 is out — get the latest here (sessions kept)",
+        "ja": "🔄 v1.9.45 公開 — 最新版はこちら（セッション維持）",
+        "zh": "🔄 v1.9.45 已发布 — 点此获取最新版（会话保留）",
+        "es": "🔄 v1.9.45 disponible — descárgalo aquí (sesiones conservadas)"
       },
-      "url": "",
-      "color": "#ec4899"
+      "url": "https://pominal.com",
+      "color": "#8a38f5"
     }
   ]
 }
