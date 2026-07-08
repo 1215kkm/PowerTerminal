@@ -58,17 +58,17 @@ if not exist "%USERPROFILE%\Desktop\PowerTerminal.lnk" powershell -NoProfile -Co
 
 for /f "usebackq delims=" %%v in (`node -p "require('./package.json').version" 2^>nul`) do set PTVER=%%v
 
-rem --- 이미 7777에서 실행 중이면 새로 안 켜고 브라우저만 (중복실행 방지) ---
+rem --- if already running on 7777, do not start a second node - just open the browser ---
 netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
 if errorlevel 1 (
   echo   Starting PowerTerminal v%PTVER% ...
-  rem 서버 창을 보이게 + 종료돼도 닫히지 않게(cmd /k) — 문제 시 원인 메시지를 볼 수 있음
-  start "PowerTerminal 서버 - 닫으면 종료됨" cmd /k node server.js
+  rem keep the server window open (cmd /k) so any error stays visible. ASCII-only title on purpose.
+  start "PowerTerminal server - close to stop" cmd /k node server.js
 ) else (
-  echo   PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다.
+  echo   PowerTerminal is already running - opening the browser only.
 )
 
-rem --- 서버가 실제로 응답할 때까지 최대 30초 대기 (첫 실행은 의존성 설치로 느릴 수 있음) ---
+rem --- wait up to 30s until the server actually responds (first run can be slow: npm install) ---
 set /a _t=0
 :WAITSRV
 netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
@@ -79,7 +79,7 @@ timeout /t 1 /nobreak >nul
 goto WAITSRV
 :SRVUP
 
-rem --- 크롬이 있으면 앱 모드(주소창 없는 독립 창)로, 없으면 기본 브라우저로 ---
+rem --- open Chrome in app mode (own window) if present, else the default browser ---
 set "PF86=%ProgramFiles(x86)%"
 set "CHROME="
 for %%p in ("%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%PF86%\Google\Chrome\Application\chrome.exe" "%LocalAppData%\Google\Chrome\Application\chrome.exe") do @if not defined CHROME @if exist "%%~p" set "CHROME=%%~p"
