@@ -58,17 +58,26 @@ if not exist "%USERPROFILE%\Desktop\PowerTerminal.lnk" powershell -NoProfile -Co
 
 for /f "usebackq delims=" %%v in (`node -p "require('./package.json').version" 2^>nul`) do set PTVER=%%v
 
-rem --- 이미 7777에서 실행 중이면 두 번째로 켜지 말고(그러면 EADDRINUSE로 깜빡 꺼짐) 브라우저만 열기 ---
-set "PTRUNNING="
-netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul && set "PTRUNNING=1"
-if defined PTRUNNING (
-  echo   PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다.
-) else (
+rem --- 이미 7777에서 실행 중이면 새로 안 켜고 브라우저만 (중복실행 방지) ---
+netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
+if errorlevel 1 (
   echo   Starting PowerTerminal v%PTVER% ...
-  rem 서버 창을 보이게 두고(멈추면 이유가 보이도록), 종료 시 창을 열어둠
-  start "PowerTerminal 서버 (닫으면 종료)" cmd /c "node server.js & echo. & echo === 서버가 멈췄습니다. 위 메시지를 확인하세요. 이 창은 닫아도 됩니다. === & pause"
-  timeout /t 2 /nobreak >nul
+  rem 서버 창을 보이게 + 종료돼도 닫히지 않게(cmd /k) — 문제 시 원인 메시지를 볼 수 있음
+  start "PowerTerminal 서버 - 닫으면 종료됨" cmd /k node server.js
+) else (
+  echo   PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다.
 )
+
+rem --- 서버가 실제로 응답할 때까지 최대 30초 대기 (첫 실행은 의존성 설치로 느릴 수 있음) ---
+set /a _t=0
+:WAITSRV
+netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
+if not errorlevel 1 goto SRVUP
+set /a _t+=1
+if %_t% geq 30 goto SRVUP
+timeout /t 1 /nobreak >nul
+goto WAITSRV
+:SRVUP
 
 rem --- 크롬이 있으면 앱 모드(주소창 없는 독립 창)로, 없으면 기본 브라우저로 ---
 set "PF86=%ProgramFiles(x86)%"

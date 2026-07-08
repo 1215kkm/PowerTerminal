@@ -94,5 +94,10 @@ if command -v lsof >/dev/null 2>&1 && lsof -iTCP:7777 -sTCP:LISTEN >/dev/null 2>
 fi
 
 echo "  Starting PowerTerminal v$ver ..."
-( sleep 2; launch_ui ) &
+# 서버가 실제로 응답할 때까지 최대 30초 기다렸다가 브라우저 열기 (첫 실행은 의존성 설치로 느릴 수 있음)
+( for i in $(seq 1 30); do
+    if curl -s -o /dev/null "http://localhost:7777/" 2>/dev/null || (command -v lsof >/dev/null 2>&1 && lsof -iTCP:7777 -sTCP:LISTEN >/dev/null 2>&1); then break; fi
+    sleep 1
+  done
+  launch_ui ) &
 node server.js
