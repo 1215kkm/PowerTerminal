@@ -777,12 +777,22 @@ function buildPane(sess, idx) {
       const buf = term.buffer.active;
       const canUp = buf.viewportY > 0;                        // 위로 더 볼 내용
       const canDown = buf.viewportY < buf.baseY;              // 아래로 더 볼 내용
-      if ((dy < 0 && canUp) || (dy > 0 && canDown)) term.scrollLines(dy > 0 ? 1 : -1);
+      const lines = Math.max(1, Math.round(Math.abs(dy) / 12));   // 드래그 거리에 비례해 여러 줄
+      if ((dy < 0 && canUp) || (dy > 0 && canDown)) term.scrollLines(dy > 0 ? lines : -lines);
       else window.scrollBy(0, dy);                            // 스크롤백 없으면 페이지 스크롤
       sy = e.touches[0].clientY;
     }, { passive: true });
     sz.addEventListener('touchend', () => setTimeout(() => sz.classList.remove('touching'), 250), { passive: true });
     sz.addEventListener('touchcancel', () => sz.classList.remove('touching'), { passive: true });
+    // 마우스 휠/트랙패드로도 이 존에서 스크롤되게 (터치스크린+마우스 겸용 기기 대응) —
+    // 스크롤백이 있으면 이 터미널을, 없으면 페이지를 스크롤
+    sz.addEventListener('wheel', e => {
+      const buf = term.buffer.active;
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const canUp = buf.viewportY > 0, canDown = buf.viewportY < buf.baseY;
+      if ((dir < 0 && canUp) || (dir > 0 && canDown)) { e.preventDefault(); term.scrollLines(dir * 3); }
+      // 스크롤백이 그 방향으로 없으면 preventDefault 안 해 페이지가 자연 스크롤됨
+    }, { passive: false });
   }
 
   // WebSocket — 폰 절전/탭 전환으로 끊겨도 자동 재접속 (세션은 서버에 살아있음)
