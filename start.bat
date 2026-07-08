@@ -62,8 +62,8 @@ rem --- if already running on 7777, do not start a second node - just open the b
 netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul
 if errorlevel 1 (
   echo   Starting PowerTerminal v%PTVER% ...
-  rem keep the server window open (cmd /k) so any error stays visible. ASCII-only title on purpose.
-  start "PowerTerminal server - close to stop" cmd /k node server.js
+  rem Quit button exits node with code 0 -> window closes. A crash exits non-zero -> pause keeps it visible.
+  start "PowerTerminal server" cmd /c "node server.js || pause"
 ) else (
   echo   PowerTerminal is already running - opening the browser only.
 )

@@ -555,8 +555,9 @@ app.get('/api/admin/translate', async (req, res) => {
 });
 
 app.post('/api/sessions', (req, res) => {
-  const { path: dir, title, agent, cmd } = req.body;
-  if (!dir || !fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
+  let { path: dir, title, agent, cmd } = req.body;
+  if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
+  if (!fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
   const id = crypto.randomBytes(4).toString('hex');
   const sess = { id, title: title || path.basename(dir), path: dir, previewUrl: '',
                  agent: agent || 'claude', cmd: cmd || '' };
