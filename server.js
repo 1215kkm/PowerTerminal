@@ -607,6 +607,15 @@ app.delete('/api/sessions/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// 서버 완전 종료 — 브라우저의 🔌 종료 버튼에서 호출.
+// 세션 목록/배열은 sessions.json에 저장돼 다음 실행 때 그대로 복원됨(초기화 아님).
+app.post('/api/shutdown', (req, res) => {
+  saveSessions();                            // 배열·레이아웃 먼저 저장
+  res.json({ ok: true });
+  console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
+  setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료
+});
+
 // 프로젝트 폴더 정적 서빙 (미리보기 토글용)
 app.use('/preview/:id', (req, res, next) => {
   const s = sessions.find(x => x.id === req.params.id);
