@@ -233,13 +233,13 @@ app.post('/api/mkdir', (req, res) => {
 
 // 내 GitHub 저장소 목록 (clone 대상 선택용)
 function ghInstalled() {
-  try { execFileSync(GH, ['--version'], { timeout: 6000, stdio: 'ignore' }); return true; }
+  try { execFileSync(ghBin(), ['--version'], { timeout: 6000, stdio: 'ignore' }); return true; }
   catch (e) { return false; }
 }
 
 app.get('/api/my-repos', (req, res) => {
   try {
-    const out = execFileSync(GH, ['repo', 'list', '--limit', '100', '--json', 'name,url,isPrivate,updatedAt'],
+    const out = execFileSync(ghBin(), ['repo', 'list', '--limit', '100', '--json', 'name,url,isPrivate,updatedAt'],
       { encoding: 'utf8', timeout: 20000 });
     res.json(JSON.parse(out));
   } catch (e) {
@@ -282,7 +282,7 @@ app.post('/api/gh-login/poll', async (req, res) => {
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
     });
     if (j.access_token) {
-      try { execFileSync(GH, ['auth', 'login', '--hostname', 'github.com', '--with-token'], { input: j.access_token, timeout: 15000 }); }
+      try { execFileSync(ghBin(), ['auth', 'login', '--hostname', 'github.com', '--with-token'], { input: j.access_token, timeout: 15000 }); }
       catch (e) { return res.json({ status: 'error', detail: (e.stderr || e.message || '').toString().slice(0, 200) }); }
       ghDeviceCode = null;
       return res.json({ status: 'authed' });
@@ -345,10 +345,13 @@ function findExe(name, candidates) {
   for (const c of candidates) if (fs.existsSync(c)) return c;
   return name; // PATH에 있길 기대
 }
-const GH = findExe('gh', [
-  path.join(process.env.ProgramFiles || '', 'GitHub CLI', 'gh.exe'),
-  path.join(process.env.LOCALAPPDATA || '', 'Programs', 'GitHub CLI', 'gh.exe'),
-]);
+// gh 경로를 호출마다 다시 탐색 — 설치 직후 PowerTerminal 재시작 없이도 '다시 시도'가 먹히게
+function ghBin() {
+  return findExe('gh', [
+    path.join(process.env.ProgramFiles || '', 'GitHub CLI', 'gh.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'GitHub CLI', 'gh.exe'),
+  ]);
+}
 const CLOUDFLARED = findExe('cloudflared', [
   path.join(ROOT, 'cloudflared.exe'),   // 동봉/자동다운로드 포터블 버전 우선
   path.join(process.env.ProgramFiles || '', 'cloudflared', 'cloudflared.exe'),
@@ -435,7 +438,7 @@ app.post('/api/new-project', (req, res) => {
     execFileSync('git', ['add', '-A'], { cwd: dir });
     execFileSync('git', ['commit', '-m', 'init: ' + name], { cwd: dir });
     try {
-      const out = execFileSync(GH, ['repo', 'create', name, '--private', '--source', '.', '--remote', 'origin', '--push'],
+      const out = execFileSync(ghBin(), ['repo', 'create', name, '--private', '--source', '.', '--remote', 'origin', '--push'],
         { cwd: dir, encoding: 'utf8' });
       repoUrl = (out.match(/https:\/\/github\.com\/\S+/) || [''])[0];
     } catch (e) {

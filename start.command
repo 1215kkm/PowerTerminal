@@ -73,7 +73,6 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 
 ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package.json 2>/dev/null | head -1)
-echo "  Starting PowerTerminal v$ver ..."
 
 # open the UI shortly after the server starts — Chrome app mode (its own window) if available, else default browser
 launch_ui() {
@@ -86,5 +85,14 @@ launch_ui() {
   done
   (command -v open >/dev/null 2>&1 && open "$url") || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$url")
 }
+
+# 이미 7777에서 실행 중이면 두 번째로 켜지 말고(포트 충돌) 브라우저만 열기
+if command -v lsof >/dev/null 2>&1 && lsof -iTCP:7777 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "  PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다."
+  launch_ui
+  exit 0
+fi
+
+echo "  Starting PowerTerminal v$ver ..."
 ( sleep 2; launch_ui ) &
 node server.js

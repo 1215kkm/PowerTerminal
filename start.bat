@@ -57,9 +57,18 @@ rem --- desktop shortcut on first run ---
 if not exist "%USERPROFILE%\Desktop\PowerTerminal.lnk" powershell -NoProfile -Command "$ws=New-Object -ComObject WScript.Shell; $l=$ws.CreateShortcut([Environment]::GetFolderPath('Desktop')+'\PowerTerminal.lnk'); $l.TargetPath='%~dp0start.bat'; $l.WorkingDirectory='%~dp0'; $l.IconLocation='C:\Windows\System32\shell32.dll,18'; $l.Save()" 2>nul
 
 for /f "usebackq delims=" %%v in (`node -p "require('./package.json').version" 2^>nul`) do set PTVER=%%v
-echo   Starting PowerTerminal v%PTVER% ...
-start /min "PowerTerminal" cmd /c "node server.js"
-timeout /t 2 /nobreak >nul
+
+rem --- 이미 7777에서 실행 중이면 두 번째로 켜지 말고(그러면 EADDRINUSE로 깜빡 꺼짐) 브라우저만 열기 ---
+set "PTRUNNING="
+netstat -an | findstr ":7777" | findstr /i "LISTENING" >nul 2>nul && set "PTRUNNING=1"
+if defined PTRUNNING (
+  echo   PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다.
+) else (
+  echo   Starting PowerTerminal v%PTVER% ...
+  rem 서버 창을 보이게 두고(멈추면 이유가 보이도록), 종료 시 창을 열어둠
+  start "PowerTerminal 서버 (닫으면 종료)" cmd /c "node server.js & echo. & echo === 서버가 멈췄습니다. 위 메시지를 확인하세요. 이 창은 닫아도 됩니다. === & pause"
+  timeout /t 2 /nobreak >nul
+)
 
 rem --- 크롬이 있으면 앱 모드(주소창 없는 독립 창)로, 없으면 기본 브라우저로 ---
 set "PF86=%ProgramFiles(x86)%"
