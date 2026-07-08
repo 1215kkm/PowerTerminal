@@ -74,14 +74,14 @@ fi
 
 ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package.json 2>/dev/null | head -1)
 
-# open the UI shortly after the server starts — Chrome app mode (its own window) if available, else default browser
+# open the UI shortly after the server starts — Chrome in its own new window (a draggable tab), else default browser
 launch_ui() {
   url="http://localhost:7777/"
   if [ -d "/Applications/Google Chrome.app" ]; then
-    open -na "Google Chrome" --args --app="$url" >/dev/null 2>&1 && return
+    open -na "Google Chrome" --args --new-window "$url" >/dev/null 2>&1 && return
   fi
   for c in google-chrome google-chrome-stable chromium chromium-browser; do
-    if command -v "$c" >/dev/null 2>&1; then "$c" --app="$url" >/dev/null 2>&1 & return; fi
+    if command -v "$c" >/dev/null 2>&1; then "$c" --new-window "$url" >/dev/null 2>&1 & return; fi
   done
   (command -v open >/dev/null 2>&1 && open "$url") || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$url")
 }

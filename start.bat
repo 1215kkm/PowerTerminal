@@ -79,8 +79,8 @@ timeout /t 1 /nobreak >nul
 goto WAITSRV
 :SRVUP
 
-rem --- open Chrome in app mode (own window) if present, else the default browser ---
+rem --- open Chrome in its own new window (a normal tab you can drag into another Chrome window) ---
 set "PF86=%ProgramFiles(x86)%"
 set "CHROME="
 for %%p in ("%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%PF86%\Google\Chrome\Application\chrome.exe" "%LocalAppData%\Google\Chrome\Application\chrome.exe") do @if not defined CHROME @if exist "%%~p" set "CHROME=%%~p"
-if defined CHROME ( start "" "%CHROME%" --app=http://localhost:7777/ ) else ( start "" "http://localhost:7777/" )
+if defined CHROME ( start "" "%CHROME%" --new-window http://localhost:7777/ ) else ( start "" "http://localhost:7777/" )
