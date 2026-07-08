@@ -232,14 +232,65 @@ app.post('/api/mkdir', (req, res) => {
 });
 
 // 내 GitHub 저장소 목록 (clone 대상 선택용)
+function ghInstalled() {
+  try { execFileSync(GH, ['--version'], { timeout: 6000, stdio: 'ignore' }); return true; }
+  catch (e) { return false; }
+}
+
 app.get('/api/my-repos', (req, res) => {
   try {
     const out = execFileSync(GH, ['repo', 'list', '--limit', '100', '--json', 'name,url,isPrivate,updatedAt'],
       { encoding: 'utf8', timeout: 20000 });
     res.json(JSON.parse(out));
   } catch (e) {
-    res.status(400).json({ error: 'GitHub CLI 미로그인 또는 미설치 (gh auth login 필요)' });
+    // 설치는 됐는데 로그인만 안 됐는지, 아예 미설치인지 구분해서 클라가 알맞은 UI를 띄우게 함
+    const installed = ghInstalled();
+    res.status(400).json({
+      code: installed ? 'not_authed' : 'not_installed',
+      error: installed ? 'GitHub에 로그인되어 있지 않습니다.' : 'GitHub CLI(gh)가 설치되어 있지 않습니다.'
+    });
   }
+});
+
+// ---- GitHub 로그인 (디바이스 플로우) — 토큰은 이 PC의 gh에만 저장되고 브라우저로 나가지 않음 ----
+const GH_CLIENT_ID = '178c6fc778ccc68e1d6a';   // GitHub CLI 공개 OAuth client_id (gh가 쓰는 것과 동일)
+let ghDeviceCode = null;
+function ghOAuthPost(pathName, params) {
+  return new Promise((resolve, reject) => {
+    const body = new URLSearchParams(params).toString();
+    const r = https.request({
+      method: 'POST', host: 'github.com', path: pathName,
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+    }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } }); });
+    r.on('error', reject); r.write(body); r.end();
+  });
+}
+app.post('/api/gh-login/start', async (req, res) => {
+  if (!ghInstalled()) return res.status(400).json({ code: 'not_installed', error: 'GitHub CLI(gh)가 설치되어 있지 않습니다.' });
+  try {
+    const j = await ghOAuthPost('/login/device/code', { client_id: GH_CLIENT_ID, scope: 'repo read:org gist workflow' });
+    if (!j.device_code) return res.status(500).json({ error: '로그인 시작 실패' });
+    ghDeviceCode = j.device_code;
+    res.json({ user_code: j.user_code, verification_uri: j.verification_uri, interval: j.interval || 5 });
+  } catch (e) { res.status(500).json({ error: '로그인 시작 실패 (네트워크)' }); }
+});
+app.post('/api/gh-login/poll', async (req, res) => {
+  if (!ghDeviceCode) return res.json({ status: 'idle' });
+  try {
+    const j = await ghOAuthPost('/login/oauth/access_token', {
+      client_id: GH_CLIENT_ID, device_code: ghDeviceCode,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+    });
+    if (j.access_token) {
+      try { execFileSync(GH, ['auth', 'login', '--hostname', 'github.com', '--with-token'], { input: j.access_token, timeout: 15000 }); }
+      catch (e) { return res.json({ status: 'error', detail: (e.stderr || e.message || '').toString().slice(0, 200) }); }
+      ghDeviceCode = null;
+      return res.json({ status: 'authed' });
+    }
+    if (j.error === 'authorization_pending' || j.error === 'slow_down') return res.json({ status: 'pending' });
+    ghDeviceCode = null;
+    return res.json({ status: 'error', detail: j.error_description || j.error });
+  } catch (e) { res.json({ status: 'error', detail: 'network' }); }
 });
 
 // GitHub 저장소 clone 후 세션 시작

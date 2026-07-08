@@ -75,6 +75,16 @@ fi
 ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package.json 2>/dev/null | head -1)
 echo "  Starting PowerTerminal v$ver ..."
 
-# open the browser shortly after the server starts, then run the server in the foreground
-( sleep 2; (command -v open >/dev/null 2>&1 && open "http://localhost:7777/") || (command -v xdg-open >/dev/null 2>&1 && xdg-open "http://localhost:7777/") ) &
+# open the UI shortly after the server starts — Chrome app mode (its own window) if available, else default browser
+launch_ui() {
+  url="http://localhost:7777/"
+  if [ -d "/Applications/Google Chrome.app" ]; then
+    open -na "Google Chrome" --args --app="$url" >/dev/null 2>&1 && return
+  fi
+  for c in google-chrome google-chrome-stable chromium chromium-browser; do
+    if command -v "$c" >/dev/null 2>&1; then "$c" --app="$url" >/dev/null 2>&1 & return; fi
+  done
+  (command -v open >/dev/null 2>&1 && open "$url") || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$url")
+}
+( sleep 2; launch_ui ) &
 node server.js

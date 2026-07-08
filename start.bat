@@ -60,4 +60,9 @@ for /f "usebackq delims=" %%v in (`node -p "require('./package.json').version" 2
 echo   Starting PowerTerminal v%PTVER% ...
 start /min "PowerTerminal" cmd /c "node server.js"
 timeout /t 2 /nobreak >nul
-start "" "http://localhost:7777/"
+
+rem --- 크롬이 있으면 앱 모드(주소창 없는 독립 창)로, 없으면 기본 브라우저로 ---
+set "PF86=%ProgramFiles(x86)%"
+set "CHROME="
+for %%p in ("%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%PF86%\Google\Chrome\Application\chrome.exe" "%LocalAppData%\Google\Chrome\Application\chrome.exe") do @if not defined CHROME @if exist "%%~p" set "CHROME=%%~p"
+if defined CHROME ( start "" "%CHROME%" --app=http://localhost:7777/ ) else ( start "" "http://localhost:7777/" )
