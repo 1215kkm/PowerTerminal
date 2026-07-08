@@ -202,14 +202,19 @@ app.get('/api/browse', (req, res) => {
       const drives = [];
       for (let c = 65; c <= 90; c++) {
         const d = String.fromCharCode(c) + ':\\';
-        try { if (fs.existsSync(d)) drives.push(d); } catch (e) {}
+        try { if (fs.existsSync(d)) drives.push({ name: d, mtime: 0 }); } catch (e) {}
       }
       return res.json({ dir: '', parent: null, folders: drives });
     }
+    // 폴더명 + 수정날짜(자세히 보기용). 폴더 용량은 재귀라 비싸서 제외(윈도우도 폴더 크기는 비움)
     const folders = fs.readdirSync(dir, { withFileTypes: true })
       .filter(e => e.isDirectory() && !e.name.startsWith('$') && e.name !== 'System Volume Information')
-      .map(e => e.name)
-      .sort((a, b) => a.localeCompare(b, 'ko'));
+      .map(e => {
+        let mtime = 0;
+        try { mtime = fs.statSync(path.join(dir, e.name)).mtimeMs; } catch (x) {}
+        return { name: e.name, mtime };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const parent = path.dirname(dir) === dir ? '' : path.dirname(dir);
     res.json({ dir, parent, folders });
   } catch (e) {
@@ -567,6 +572,19 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (!s) return res.status(404).json({});
   if (typeof req.body.title === 'string') s.title = req.body.title;
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
+  // 세션에 연결된 AI(agent) 변경 — 실행 중이면 새 AI로 세션 재시작
+  if (typeof req.body.agent === 'string') {
+    s.agent = req.body.agent;
+    if (typeof req.body.cmd === 'string') s.cmd = req.body.cmd;
+    saveSessions();
+    const p = ptys.get(s.id);
+    if (p && !p.dead) {
+      try { p.proc.kill(); } catch (e) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }   // 클라 자동 재접속 → 새 agent로 새 PTY
+    }
+    return res.json(s);
+  }
   if (typeof req.body.model === 'string') {
     s.model = req.body.model;
     saveSessions();

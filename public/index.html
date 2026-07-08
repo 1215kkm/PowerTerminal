@@ -66,7 +66,8 @@
   .pane-head .modelSel { background: #1f2937; border: 1px solid var(--line); color: var(--fg);
                          border-radius: 6px; padding: 3px 6px; font-size: 12px; font-family: inherit; }
   .pane-head .st { font-size: 11px; flex: 0 0 auto; }
-  .pane-head .aiBadge { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #fff; border-radius: 4px; padding: 2px 7px; letter-spacing: .3px; white-space: nowrap; }
+  .pane-head .aiSel { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #fff; border: 0; border-radius: 4px; padding: 3px 6px; letter-spacing: .3px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .pane-head .aiSel option { background: #1f2937; color: #fff; }
   .pane-body { flex: 1; position: relative; min-height: 220px; }
   .term { position: absolute; inset: 0; padding: 4px; }
   /* 터미널 스크롤바 — 기본 오버레이라 막대(thumb)가 안 보이던 문제: 항상 보이게 명시 */
@@ -154,7 +155,10 @@
   .brfolder:hover { border-color: var(--violet); }
   /* 세로 '자세히' 보기: 한 줄에 하나씩, 왼쪽 정렬로 긴 폴더명도 잘 보이게 */
   #brList.lv { display: block !important; }
-  #brList.lv .brfolder { text-align: left; padding: 8px 11px; margin-bottom: 4px; }
+  #brList.lv .brfolder { text-align: left; padding: 8px 11px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #brList.lv .brfolder .brname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #brList.lv .brfolder .brdate { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+  .brfolder .brdate { display: none; }   /* 바둑판 보기에선 날짜 숨김, 세로 자세히 보기에서만 표시 */
   .brViewBtn.on { background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
   .pick-card { position: relative; border: 2px solid var(--line); border-radius: 10px; padding: 12px 10px;
                cursor: pointer; background: #111827; transition: border-color .2s, background .2s; }
@@ -474,7 +478,7 @@ const I18N = {
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', brwGrid:'Grid view', brwList:'Detailed list (vertical)', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL', ghId:'ID', ghNoLogin:'not signed in', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', ghNeedLogin:'Not signed in to GitHub.', ghLoginBtn:'Sign in to GitHub', ghNeedCli:'GitHub CLI (gh) is not installed.', ghInstallBtn:'Install GitHub CLI', ghRetry:'Retry', ghInstStep1:'Open the install page below and download for your OS', ghInstStep2:'Run the installer (Next → Next → Finish)', ghInstStep3:'Come back here and press Retry — no restart needed', ghWinget:'Or paste this into a PowerShell session:', ghInstallTip:'Opens cli.github.com in your browser. After installing, press Retry — no restart needed.', imgRemove:'Remove', ghStep1:'1) Copy this code  2) open GitHub  3) paste & approve', ghOpen:'Open GitHub', ghWaiting:'Waiting for approval…', ghFail:'Sign-in failed — try again', aiLabel:'AI:', drives:'Drives', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', copyFail:'Copy failed', connLost:'⚠ Disconnected — the server (your PC) may be off, or the network dropped. Reconnecting…', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', quitBtn:'Quit — shut down the server (this PC)', quitConfirm:'This shuts down PowerTerminal completely — the server on this PC and every running session stop, and phones lose access. Your session list is saved and comes back next launch. Continue?', quitBye:'PowerTerminal is shut down.', quitByeSub:'You can close this tab. Run start.bat again to come back — your sessions will be restored.', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', brwGrid:'Grid view', brwList:'Detailed list (vertical)', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL', ghId:'ID', ghNoLogin:'not signed in', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', ghNeedLogin:'Not signed in to GitHub.', ghLoginBtn:'Sign in to GitHub', ghNeedCli:'GitHub CLI (gh) is not installed.', ghInstallBtn:'Install GitHub CLI', ghRetry:'Retry', ghInstStep1:'Open the install page below and download for your OS', ghInstStep2:'Run the installer (Next → Next → Finish)', ghInstStep3:'Come back here and press Retry — no restart needed', ghWinget:'Or paste this into a PowerShell session:', ghInstallTip:'Opens cli.github.com in your browser. After installing, press Retry — no restart needed.', imgRemove:'Remove', ghStep1:'1) Copy this code  2) open GitHub  3) paste & approve', ghOpen:'Open GitHub', ghWaiting:'Waiting for approval…', ghFail:'Sign-in failed — try again', aiLabel:'AI for this session', drives:'Drives', aiPick:'Change the AI for this session', aiChangeAsk:'Switch this session to a different AI? It restarts the session.', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', copyFail:'Copy failed', connLost:'⚠ Disconnected — the server (your PC) may be off, or the network dropped. Reconnecting…', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', quitBtn:'Quit — shut down the server (this PC)', quitConfirm:'This shuts down PowerTerminal completely — the server on this PC and every running session stop, and phones lose access. Your session list is saved and comes back next launch. Continue?', quitBye:'PowerTerminal is shut down.', quitByeSub:'You can close this tab. Run start.bat again to come back — your sessions will be restored.', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기', soundBtn:'작업이 끝나면 세션 번호를 영어로 말해줌 (켜기/끄기)',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
@@ -492,7 +496,7 @@ const I18N = {
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', newFolder:'＋ 새 폴더', brwGrid:'바둑판 보기', brwList:'세로 자세히 보기', newFolderPh:'새 폴더 이름 → Enter', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'복사해올(clone) 저장소를 고르거나 주소를 붙여넣으세요', ghId:'아이디', ghNoLogin:'미로그인', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', ghNeedLogin:'GitHub에 로그인되어 있지 않습니다.', ghLoginBtn:'GitHub 로그인', ghNeedCli:'GitHub CLI(gh)가 설치되어 있지 않습니다.', ghInstallBtn:'GitHub CLI 설치', ghRetry:'다시 시도', ghInstStep1:'아래 설치 페이지를 열고 내 OS용을 다운로드', ghInstStep2:'설치 파일 실행 (다음 → 다음 → 완료)', ghInstStep3:'여기로 돌아와 [다시 시도] 클릭 — 재시작 불필요', ghWinget:'또는 PowerShell 세션에 이 명령을 붙여넣기:', ghInstallTip:'브라우저에서 cli.github.com을 엽니다. 설치 후 [다시 시도]를 누르면 됩니다(재시작 불필요).', imgRemove:'제거', ghStep1:'1) 코드 복사  2) GitHub 열기  3) 붙여넣고 승인', ghOpen:'GitHub 열기', ghWaiting:'승인 기다리는 중…', ghFail:'로그인 실패 — 다시 시도', aiLabel:'AI:', drives:'드라이브', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', copied:'복사됨', copyFail:'복사 실패', connLost:'⚠ 연결 끊김 — 서버(PC)가 꺼졌거나 네트워크가 끊겼습니다. 재연결 시도 중…', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', quitBtn:'종료 — 서버(이 PC)까지 끄기', quitConfirm:'PowerTerminal을 완전히 끕니다 — 이 PC의 서버와 실행 중인 모든 세션이 멈추고, 폰에서도 접속이 끊깁니다. 세션 목록은 저장돼 다음 실행 때 그대로 복원됩니다. 계속할까요?', quitBye:'PowerTerminal이 종료되었습니다.', quitByeSub:'이 탭을 닫아도 됩니다. start.bat을 다시 실행하면 세션이 복원됩니다.', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', newFolder:'＋ 새 폴더', brwGrid:'바둑판 보기', brwList:'세로 자세히 보기', newFolderPh:'새 폴더 이름 → Enter', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'복사해올(clone) 저장소를 고르거나 주소를 붙여넣으세요', ghId:'아이디', ghNoLogin:'미로그인', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', ghNeedLogin:'GitHub에 로그인되어 있지 않습니다.', ghLoginBtn:'GitHub 로그인', ghNeedCli:'GitHub CLI(gh)가 설치되어 있지 않습니다.', ghInstallBtn:'GitHub CLI 설치', ghRetry:'다시 시도', ghInstStep1:'아래 설치 페이지를 열고 내 OS용을 다운로드', ghInstStep2:'설치 파일 실행 (다음 → 다음 → 완료)', ghInstStep3:'여기로 돌아와 [다시 시도] 클릭 — 재시작 불필요', ghWinget:'또는 PowerShell 세션에 이 명령을 붙여넣기:', ghInstallTip:'브라우저에서 cli.github.com을 엽니다. 설치 후 [다시 시도]를 누르면 됩니다(재시작 불필요).', imgRemove:'제거', ghStep1:'1) 코드 복사  2) GitHub 열기  3) 붙여넣고 승인', ghOpen:'GitHub 열기', ghWaiting:'승인 기다리는 중…', ghFail:'로그인 실패 — 다시 시도', aiLabel:'세션에 사용할 AI 선택', drives:'드라이브', aiPick:'이 세션의 AI 바꾸기', aiChangeAsk:'이 세션을 다른 AI로 바꿀까요? 세션이 재시작됩니다.', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', copied:'복사됨', copyFail:'복사 실패', connLost:'⚠ 연결 끊김 — 서버(PC)가 꺼졌거나 네트워크가 끊겼습니다. 재연결 시도 중…', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', quitBtn:'종료 — 서버(이 PC)까지 끄기', quitConfirm:'PowerTerminal을 완전히 끕니다 — 이 PC의 서버와 실행 중인 모든 세션이 멈추고, 폰에서도 접속이 끊깁니다. 세션 목록은 저장돼 다음 실행 때 그대로 복원됩니다. 계속할까요?', quitBye:'PowerTerminal이 종료되었습니다.', quitByeSub:'이 탭을 닫아도 됩니다. start.bat을 다시 실행하면 세션이 복원됩니다.', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -644,8 +648,10 @@ function buildPane(sess, idx) {
   // 세션에 연결된 AI를 색으로 구분해 모델선택 왼쪽에 표시
   const AI_META = { claude: { label: 'Claude', color: '#8a38f5' }, codex: { label: 'GPT', color: '#10a37f' }, shell: { label: 'Shell', color: '#38bdf8' }, custom: { label: 'Custom', color: '#6b7280' } };
   const ai = AI_META[sess.agent || 'claude'] || AI_META.custom;
-  const aiLabelTxt = (sess.agent === 'custom') ? ((sess.cmd || 'Custom').slice(0, 14)) : ai.label;
-  const aiBadge = `<span class="aiBadge" style="background:${ai.color}" title="${esc(sess.agent || 'claude')}">${esc(aiLabelTxt)}</span>`;
+  const AI_LIST = [['claude', 'Claude'], ['codex', 'GPT'], ['shell', 'Shell'], ['custom', 'Custom']];
+  const aiCur = sess.agent || 'claude';
+  // 클릭해서 AI 변경 가능한 셀렉트 (현재 AI 색으로 표시)
+  const aiBadge = `<select class="aiSel" title="${T.aiPick || 'Change the AI for this session'}" style="background:${ai.color}">${AI_LIST.map(a => `<option value="${a[0]}" ${a[0] === aiCur ? 'selected' : ''}>${a[1]}</option>`).join('')}</select>`;
   const models = [['default', T.mDefault], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['fable', 'Fable'], ['opusplan', 'Opus Plan']];
   const modelSel = isClaude ? `<select class="modelSel" title="${T.modelTip}">
       ${models.map(m => `<option value="${m[0]}" ${((sess.model || 'default') === m[0]) ? 'selected' : ''}>${esc(m[1])}</option>`).join('')}
@@ -819,6 +825,25 @@ function buildPane(sess, idx) {
     sess.previewUrl = url;
     api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
     window.open(url, '_blank');           // 새 창
+  };
+
+  // 세션 AI(agent) 변경 — 다른 AI로 세션 재시작 (헤더가 바뀌므로 pane 재생성, 위치 유지)
+  const aiDrop = el.querySelector('.aiSel');
+  if (aiDrop) aiDrop.onchange = async (ev) => {
+    ev.stopPropagation();
+    const prev = sess.agent || 'claude';
+    const next = aiDrop.value;
+    if (next === prev) return;
+    if (!confirm(T.aiChangeAsk || 'Switch this session to a different AI? It restarts the session.')) { aiDrop.value = prev; return; }
+    const p0 = panes.get(sess.id);
+    const anchor = p0 ? p0.el.nextSibling : null;
+    await api('PATCH', '/api/sessions/' + sess.id, { agent: next });
+    sess.agent = next;
+    removePaneLocal(sess.id);
+    buildPane(sess, 0);
+    const np = panes.get(sess.id);
+    if (np && anchor && anchor.parentNode === grid) grid.insertBefore(np.el, anchor);   // 원래 자리로
+    renumber();
   };
 
   // AI 모델 선택 (Claude 세션) — 확실히 바꾸려면 세션을 그 모델로 재시작 (대화는 --continue로 이어짐)
@@ -1412,13 +1437,16 @@ async function browseTo(dir) {
   const list = document.getElementById('brList');
   list.innerHTML = '';
   r.folders.forEach(f => {
-    const full = r.dir ? (r.dir.endsWith('\\') ? r.dir + f : r.dir + '\\' + f) : f;
+    const nm = (f && typeof f === 'object') ? f.name : f;   // 서버가 {name,mtime} 반환 (구버전 호환)
+    const mt = (f && typeof f === 'object') ? f.mtime : 0;
+    const full = r.dir ? (r.dir.endsWith('\\') ? r.dir + nm : r.dir + '\\' + nm) : nm;
     const cell = document.createElement('div');
     cell.className = 'brfolder';
-    cell.title = f;
-    cell.innerHTML = '📁 ' + esc(f);
+    cell.title = nm;
+    const dt = mt ? `<span class="brdate">${fmtBrDate(mt)}</span>` : '';
+    cell.innerHTML = `<span class="brname">📁 ${esc(nm)}</span>${dt}`;
     cell.onclick = () => browseTo(full);        // 한 번 클릭 = 들어가기
-    cell.ondblclick = () => { addDlg.close(); addSession(full, f); };  // 더블클릭 = 이 폴더로 바로 추가
+    cell.ondblclick = () => { addDlg.close(); addSession(full, nm); };  // 더블클릭 = 이 폴더로 바로 추가
     list.appendChild(cell);
   });
   window.__brParent = r.parent;
@@ -1713,6 +1741,13 @@ function askWindowChoice(twoRow) {
 
 // ---------- 시작 ----------
 // 상단 AI 사용량 — Claude 공식 한도 % 막대 (설정>사용량과 동일), 1분마다 갱신
+function fmtBrDate(ms) {   // 폴더 수정날짜: 'YYYY-MM-DD HH:MM'
+  try {
+    const d = new Date(ms);
+    const p = n => (n < 10 ? '0' + n : '' + n);
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  } catch (e) { return ''; }
+}
 function fmtLeft(ms) {   // 리셋까지 남은 시간: '1h 23m' / '45m'
   if (!ms || ms <= 0) return '';
   const m = Math.ceil(ms / 60000), h = Math.floor(m / 60);
