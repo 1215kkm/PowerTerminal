@@ -1471,9 +1471,9 @@ async function newProject() {
   const r = await api('POST', '/api/new-project', { name });
   btn.disabled = false; btn.textContent = T.npGo;
   if (r.error) { alert(r.error); return; }
-  addDlg.close();
   document.getElementById('npName').value = '';
   await placeNewSession(r);
+  renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
   if (r.ghError) alert('⚠ ' + r.ghError + '\n' + T.ghLocal);
   else if (r.repoUrl) console.log('GitHub: ' + r.repoUrl);
 }
@@ -1506,7 +1506,7 @@ async function browseTo(dir) {
     const dt = mt ? `<span class="brdate">${fmtBrDate(mt)}</span>` : '';
     cell.innerHTML = `<span class="brname">📁 ${esc(nm)}</span>${dt}`;
     cell.onclick = () => browseTo(full);        // 한 번 클릭 = 들어가기
-    cell.ondblclick = () => { addDlg.close(); addSession(full, nm); };  // 더블클릭 = 이 폴더로 바로 추가
+    cell.ondblclick = async () => { await addSession(full, nm); renderAddCards(); };  // 더블클릭 = 이 폴더로 바로 추가 (창 유지)
     list.appendChild(cell);
   });
   window.__brParent = r.parent;
@@ -1781,8 +1781,9 @@ async function doClone(url) {
   const r = await api('POST', '/api/clone', { url });
   btn.disabled = false; btn.textContent = old;
   if (r.error) { alert(r.error); return; }
-  addDlg.close();
+  document.getElementById('cloneUrl').value = '';   // 다음 clone 위해 입력칸 비움
   await placeNewSession(r);
+  renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
 }
 async function addManual() {
   const p = document.getElementById('addPath').value.trim();
@@ -1793,8 +1794,10 @@ async function addManual() {
     cmd = prompt(T.customPrompt, '');
     if (!cmd) return;
   }
-  addDlg.close();
   await addSession(p, document.getElementById('addTitle').value.trim(), agent, cmd);
+  document.getElementById('addPath').value = '';                 // 다음 추가 위해 비움
+  document.getElementById('addTitle').value = '';
+  renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
 }
 async function addSession(path, title, agent, cmd, skipPrompt) {
   const pick = document.getElementById('addAgent').value;
