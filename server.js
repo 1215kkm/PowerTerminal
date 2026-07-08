@@ -14,8 +14,21 @@ let CLOUDFLARED_PATH;
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 7777;   // 포트 충돌 시 PORT 환경변수로 변경 가능
-const SESSIONS_FILE = path.join(ROOT, 'sessions.json');
-const CONFIG_FILE = path.join(ROOT, 'config.json');
+
+// 사용자 데이터(세션·토큰·최근목록)는 앱 폴더가 아니라 홈의 고정 위치에 저장한다.
+// → 새로 다운받아 폴더가 달라져도, 버전이 올라가도, 세션 세팅이 그대로 유지됨.
+const DATA_DIR = path.join(os.homedir(), '.powerterminal');
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+function dataFile(name) {
+  const dest = path.join(DATA_DIR, name);
+  if (!fs.existsSync(dest)) {                       // 예전 앱폴더에 있던 데이터가 있으면 1회 이전(복사)
+    try { const legacy = path.join(ROOT, name); if (fs.existsSync(legacy)) fs.copyFileSync(legacy, dest); } catch (e) {}
+  }
+  return dest;
+}
+
+const SESSIONS_FILE = dataFile('sessions.json');
+const CONFIG_FILE = dataFile('config.json');
 const LAUNCHER_PROJECTS = path.join(ROOT, '..', 'Launcher', 'projects.json');
 
 // PowerShell이 만든 JSON은 BOM이 붙어올 수 있음 — 항상 제거 후 파싱
@@ -33,7 +46,7 @@ if (!config.token) {
 }
 
 // ---------- 세션 메타 ----------
-const RECENT_FILE = path.join(ROOT, 'recent.json');
+const RECENT_FILE = dataFile('recent.json');
 let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
 function saveSessions() { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); }
@@ -375,7 +388,7 @@ CLOUDFLARED_PATH = CLOUDFLARED;
 // ---------- AI 사용량: 공식 한도 %(그래프) + 로컬 비용($) 를 항상 같이 반환 ----------
 let usageCache = { t: 0, data: null };
 let costCache = { t: 0, val: null, p: null };   // ccusage 비용은 10분 캐시 (무겁고 자주 안 변함)
-const USAGE_LAST = path.join(ROOT, 'usage-last.json');   // 마지막 성공 그래프 — 재시작 후에도 유지
+const USAGE_LAST = dataFile('usage-last.json');   // 마지막 성공 그래프 — 재시작 후에도 유지
 function refreshCost() {
   if (costCache.val !== null && Date.now() - costCache.t < 10 * 60 * 1000) return costCache.p || Promise.resolve();
   costCache.t = Date.now();

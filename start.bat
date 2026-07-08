@@ -18,7 +18,9 @@ git branch --set-upstream-to=origin/main main >nul 2>nul
 goto AFTERUP
 
 :GITPULL
-git pull --ff-only >nul 2>nul
+rem force-match remote so a dirty tree (autocrlf churn etc.) never blocks the update. gitignored data is untouched.
+git fetch --depth 1 origin main >nul 2>nul
+git reset --hard FETCH_HEAD >nul 2>nul
 goto AFTERUP
 
 :ZIPUP

@@ -5,7 +5,9 @@ echo "[PowerTerminal] Updating..."
 
 # --- self-update. gitignored files (config.json, sessions.json, node_modules...) are always preserved. ---
 if [ -d .git ]; then
-  git pull --ff-only >/dev/null 2>&1
+  # force-match remote so a dirty tree never blocks the update. gitignored data is untouched.
+  git fetch --depth 1 origin main >/dev/null 2>&1
+  git reset --hard FETCH_HEAD >/dev/null 2>&1
 elif command -v git >/dev/null 2>&1; then
   # ZIP download + git present: wire up the repo once so it can git-pull from now on.
   echo "  Enabling git auto-update (one-time setup)..."
