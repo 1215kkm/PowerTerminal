@@ -252,6 +252,14 @@ app.get('/api/my-repos', (req, res) => {
   }
 });
 
+// 현재 로그인된 GitHub 아이디 (gh api user 의 .login). 미로그인/미설치면 null.
+app.get('/api/gh-user', (req, res) => {
+  try {
+    const out = execFileSync(ghBin(), ['api', 'user', '-q', '.login'], { encoding: 'utf8', timeout: 8000 }).trim();
+    res.json({ login: out || null });
+  } catch (e) { res.json({ login: null }); }
+});
+
 // ---- GitHub 로그인 (디바이스 플로우) — 토큰은 이 PC의 gh에만 저장되고 브라우저로 나가지 않음 ----
 const GH_CLIENT_ID = '178c6fc778ccc68e1d6a';   // GitHub CLI 공개 OAuth client_id (gh가 쓰는 것과 동일)
 let ghDeviceCode = null;
