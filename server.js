@@ -61,6 +61,17 @@ function adminRateOk(ip) {
   e.count++;
   return e.count <= 8;
 }
+// 원격 페어링 코드: 다른 PC에서 IP만 치고 4자리 코드 입력 → cc_token 쿠키 발급 → 이후 그 PC는 바로 접속.
+// 서버 실행마다 새로 생성(메모리에만 보관, config에 저장 안 함). 무차별대입은 pairRateOk가 IP당 10분에 8회로 제한.
+const PAIR_CODE = String(1000 + crypto.randomBytes(2).readUInt16BE(0) % 9000);
+const pairAttempts = new Map();
+function pairRateOk(ip) {
+  const now = Date.now();
+  const e = pairAttempts.get(ip);
+  if (!e || now > e.resetAt) { pairAttempts.set(ip, { count: 1, resetAt: now + 10 * 60 * 1000 }); return true; }
+  e.count++;
+  return e.count <= 8;
+}
 
 // ---------- 세션 메타 ----------
 const RECENT_FILE = dataFile('recent.json');
@@ -194,14 +205,59 @@ setInterval(() => {
 const app = express();
 app.use(express.json({ limit: '30mb' }));   // 이미지 붙여넣기(base64) 수용
 
-// 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
 function isLocal(sock) { return /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
+
+// ---------- 페어링(다른 PC 쉬운 접속) — 토큰 게이트보다 앞에 둬서 무토큰으로도 열림 ----------
+// 다른 PC: 이 주소만 치고 폰에 뜬 4자리 코드 입력 → 아래 POST가 cc_token 쿠키를 심어줌 → 정식 접속.
+app.get('/pair', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('html').send(`<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>PowerTerminal · 연결</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.card{width:min(92vw,340px);text-align:center;padding:28px 22px;background:#111827;border:1px solid #1f2937;border-radius:16px}
+h1{font-size:18px;margin:0 0 4px}p{color:#9ca3af;font-size:13px;margin:0 0 18px;line-height:1.5}
+input{width:100%;font-size:34px;letter-spacing:14px;text-align:center;padding:12px 0;border-radius:12px;border:1px solid #374151;background:#0b1220;color:#fff;font-weight:800}
+input:focus{outline:none;border-color:#8a38f5}.msg{min-height:18px;font-size:13px;margin-top:12px;font-weight:700}
+.err{color:#f87171}.ok{color:#34d399}</style></head><body>
+<div class="card"><div style="font-size:34px;margin-bottom:8px">🔑</div>
+<h1>PowerTerminal 연결</h1><p>이 PC를 서버에 연결합니다.<br>서버 PC(또는 이미 접속된 폰) 화면에 뜬<br><b>4자리 코드</b>를 입력하세요.</p>
+<input id="c" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="----">
+<div id="m" class="msg"></div></div>
+<script>
+var c=document.getElementById('c'),m=document.getElementById('m');c.focus();
+c.addEventListener('input',function(){c.value=c.value.replace(/[^0-9]/g,'').slice(0,4);if(c.value.length===4)submit();});
+async function submit(){c.blur();m.className='msg';m.textContent='확인 중…';
+ try{var r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:c.value})});
+  var j=await r.json().catch(function(){return{};});
+  if(r.ok&&j.ok){m.className='msg ok';m.textContent='연결됨 · 이동 중…';location.href='/';return;}
+  if(r.status===429){m.className='msg err';m.textContent='시도 초과 — 잠시 후 다시.';return;}
+  m.className='msg err';m.textContent='코드가 틀렸어요. 다시 확인하세요.';c.value='';c.focus();
+ }catch(e){m.className='msg err';m.textContent='연결 오류 — 다시 시도하세요.';c.focus();}}
+</script></body></html>`);
+});
+app.post('/api/pair', (req, res) => {
+  if (isLocal(req.socket)) return res.json({ ok: true, local: true });
+  const ip = req.socket.remoteAddress || '';
+  if (!pairRateOk(ip)) return res.status(429).json({ error: 'too_many' });
+  const code = String((req.body && req.body.code) || '').trim();
+  if (code && code === PAIR_CODE) {
+    res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
+    return res.json({ ok: true });
+  }
+  res.status(401).json({ error: 'bad_code' });
+});
+
+// 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
 app.use((req, res, next) => {
   if (isLocal(req.socket)) return next();
   const t = req.query.token || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
   if (t === config.token) {
     if (req.query.token) res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
     return next();
+  }
+  // 무토큰 페이지 접속(다른 PC에서 주소만 친 경우)은 페어링 코드 입력창으로 안내
+  if (req.method === 'GET' && (req.path === '/' || (req.headers.accept || '').includes('text/html'))) {
+    return res.redirect('/pair');
   }
   res.status(401).send('<h2 style="font-family:sans-serif">Access token required. Open the URL shown in the server console (or scan the QR).</h2>');
 });
@@ -506,7 +562,7 @@ app.get('/api/info', (req, res) => {
   for (const addrs of Object.values(os.networkInterfaces()))
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
   // token 포함: 이 API 자체가 인증 뒤에서만 응답하므로 안전 — QR/주소 생성에 사용
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token });
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE });
 });
 
 // ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------

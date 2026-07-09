@@ -367,6 +367,13 @@
   <!-- QR은 항상 렌더링, 그 위에 반투명 유리 경고 관문을 덮어 살짝 비치게 -->
   <div id="qrBody">
     <div id="qrCols" style="display:flex;gap:14px"></div>
+    <div id="pairBox" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#0b1220">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">💻 <span data-i18n="pairTitle">Connect another PC — no long link to type</span></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--fg)"><span data-i18n="pairStep1">On the other PC open</span> <b id="pairAddr" style="color:#a78bfa"></b> <span data-i18n="pairStep2">and enter this code:</span></div>
+        <div id="pairCode" style="font-size:26px;font-weight:900;letter-spacing:8px;color:#fff;background:#111827;border-radius:10px;padding:4px 14px"></div>
+      </div>
+    </div>
     <p style="font-size:11px;color:var(--muted);margin-top:10px" data-i18n="qrWarn"></p>
   </div>
   <div id="qrGate">
@@ -470,6 +477,7 @@ const TOKEN = new URLSearchParams(location.search).get('token') ||
 const I18N = {
   en: { addSession:'＋ Session', qrToggle:'Mobile access QR on/off', infoBtn:'Access URLs', soundBtn:'Speak the session number aloud when it finishes (on/off)',
     qrTitle:'📱 Mobile Access QR', qrWarn:'⚠ Anyone with this QR can control sessions — share only with people you trust.',
+    pairTitle:'Connect another PC — no long link to type', pairStep1:'On the other PC open', pairStep2:'and enter this code:',
     copyImg:'📋 Copy', saveImg:'💾 Save', close:'Close', cancel:'Cancel', add:'Add',
     addTitleH:'Add Session', orManual:'Or enter a folder path directly:', pathPh:'D:\\projects\\folder', titlePh:'Title (folder name if empty)',
     agClaude:'🟣 Claude Code (default)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell only (no AI)', agCustom:'⚙ Custom command',
@@ -488,6 +496,7 @@ const I18N = {
     ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', brwGrid:'Grid view', brwList:'Detailed list (vertical)', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL', ghId:'ID', ghNoLogin:'not signed in', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', ghNeedLogin:'Not signed in to GitHub.', ghLoginBtn:'Sign in to GitHub', ghNeedCli:'GitHub CLI (gh) is not installed. You need it to list/clone your repos and create new projects.', ghNeedCliShort:'GitHub CLI must be installed.', ghInstallBtn:'Install GitHub CLI', ghRetry:'Retry', ghPsBtn:'Auto-install in PowerShell', ghPsTip:'Opens a PowerShell terminal and installs gh via winget', ghManual:'Manual install:', ghInstStep1:'Click the [Install GitHub CLI] button to open the official site, then download the Windows installer (.msi)', ghInstStep2:'Run the installer (Next → Next → Finish)', ghInstStep3:'Come back here and press Retry — no restart needed', ghWinget:'Click the button below (Install GitHub CLI), or paste this command into a PowerShell session:', ghInstallTip:'Opens cli.github.com in your browser. After installing, press Retry — no restart needed.', imgRemove:'Remove', dragReorder:'Drag to reorder', dragMove:'Drag to move this pane', tabBtn:'Open in a normal browser tab (then drag it into any Chrome window)', linkClickOpen:'Click → open in a new window', adminPwPrompt:'Admin password:', adminPwFail:'Wrong password.', rebootConfirm:'Restart PowerTerminal now to get the latest version? Sessions are kept — this takes about 10-20 seconds.', rebootIng:'Restarting to the latest version…', rebootWait:'This page will reload automatically.', ghStep1:'1) Copy this code  2) open GitHub  3) paste & approve', ghOpen:'Open GitHub', ghWaiting:'Waiting for approval…', ghFail:'Sign-in failed — try again', aiLabel:'AI for this session', drives:'Drives', aiPick:'Change the AI for this session', aiChangeAsk:'Switch this session to a different AI? It restarts the session.', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', copyFail:'Copy failed', connLost:'⚠ Disconnected — the server (your PC) may be off, or the network dropped. Reconnecting…', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', quitBtn:'Quit — shut down the server (this PC)', quitConfirm:'This shuts down PowerTerminal completely — the server on this PC and every running session stop, and phones lose access. Your session list is saved and comes back next launch. Continue?', quitBye:'PowerTerminal is shut down.', quitByeSub:'You can close this tab. Run start.bat again to come back — your sessions will be restored.', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기', soundBtn:'작업이 끝나면 세션 번호를 영어로 말해줌 (켜기/끄기)',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
+    pairTitle:'다른 PC 연결 — 긴 링크 타이핑 없이', pairStep1:'다른 PC에서', pairStep2:'접속 후 이 코드 입력:',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
     addTitleH:'세션 추가', orManual:'또는 폴더 경로 직접 입력:', pathPh:'D:\\프로젝트\\폴더경로', titlePh:'제목 (비우면 폴더명)',
     agClaude:'🟣 Claude Code (기본)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell만 (AI 없이)', agCustom:'⚙ 직접 명령 입력',
@@ -1436,6 +1445,13 @@ async function renderQR() {
   cols.innerHTML = '';
   cols.appendChild(qrColumn('🌍 ' + T.lte, 'var(--pink)', lte, T.noTunnel));
   cols.appendChild(qrColumn('📶 ' + T.wifi, 'var(--violet)', wifi, '—'));
+  // 💻 다른 PC용 페어링 코드 — 같은 와이파이 IP가 있고 서버가 코드를 줄 때만 표시
+  const pb = document.getElementById('pairBox');
+  if (i.pairCode && i.ips[0]) {
+    document.getElementById('pairAddr').textContent = `${i.ips[0]}:${i.port}`;
+    document.getElementById('pairCode').textContent = i.pairCode;
+    pb.style.display = 'block';
+  } else { pb.style.display = 'none'; }
 }
 function qrBlob() {
   return new Promise(r => document.getElementById('qrCanvas').toBlob(r, 'image/png'));
