@@ -601,7 +601,7 @@ app.get('/api/info', (req, res) => {
   for (const addrs of Object.values(os.networkInterfaces()))
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
   // token 포함: 이 API 자체가 인증 뒤에서만 응답하므로 안전 — QR/주소 생성에 사용
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE });
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR });
 });
 
 // ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------

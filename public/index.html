@@ -114,11 +114,11 @@
   .pane.maxed .btnMax { background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
   .quick .qImg { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
   .quick .qImg svg { display: block; }
-  /* 첨부 이미지 썸네일 스트립 — 폭 33px, 높이 최대 33px (모바일에서 뭘 넣었는지 바로 보이게) */
+  /* 첨부 이미지 썸네일 스트립 — 폭 132px, 높이 최대 132px (모바일에서 뭘 넣었는지 바로 보이게) */
   .qThumbs { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 4px 0; }
   .qThumbs:empty { display: none; }
   .qThumbs .qth { position: relative; line-height: 0; }
-  .qThumbs .qth img { width: 66px; height: auto; max-height: 66px; object-fit: contain; border-radius: 4px; border: 1px solid var(--line); display: block; }
+  .qThumbs .qth img { width: 132px; height: auto; max-height: 132px; object-fit: contain; border-radius: 4px; border: 1px solid var(--line); display: block; }
   .qThumbs .qth .rm { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: #ef4444; color: #fff; border: 0; font-size: 11px; line-height: 16px; text-align: center; cursor: pointer; padding: 0; }
 
   /* 빠른 입력줄: 1줄 = 입력칸+이미지+취소 · 2줄 = 전송 버튼이 한 줄 전체 */
@@ -127,6 +127,11 @@
   .quick .qSend { width: 100%; font-weight: 700; background: linear-gradient(90deg, var(--violet), var(--pink)); }
   .quick .qCancel { flex: 0 0 auto; background: #3b1d24; color: #fca5a5; border: 1px solid #7f1d1d; white-space: nowrap; }
   .quick .qCancel:hover { background: #7f1d1d; color: #fff; }
+  /* 작업 중일 때만 터미널 우상단에 뜨는 중단 버튼 — 터미널 글자 옆엔 버튼을 못 박아서(문자 격자) 오버레이로 */
+  .termCancel { display: none; position: absolute; top: 8px; right: 18px; z-index: 7;
+                background: rgba(59,29,36,.92); color: #fca5a5; border: 1px solid #7f1d1d; white-space: nowrap; }
+  .pane.busy .termCancel { display: inline-block; }
+  .termCancel:hover { background: #7f1d1d; color: #fff; }
   .quick textarea { flex: 1; background: #000; border: 1px solid var(--line); color: var(--fg);
                     border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit;
                     resize: none; max-height: 34vh; overflow-y: auto; line-height: 1.45; }
@@ -155,38 +160,42 @@
 
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
-  /* 📝 세션 메모장 — 여백 최소, 3단 (메모 | 완료 | 요청내역) */
-  #memoDlg { width: min(96vw, 1150px); max-width: 96vw; padding: 8px; }
+  /* 📝 세션 메모장 — 밝은 종이(#fefefe) 배경 + 진한 글자, 여백 최소, 3단 (메모 | 완료 | 요청내역) */
+  #memoDlg { width: min(96vw, 1150px); max-width: 96vw; padding: 8px; background: #fefefe; color: #1f2937; border-color: #d1d5db; }
   .memo-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 6px; }
-  .memo-head h3 { font-size: 14px; }
+  .memo-head h3 { font-size: 14px; color: #111827; }
+  #memoClose { background: #e5e7eb; color: #1f2937; font-weight: 700; }
+  #memoClose:hover { background: #d1d5db; }
   .memo-cols { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; }
-  .memo-col { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line);
-              border-radius: 8px; background: #111827; padding: 6px; min-height: 300px; max-height: 68vh; }
-  .memo-colhead { font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 4px; flex: 0 0 auto; }
+  .memo-col { display: flex; flex-direction: column; gap: 6px; border: 1px solid #e5e7eb;
+              border-radius: 8px; background: #fff; padding: 6px; min-height: 300px; max-height: 68vh; }
+  .memo-colhead { font-size: 12px; font-weight: 700; color: #6b7280; padding: 2px 4px; flex: 0 0 auto; }
   .memo-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
   /* 메모 행: [회색 작은 작성일 | 체크박스 | 본문] 표처럼 줄맞춤 */
   .memo-row { display: grid; grid-template-columns: 86px 18px 1fr; gap: 6px; align-items: start;
-              padding: 5px 4px; border-bottom: 1px solid #1f2937; font-size: 13px; }
-  .memo-row .mdate { font-size: 10px; color: var(--muted); line-height: 1.5; padding-top: 1px; white-space: nowrap; }
+              padding: 5px 4px; border-bottom: 1px dashed #e5e7eb; font-size: 13px; }
+  .memo-row .mdate { font-size: 10px; color: #9ca3af; line-height: 1.5; padding-top: 1px; white-space: nowrap; }
   .memo-row input[type=checkbox] { margin: 2px 0 0; accent-color: var(--violet); cursor: pointer; }
-  .memo-row .mtext { white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+  .memo-row .mtext { white-space: pre-wrap; word-break: break-word; line-height: 1.5; color: #1f2937; }
   /* 완료 행: 취소선 + 우측 빨강 ✕ */
   .memo-row.mdone { grid-template-columns: 86px 1fr 20px; }
-  .memo-row.mdone .mtext { text-decoration: line-through; color: var(--muted); }
+  .memo-row.mdone .mtext { text-decoration: line-through; color: #9ca3af; }
   .memo-row .mdel { width: 18px; height: 18px; padding: 0; border-radius: 5px; background: #ef4444; color: #fff;
                     font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; flex: 0 0 auto; }
+  .memo-row .mdel:hover { background: #b91c1c; }
   /* 요청 내역 행: [작성일+상태 | 본문] */
   .memo-row.mreq { grid-template-columns: 86px 1fr; }
-  .memo-row.mreq .mtext { color: #c7d2fe; }
-  .memo-row .mst { display: inline-block; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 0 4px; margin-top: 2px; }
-  .memo-row .mst.run { background: #164e63; color: #67e8f9; }
-  .memo-row .mst.done { background: #14532d; color: #86efac; }
-  .memo-row .mst.stop { background: #7c2d12; color: #fdba74; }
-  .memo-row .mst.off { background: #374151; color: #d1d5db; }
-  #memoNew { flex: 0 0 auto; background: #000; border: 1px solid var(--line); color: var(--fg); border-radius: 8px;
+  .memo-row.mreq .mtext { color: #374151; }
+  .memo-row .mst { display: inline-block; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 0 4px; margin-top: 2px;
+                   white-space: normal; max-width: 100%; line-height: 1.4; }   /* 날짜칸(nowrap) 안에서도 칩 글자는 줄바꿈 — 옆 글 위로 안 넘치게 */
+  .memo-row .mst.run { background: #e0f2fe; color: #0369a1; }
+  .memo-row .mst.done { background: #dcfce7; color: #15803d; }
+  .memo-row .mst.stop { background: #ffedd5; color: #b45309; }
+  .memo-row .mst.off { background: #fee2e2; color: #b91c1c; }
+  #memoNew { flex: 0 0 auto; background: #fff; border: 1px solid #d1d5db; color: #111827; border-radius: 8px;
              padding: 8px 9px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 54px; }
   #memoNew:focus { outline: 1px solid var(--violet); }
-  .memo-empty { color: var(--muted); font-size: 12px; padding: 8px 4px; }
+  .memo-empty { color: #9ca3af; font-size: 12px; padding: 8px 4px; }
   @media (max-width: 768px) { .memo-cols { grid-template-columns: 1fr; } .memo-col { min-height: 130px; max-height: 40vh; } }
   #qrDlg { position: relative; overflow: hidden; }
   /* QR 경고 관문 — 반투명 유리(blur)로 뒤 QR이 살짝 비침 */
@@ -413,13 +422,6 @@
   <!-- QR은 항상 렌더링, 그 위에 반투명 유리 경고 관문을 덮어 살짝 비치게 -->
   <div id="qrBody">
     <div id="qrCols" style="display:flex;gap:14px"></div>
-    <div id="pairBox" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#0b1220">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">💻 <span data-i18n="pairTitle">Connect another PC — no long link to type</span></div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:12px;color:var(--fg)"><span data-i18n="pairStep1">On the other PC open</span> <b id="pairAddr" style="color:#a78bfa"></b> <span data-i18n="pairStep2">and enter this code:</span></div>
-        <div id="pairCode" style="font-size:26px;font-weight:900;letter-spacing:8px;color:#fff;background:#111827;border-radius:10px;padding:4px 14px"></div>
-      </div>
-    </div>
     <p style="font-size:11px;color:var(--muted);margin-top:10px" data-i18n="qrWarn"></p>
   </div>
   <div id="qrGate">
@@ -427,7 +429,10 @@
     <p data-i18n="qrGateWarn" style="font-size:14px;line-height:1.6;color:#fecaca;font-weight:700;margin:10px 14px;text-shadow:0 1px 4px rgba(0,0,0,.8)"></p>
     <p data-i18n="qrGateResp" style="font-size:12px;color:#e5e7eb;margin:6px 14px;text-shadow:0 1px 4px rgba(0,0,0,.8)"></p>
     <p data-i18n="qrGateRevoke" style="font-size:12px;color:#93c5fd;margin:8px 14px 16px;text-shadow:0 1px 4px rgba(0,0,0,.8)"></p>
-    <button class="primary" onclick="document.getElementById('qrGate').style.display='none'" data-i18n="qrGateOk" style="padding:10px 18px;font-weight:700">I understand — show the QR</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <button class="primary" onclick="document.getElementById('qrGate').style.display='none'" data-i18n="qrGateOk" style="padding:10px 18px;font-weight:700">I understand — show the QR</button>
+      <button onclick="qrDlg.close()" data-i18n="close" style="padding:10px 18px;font-weight:700">Close</button>
+    </div>
   </div>
 </dialog>
 
@@ -524,6 +529,7 @@
 <dialog id="memoDlg">
   <div class="memo-head">
     <h3 id="memoTitle" style="margin:0"></h3>
+    <span id="memoPathBadge" title="" style="flex:1;min-width:0;font-size:10px;color:#9ca3af;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left"></span>
     <button class="small" id="memoClose" onclick="closeMemo()"></button>
   </div>
   <div class="memo-cols">
@@ -807,7 +813,6 @@ function buildPane(sess, idx) {
         <button class="small btnMax hv" title="${T.maxT}">⛶</button>
         <button class="small btnZoom" title="${T.zoomT}">⛶</button>
         <button class="small btnPrev hv" title="${T.previewT}">👁</button>
-        <button class="small btnMode hv" title="${T.modeT}" style="color:#a5b4fc;font-weight:700">⇄ auto</button>
         <select class="small fontSel hv" title="${T.fontSel}">
           ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>A${s}</option>`).join('')}
         </select>
@@ -822,6 +827,7 @@ function buildPane(sess, idx) {
     </div>
     <div class="pane-body">
       <div class="term"></div>
+      <button class="small termCancel" title="${T.cancelReqT}">⛔ ${T.cancel}</button>
       <iframe class="preview hidden"></iframe>
     </div>
     <div class="qThumbs"></div>
@@ -909,12 +915,13 @@ function buildPane(sess, idx) {
       if (m.type === 'out') {
         if (first) { term.reset(); first = false; }   // 재접속 시 버퍼 전체 재생 — 중복 방지
         term.write(m.data);
-        // 하단 푸터에서 현재 모드를 읽어 ⇄ 버튼에 표시 (auto / accept / plan)
+        // 하단 푸터에서 현재 모드를 읽어 ⇄ 버튼에 표시 (auto / accept / plan) — 버튼이 있을 때만
         if (m.data.includes(' mode') || m.data.includes('accept edits')) {
           const mode = m.data.includes('plan mode') ? 'plan'
                      : m.data.includes('accept edits') ? 'accept'
                      : m.data.includes('auto mode') ? 'auto' : null;
-          if (mode) el.querySelector('.btnMode').textContent = '⇄ ' + mode;
+          const mb = el.querySelector('.btnMode');
+          if (mode && mb) mb.textContent = '⇄ ' + mode;
         }
         // 실제 모델을 출력에서 읽어 드롭다운에 반영 (거짓말 방지) — 값만 바꿈(onchange 미발동)
         if (modelDrop) {
@@ -1055,8 +1062,9 @@ function buildPane(sess, idx) {
   const fontSel = el.querySelector('.fontSel');
   fontSel.onchange = ev => { ev.stopPropagation(); term.options.fontSize = +fontSel.value; sendResize(); };
 
-  // ⇄ 모드 전환 — Claude Code에 Shift+Tab 전송 (auto mode ↔ accept edits ↔ plan ...)
-  el.querySelector('.btnMode').onclick = ev => {
+  // ⇄ 모드 전환 버튼은 제거됨 (터미널에서 Shift+Tab으로 직접 전환) — 남은 참조 대비 가드
+  const modeBtn = el.querySelector('.btnMode');
+  if (modeBtn) modeBtn.onclick = ev => {
     ev.stopPropagation();
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x1b[Z' }));
     term.focus();
@@ -1131,13 +1139,15 @@ function buildPane(sess, idx) {
   });
   el.querySelector('.qSend').onclick = send;
 
-  // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송). 요청 내역엔 '중단' 스탬프.
-  el.querySelector('.qCancel').onclick = ev => {
+  // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송 = 터미널에서 ESC 누르는 것과 동일). 요청 내역엔 '중단' 스탬프.
+  const doCancel = ev => {
     ev.stopPropagation();
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x1b' }));
     api('POST', '/api/memos/reqst', { path: sess.path, st: 'stop' });
     term.focus();
   };
+  el.querySelector('.qCancel').onclick = doCancel;          // 입력줄 옆
+  el.querySelector('.termCancel').onclick = doCancel;       // 작업 중 터미널 우상단 오버레이
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
   async function attachImage(file) {
@@ -1332,12 +1342,24 @@ function orderRank(path) {
 }
 function esc(s) { return (s || '').replace(/</g, '&lt;'); }
 
-// 터미널 선택 텍스트 복사. execCommand 우선(http·https 모두, 가장 호환성 높음) → 실패 시 Clipboard API.
-// 토스트는 "정직하게": 실제 성공에만 '복사됨', 아니면 '복사 실패'.
+// 터미널 선택 텍스트 복사.
+// Clipboard API 우선 — 성공/실패를 정확히 알려줌 (localhost·https에선 항상 이 경로).
+// execCommand는 http LAN 폴백 전용: "성공"을 거짓 보고하는 경우가 있어 1순위에서 뺐음 (드래그복사 안 되던 원인).
 function copySel(text) {
   if (!text) return;
-  // execCommand 방식 (clipboard.js 검증 패턴: 현재 스크롤 위치에 off-screen textarea)
-  let ok = false, err = '';
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    // 포커스가 애매하면 writeText가 거부도 성공도 없이 매달릴 수 있음 → 0.8초 안에 답 없으면 execCommand로
+    let settled = false;
+    const to = setTimeout(() => { if (!settled) { settled = true; copySelExec(text); } }, 800);
+    navigator.clipboard.writeText(text)
+      .then(() => { if (!settled) { settled = true; clearTimeout(to); flashToast(T.copied || 'Copied'); } })
+      .catch(() => { if (!settled) { settled = true; clearTimeout(to); copySelExec(text); } });
+    return;
+  }
+  copySelExec(text);
+}
+function copySelExec(text) {
+  let ok = false;
   try {
     const ta = document.createElement('textarea');
     ta.value = text; ta.setAttribute('readonly', '');
@@ -1346,16 +1368,8 @@ function copySel(text) {
     ta.select(); ta.setSelectionRange(0, text.length);
     ok = document.execCommand('copy');
     document.body.removeChild(ta);
-  } catch (e) { err = 'exec:' + (e && e.name); }
-  if (ok) { flashToast((T.copied || 'Copied') + ' ·exec'); return; }   // 진단: 어느 방식이 성공했는지 표시
-  // 폴백: Clipboard API (https·localhost 보안 컨텍스트 + 포커스 필요)
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text)
-      .then(() => flashToast((T.copied || 'Copied') + ' ·api'))
-      .catch(e => flashToast((T.copyFail || 'Copy failed') + ' ·api:' + (e && e.name) + ' focus=' + document.hasFocus() + ' secure=' + window.isSecureContext));
-    return;
-  }
-  flashToast((T.copyFail || 'Copy failed') + ' ·exec=' + ok + ' ' + err + ' noClipboardAPI secure=' + window.isSecureContext);
+  } catch (e) {}
+  flashToast(ok ? (T.copied || 'Copied') : (T.copyFail || 'Copy failed'));
 }
 let _toastTimer;
 function flashToast(msg) {
@@ -1496,6 +1510,7 @@ function applyLayout() {
 
 // ---------- 📱 QR + 접속 주소 (켜고 끄기 · 복사 · 저장) ----------
 const qrDlg = document.getElementById('qrDlg');
+qrDlg.addEventListener('click', ev => { if (ev.target === qrDlg) qrDlg.close(); });   // 모달 바깥(백드롭) 클릭 = 닫기
 let qrUrl = '';
 function drawQR(canvas, text) {
   const q = qrcode(0, 'M');
@@ -1566,13 +1581,7 @@ async function renderQR() {
   cols.innerHTML = '';
   cols.appendChild(qrColumn('🌍 ' + T.lte, 'var(--pink)', lte, T.noTunnel));
   cols.appendChild(qrColumn('📶 ' + T.wifi, 'var(--violet)', wifi, '—'));
-  // 💻 다른 PC용 페어링 코드 — 같은 와이파이 IP가 있고 서버가 코드를 줄 때만 표시
-  const pb = document.getElementById('pairBox');
-  if (i.pairCode && i.ips[0]) {
-    document.getElementById('pairAddr').textContent = `${i.ips[0]}:${i.port}`;
-    document.getElementById('pairCode').textContent = i.pairCode;
-    pb.style.display = 'block';
-  } else { pb.style.display = 'none'; }
+  // (다른 PC 페어링 코드 패널은 제거 — 같은 와이파이 전용이라 QR과 중복. 서버 /pair 기능 자체는 유지)
 }
 function qrBlob() {
   return new Promise(r => document.getElementById('qrCanvas').toBlob(r, 'image/png'));
@@ -2271,10 +2280,19 @@ function fmtMemoDate(ts) {   // 날짜, 요일, 시:분 — 회색 작은 글씨
   try { wd = d.toLocaleDateString(T.locale || 'en-US', { weekday: 'short' }); } catch (e) {}
   return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+let memoDataDir = '';   // 메모 실제 저장 폴더 (~/.powerterminal) — /api/info에서 1회 조회
 async function openMemo(sess) {
   memoPath = sess.path;
   document.getElementById('memoTitle').textContent = (T.memoTitle || '📝 Memo') + ' — ' + sess.title;
   document.getElementById('memoClose').textContent = T.close || 'Close';
+  // 제목 옆 회색 저장경로 — 클릭하면 그 폴더 열기
+  try { if (!memoDataDir) { const inf = await api('GET', '/api/info'); memoDataDir = (inf && inf.dataDir) || ''; } } catch (e) {}
+  const pb = document.getElementById('memoPathBadge');
+  if (pb) {
+    pb.textContent = memoDataDir ? '💾 ' + memoDataDir + '\\memos.json' : '';
+    pb.title = memoDataDir;
+    pb.onclick = () => { if (memoDataDir) openFolder(memoDataDir); };
+  }
   document.getElementById('memoDoneH').textContent = T.memoDoneCol || 'Completed';
   document.getElementById('memoReqH').textContent = T.memoReqCol || 'Requests';
   const ta = document.getElementById('memoNew');
