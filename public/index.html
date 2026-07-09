@@ -41,6 +41,15 @@
                box-shadow: 0 0 14px rgba(34,197,94,.55); }
   .pane.dragging { opacity: .4; }
   .pane.dragover { outline: 2px dashed var(--pink); }
+  /* 새 세션창 등장 애니메이션 (드래그 이동은 JS FLIP으로 transform 처리) */
+  @keyframes paneIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+  .pane.pane-in { animation: paneIn .28s ease; }
+  /* 헤더 버튼 6개(📝☰⛶👁⇄글자크기)는 평소 숨김 — 마우스를 그 세션에 올리면 표시 (호버 없는 폰은 항상 표시) */
+  @media (hover: hover) and (pointer: fine) {
+    .ph-top { min-height: 25px; }                 /* 버튼이 사라져도 헤더 높이 고정 (터미널 흔들림 방지) */
+    .pane .ph-top .hv { display: none; }
+    .pane:hover .ph-top .hv, .pane:focus-within .ph-top .hv { display: inline-block; }
+  }
   /* 번호 밑 '완료' 초록 배지 */
   .numwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
   .donebadge { display: none; font-size: 9px; font-weight: 700; color: #06230f;
@@ -112,8 +121,12 @@
   .qThumbs .qth img { width: 66px; height: auto; max-height: 66px; object-fit: contain; border-radius: 4px; border: 1px solid var(--line); display: block; }
   .qThumbs .qth .rm { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: #ef4444; color: #fff; border: 0; font-size: 11px; line-height: 16px; text-align: center; cursor: pointer; padding: 0; }
 
-  .quick { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827;
-           align-items: flex-end; }
+  /* 빠른 입력줄: 1줄 = 입력칸+이미지+취소 · 2줄 = 전송 버튼이 한 줄 전체 */
+  .quick { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827; }
+  .quick .qRow { display: flex; gap: 6px; align-items: flex-end; }
+  .quick .qSend { width: 100%; font-weight: 700; background: linear-gradient(90deg, var(--violet), var(--pink)); }
+  .quick .qCancel { flex: 0 0 auto; background: #3b1d24; color: #fca5a5; border: 1px solid #7f1d1d; white-space: nowrap; }
+  .quick .qCancel:hover { background: #7f1d1d; color: #fff; }
   .quick textarea { flex: 1; background: #000; border: 1px solid var(--line); color: var(--fg);
                     border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit;
                     resize: none; max-height: 34vh; overflow-y: auto; line-height: 1.45; }
@@ -142,6 +155,39 @@
 
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
+  /* 📝 세션 메모장 — 여백 최소, 3단 (메모 | 완료 | 요청내역) */
+  #memoDlg { width: min(96vw, 1150px); max-width: 96vw; padding: 8px; }
+  .memo-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 6px; }
+  .memo-head h3 { font-size: 14px; }
+  .memo-cols { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; }
+  .memo-col { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line);
+              border-radius: 8px; background: #111827; padding: 6px; min-height: 300px; max-height: 68vh; }
+  .memo-colhead { font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 4px; flex: 0 0 auto; }
+  .memo-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+  /* 메모 행: [회색 작은 작성일 | 체크박스 | 본문] 표처럼 줄맞춤 */
+  .memo-row { display: grid; grid-template-columns: 86px 18px 1fr; gap: 6px; align-items: start;
+              padding: 5px 4px; border-bottom: 1px solid #1f2937; font-size: 13px; }
+  .memo-row .mdate { font-size: 10px; color: var(--muted); line-height: 1.5; padding-top: 1px; white-space: nowrap; }
+  .memo-row input[type=checkbox] { margin: 2px 0 0; accent-color: var(--violet); cursor: pointer; }
+  .memo-row .mtext { white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+  /* 완료 행: 취소선 + 우측 빨강 ✕ */
+  .memo-row.mdone { grid-template-columns: 86px 1fr 20px; }
+  .memo-row.mdone .mtext { text-decoration: line-through; color: var(--muted); }
+  .memo-row .mdel { width: 18px; height: 18px; padding: 0; border-radius: 5px; background: #ef4444; color: #fff;
+                    font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; flex: 0 0 auto; }
+  /* 요청 내역 행: [작성일+상태 | 본문] */
+  .memo-row.mreq { grid-template-columns: 86px 1fr; }
+  .memo-row.mreq .mtext { color: #c7d2fe; }
+  .memo-row .mst { display: inline-block; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 0 4px; margin-top: 2px; }
+  .memo-row .mst.run { background: #164e63; color: #67e8f9; }
+  .memo-row .mst.done { background: #14532d; color: #86efac; }
+  .memo-row .mst.stop { background: #7c2d12; color: #fdba74; }
+  .memo-row .mst.off { background: #374151; color: #d1d5db; }
+  #memoNew { flex: 0 0 auto; background: #000; border: 1px solid var(--line); color: var(--fg); border-radius: 8px;
+             padding: 8px 9px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 54px; }
+  #memoNew:focus { outline: 1px solid var(--violet); }
+  .memo-empty { color: var(--muted); font-size: 12px; padding: 8px 4px; }
+  @media (max-width: 768px) { .memo-cols { grid-template-columns: 1fr; } .memo-col { min-height: 130px; max-height: 40vh; } }
   #qrDlg { position: relative; overflow: hidden; }
   /* QR 경고 관문 — 반투명 유리(blur)로 뒤 QR이 살짝 비침 */
   #qrGate { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column;
@@ -174,7 +220,7 @@
   .card-icons { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; z-index: 3; }
   .pick-card:hover .card-icons, .mini-pane:hover .card-icons { opacity: 1; }
   .card-icons button { width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
-                       background: #374151; border: 0; border-radius: 6px; color: var(--fg); cursor: pointer; }
+                       background: #000; border: 0; border-radius: 6px; color: var(--fg); cursor: pointer; }
   .card-icons button:hover { background: var(--violet); color: #fff; }
   .card-icons .ci-del:hover { background: #b91c1c; }
   .card-icons svg { width: 13px; height: 13px; display: block; }
@@ -474,6 +520,28 @@
   </div>
 </dialog>
 
+<!-- 📝 세션 메모장 — 좌: 메모(작성일·체크 표) · 중: 완료(취소선+삭제) · 우: 보냈던 요청 내역 -->
+<dialog id="memoDlg">
+  <div class="memo-head">
+    <h3 id="memoTitle" style="margin:0"></h3>
+    <button class="small" id="memoClose" onclick="closeMemo()"></button>
+  </div>
+  <div class="memo-cols">
+    <div class="memo-col">
+      <div class="memo-list" id="memoItems"></div>
+      <textarea id="memoNew" rows="3"></textarea>
+    </div>
+    <div class="memo-col">
+      <div class="memo-colhead" id="memoDoneH"></div>
+      <div class="memo-list" id="memoDone"></div>
+    </div>
+    <div class="memo-col">
+      <div class="memo-colhead" id="memoReqH"></div>
+      <div class="memo-list" id="memoReqs"></div>
+    </div>
+  </div>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
@@ -496,14 +564,18 @@ const I18N = {
     renameHint:'Double-click to rename', previewT:'Toggle live preview', fontUp:'Bigger font', fontDn:'Smaller font', closeT:'Close this session',
     zoomT:'Full-screen this session', zoomExit:'✕ Exit full screen',
     quickPh:'Type a request and press Enter', send:'Send', done:'✅ Done',
-    exitMsg:'[Session ended — close with ✕ or add a new one]',
+    memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… saved when you close this window',
+    memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
+    cancelReqT:'Stop the request in progress (sends ESC to the terminal)',
+    stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
+    bnNewVer:'🔄 New version v{v} is out — click to update',
     confirmClose:'Close session "{t}"? (terminal ends, folder stays)',
     previewPrompt:'Open which page in a new tab? (your dev server, e.g. http://localhost:3000 — leave empty to open the folder index.html)',
     customPrompt:'Command to run (e.g. codex, aider, gemini)',
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
     copyOk:'QR image copied — paste it into any chat.', copyFail:'Clipboard blocked in this browser — use 💾 Save instead.',
-    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', brwGrid:'Grid view', brwList:'Detailed list (vertical)', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL', ghId:'ID', ghNoLogin:'not signed in', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', ghNeedLogin:'Not signed in to GitHub.', ghLoginBtn:'Sign in to GitHub', ghNeedCli:'GitHub CLI (gh) is not installed. You need it to list/clone your repos and create new projects.', ghNeedCliShort:'GitHub CLI must be installed.', ghInstallBtn:'Install GitHub CLI', ghRetry:'Retry', ghPsBtn:'Auto-install in PowerShell', ghPsTip:'Opens a PowerShell terminal and installs gh via winget', ghManual:'Manual install:', ghInstStep1:'Click the [Install GitHub CLI] button to open the official site, then download the Windows installer (.msi)', ghInstStep2:'Run the installer (Next → Next → Finish)', ghInstStep3:'Come back here and press Retry — no restart needed', ghWinget:'Click the button below (Install GitHub CLI), or paste this command into a PowerShell session:', ghInstallTip:'Opens cli.github.com in your browser. After installing, press Retry — no restart needed.', imgRemove:'Remove', dragReorder:'Drag to reorder', dragMove:'Drag to move this pane', tabBtn:'Open in a normal browser tab (then drag it into any Chrome window)', linkClickOpen:'Click → open in a new window', adminPwPrompt:'Admin password:', adminPwFail:'Wrong password.', rebootConfirm:'Restart PowerTerminal now to get the latest version? Sessions are kept — this takes about 10-20 seconds.', rebootIng:'Restarting to the latest version…', rebootWait:'This page will reload automatically.', ghStep1:'1) Copy this code  2) open GitHub  3) paste & approve', ghOpen:'Open GitHub', ghWaiting:'Waiting for approval…', ghFail:'Sign-in failed — try again', aiLabel:'AI for this session', drives:'Drives', aiPick:'Change the AI for this session', aiChangeAsk:'Switch this session to a different AI? It restarts the session.', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', copyFail:'Copy failed', connLost:'⚠ Disconnected — the server (your PC) may be off, or the network dropped. Reconnecting…', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', quitBtn:'Quit — shut down the server (this PC)', quitConfirm:'This shuts down PowerTerminal completely — the server on this PC and every running session stop, and phones lose access. Your session list is saved and comes back next launch. Continue?', quitBye:'PowerTerminal is shut down.', quitByeSub:'You can close this tab. Run start.bat again to come back — your sessions will be restored.', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
+    ghLocal:'(local folder and git were created)', locale:'en-US', mDefault:'Auto', modelTip:'AI model — Auto uses your account default. Opus/Sonnet/Haiku auto-map to the latest version.', pickTitle:'▶ Resume sessions', pickDesc:'Pick which saved sessions to open. Click to toggle, (−) to remove.', pickAll:'Select all', pickSkip:'Skip', pickStart:'▶ Open selected', confirmRemove:'Remove "{t}" from the list? (folder stays)', browse:'📂 Browse', selectThis:'✔ Select this folder', newFolder:'＋ New folder', brwGrid:'Grid view', brwList:'Detailed list (vertical)', newFolderPh:'New folder name → Enter', feedback:'Send feedback to the creator', feedbackShort:'Feedback', noTunnel:'External access not ready — restart to enable.', tabFolder:'📁 Local folder', tabGithub:'🐙 GitHub', tabNew:'🆕 New (folder+GitHub)', ghPick:'Pick a repo to clone, or paste a URL', ghId:'ID', ghNoLogin:'not signed in', ghSearch:'🔍 Filter your repos by name', cloneBtn:'⬇ Clone & Start', ghNeedLogin:'Not signed in to GitHub.', ghLoginBtn:'Sign in to GitHub', ghNeedCli:'GitHub CLI (gh) is not installed. You need it to list/clone your repos and create new projects.', ghNeedCliShort:'GitHub CLI must be installed.', ghInstallBtn:'Install GitHub CLI', ghRetry:'Retry', ghPsBtn:'Auto-install in PowerShell', ghPsTip:'Opens a PowerShell terminal and installs gh via winget', ghManual:'Manual install:', ghInstStep1:'Click the [Install GitHub CLI] button to open the official site, then download the Windows installer (.msi)', ghInstStep2:'Run the installer (Next → Next → Finish)', ghInstStep3:'Come back here and press Retry — no restart needed', ghWinget:'Click the button below (Install GitHub CLI), or paste this command into a PowerShell session:', ghInstallTip:'Opens cli.github.com in your browser. After installing, press Retry — no restart needed.', imgRemove:'Remove', dragReorder:'Drag to reorder', dragMove:'Drag to move this pane', tabBtn:'Open in a normal browser tab (then drag it into any Chrome window)', linkClickOpen:'Click → open in a new window', adminPwPrompt:'Admin password:', adminPwFail:'Wrong password.', rebootConfirm:'This will reboot the current window: PowerTerminal restarts to the latest version and this page reloads. Sessions are kept — about 10-20 seconds. Continue?', rebootIng:'Restarting to the latest version…', rebootWait:'This page will reload automatically.', ghStep1:'1) Copy this code  2) open GitHub  3) paste & approve', ghOpen:'Open GitHub', ghWaiting:'Waiting for approval…', ghFail:'Sign-in failed — try again', aiLabel:'AI for this session', drives:'Drives', aiPick:'Change the AI for this session', aiChangeAsk:'Switch this session to a different AI? It restarts the session.', maxT:'Expand / restore this pane', tasksT:'Show/hide the task list (Ctrl+T)', imgT:'Attach or paste an image', imgUploading:'uploading…', imgFail:'Image upload failed', winAskTitle:'Where should this session open?', winAskRows:'⚠ Panes are getting narrow (under 300px). Adding it here will wrap them into 2 rows.', winNew:'🖥 Open in a new window', winNewHint:'Recommended — if you have a second monitor, drag it over there.', winCurrent:'➕ Add to this window', winCurrentHint:'Keeps everything here.', updText:'Update', updTip:'Update available — restart PowerTerminal to auto-update', doneBadge:'Done', copied:'Copied', copyFail:'Copy failed', connLost:'⚠ Disconnected — the server (your PC) may be off, or the network dropped. Reconnecting…', imgChip:'Image', textChip:'Text', charsUnit:' chars', fbUsage:'📊 Today {t} / 7d {w}', modeT:'Cycle mode (auto / accept edits / plan)', fontSel:'Font size', dupAsk:'"{t}" is already open. Open it again as a separate session?', pickBtn:'Choose which sessions to show', quitBtn:'Quit — shut down the server (this PC)', quitConfirm:'This shuts down PowerTerminal completely — the server on this PC and every running session stop, and phones lose access. Your session list is saved and comes back next launch. Continue?', quitBye:'PowerTerminal is shut down.', quitByeSub:'You can close this tab. Run start.bat again to come back — your sessions will be restored.', modelRestartAsk:'Switching the model restarts this session (your conversation continues via --continue). Proceed?', verWarn:'⚠ Running old version v{c} (latest v{l}). If it will not update, you likely have multiple copies — close them all and start just one.', icOpen:'Open folder', icRemove:'Remove from list', icDup:'Open another on the same folder', qrGateWarn:'Anyone who gets this QR or address can run commands on THIS computer.', qrGateResp:'Share it only with people you trust. You are responsible for what happens if it leaks.', qrGateOk:'I understand — show the QR' },
   ko: { addSession:'＋ 세션 추가', qrToggle:'모바일 접속 QR 켜기/끄기', infoBtn:'접속 주소 보기', soundBtn:'작업이 끝나면 세션 번호를 영어로 말해줌 (켜기/끄기)',
     qrTitle:'📱 모바일 접속 QR', qrWarn:'⚠ 이 QR로 접속한 사람은 똑같이 조작할 수 있습니다 — 믿는 사람에게만.',
     pairTitle:'다른 PC 연결 — 긴 링크 타이핑 없이', pairStep1:'다른 PC에서', pairStep2:'접속 후 이 코드 입력:',
@@ -516,14 +588,18 @@ const I18N = {
     renameHint:'더블클릭으로 이름 수정', previewT:'실제 모습 미리보기 토글', fontUp:'글자 크게', fontDn:'글자 작게', closeT:'이 세션 닫기',
     zoomT:'이 세션 전체화면으로 크게 보기', zoomExit:'✕ 전체화면 닫기',
     quickPh:'요청 입력 후 엔터 (폰에서 편하게 타이핑)', send:'전송', done:'✅ 완료',
-    exitMsg:'[세션 종료됨 — ✕로 닫거나 새로 추가하세요]',
+    memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… 창을 닫으면 저장돼요',
+    memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
+    cancelReqT:'진행 중인 요청 중단 (터미널에 ESC 전송)',
+    stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
+    bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 다운받기',
     confirmClose:'"{t}" 세션을 닫을까요? (터미널 종료, 폴더는 그대로)',
     previewPrompt:'새 탭에서 열 주소를 입력하세요 (개발서버 실행 중이면 http://localhost:3000 · 비우면 폴더의 index.html을 엽니다)',
     customPrompt:'실행할 명령 (예: codex, aider, gemini)',
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
     copyOk:'QR 이미지가 클립보드에 복사됐습니다 — 카톡 등에 붙여넣기 하세요.', copyFail:'이 브라우저에서 이미지 복사가 막혀 있어요 — 💾 저장을 이용하세요.',
-    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', newFolder:'＋ 새 폴더', brwGrid:'바둑판 보기', brwList:'세로 자세히 보기', newFolderPh:'새 폴더 이름 → Enter', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'복사해올(clone) 저장소를 고르거나 주소를 붙여넣으세요', ghId:'아이디', ghNoLogin:'미로그인', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', ghNeedLogin:'GitHub에 로그인되어 있지 않습니다.', ghLoginBtn:'GitHub 로그인', ghNeedCli:'GitHub CLI(gh)가 설치되어 있지 않습니다. 설치해야 내 저장소 불러오기·clone·새 프로젝트 생성이 가능합니다.', ghNeedCliShort:'GitHub CLI를 설치하셔야 합니다.', ghInstallBtn:'GitHub CLI 설치', ghRetry:'다시 시도', ghPsBtn:'PowerShell로 자동 설치', ghPsTip:'PowerShell 터미널을 열어 winget으로 gh를 바로 설치합니다', ghManual:'수동 설치:', ghInstStep1:'아래 [GitHub CLI 설치] 버튼으로 공식 사이트를 열고, Windows용 설치파일(.msi)을 다운로드', ghInstStep2:'설치 파일 실행 (다음 → 다음 → 완료)', ghInstStep3:'여기로 돌아와 [다시 시도] 클릭 — 재시작 불필요', ghWinget:'아래 버튼(GitHub CLI 설치)을 클릭, 또는 PowerShell 세션에 이 명령을 붙여넣기:', ghInstallTip:'브라우저에서 cli.github.com을 엽니다. 설치 후 [다시 시도]를 누르면 됩니다(재시작 불필요).', imgRemove:'제거', dragReorder:'드래그해서 순서 변경', dragMove:'드래그해서 창 위치 이동', tabBtn:'일반 브라우저 탭으로 열기 (그 탭을 다른 크롬 창으로 드래그 가능)', linkClickOpen:'클릭 → 새 창으로 열기', adminPwPrompt:'관리자 비밀번호:', adminPwFail:'비밀번호가 틀렸습니다.', rebootConfirm:'PowerTerminal을 지금 재시작해 최신 버전으로 업데이트할까요? 세션은 그대로 유지되고, 10~20초 정도 걸립니다.', rebootIng:'최신 버전으로 재시작하는 중…', rebootWait:'이 페이지는 자동으로 새로고침됩니다.', ghStep1:'1) 코드 복사  2) GitHub 열기  3) 붙여넣고 승인', ghOpen:'GitHub 열기', ghWaiting:'승인 기다리는 중…', ghFail:'로그인 실패 — 다시 시도', aiLabel:'세션에 사용할 AI 선택', drives:'드라이브', aiPick:'이 세션의 AI 바꾸기', aiChangeAsk:'이 세션을 다른 AI로 바꿀까요? 세션이 재시작됩니다.', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', copied:'복사됨', copyFail:'복사 실패', connLost:'⚠ 연결 끊김 — 서버(PC)가 꺼졌거나 네트워크가 끊겼습니다. 재연결 시도 중…', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', quitBtn:'종료 — 서버(이 PC)까지 끄기', quitConfirm:'PowerTerminal을 완전히 끕니다 — 이 PC의 서버와 실행 중인 모든 세션이 멈추고, 폰에서도 접속이 끊깁니다. 세션 목록은 저장돼 다음 실행 때 그대로 복원됩니다. 계속할까요?', quitBye:'PowerTerminal이 종료되었습니다.', quitByeSub:'이 탭을 닫아도 됩니다. start.bat을 다시 실행하면 세션이 복원됩니다.', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
+    ghLocal:'(로컬 폴더와 git은 만들어졌습니다)', locale:'ko-KR', mDefault:'자동', modelTip:'AI 모델 — 자동은 계정 기본 모델을 그대로 사용. Opus/Sonnet/Haiku는 항상 최신 버전으로 연결됩니다.', pickTitle:'▶ 이어서 할 세션 선택', pickDesc:'열 세션을 고르세요. 클릭=선택, (−)=목록에서 제거.', pickAll:'전체 선택', pickSkip:'건너뛰기', pickStart:'▶ 선택 세션 시작', confirmRemove:'"{t}" 를 목록에서 뺄까요? (폴더는 그대로)', browse:'📂 찾아보기', selectThis:'✔ 이 폴더 선택', newFolder:'＋ 새 폴더', brwGrid:'바둑판 보기', brwList:'세로 자세히 보기', newFolderPh:'새 폴더 이름 → Enter', feedback:'제작자에게 의견보내기', feedbackShort:'의견', noTunnel:'외부 접속 준비 중 — 재시작하면 켜집니다.', tabFolder:'📁 로컬 폴더', tabGithub:'🐙 GitHub', tabNew:'🆕 새 프로젝트(폴더+GitHub)', ghPick:'복사해올(clone) 저장소를 고르거나 주소를 붙여넣으세요', ghId:'아이디', ghNoLogin:'미로그인', ghSearch:'🔍 내 저장소 이름 검색', cloneBtn:'⬇ 받고 시작', ghNeedLogin:'GitHub에 로그인되어 있지 않습니다.', ghLoginBtn:'GitHub 로그인', ghNeedCli:'GitHub CLI(gh)가 설치되어 있지 않습니다. 설치해야 내 저장소 불러오기·clone·새 프로젝트 생성이 가능합니다.', ghNeedCliShort:'GitHub CLI를 설치하셔야 합니다.', ghInstallBtn:'GitHub CLI 설치', ghRetry:'다시 시도', ghPsBtn:'PowerShell로 자동 설치', ghPsTip:'PowerShell 터미널을 열어 winget으로 gh를 바로 설치합니다', ghManual:'수동 설치:', ghInstStep1:'아래 [GitHub CLI 설치] 버튼으로 공식 사이트를 열고, Windows용 설치파일(.msi)을 다운로드', ghInstStep2:'설치 파일 실행 (다음 → 다음 → 완료)', ghInstStep3:'여기로 돌아와 [다시 시도] 클릭 — 재시작 불필요', ghWinget:'아래 버튼(GitHub CLI 설치)을 클릭, 또는 PowerShell 세션에 이 명령을 붙여넣기:', ghInstallTip:'브라우저에서 cli.github.com을 엽니다. 설치 후 [다시 시도]를 누르면 됩니다(재시작 불필요).', imgRemove:'제거', dragReorder:'드래그해서 순서 변경', dragMove:'드래그해서 창 위치 이동', tabBtn:'일반 브라우저 탭으로 열기 (그 탭을 다른 크롬 창으로 드래그 가능)', linkClickOpen:'클릭 → 새 창으로 열기', adminPwPrompt:'관리자 비밀번호:', adminPwFail:'비밀번호가 틀렸습니다.', rebootConfirm:'현재 창을 재부팅하게 됩니다 — PowerTerminal이 최신 버전으로 재시작되고 이 페이지가 새로고침돼요. 세션은 그대로 유지되고 10~20초 정도 걸립니다. 진행할까요?', rebootIng:'최신 버전으로 재시작하는 중…', rebootWait:'이 페이지는 자동으로 새로고침됩니다.', ghStep1:'1) 코드 복사  2) GitHub 열기  3) 붙여넣고 승인', ghOpen:'GitHub 열기', ghWaiting:'승인 기다리는 중…', ghFail:'로그인 실패 — 다시 시도', aiLabel:'세션에 사용할 AI 선택', drives:'드라이브', aiPick:'이 세션의 AI 바꾸기', aiChangeAsk:'이 세션을 다른 AI로 바꿀까요? 세션이 재시작됩니다.', maxT:'이 창 확대 / 원래대로', tasksT:'작업목록 접기/펼치기 (Ctrl+T)', imgT:'이미지 첨부·붙여넣기', imgUploading:'업로드 중…', imgFail:'이미지 업로드 실패', winAskTitle:'이 세션을 어디에 열까요?', winAskRows:'⚠ 한 칸이 300px 미만으로 좁아집니다. 이 창에 넣으면 2줄로 배치돼요.', winNew:'🖥 새 창에서 열기', winNewHint:'권장 — 듀얼 모니터가 있으면 다른 화면으로 끌어다 두면 편해요.', winCurrent:'➕ 이 창에 추가', winCurrentHint:'전부 이 창에 모아둡니다.', updText:'업데이트', updTip:'새 버전 있음 — PowerTerminal 재시작하면 자동 업데이트', doneBadge:'완료', copied:'복사됨', copyFail:'복사 실패', connLost:'⚠ 연결 끊김 — 서버(PC)가 꺼졌거나 네트워크가 끊겼습니다. 재연결 시도 중…', imgChip:'이미지', textChip:'텍스트', charsUnit:'자', fbUsage:'📊 오늘 {t} / 7일 {w}', modeT:'모드 전환 (자동/편집승인/플랜)', fontSel:'글자 크기', dupAsk:'"{t}" 은 이미 열려 있어요. 따로 새 세션으로 또 띄울까요?', pickBtn:'세션 선택 (어떤 세션을 열지 고르기)', quitBtn:'종료 — 서버(이 PC)까지 끄기', quitConfirm:'PowerTerminal을 완전히 끕니다 — 이 PC의 서버와 실행 중인 모든 세션이 멈추고, 폰에서도 접속이 끊깁니다. 세션 목록은 저장돼 다음 실행 때 그대로 복원됩니다. 계속할까요?', quitBye:'PowerTerminal이 종료되었습니다.', quitByeSub:'이 탭을 닫아도 됩니다. start.bat을 다시 실행하면 세션이 복원됩니다.', modelRestartAsk:'모델을 바꾸려면 세션을 재시작해야 해요 (대화는 --continue로 이어집니다). 진행할까요?', verWarn:'⚠ 구버전 v{c} 실행 중 (최신 v{l}). 업데이트가 안 되면 복사본이 여러 개일 수 있어요 — 전부 닫고 하나만 실행하세요.', icOpen:'폴더 열기', icRemove:'목록에서 빼기', icDup:'같은 폴더 하나 더 열기', qrGateWarn:'이 QR·주소를 아는 사람은 이 컴퓨터에서 명령을 실행할 수 있습니다.', qrGateResp:'믿는 사람에게만 공유하세요. 유출로 생기는 일의 책임은 본인에게 있습니다.', qrGateOk:'이해했습니다 — QR 보기' },
   ja: { addSession:'＋ セッション追加', qrToggle:'モバイル接続QRの表示/非表示', infoBtn:'接続アドレス',
     qrTitle:'📱 モバイル接続QR', qrWarn:'⚠ このQRで接続した人は同じように操作できます — 信頼できる人にだけ共有。',
     copyImg:'📋 コピー', saveImg:'💾 保存', close:'閉じる', cancel:'キャンセル', add:'追加',
@@ -726,12 +802,13 @@ function buildPane(sess, idx) {
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         <span class="st"></span>
-        <button class="small btnTasks" title="${T.tasksT}">☰</button>
-        <button class="small btnMax" title="${T.maxT}">⛶</button>
+        <button class="small btnMemo hv" title="${T.memoT}">📝</button>
+        <button class="small btnTasks hv" title="${T.tasksT}">☰</button>
+        <button class="small btnMax hv" title="${T.maxT}">⛶</button>
         <button class="small btnZoom" title="${T.zoomT}">⛶</button>
-        <button class="small btnPrev" title="${T.previewT}">👁</button>
-        <button class="small btnMode" title="${T.modeT}" style="color:#a5b4fc;font-weight:700">⇄ auto</button>
-        <select class="small fontSel" title="${T.fontSel}">
+        <button class="small btnPrev hv" title="${T.previewT}">👁</button>
+        <button class="small btnMode hv" title="${T.modeT}" style="color:#a5b4fc;font-weight:700">⇄ auto</button>
+        <select class="small fontSel hv" title="${T.fontSel}">
           ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>A${s}</option>`).join('')}
         </select>
         <button class="small btnClose" title="${T.closeT}" style="color:#f87171">✕</button>
@@ -749,12 +826,18 @@ function buildPane(sess, idx) {
     </div>
     <div class="qThumbs"></div>
     <div class="quick">
-      <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
-      <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
-      <input type="file" class="qFile" accept="image/*" multiple style="display:none">
+      <div class="qRow">
+        <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
+        <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <input type="file" class="qFile" accept="image/*" multiple style="display:none">
+        <button class="small qCancel" title="${T.cancelReqT}">⛔ ${T.cancel}</button>
+      </div>
       <button class="small qSend">${T.send}</button>
     </div>`;
   grid.appendChild(el);
+  // 새 세션창 부드럽게 등장
+  el.classList.add('pane-in');
+  setTimeout(() => el.classList.remove('pane-in'), 350);
 
   // 터미널
   const term = new Terminal({
@@ -939,6 +1022,9 @@ function buildPane(sess, idx) {
     // 서버가 PTY를 새 모델로 재시작하고 소켓을 닫음 → ws.onclose가 자동 재접속
   };
 
+  // 📝 메모장 — 이 세션(폴더)의 메모·완료·요청내역
+  el.querySelector('.btnMemo').onclick = ev => { ev.stopPropagation(); openMemo(sess); };
+
   // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
   el.querySelector('.btnTasks').onclick = ev => {
     ev.stopPropagation();
@@ -981,6 +1067,7 @@ function buildPane(sess, idx) {
     ev.stopPropagation();
     if (!confirm(T.confirmClose.replace('{t}', sess.title))) return;
     if (zoomedId === sess.id) closeZoom();   // 전체화면 중이면 먼저 원위치
+    try { localStorage.removeItem(draftKey); } catch (e) {}   // 쓰다 만 글 임시저장도 정리
     await api('DELETE', '/api/sessions/' + sess.id);
     closedByUser = true;
     ws.close(); el.remove(); panes.delete(sess.id);
@@ -996,6 +1083,12 @@ function buildPane(sess, idx) {
     qInput.style.height = Math.min(qInput.scrollHeight, window.innerHeight * 0.34) + 'px';
   };
   qInput.addEventListener('input', autoGrow);
+  // 쓰다 만 요청글 보존 — 리로드·재부팅·관리자 다녀오기에도 안 날아가게 localStorage에 임시저장 (전송·닫기 시 삭제)
+  const draftKey = 'pt_draft_' + sess.id;
+  try { const d = localStorage.getItem(draftKey); if (d) { qInput.value = d; setTimeout(autoGrow, 60); } } catch (e) {}
+  qInput.addEventListener('input', () => {
+    try { qInput.value ? localStorage.setItem(draftKey, qInput.value) : localStorage.removeItem(draftKey); } catch (e) {}
+  });
   function insertToken(token) {
     qInput.focus();
     const t = (qInput.value && !/\s$/.test(qInput.value) ? ' ' : '') + token + ' ';
@@ -1008,6 +1101,8 @@ function buildPane(sess, idx) {
   const send = () => {
     let val = qInput.value;
     if (!val.trim()) return;
+    // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
+    api('POST', '/api/memos/req', { path: sess.path, text: val.trim() });
     for (const [token, att] of attachMap) {   // 칩 → 실제 내용
       if (!val.includes(token)) continue;
       // 이미지·여러줄텍스트(파일) = 경로만 / 한 줄 긴 글 = 인라인 (개행 없으니 조기 제출 없음)
@@ -1019,6 +1114,7 @@ function buildPane(sess, idx) {
     ws.send(JSON.stringify({ type: 'in', data: val }));
     setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
+    try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
   };
   qInput.addEventListener('keydown', ev => {
@@ -1034,6 +1130,14 @@ function buildPane(sess, idx) {
     if (!ev.shiftKey) { ev.preventDefault(); send(); }   // 그냥 Enter = 전송 · Shift+Enter = 줄바꿈
   });
   el.querySelector('.qSend').onclick = send;
+
+  // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송). 요청 내역엔 '중단' 스탬프.
+  el.querySelector('.qCancel').onclick = ev => {
+    ev.stopPropagation();
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x1b' }));
+    api('POST', '/api/memos/reqst', { path: sess.path, st: 'stop' });
+    term.focus();
+  };
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
   async function attachImage(file) {
@@ -1113,8 +1217,10 @@ function buildPane(sess, idx) {
     if (!fromId || fromId === sess.id) return;
     const fromEl = grid.querySelector(`[data-id="${fromId}"]`);
     if (fromEl) {
-      const nodes = [...grid.children];
-      grid.insertBefore(fromEl, nodes.indexOf(fromEl) < nodes.indexOf(el) ? el.nextSibling : el);
+      flipGrid(() => {   // 서로 부드럽게 자리 교체
+        const nodes = [...grid.children];
+        grid.insertBefore(fromEl, nodes.indexOf(fromEl) < nodes.indexOf(el) ? el.nextSibling : el);
+      });
       renumber();
       await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) });
     }
@@ -1200,8 +1306,12 @@ function setState(el, done, busy) {
     if (el._doneTimer) clearTimeout(el._doneTimer);
     el._doneTimer = setTimeout(() => {
       el._doneTimer = null;
-      if (el.isConnected && el.classList.contains('done'))
+      if (el.isConnected && el.classList.contains('done')) {
         speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
+        // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
+        const p = panes.get(el.dataset.id);
+        if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' });
+      }
     }, 3000);
   }
 }
@@ -1631,7 +1741,7 @@ async function syncKnownOrderToGrid() {
       if (p && _norm(p.sess.path) === _norm(k.path) && !ordered.includes(el)) ordered.push(el);
     });
   });
-  ordered.forEach(el => grid.appendChild(el));   // known 순서대로 다시 붙임
+  flipGrid(() => ordered.forEach(el => grid.appendChild(el)));   // known 순서대로 다시 붙임 (부드럽게)
   renumber();
   try { await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) }); } catch (e) {}
 }
@@ -1964,6 +2074,13 @@ async function refreshBanner() {
     const b = await api('GET', '/api/banner');
     const el = document.getElementById('banner');
     const list = (b.banners || []).filter(x => x && x.text);
+    // 관리자가 배너를 하나도 안 썼으면 기본 배너: "새 버전 vX 다운받기" (흐르는 글자, 클릭=재부팅 업데이트)
+    // 단, 이미 최신 버전인 사용자에겐 안 보임 — 받을 새 버전이 없는데 '다운받기'라고 하면 거짓 안내라서.
+    if (!list.length && b.latestVersion && b.currentVersion &&
+        b.latestVersion.localeCompare(b.currentVersion, undefined, { numeric: true }) > 0) {
+      const txt = (T.bnNewVer || '🔄 New version v{v} — click to update').replace('{v}', b.latestVersion);
+      list.push({ text: { en: txt, [LANG]: txt }, reboot: true, effect: 'slide', color: '#8a38f5' });
+    }
     if (list.length) {
       let i = 0;
       const show = () => {
@@ -2049,7 +2166,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
   const b = document.createElement('button');
   b.textContent = '⚙';
   b.title = 'Banner admin';
-  b.onclick = () => { location.href = '/admin.html?token=' + TOKEN; };
+  // 새 탭으로 열기 — 같은 탭으로 이동하면 메인이 리로드돼 입력 중이던 요청글이 날아감
+  b.onclick = () => { window.open('/admin.html?token=' + TOKEN, '_blank'); };
   document.querySelector('header').insertBefore(b, document.getElementById('langSel'));
 }
 
@@ -2143,6 +2261,99 @@ addEventListener('scroll', () => {
   scrollFlag = setTimeout(() => document.documentElement.classList.remove('pt-scrolling'), 400);
 }, { passive: true });
 
+// ---------- 📝 세션 메모장 ----------
+// 폴더 경로 기준으로 서버(~/.powerterminal/memos.json)에 저장 — 세션을 껐다 켜도, 폰·PC 어디서 봐도 같은 메모.
+const memoDlg = document.getElementById('memoDlg');
+let memoPath = null, memoData = { items: [], reqs: [] };
+function fmtMemoDate(ts) {   // 날짜, 요일, 시:분 — 회색 작은 글씨용
+  const d = new Date(ts);
+  let wd = '';
+  try { wd = d.toLocaleDateString(T.locale || 'en-US', { weekday: 'short' }); } catch (e) {}
+  return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+async function openMemo(sess) {
+  memoPath = sess.path;
+  document.getElementById('memoTitle').textContent = (T.memoTitle || '📝 Memo') + ' — ' + sess.title;
+  document.getElementById('memoClose').textContent = T.close || 'Close';
+  document.getElementById('memoDoneH').textContent = T.memoDoneCol || 'Completed';
+  document.getElementById('memoReqH').textContent = T.memoReqCol || 'Requests';
+  const ta = document.getElementById('memoNew');
+  ta.placeholder = T.memoNewPh || ''; ta.value = '';
+  memoData = { items: [], reqs: [] };
+  try { const m = await api('GET', '/api/memos?path=' + encodeURIComponent(memoPath)); if (m && m.items) memoData = m; } catch (e) {}
+  renderMemo();
+  if (!memoDlg.open) memoDlg.showModal();
+  if (!isMobile) ta.focus();
+}
+function renderMemo() {
+  const items = (memoData.items || []).filter(i => !i.done);
+  const done = (memoData.items || []).filter(i => i.done);
+  const boxI = document.getElementById('memoItems'); boxI.innerHTML = '';
+  if (!items.length) boxI.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`;
+  items.forEach(it => {
+    const r = document.createElement('div'); r.className = 'memo-row';
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.ts)}</span><input type="checkbox"><span class="mtext">${esc(it.text)}</span>`;
+    r.querySelector('input').onchange = async () => {   // 체크 = 완료영역으로 이동
+      const res = await api('POST', '/api/memos/toggle', { path: memoPath, id: it.id, done: true });
+      if (res && res.memo) memoData = res.memo;
+      renderMemo();
+    };
+    boxI.appendChild(r);
+  });
+  const boxD = document.getElementById('memoDone'); boxD.innerHTML = '';
+  done.forEach(it => {
+    const r = document.createElement('div'); r.className = 'memo-row mdone';
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.doneTs || it.ts)}</span><span class="mtext">${esc(it.text)}</span>`
+                + `<button class="mdel" title="${esc(T.memoDelT || 'Delete')}">✕</button>`;
+    r.querySelector('.mdel').onclick = async () => {
+      const res = await api('POST', '/api/memos/del', { path: memoPath, id: it.id });
+      if (res && res.memo) memoData = res.memo;
+      renderMemo();
+    };
+    boxD.appendChild(r);
+  });
+  const boxR = document.getElementById('memoReqs'); boxR.innerHTML = '';   // 최신순 (서버가 unshift로 저장)
+  (memoData.reqs || []).forEach(rq => {
+    const r = document.createElement('div'); r.className = 'memo-row mreq';
+    const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
+    const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)}<br><span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
+                + `<span class="mtext">${esc(rq.text)}</span>`;
+    boxR.appendChild(r);
+  });
+}
+async function commitMemoNew() {   // 쓰던 글 → 작성일·체크박스 붙은 메모 행으로 저장
+  const ta = document.getElementById('memoNew');
+  const text = ta.value.trim();
+  if (!text || !memoPath) return;
+  ta.value = '';
+  const res = await api('POST', '/api/memos/item', { path: memoPath, text });
+  if (res && res.memo) { memoData = res.memo; renderMemo(); }
+}
+async function closeMemo() { await commitMemoNew(); try { memoDlg.close(); } catch (e) {} }
+memoDlg.addEventListener('click', ev => { if (ev.target === memoDlg) closeMemo(); });   // 백드롭 클릭 = 저장하고 닫기
+memoDlg.addEventListener('close', () => { commitMemoNew(); });                          // ESC로 닫아도 쓰던 글 저장
+
+// 세션창 위치 교체를 부드럽게 (FLIP: 이동 전후 좌표 차이를 transform으로 애니메이션)
+function flipGrid(mutate) {
+  const before = new Map([...grid.children].map(el => [el, el.getBoundingClientRect()]));
+  mutate();
+  [...grid.children].forEach(el => {
+    const b = before.get(el);
+    if (!b) return;
+    const a = el.getBoundingClientRect();
+    const dx = b.left - a.left, dy = b.top - a.top;
+    if (!dx && !dy) return;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px,${dy}px)`;
+    requestAnimationFrame(() => {
+      el.style.transition = 'transform .28s ease';
+      el.style.transform = '';
+      setTimeout(() => { el.style.transition = ''; }, 320);   // 스타일시트의 border-color 트랜지션 복원
+    });
+  });
+}
+
 // ---------- 시작 세션 선택창 ----------
 const pickDlg = document.getElementById('pickDlg');
 let pickList = [];
@@ -2187,7 +2398,10 @@ async function pickStart() {
         buildPane(s, grid.children.length);   // 저장돼 있던 세션 그대로 재개
       }
     } else if (!s._sel && isPane) {
-      removePaneLocal(s.id);   // 체크 해제 → 화면에서만 숨김 (서버 세션은 유지, 다시 선택 가능)
+      removePaneLocal(s.id);
+      // 화면에서만 숨기면 5초 주기 reconcile이 "안 그려진 세션"으로 보고 되살림 → 실제 종료.
+      // 최근 목록엔 남아 다시 선택 가능하고, 다시 켜면 --continue로 대화가 이어짐.
+      if (!s._new) await api('DELETE', '/api/sessions/' + s.id);
     }
   }
   renumber();

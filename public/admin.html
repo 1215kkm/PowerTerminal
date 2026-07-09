@@ -88,7 +88,11 @@
 <script>
 const TOKEN = new URLSearchParams(location.search).get('token') || (document.cookie.split('cc_token=')[1] || '').split(';')[0];
 let data = { banners: [], latestVersion: '', updateUrl: '' };
-function goHome() { location.href = '/' + (TOKEN ? '?token=' + TOKEN : ''); }
+function goHome() {
+  // 메인에서 새 탭으로 열렸으면 이 탭만 닫음 (메인 화면의 입력 중이던 요청글 보존)
+  if (window.opener || history.length <= 1) { window.close(); return; }
+  location.href = '/' + (TOKEN ? '?token=' + TOKEN : '');
+}
 
 async function api(method, url, body) {
   const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, {
@@ -200,7 +204,8 @@ function preview() {
     el.className = 'pv-banner' + (b.effect ? ' fx-' + b.effect : '');   // 효과 실시간 미리보기
   }
 }
-function addBanner() { collect(); data.banners.push({ text: { ko: '', en: '' }, url: '' }); render(); }
+// 새 배너 기본값: 재부팅 버튼 체크 + 흐르는 글자 (원하면 카드에서 끄면 됨)
+function addBanner() { collect(); data.banners.push({ text: { ko: '', en: '' }, url: '', reboot: true, effect: 'slide' }); render(); }
 function delBanner(i) { collect(); data.banners.splice(i, 1); render(); }
 function esc(s) { return (s || '').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 

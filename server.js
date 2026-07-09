@@ -90,6 +90,43 @@ function addRecent(s) {
   saveRecent();
 }
 
+// ---------- 세션 메모 (폴더 경로 기준) ----------
+// 세션 id는 재시작마다 바뀌므로 폴더 경로를 키로 저장 — 세션을 껐다 켜도, 폰·PC 어느 기기로 봐도 같은 메모.
+const MEMOS_FILE = dataFile('memos.json');
+let memos = {};
+try { memos = readJson(MEMOS_FILE); } catch (e) {}
+const memoKey = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+function memoOf(p) {
+  const k = memoKey(p);
+  if (!memos[k]) memos[k] = { items: [], reqs: [] };
+  if (!memos[k].items) memos[k].items = [];
+  if (!memos[k].reqs) memos[k].reqs = [];
+  return memos[k];
+}
+let memoSaveT;
+function saveMemos() {   // 상태 스탬프가 잦아 0.5초 모아 저장
+  clearTimeout(memoSaveT);
+  memoSaveT = setTimeout(flushMemos, 500);
+}
+function flushMemos() {
+  clearTimeout(memoSaveT);
+  try { fs.writeFileSync(MEMOS_FILE, JSON.stringify(memos, null, 2)); } catch (e) {}
+}
+// 요청 내역의 '진행중(run)' 항목을 done(완료)·stop(중단)·off(종료로 중단)로 스탬프
+function stampReqs(dir, st) {
+  const m = memos[memoKey(dir)];
+  if (!m || !m.reqs) return;
+  let hit = false;
+  m.reqs.forEach(r => { if (r.st === 'run') { r.st = st; r.endTs = Date.now(); hit = true; } });
+  if (hit) saveMemos();
+}
+// 지난 실행에서 '진행중'으로 남은 요청 = 서버가 그대로 꺼졌던 것 → 종료로 중단 표시
+{
+  let dirty = false;
+  for (const k of Object.keys(memos)) ((memos[k] && memos[k].reqs) || []).forEach(r => { if (r.st === 'run') { r.st = 'off'; r.endTs = r.endTs || Date.now(); dirty = true; } });
+  if (dirty) flushMemos();
+}
+
 // ---------- PTY 관리 ----------
 const ptys = new Map(); // id -> {proc, buffer, sockets:Set, busy, done, lastOut}
 const MAX_BUF = 200 * 1024;
@@ -779,6 +816,44 @@ app.post('/api/recent/remove', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- 메모 API (폴더 경로 기준 — /api 라우트라 토큰 게이트 뒤) ----------
+app.get('/api/memos', (req, res) => res.json(memoOf(req.query.path)));
+app.post('/api/memos/item', (req, res) => {           // 새 메모 (작성일 스탬프는 서버 시각)
+  const m = memoOf(req.body.path);
+  const text = String((req.body && req.body.text) || '').trim();
+  if (!text) return res.json({ ok: false, memo: m });
+  m.items.unshift({ id: crypto.randomBytes(6).toString('hex'), text: text.slice(0, 4000), ts: Date.now(), done: false });
+  m.items = m.items.slice(0, 500);
+  saveMemos();
+  res.json({ ok: true, memo: m });
+});
+app.post('/api/memos/toggle', (req, res) => {         // 체크 = 완료영역으로 이동 (해제도 가능)
+  const m = memoOf(req.body.path);
+  const it = m.items.find(x => x.id === req.body.id);
+  if (it) { it.done = !!req.body.done; it.doneTs = it.done ? Date.now() : undefined; saveMemos(); }
+  res.json({ ok: true, memo: m });
+});
+app.post('/api/memos/del', (req, res) => {            // 완료 항목 빨강 ✕ 삭제
+  const m = memoOf(req.body.path);
+  m.items = m.items.filter(x => x.id !== req.body.id);
+  saveMemos();
+  res.json({ ok: true, memo: m });
+});
+app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보낸 요청 자동 기록
+  const m = memoOf(req.body.path);
+  const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
+  if (!text) return res.json({ ok: false });
+  m.reqs.unshift({ id: crypto.randomBytes(6).toString('hex'), text, ts: Date.now(), st: 'run' });
+  m.reqs = m.reqs.slice(0, 200);
+  saveMemos();
+  res.json({ ok: true });
+});
+app.post('/api/memos/reqst', (req, res) => {          // 요청 상태 스탬프: done(완료)·stop(중단)·off(종료로 중단)
+  const st = ['done', 'stop', 'off'].includes(req.body && req.body.st) ? req.body.st : 'done';
+  stampReqs(req.body.path, st);
+  res.json({ ok: true });
+});
+
 app.post('/api/sessions/:id/clear-done', (req, res) => {
   const p = ptys.get(req.params.id);
   if (p) { p.done = false; broadcastStatus(req.params.id, p); }
@@ -799,6 +874,8 @@ app.delete('/api/sessions/:id', (req, res) => {
   const gone = sessions.find(x => x.id === req.params.id);
   if (gone) addRecent(gone);   // 닫아도 최근 목록엔 남겨 회색으로 다시 켤 수 있게
   sessions = sessions.filter(x => x.id !== req.params.id);
+  // 그 폴더에 다른 세션이 안 남았으면, 진행중이던 요청은 '종료로 중단' 스탬프
+  if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, 'off');
   saveSessions();
   res.json({ ok: true });
 });
@@ -807,6 +884,8 @@ app.delete('/api/sessions/:id', (req, res) => {
 // 세션 목록/배열은 sessions.json에 저장돼 다음 실행 때 그대로 복원됨(초기화 아님).
 app.post('/api/shutdown', (req, res) => {
   saveSessions();                            // 배열·레이아웃 먼저 저장
+  for (const k of Object.keys(memos)) stampReqs(k, 'off');   // 진행중 요청 = 종료로 중단
+  flushMemos();                              // 디바운스 저장이 exit보다 늦지 않게 즉시 기록
   res.json({ ok: true });
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
   setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료 (exit 0 = 완전 종료, 런처가 다시 안 켬)
@@ -816,6 +895,8 @@ app.post('/api/shutdown', (req, res) => {
 // 최신 코드를 다시 받아(git sync) 서버를 자동으로 재기동함. 세션은 저장돼 그대로 복원됨.
 app.post('/api/reboot', (req, res) => {
   saveSessions();
+  for (const k of Object.keys(memos)) stampReqs(k, 'off');
+  flushMemos();
   res.json({ ok: true });
   console.log('\n  🔄 재시작 요청 — 최신 버전을 받아 서버를 다시 시작합니다. (세션은 저장됨, 다음 실행 때 복원)');
   setTimeout(() => process.exit(75), 300);   // 75 = "재시작" 신호 (런처가 감지해 루프)
