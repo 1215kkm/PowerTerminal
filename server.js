@@ -411,7 +411,8 @@ app.post('/api/clone', (req, res) => {
     return res.status(500).json({ error: 'clone 실패: ' + (e.stderr || e.message || '').toString().slice(0, 300) });
   }
   const id = crypto.randomBytes(4).toString('hex');
-  const sess = { id, title: name, path: dir, previewUrl: '', agent: 'claude', cmd: '' };
+  const sess = { id, title: name, path: dir, previewUrl: '',
+                 agent: req.body.agent || 'claude', model: (req.body.model && String(req.body.model)) || 'default', cmd: '' };
   sessions.push(sess); saveSessions(); addRecent(sess); getPty(sess);
   res.json(sess);
 });
@@ -547,7 +548,8 @@ app.post('/api/new-project', (req, res) => {
     return res.status(500).json({ error: '프로젝트 생성 실패: ' + e.message });
   }
   const id = crypto.randomBytes(4).toString('hex');
-  const sess = { id, title: name, path: dir, previewUrl: '' };
+  const sess = { id, title: name, path: dir, previewUrl: '',
+                 agent: req.body.agent || 'claude', model: (req.body.model && String(req.body.model)) || 'default' };
   sessions.push(sess);
   saveSessions();
   addRecent(sess);
@@ -668,12 +670,12 @@ app.get('/api/admin/translate', async (req, res) => {
 });
 
 app.post('/api/sessions', (req, res) => {
-  let { path: dir, title, agent, cmd } = req.body;
+  let { path: dir, title, agent, cmd, model } = req.body;
   if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
   if (!fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
   const id = crypto.randomBytes(4).toString('hex');
   const sess = { id, title: title || path.basename(dir), path: dir, previewUrl: '',
-                 agent: agent || 'claude', cmd: cmd || '' };
+                 agent: agent || 'claude', model: (model && String(model)) || 'default', cmd: cmd || '' };
   sessions.push(sess);
   saveSessions();
   addRecent(sess);

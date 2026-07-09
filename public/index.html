@@ -431,22 +431,31 @@
   <div id="tab-new" style="display:none">
     <p style="font-size:12px;color:var(--muted)" data-i18n="npDesc"></p>
     <div id="npWarn" style="color:#fbbf24;font-size:12.5px;margin:0 0 8px;font-weight:600"></div>
-    <input id="npName" data-i18n-ph="npPh">
+    <input id="npName" data-i18n-ph="npPh" oninput="clearAddMsg()">
     <div style="text-align:right;margin-top:8px">
       <button class="primary" id="npBtn" onclick="newProject()" data-i18n="npGo">Create & Start</button>
     </div>
   </div>
 
+  <div id="addMsg" style="display:none;color:#55FAF2;font-weight:700;font-size:13px;margin:10px 0 0;text-align:center"></div>
   <hr style="border-color:var(--line);margin:12px 0 8px">
-  <div style="display:flex;gap:6px;align-items:center">
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
     <span style="font-size:12px;color:var(--muted)" data-i18n="aiLabel">AI:</span>
-    <select id="addAgent" style="flex:1;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:7px 10px;font-family:inherit">
+    <select id="addAgent" onchange="onAddAgentChange()" style="flex:1;min-width:132px;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:7px 10px;font-family:inherit">
       <option value="claude" data-i18n="agClaude">🟣 Claude Code</option>
       <option value="codex" data-i18n="agCodex">🟢 Codex (OpenAI)</option>
       <option value="shell" data-i18n="agShell">🔷 PowerShell only</option>
       <option value="custom" data-i18n="agCustom">⚙ Custom command</option>
     </select>
-    <input id="addTitle" data-i18n-ph="titlePh" style="flex:1;margin:0">
+    <select id="addModel" data-i18n-title="modelTip" style="flex:1;min-width:108px;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:7px 10px;font-family:inherit">
+      <option value="default" data-i18n="mDefault">Default model</option>
+      <option value="opus">Opus</option>
+      <option value="sonnet">Sonnet</option>
+      <option value="haiku">Haiku</option>
+      <option value="fable">Fable</option>
+      <option value="opusplan">Opus Plan</option>
+    </select>
+    <input id="addTitle" data-i18n-ph="titlePh" style="flex:1;min-width:120px;margin:0">
   </div>
 </dialog>
 
@@ -480,6 +489,7 @@ const I18N = {
     pairTitle:'Connect another PC — no long link to type', pairStep1:'On the other PC open', pairStep2:'and enter this code:',
     copyImg:'📋 Copy', saveImg:'💾 Save', close:'Close', cancel:'Cancel', add:'Add',
     addTitleH:'Add Session', orManual:'Or enter a folder path directly:', pathPh:'D:\\projects\\folder', titlePh:'Title (folder name if empty)',
+    sessionAdded:'Session added',
     agClaude:'🟣 Claude Code (default)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell only (no AI)', agCustom:'⚙ Custom command',
     npTitle:'🆕 New Project + GitHub', npDesc:'Create folder + git + private GitHub repo in one go', npPh:'project-name (letters/numbers/-)', npGo:'Create & Start', npCreating:'Creating...',
     curSession:'Claude session', weeklyAll:'Claude weekly', weeklyPfx:'Weekly ', resets:'resets',
@@ -499,6 +509,7 @@ const I18N = {
     pairTitle:'다른 PC 연결 — 긴 링크 타이핑 없이', pairStep1:'다른 PC에서', pairStep2:'접속 후 이 코드 입력:',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
     addTitleH:'세션 추가', orManual:'또는 폴더 경로 직접 입력:', pathPh:'D:\\프로젝트\\폴더경로', titlePh:'제목 (비우면 폴더명)',
+    sessionAdded:'세션이 추가됐어요',
     agClaude:'🟣 Claude Code (기본)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell만 (AI 없이)', agCustom:'⚙ 직접 명령 입력',
     npTitle:'🆕 새 프로젝트 + GitHub', npDesc:'폴더 생성 + git + GitHub 비공개 저장소 연결까지 한 번에', npPh:'프로젝트 이름 (영문/숫자/-)', npGo:'만들고 시작', npCreating:'생성 중...',
     curSession:'클로드 세션', weeklyAll:'클로드 주간', weeklyPfx:'주간 ', resets:'재설정',
@@ -1484,12 +1495,13 @@ async function newProject() {
   if (!name) return;
   const btn = document.getElementById('npBtn');
   btn.disabled = true; btn.textContent = T.npCreating;
-  const r = await api('POST', '/api/new-project', { name });
+  const r = await api('POST', '/api/new-project', { name, agent: document.getElementById('addAgent').value, model: curAddModel() });
   btn.disabled = false; btn.textContent = T.npGo;
   if (r.error) { alert(r.error); return; }
   document.getElementById('npName').value = '';
   await placeNewSession(r);
   renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
+  showAddMsg(r.title || name);
   if (r.ghError) alert('⚠ ' + r.ghError + '\n' + T.ghLocal);
   else if (r.repoUrl) console.log('GitHub: ' + r.repoUrl);
 }
@@ -1497,6 +1509,7 @@ async function newProject() {
 // ---------- 폴더 탐색기 (📂 찾아보기) — 격자 표시, 폴더 선택 시 즉시 추가 ----------
 let brDir = '';
 async function toggleBrowse() {
+  clearAddMsg();   // 폴더찾기 시작 = 새 작업 → 이전 '추가됨' 확인글 숨김
   const b = document.getElementById('browser');
   if (b.style.display !== 'none') { b.style.display = 'none'; return; }
   b.style.display = 'block';
@@ -1682,6 +1695,8 @@ async function openAdd() {
   try { addState.known = await api('GET', '/api/known-projects'); } catch (e) { addState.known = []; }
   await renderAddCards();
   document.getElementById('browser').style.display = 'none';
+  clearAddMsg();
+  onAddAgentChange();   // 모델 선택칸 표시 상태를 현재 AI에 맞춤
   switchTab('folder');
   if (!addDlg.open) addDlg.showModal();
 }
@@ -1756,7 +1771,7 @@ function renderRepos() {
     const b = document.createElement('button');
     b.className = 'proj';
     b.innerHTML = (r.isPrivate ? '🔒 ' : '📖 ') + esc(r.name);
-    b.onclick = () => { document.getElementById('cloneUrl').value = r.url; };
+    b.onclick = () => { document.getElementById('cloneUrl').value = r.url; clearAddMsg(); };
     b.ondblclick = () => doClone(r.url);
     box.appendChild(b);
   });
@@ -1789,17 +1804,35 @@ async function ghLogin() {
     }
   }, (j.interval || 5) * 1000);
 }
+// 세션추가 창: AI 종류에 따라 모델 선택 표시(클로드만 의미 있음), 추가 완료 확인글 표시/숨김
+function onAddAgentChange() {
+  const el = document.getElementById('addModel');
+  if (el) el.style.display = document.getElementById('addAgent').value === 'claude' ? '' : 'none';
+}
+function curAddModel() {
+  return document.getElementById('addAgent').value === 'claude'
+    ? (document.getElementById('addModel').value || 'default') : 'default';
+}
+function showAddMsg(name) {
+  const m = document.getElementById('addMsg'); if (!m) return;
+  m.textContent = '✅ ' + (T.sessionAdded || 'Session added') + (name ? ' — ' + name : '');
+  m.style.display = 'block';
+}
+function clearAddMsg() {
+  const m = document.getElementById('addMsg'); if (m) { m.style.display = 'none'; m.textContent = ''; }
+}
 function cloneRepo() { doClone(document.getElementById('cloneUrl').value.trim()); }
 async function doClone(url) {
   if (!url) return;
   const btn = document.querySelector('#tab-github .primary');
   const old = btn.textContent; btn.disabled = true; btn.textContent = '⬇ …';
-  const r = await api('POST', '/api/clone', { url });
+  const r = await api('POST', '/api/clone', { url, agent: document.getElementById('addAgent').value, model: curAddModel() });
   btn.disabled = false; btn.textContent = old;
   if (r.error) { alert(r.error); return; }
   document.getElementById('cloneUrl').value = '';   // 다음 clone 위해 입력칸 비움
   await placeNewSession(r);
   renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
+  showAddMsg(r.title);
 }
 async function addManual() {
   const p = document.getElementById('addPath').value.trim();
@@ -1810,17 +1843,20 @@ async function addManual() {
     cmd = prompt(T.customPrompt, '');
     if (!cmd) return;
   }
-  await addSession(p, document.getElementById('addTitle').value.trim(), agent, cmd);
+  const title = document.getElementById('addTitle').value.trim();
+  const s = await addSession(p, title, agent, cmd);
   document.getElementById('addPath').value = '';                 // 다음 추가 위해 비움
   document.getElementById('addTitle').value = '';
   renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
+  if (s) showAddMsg(s.title || title || p);
 }
 async function addSession(path, title, agent, cmd, skipPrompt) {
   const pick = document.getElementById('addAgent').value;
-  const s = await api('POST', '/api/sessions', { path, title, agent: agent || pick, cmd });
-  if (s.error) { alert(s.error); return; }
+  const s = await api('POST', '/api/sessions', { path, title, agent: agent || pick, cmd, model: curAddModel() });
+  if (s.error) { alert(s.error); return null; }
   if (skipPrompt) addHere(s);          // 이전에 쓰던 세션 다시 열기 = 새 창 묻지 않고 이 창에
   else await placeNewSession(s);       // 완전히 새 폴더 추가 = 5개↑면 새 창 물어봄
+  return s;
 }
 
 // 새 세션을 어디에 열지 결정: 이 창 / 새 창 (5개↑ 또는 폭이 너무 좁아지면 물어봄)
