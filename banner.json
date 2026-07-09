@@ -5,11 +5,11 @@
   "banners": [
     {
       "text": {
-        "ko": "🔄 새 버전 나왔어요 v1.9.50",
-        "en": "🔄 New version is out v1.9.50",
-        "ja": "🔄新しいバージョンが出ましたv1.9.50",
-        "zh": "🔄 新版本已发布 v1.9.50",
-        "es": "🔄 Ya salió la nueva versión v1.9.50"
+        "ko": "🔄 새 버전 나왔어요 v1.9.52",
+        "en": "🔄 New version is out v1.9.52",
+        "ja": "🔄新しいバージョンが出ましたv1.9.52",
+        "zh": "🔄 新版本已发布 v1.9.52",
+        "es": "🔄 Ya salió la nueva versión v1.9.52"
       },
       "url": "https://pominal.com",
       "color": "#8a38f5",
