@@ -231,6 +231,7 @@
     #btnQR { order: 3; }
     #btnPick { order: 3; }
     #langSel { order: 4; padding: 6px; font-size: 12px; min-width: 0; }
+    #btnQuit { display: none; }            /* 폰: 서버 종료는 PC에서만 — 모바일에선 숨김 */
     #banner { order: 5; max-width: 100% !important; width: 100%; text-align: center; }
     #usage { display: contents; }          /* 사용량 막대들을 헤더 줄배치에 직접 참여시킴 */
     .ub { min-width: 0; }
@@ -314,7 +315,6 @@
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
   <button id="btnQR" onclick="toggleQR()" data-i18n-title="infoBtn"><svg class="qric" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm1 1h2v2H6V6zm7-3h8v8h-8V3zm2 2v4h4V5h-4zm1 1h2v2h-2V6zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm1 1h2v2H6v-2zm7-3h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg><span class="qrtxt"> QR</span></button>
-  <button id="btnTab" onclick="openInTab()" data-i18n-title="tabBtn">📑</button>
   <select id="langSel" onchange="setLang(this.value)" title="Language"
           style="background:#374151;border:0;color:var(--fg);border-radius:8px;padding:8px;font-family:inherit;font-size:13px">
     <option value="en" data-short="EN" data-full="English">🌐 English</option>
@@ -1991,20 +1991,13 @@ async function pollUntilBackThenReload() {
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
 
-// 배너 관리자(⚙) — 이 PC(로컬)는 비밀번호 없이 바로 진입. 원격(폰 등)은 클릭 시 비밀번호 확인(한 번 맞으면 이 기기엔 계속 기억됨).
-{
-  const IS_LOCAL_UI = ['localhost', '127.0.0.1'].includes(location.hostname);
+// 배너 관리자(⚙) — 이 PC(로컬)에서만 노출. 일반 사용자(원격)에겐 버튼 자체가 안 보임.
+// (원격 비밀번호 로그인 API/admin 비번칸은 서버에 그대로 남겨둠 — 언젠가 원격 관리가 필요할 때 이 버튼만 다시 열면 됨.)
+if (['localhost', '127.0.0.1'].includes(location.hostname)) {
   const b = document.createElement('button');
   b.textContent = '⚙';
   b.title = 'Banner admin';
-  b.onclick = async () => {
-    if (IS_LOCAL_UI || (document.cookie || '').includes('cc_admin=')) { location.href = '/admin.html?token=' + TOKEN; return; }
-    const pw = prompt(T.adminPwPrompt || 'Admin password:');
-    if (!pw) return;
-    const r = await api('POST', '/api/admin/login', { password: pw });
-    if (r && r.ok) location.href = '/admin.html?token=' + TOKEN;
-    else alert('❌ ' + ((r && r.error) || (T.adminPwFail || 'Wrong password.')));
-  };
+  b.onclick = () => { location.href = '/admin.html?token=' + TOKEN; };
   document.querySelector('header').insertBefore(b, document.getElementById('langSel'));
 }
 
