@@ -137,7 +137,7 @@
   /* 작업 중일 때만 터미널 우상단에 뜨는 '방금 요청 취소' — 터미널 글자 옆엔 버튼을 못 박아서(문자 격자) 오버레이로 */
   .termCancel { display: none; position: absolute; top: 8px; right: 18px; z-index: 7;
                 background: rgba(59,29,36,.92); color: #fca5a5; border: 1px solid #7f1d1d;
-                white-space: pre-line; text-align: center; line-height: 1.35; }   /* 3줄 (방금/요청/취소) */
+                white-space: pre-line; text-align: center; line-height: 1.35; }   /* 3줄 (진행/요청/중지) */
   .pane.busy .termCancel { display: inline-block; }
   .termCancel:hover { background: #7f1d1d; color: #fff; }
   /* 📜 요청내역 패널 — 터미널 오른쪽에 붙는 200px 종이(메모장과 같은 스타일), 클릭하면 그 요청 위치로 */
@@ -160,6 +160,13 @@
                max-height: 45%; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
   html.light .reqSticky { background: #ede9fe; }
   .pane-body.hist .reqSticky { right: 200px; }
+  /* ⬇ 맨아래로 — 스크롤을 올려 두었을 때만 나타나는 둥근 버튼, 누르면 최신 출력으로 복귀 */
+  .termBot { position: absolute; right: 14px; bottom: 14px; z-index: 7; cursor: pointer;
+             width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line);
+             background: rgba(31,41,55,.92); color: var(--fg); font-size: 16px; line-height: 1;
+             box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .termBot:hover { background: var(--violet); color: #fff; }
+  .pane-body.hist .termBot { right: 214px; }   /* 요청내역 패널이 열려 있으면 그만큼 안쪽으로 */
   /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
   .xterm-rows span[style*="background-color:#373737"],
   .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
@@ -444,7 +451,9 @@
     .mm-cell.active { border-color: var(--pink); }
     .mm-cell.busy { border-color: var(--sky); }
     .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); }
-    .mm-cell.busy .mm-title::after { content: ' ⋯'; color: var(--sky); }
+    /* ⋯ 자리를 항상 잡아둠 — 작업중 표시가 생겼다 사라져도 탭 폭이 안 변해 줄바꿈이 안 흔들림 */
+    .mm-cell .mm-title::after { content: ' ⋯'; color: var(--sky); opacity: 0; }
+    .mm-cell.busy .mm-title::after { opacity: 1; }
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
     #grid.maxmode .pane.maxed { min-height: 86vh; }
     #grid.maxmode .pane.mini { min-height: 92px; }
@@ -678,8 +687,8 @@ const I18N = {
     memoEdit:'Edit', memoDelBtn:'Del', memoEditSaveT:'Save (Ctrl+Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
-    cancelReqT:'Stop the request in progress (sends ESC to the terminal)',
-    cancelLast:'Cancel\nlast\nrequest', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
+    cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
+    cancelLast:'Stop\ncurrent\nrequest', toBottomT:'Jump to the latest output', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
     bnNewVer:'🔄 New version v{v} is out — click to update',
     confirmClose:'Close session "{t}"? (terminal ends, folder stays)',
@@ -711,8 +720,8 @@ const I18N = {
     memoEdit:'수정', memoDelBtn:'삭제', memoEditSaveT:'저장 (Ctrl+Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
-    cancelReqT:'진행 중인 요청 중단 (터미널에 ESC 전송)',
-    cancelLast:'방금\n요청\n취소', reqHistBtn:'요청내역', reqHistT:'이 터미널 옆에 요청내역 패널 표시/숨기기 — 항목을 클릭하면 그 위치로 이동',
+    cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
+    cancelLast:'진행\n요청\n중지', toBottomT:'최신 출력(맨아래)으로 이동', reqHistBtn:'요청내역', reqHistT:'이 터미널 옆에 요청내역 패널 표시/숨기기 — 항목을 클릭하면 그 위치로 이동',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
     bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 다운받기',
     confirmClose:'"{t}" 세션을 닫을까요? (터미널 종료, 폴더는 그대로)',
@@ -985,7 +994,7 @@ function buildPane(sess, idx) {
     </div>
     <div class="pane-body">
       <div class="term"></div>
-      <button class="small termCancel" title="${T.cancelReqT}">⛔ ${esc(T.cancelLast || T.cancel)}</button>
+      <button class="small termCancel" title="${T.cancelReqT}">⏹ ${esc(T.cancelLast || T.cancel)}</button>
       <div class="reqPanel hidden"><div class="rp-head">📜 ${esc(T.memoReqCol || 'Requests')}</div><div class="rp-list"></div></div>
       <iframe class="preview hidden"></iframe>
     </div>
@@ -1386,6 +1395,14 @@ function buildPane(sess, idx) {
   stickyEl.style.display = 'none';
   stickyEl.title = T.memoJumpT || '';
   el.querySelector('.pane-body').appendChild(stickyEl);
+  // ⬇ 맨아래로 — 스크롤을 올려 두면 나타나고, 누르면 최신 출력(생방송)으로 부드럽게 복귀
+  const botBtn = document.createElement('button');
+  botBtn.className = 'termBot';
+  botBtn.textContent = '⬇';
+  botBtn.title = T.toBottomT || '';
+  botBtn.style.display = 'none';
+  botBtn.onclick = () => smoothTermScroll(term, term.buffer.active.baseY);
+  el.querySelector('.pane-body').appendChild(botBtn);
   const isReqRow = (buf, y) => {
     const l = buf.getLine(y); if (!l) return false;
     for (let x = 0; x < Math.min(l.length, 8); x++) {
@@ -1397,7 +1414,11 @@ function buildPane(sess, idx) {
   const updateSticky = () => {
     const buf = term.buffer.active;
     const vy = buf.viewportY;
+    botBtn.style.display = (buf.baseY > 0 && vy < buf.baseY - 1) ? '' : 'none';   // ⬇ 위로 올라가 있을 때만
     if (vy <= 0 || vy >= buf.baseY) { stickyEl.style.display = 'none'; return; }   // 맨 아래(생방송)에선 숨김
+    // 요청글이 지금 화면 안에 보이면 배너를 안 띄움 — 같은 글이 2번 보이는 중복 방지
+    const vend = Math.min(buf.length, vy + term.rows);
+    for (let i = vy; i < vend; i++) if (isReqRow(buf, i)) { stickyEl.style.display = 'none'; return; }
     let y = -1;
     for (let i = vy - 1; i >= Math.max(0, vy - 5000); i--) { if (isReqRow(buf, i)) { y = i; break; } }
     if (y < 0) { stickyEl.style.display = 'none'; return; }
@@ -1418,7 +1439,7 @@ function buildPane(sess, idx) {
     if (!text) { stickyEl.style.display = 'none'; return; }
     stickyEl.textContent = '📌 ' + text;
     stickyEl.style.display = 'block';
-    stickyEl.onclick = () => { try { term.scrollToLine(Math.max(0, top - 1)); } catch (e) {} };
+    stickyEl.onclick = () => { try { smoothTermScroll(term, Math.max(0, top - 1)); } catch (e) {} };
   };
   let stickyT;
   const schedSticky = () => {
@@ -2737,6 +2758,25 @@ function bufNormLines(term) {
   }
   return out;
 }
+// 터미널 스크롤을 부드럽게 — xterm scrollToLine은 즉시 점프라 rAF로 완만하게 이동
+function smoothTermScroll(term, line) {
+  const buf = term.buffer.active;
+  const to = Math.max(0, Math.min(line, buf.baseY));
+  const from = buf.viewportY, dist = to - from;
+  if (!dist) return;
+  // 탭이 안 보이는 상태면 rAF가 멈추므로 즉시 이동 (안전 폴백)
+  if (document.hidden) { try { term.scrollToLine(to); } catch (e) {} return; }
+  if (term._smoothTo) cancelAnimationFrame(term._smoothTo);
+  const dur = Math.min(700, 250 + Math.abs(dist) * 0.4);   // 멀수록 조금 더 길게, 최대 0.7초
+  const t0 = performance.now();
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur);
+    try { term.scrollToLine(Math.round(from + dist * ease(t))); } catch (e) {}
+    term._smoothTo = t < 1 ? requestAnimationFrame(step) : null;
+  };
+  term._smoothTo = requestAnimationFrame(step);
+}
 // ↑ 요청했던 위치로 — 터미널 기록(스크롤백)에서 그 글을 찾아 그 줄로 스크롤 + 잠깐 표시
 function jumpToReq(rq) { jumpToReqIn(memoPane(), rq); }   // 메모장의 ↑ 버튼용
 function jumpToReqIn(p, rq) {                             // 요청내역 패널의 행 클릭용 (창 지정)
@@ -2750,10 +2790,10 @@ function jumpToReqIn(p, rq) {                             // 요청내역 패널
   }
   if (y < 0) { flashToast(T.memoJumpMiss || 'Not found in scrollback'); return; }
   closeMemo();
-  p.term.scrollToLine(Math.max(0, y - 2));   // 살짝 위 여백을 두고 그 줄로
+  smoothTermScroll(p.term, Math.max(0, y - 2));   // 살짝 위 여백을 두고 그 줄로 부드럽게
   try {   // 찾은 줄을 1.5초간 선택 표시로 반짝 — 어디로 왔는지 보이게
     p.term.select(0, y, p.term.cols);
-    setTimeout(() => { try { p.term.clearSelection(); p.term.refresh(0, p.term.rows - 1); } catch (e) {} }, 1500);
+    setTimeout(() => { try { p.term.clearSelection(); p.term.refresh(0, p.term.rows - 1); } catch (e) {} }, 2200);
   } catch (e) {}
   p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
