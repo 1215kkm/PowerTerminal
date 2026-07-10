@@ -163,10 +163,10 @@
   .pane-body.hist .reqSticky { right: 200px; }
   /* ⬇ 맨아래로 — 스크롤을 올려 두었을 때만 나타나는 둥근 버튼, 누르면 최신 출력으로 복귀 */
   .termBot { position: absolute; right: 14px; bottom: 14px; z-index: 7; cursor: pointer;
-             width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line);
-             background: rgba(31,41,55,.92); color: var(--fg); font-size: 16px; line-height: 1;
-             box-shadow: 0 2px 8px rgba(0,0,0,.35); }
-  .termBot:hover { background: var(--violet); color: #fff; }
+             width: 36px; height: 36px; border-radius: 50%; border: none;
+             background: var(--violet); color: #fff; font-size: 16px; line-height: 1;
+             box-shadow: 0 2px 8px rgba(0,0,0,.35); }   /* 평소에도 보라색으로 잘 보이게 */
+  .termBot:hover { filter: brightness(.8); }            /* 마우스 올리면 조금 진하게 */
   .pane-body.hist .termBot { right: 214px; }   /* 요청내역 패널이 열려 있으면 그만큼 안쪽으로 */
   /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
   .xterm-rows span[style*="background-color:#373737"],
