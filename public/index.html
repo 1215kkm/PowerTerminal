@@ -131,13 +131,26 @@
                   transition: transform .08s ease, filter .08s ease; }
   .quick .qSend:active { transform: scale(.985); filter: brightness(.82); }  /* 누르면 살짝 어둡게 + 눌림 */
   .quick .qSend.pop { animation: sendPop .3s cubic-bezier(.34,1.56,.64,1); }  /* 전송 순간 톡 튀어오름 (클릭·엔터 공통) */
-  .quick .qCancel { flex: 0 0 auto; background: #3b1d24; color: #fca5a5; border: 1px solid #7f1d1d; white-space: nowrap; }
-  .quick .qCancel:hover { background: #7f1d1d; color: #fff; }
-  /* 작업 중일 때만 터미널 우상단에 뜨는 중단 버튼 — 터미널 글자 옆엔 버튼을 못 박아서(문자 격자) 오버레이로 */
+  /* 📜 요청내역 토글 버튼 (이미지첨부 옆) */
+  .quick .qHist { flex: 0 0 auto; white-space: nowrap; }
+  .quick .qHist.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  /* 작업 중일 때만 터미널 우상단에 뜨는 '방금 요청 취소' — 터미널 글자 옆엔 버튼을 못 박아서(문자 격자) 오버레이로 */
   .termCancel { display: none; position: absolute; top: 8px; right: 18px; z-index: 7;
-                background: rgba(59,29,36,.92); color: #fca5a5; border: 1px solid #7f1d1d; white-space: nowrap; }
+                background: rgba(59,29,36,.92); color: #fca5a5; border: 1px solid #7f1d1d;
+                white-space: pre-line; text-align: center; line-height: 1.35; }   /* 3줄 (방금/요청/취소) */
   .pane.busy .termCancel { display: inline-block; }
   .termCancel:hover { background: #7f1d1d; color: #fff; }
+  /* 📜 요청내역 패널 — 터미널 오른쪽에 붙는 200px 종이(메모장과 같은 스타일), 클릭하면 그 요청 위치로 */
+  .reqPanel { position: absolute; top: 0; right: 0; bottom: 0; width: 200px; z-index: 8;
+              background: #fefefe; color: #1f2937; border-left: 1px solid #d1d5db;
+              overflow-y: auto; padding: 4px; }
+  .reqPanel.hidden { display: none; }
+  .reqPanel .rp-head { font-size: 11px; font-weight: 700; color: #6b7280; padding: 2px 4px 5px;
+                       position: sticky; top: -4px; background: #fefefe; }
+  .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer; }
+  .reqPanel .memo-row.mreq:hover { background: #f3f4f6; }
+  .pane-body.hist .term { right: 200px; }        /* 패널이 열리면 터미널을 그만큼 줄임 */
+  .pane-body.hist .termCancel { right: 218px; }
   .quick textarea { flex: 1; background: #000; border: 1px solid var(--line); color: var(--fg);
                     border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit;
                     resize: none; max-height: 34vh; overflow-y: auto; line-height: 1.45; }
@@ -231,6 +244,24 @@
   .memo-row .mst.done { background: #dcfce7; color: #15803d; }
   .memo-row .mst.stop { background: #ffedd5; color: #b45309; }
   .memo-row .mst.off { background: #fee2e2; color: #b91c1c; }
+  /* 메모 행 버튼: 날짜 아래 [📤 전송] 그 밑에 [✏ 수정][✕ 삭제] 좌우 */
+  .memo-row .mbtns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; white-space: nowrap; }
+  .memo-row .mbtns button { flex: 1 1 auto; padding: 2px 4px; font-size: 10px; border-radius: 5px; cursor: pointer;
+                            border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; line-height: 1.5; }
+  .memo-row .mbtns button:hover { filter: brightness(.92); }
+  .memo-row .mbtns .msend { flex: 1 1 100%; border: none; color: #fff; font-weight: 700;
+                            background: linear-gradient(90deg, var(--violet), var(--pink)); }
+  /* 요청 행에 마우스 올리면 ↑ (터미널에서 그 요청 위치로 이동) */
+  .memo-row.mreq { position: relative; }
+  .memo-row.mreq .mjump { position: absolute; right: 4px; top: 5px; width: 22px; height: 22px; padding: 0;
+                          border-radius: 6px; background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+                          font-size: 13px; line-height: 20px; text-align: center; cursor: pointer; display: none; }
+  .memo-row.mreq:hover .mjump { display: block; }
+  .memo-row.mreq .mjump:hover { background: #e0e7ff; }
+  @media (hover: none) { .memo-row.mreq .mjump { display: block; } }   /* 터치기기: 항상 표시 */
+  /* 메모 인라인 수정 */
+  .memo-row .medit { width: 100%; min-height: 52px; font-family: inherit; font-size: 13px; resize: vertical;
+                     border: 1px solid var(--violet); border-radius: 6px; padding: 4px 6px; background: #fff; color: #111827; }
   #memoNew { flex: 0 0 auto; background: #fff; border: 1px solid #d1d5db; color: #111827; border-radius: 8px;
              padding: 8px 9px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 54px; }
   #memoNew:focus { outline: 1px solid var(--violet); }
@@ -351,7 +382,7 @@
     /* 이미지 첨부/찾기·취소 버튼 — 폰에서 누르기 쉽게 크게 (입력줄 높이에 맞춤) */
     .quick .qImg { padding: 8px 12px; }
     .quick .qImg svg { width: 20px; height: 20px; }
-    .quick .qCancel { padding: 11px 12px; font-size: 13px; }
+    .quick .qHist { padding: 11px 12px; font-size: 13px; }
     .quick .qSend { padding: 8px 12px; min-height: 62px;     /* 폰: 전송 버튼 높이 2배 (엄지로 누르기 쉽게) */
                     transition: transform .08s ease, filter .08s ease; }
     /* 팡팡 누르는 맛: 폰에선 더 세게 눌리고 밝아짐 (튀어오름 애니는 전역 규칙) */
@@ -381,7 +412,7 @@
   #minimap { display: none; }
   @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
     #grid { grid-template-columns: 1fr; padding: 6px; }
-    .pane { min-height: 55vh; }
+    .pane { min-height: 82vh; }   /* 폰에서 터미널을 1.5배 크게 — 한 세션이 화면 대부분을 쓰게 */
     header h1 { font-size: 14px; }
     #minimap { display: flex; flex-wrap: wrap; gap: 5px;
                padding: 6px 8px; position: sticky; top: 0; z-index: 49;
@@ -401,7 +432,7 @@
     .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); }
     .mm-cell.busy .mm-title::after { content: ' ⋯'; color: var(--sky); }
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
-    #grid.maxmode .pane.maxed { min-height: 74vh; }
+    #grid.maxmode .pane.maxed { min-height: 86vh; }
     #grid.maxmode .pane.mini { min-height: 92px; }
   }
 </style>
@@ -629,7 +660,12 @@ const I18N = {
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — account default (usually Opus)',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
+    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes',
+    memoEdit:'Edit', memoDelBtn:'Del', memoEditSaveT:'Save (Ctrl+Enter)', memoEditCancelT:'Cancel editing (Esc)',
+    memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
+    memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stop the request in progress (sends ESC to the terminal)',
+    cancelLast:'Cancel\nlast\nrequest', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
     bnNewVer:'🔄 New version v{v} is out — click to update',
     confirmClose:'Close session "{t}"? (terminal ends, folder stays)',
@@ -657,7 +693,12 @@ const I18N = {
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — 계정 기본 모델 (보통 Opus)',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
+    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동',
+    memoEdit:'수정', memoDelBtn:'삭제', memoEditSaveT:'저장 (Ctrl+Enter)', memoEditCancelT:'수정 취소 (Esc)',
+    memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
+    memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청 중단 (터미널에 ESC 전송)',
+    cancelLast:'방금\n요청\n취소', reqHistBtn:'요청내역', reqHistT:'이 터미널 옆에 요청내역 패널 표시/숨기기 — 항목을 클릭하면 그 위치로 이동',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
     bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 다운받기',
     confirmClose:'"{t}" 세션을 닫을까요? (터미널 종료, 폴더는 그대로)',
@@ -760,6 +801,10 @@ function isMobileNow() {   // 아이패드 미니 세로(≤768) 이하 = 폰과
 const grid = document.getElementById('grid');
 const addDlg = document.getElementById('addDlg');
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
+// 마우스를 놓으면 각 창의 '선택 중 출력 보류'를 해제 — 선택이 남아있으면 1.2초 더 보여주고 재개
+document.addEventListener('mouseup', () => {
+  panes.forEach(p => { try { if (p.releaseHold) p.releaseHold((p.term.getSelection() || '').trim() ? 1200 : 0); } catch (e) {} });
+});
 const isMobile = isMobileNow();
 const isTouch = matchMedia('(pointer: coarse)').matches;   // 터치 기기(폰·아이패드 등) — 스크롤 오버레이용 (레이아웃과 별개)
 let maxedId = null;        // 확대(포커스) 중인 세션 id — null이면 일반 격자
@@ -926,7 +971,8 @@ function buildPane(sess, idx) {
     </div>
     <div class="pane-body">
       <div class="term"></div>
-      <button class="small termCancel" title="${T.cancelReqT}">⛔ ${T.cancel}</button>
+      <button class="small termCancel" title="${T.cancelReqT}">⛔ ${esc(T.cancelLast || T.cancel)}</button>
+      <div class="reqPanel hidden"><div class="rp-head">📜 ${esc(T.memoReqCol || 'Requests')}</div><div class="rp-list"></div></div>
       <iframe class="preview hidden"></iframe>
     </div>
     <div class="qThumbs"></div>
@@ -935,7 +981,7 @@ function buildPane(sess, idx) {
         <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
         <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
         <input type="file" class="qFile" accept="image/*" multiple style="display:none">
-        <button class="small qCancel" title="${T.cancelReqT}">⛔ ${T.cancel}</button>
+        <button class="small qHist" title="${esc(T.reqHistT || '')}">📜 ${esc(T.reqHistBtn || 'Requests')}</button>
       </div>
       <button class="small qSend">${T.send}</button>
     </div>`;
@@ -966,6 +1012,21 @@ function buildPane(sess, idx) {
   el.querySelector('.term').addEventListener('mouseup', () => {
     const s = term.getSelection();
     if (s && s.trim()) copySel(s);
+  });
+  // 🖱 드래그 선택 중엔 수신 출력을 잠시 보류 — Claude가 화면을 계속 다시 그려서
+  // 선택 표시가 그리는 순간마다 지워지던 문제 (선택이 아예 안 되는 것처럼 보임)
+  let selHold = false, holdBuf = [];
+  const releaseHold = (delay) => {   // delay 뒤 보류 해제 + 밀린 출력 한 번에 표시
+    clearTimeout(el._selHoldTo);
+    el._selHoldTo = setTimeout(() => {
+      selHold = false;
+      if (holdBuf.length) { const d = holdBuf.join(''); holdBuf = []; try { term.write(d); } catch (e) {} }
+    }, delay || 0);
+  };
+  el.querySelector('.term').addEventListener('mousedown', ev => {
+    if (ev.button !== 0) return;
+    selHold = true;
+    releaseHold(20000);   // 안전장치 — 창 밖에서 마우스를 놓아 mouseup을 못 받아도 20초 후 재개
   });
   fit.fit();
 
@@ -1008,12 +1069,14 @@ function buildPane(sess, idx) {
   let closedByUser = false;
   function connect() {
     ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/term?id=${sess.id}&token=${TOKEN}`);
+    const pp = panes.get(sess.id); if (pp) pp.ws = ws;   // 재접속 시 panes의 ws 참조 갱신 (resize가 죽은 소켓으로 가던 문제)
     let first = true, counted = false;
     ws.onmessage = e => {
       const m = JSON.parse(e.data);
       if (m.type === 'out') {
         if (first) { term.reset(); first = false; }   // 재접속 시 버퍼 전체 재생 — 중복 방지
-        term.write(m.data);
+        if (selHold) { holdBuf.push(m.data); if (holdBuf.length > 3000) releaseHold(0); }   // 선택 중엔 보류 (폭주 시 안전 해제)
+        else term.write(m.data);
         // 하단 푸터에서 현재 모드를 읽어 ⇄ 버튼에 표시 (auto / accept / plan) — 버튼이 있을 때만
         if (m.data.includes(' mode') || m.data.includes('accept edits')) {
           const mode = m.data.includes('plan mode') ? 'plan'
@@ -1090,13 +1153,8 @@ function buildPane(sess, idx) {
     let url = prompt(T.previewPrompt, sess.previewUrl || 'http://localhost:3000');
     if (url === null) return;             // 취소
     url = url.trim();
-    if (!url) {                           // 비워두면 폴더의 index.html을 내장 서버로 — 없으면 이유를 알려줌
-      url = location.origin + '/preview/' + sess.id + '/index.html?token=' + (TOKEN || '');
-      try {
-        const chk = await fetch(url, { method: 'HEAD' });
-        if (!chk.ok) { alert(T.previewNoIndex || 'No index.html in this folder — run your dev server and enter its address (e.g. http://localhost:3000).'); return; }
-      } catch (e) {}
-    }
+    // 비워두면 내장 서버로 폴더를 연다 — index.html이 있으면 그 페이지, 없으면 파일 목록(클릭해서 열기)
+    if (!url) url = location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || '');
     sess.previewUrl = url;
     api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
     window.open(url, '_blank');           // 새 창
@@ -1220,17 +1278,19 @@ function buildPane(sess, idx) {
     if (sb) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); }
     if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
-    api('POST', '/api/memos/req', { path: sess.path, text: val.trim() });
+    api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => refreshReq());
     for (const [token, att] of attachMap) {   // 칩 → 실제 내용
       if (!val.includes(token)) continue;
       // 이미지·여러줄텍스트(파일) = 경로만 / 한 줄 긴 글 = 인라인 (개행 없으니 조기 제출 없음)
       const rep = (att.type === 'text') ? att.value : '"' + att.value + '"';
       val = val.split(token).join(rep);
     }
+    const echoVal = val;   // 터미널에 에코될 실제 내용 (칩 확장 후) — 하이라이트 검색용
     // 직접 타이핑한 줄바꿈은 ESC+CR(제출 없는 개행)로 변환 — 여러 줄이 한 요청으로 감
     val = val.replace(/\r?\n/g, '\x1b\r');
     ws.send(JSON.stringify({ type: 'in', data: val }));
     setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
+    trackEcho(echoVal);   // 내가 보낸 요청이 화면에 나타나면 보라 배경으로 눈에 띄게
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
@@ -1249,15 +1309,101 @@ function buildPane(sess, idx) {
   });
   el.querySelector('.qSend').onclick = send;   // 팡 효과는 send() 안에서 (클릭·엔터 공통)
 
+  // 🟣 내가 보낸 요청 하이라이트 — 제출 후 Claude가 회색 박스로 에코하면 그 줄들에 보라 배경을 깔아
+  // 스크롤 중에도 "내 요청"이 한눈에 띄게. (터미널은 글자판이라 개별 메시지 스타일링이 불가 →
+  // xterm 데코레이션으로 해당 줄 범위만 칠함. Claude가 화면을 다시 배치하면 위치가 어긋날 수 있음)
+  function trackEcho(sent) {
+    const first = (String(sent || '').split('\n')[0] || '').trim();
+    if (!first) return;
+    let tries = 0;
+    const lineTxt = i => { const l = term.buffer.active.getLine(i); return l ? l.translateToString(true) : ''; };
+    const tick = () => {
+      if (++tries > 14) return;   // 약 8초까지만 찾음
+      const buf = term.buffer.active;
+      // 좁은 화면에선 박스 안에서 줄바꿈되므로 한 줄에 들어갈 만큼만 잘라 검색
+      const needle = first.slice(0, Math.max(8, Math.min(38, term.cols - 12)));
+      let y = -1;
+      for (let i = buf.length - 1; i >= 0; i--) { if (lineTxt(i).includes(needle)) { y = i; break; } }
+      if (y < 0) { setTimeout(tick, 550); return; }
+      // 에코 박스(╭…╰) 범위 감지 — 박스가 없으면 이어 감긴(wrap) 줄까지만
+      let top = y, bot = y;
+      for (let i = y - 1; i >= Math.max(0, y - 40); i--) {
+        const s = lineTxt(i).trim();
+        if (/^[╭┌]/.test(s)) { top = i; break; }
+        if (!/^[│|]/.test(s)) break;
+        top = i;
+      }
+      for (let i = y + 1; i <= Math.min(buf.length - 1, y + 40); i++) {
+        const s = lineTxt(i).trim();
+        if (/^[╰└]/.test(s)) { bot = i; break; }
+        if (/^[│|]/.test(s)) { bot = i; continue; }
+        const l = buf.getLine(i);
+        if (l && l.isWrapped) { bot = i; continue; }
+        break;
+      }
+      try {
+        const marker = term.registerMarker(top - (buf.baseY + buf.cursorY));   // 커서 기준 상대 위치 (위쪽 = 음수)
+        if (!marker) return;
+        const dec = term.registerDecoration({ marker, x: 0, width: term.cols, height: bot - top + 1, layer: 'bottom' });
+        if (dec) dec.onRender(dd => {   // 반투명 보라 — 글자를 가리지 않게 rgba로 직접 지정
+          dd.style.background = themeLight ? 'rgba(138,56,245,.10)' : 'rgba(138,56,245,.22)';
+          dd.style.pointerEvents = 'none';
+        });
+      } catch (e) {}
+    };
+    setTimeout(tick, 700);   // 제출 직후엔 입력칸에도 같은 글이 있어 오인 — 입력칸이 비워진 뒤부터 검색
+  }
+
+  // 메모장 '📤 전송' 등 외부에서 이 세션 터미널로 보내기 — send()와 같은 경로 (요청내역 기록 + 하이라이트)
+  const sendText = (text) => {
+    const t = String(text || '').trim();
+    if (!t || ws.readyState !== 1) return false;
+    api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => refreshReq());
+    ws.send(JSON.stringify({ type: 'in', data: t.replace(/\r?\n/g, '\x1b\r') }));
+    setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
+    trackEcho(t);
+    return true;
+  };
+
   // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송 = 터미널에서 ESC 누르는 것과 동일). 요청 내역엔 '중단' 스탬프.
   const doCancel = ev => {
     ev.stopPropagation();
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x1b' }));
-    api('POST', '/api/memos/reqst', { path: sess.path, st: 'stop' });
+    api('POST', '/api/memos/reqst', { path: sess.path, st: 'stop' }).then(() => refreshReq());
+    memoPending.delete(sess.id);   // 중단했으면 메모 자동완료 예약도 해제
     term.focus();
   };
-  el.querySelector('.qCancel').onclick = doCancel;          // 입력줄 옆
-  el.querySelector('.termCancel').onclick = doCancel;       // 작업 중 터미널 우상단 오버레이
+  el.querySelector('.termCancel').onclick = doCancel;       // 작업 중 터미널 우상단 '방금 요청 취소' 오버레이
+
+  // 📜 요청내역 토글 — 터미널 오른쪽 200px 패널 (메모장 '요청했던 내역들'과 같은 데이터·스타일)
+  const reqPanel = el.querySelector('.reqPanel');
+  const refreshReq = async () => {
+    if (reqPanel.classList.contains('hidden')) return;
+    let m = null;
+    try { m = await api('GET', '/api/memos?path=' + encodeURIComponent(sess.path)); } catch (e) {}
+    const list = el.querySelector('.rp-list'); list.innerHTML = '';
+    const reqs = (m && m.reqs) || [];
+    if (!reqs.length) { list.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`; return; }
+    reqs.forEach(rq => {   // 최신순 — 클릭하면 터미널에서 그 요청 위치로
+      const r = document.createElement('div'); r.className = 'memo-row mreq';
+      const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
+      const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
+      r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)} <span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
+                  + `<span class="mtext">${esc(rq.text)}</span>`;
+      r.title = T.memoJumpT || '';
+      r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
+      list.appendChild(r);
+    });
+  };
+  el.querySelector('.qHist').onclick = ev => {
+    ev.stopPropagation();
+    const on = !reqPanel.classList.toggle('hidden');
+    el.querySelector('.pane-body').classList.toggle('hist', on);
+    el.querySelector('.qHist').classList.toggle('on', on);
+    refreshReq();
+    // 패널이 터미널 폭을 바꾸니 다시 맞춤
+    setTimeout(() => { try { fit.fit(); if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); } catch (e) {} }, 60);
+  };
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
   async function attachImage(file) {
@@ -1379,7 +1525,7 @@ function buildPane(sess, idx) {
 
   // 이 창에서만 제거 (서버 세션은 유지) — 다른 창이 가져갈 때 사용. 재접속 방지 위해 closedByUser 설정
   const kill = () => { closedByUser = true; try { ws.close(); } catch (e) {} };
-  panes.set(sess.id, { el, term, fit, ws, sess, kill });
+  panes.set(sess.id, { el, term, fit, ws, sess, kill, releaseHold, sendText, refreshReq });
 }
 
 // 이 창에서만 패널 제거 (서버 세션 유지)
@@ -1461,7 +1607,21 @@ function setState(el, done, busy) {
         speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
-        if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' });
+        if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); });
+        // 📤 메모장에서 전송한 메모가 있으면 → 작업이 끝났으니 '완료된 항목'으로 이동
+        const pend = memoPending.get(el.dataset.id);
+        if (pend && pend.length) {
+          memoPending.delete(el.dataset.id);
+          (async () => {
+            let last = null;
+            for (const q of pend) {
+              const r = await api('POST', '/api/memos/toggle', { path: q.path, id: q.id, done: true });
+              if (r && r.memo) last = r.memo;
+            }
+            // 메모장이 그 폴더로 열려 있으면 바로 갱신해 보여줌
+            if (last && memoDlg.open && pend.some(q => normPath(q.path) === normPath(memoPath))) { memoData = last; renderMemo(); }
+          })();
+        }
       }
     }, 3000);
   }
@@ -2440,6 +2600,7 @@ if (isMobile) {
 // 폴더 경로 기준으로 서버(~/.powerterminal/memos.json)에 저장 — 세션을 껐다 켜도, 폰·PC 어디서 봐도 같은 메모.
 const memoDlg = document.getElementById('memoDlg');
 let memoPath = null, memoData = { items: [], reqs: [] };
+const memoPending = new Map();   // paneId -> [{path,id}] — 📤 전송한 메모, 그 세션 작업이 끝나면 자동으로 완료 처리
 function fmtMemoDate(ts) {   // 날짜, 요일, 시:분 — 회색 작은 글씨용
   const d = new Date(ts);
   let wd = '';
@@ -2480,9 +2641,42 @@ function renderMemo() {
   if (!items.length) boxI.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`;
   items.forEach(it => {
     const r = document.createElement('div'); r.className = 'memo-row';
-    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.ts)}</span><input type="checkbox"><span class="mtext">${esc(it.text)}</span>`;
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.ts)}`
+                + `<span class="mbtns"><button class="msend" title="${esc(T.memoSendTip || '')}">📤 ${esc(T.memoSend || 'Send')}</button>`
+                + `<button class="medit2">✏ ${esc(T.memoEdit || 'Edit')}</button><button class="mdel2" title="${esc(T.memoDelT || 'Delete')}">✕ ${esc(T.memoDelBtn || 'Del')}</button></span>`
+                + `</span><input type="checkbox"><span class="mtext">${esc(it.text)}</span>`;
     r.querySelector('input').onchange = async () => {   // 체크 = 완료영역으로 이동
       const res = await api('POST', '/api/memos/toggle', { path: memoPath, id: it.id, done: true });
+      if (res && res.memo) memoData = res.memo;
+      renderMemo();
+    };
+    // 📤 전송 — 메모 내용을 이 폴더 세션 터미널로 (작업이 끝나면 자동으로 완료된 항목으로 이동)
+    r.querySelector('.msend').onclick = () => sendMemoToTerminal(it);
+    // ✏ 수정 — 본문 자리를 입력칸으로 바꿔 고침 (Ctrl+Enter 저장 · Esc 취소)
+    r.querySelector('.medit2').onclick = () => {
+      const mt = r.querySelector('.mtext');
+      mt.innerHTML = `<textarea class="medit"></textarea>`
+                   + `<div style="display:flex;gap:4px;margin-top:3px"><button class="mesave" title="${esc(T.memoEditSaveT || '')}" style="padding:2px 10px;border-radius:5px;border:none;background:var(--violet);color:#fff;font-size:11px;cursor:pointer">💾</button>`
+                   + `<button class="mecancel" title="${esc(T.memoEditCancelT || '')}" style="padding:2px 10px;border-radius:5px;border:1px solid #d1d5db;background:#f3f4f6;color:#374151;font-size:11px;cursor:pointer">✕</button></div>`;
+      const ed = mt.querySelector('.medit');
+      ed.value = it.text; ed.focus();
+      const save = async () => {
+        const nt = ed.value.trim();
+        if (!nt || nt === it.text) return renderMemo();
+        const res = await api('POST', '/api/memos/edit', { path: memoPath, id: it.id, text: nt });
+        if (res && res.memo) memoData = res.memo;
+        renderMemo();
+      };
+      mt.querySelector('.mesave').onclick = save;
+      mt.querySelector('.mecancel').onclick = () => renderMemo();
+      ed.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); save(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); renderMemo(); }   // 다이얼로그까지 안 닫히게
+      });
+    };
+    // ✕ 삭제 — 완료로 보내지 않고 바로 지움
+    r.querySelector('.mdel2').onclick = async () => {
+      const res = await api('POST', '/api/memos/del', { path: memoPath, id: it.id });
       if (res && res.memo) memoData = res.memo;
       renderMemo();
     };
@@ -2506,9 +2700,47 @@ function renderMemo() {
     const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
     const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
     r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)}<br><span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
-                + `<span class="mtext">${esc(rq.text)}</span>`;
+                + `<span class="mtext">${esc(rq.text)}</span>`
+                + `<button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
+    r.querySelector('.mjump').onclick = () => jumpToReq(rq);   // 터미널에서 이 요청 위치로
     boxR.appendChild(r);
   });
+}
+// 이 메모장 폴더로 열려 있는 세션 창 찾기 (같은 폴더 중 첫 번째)
+function memoPane() {
+  return [...panes.values()].find(p => normPath(p.sess.path) === normPath(memoPath)) || null;
+}
+// 📤 메모를 세션 터미널로 전송 — 요청내역에 기록되고, 작업이 끝나면(완료 신호 3초 유지) 완료된 항목으로 이동
+function sendMemoToTerminal(it) {
+  const p = memoPane();
+  if (!p || !p.sendText || !p.sendText(it.text)) { alert(T.memoNoSess || 'Open a session for this folder first.'); return; }
+  const list = memoPending.get(p.sess.id) || [];
+  list.push({ path: memoPath, id: it.id });
+  memoPending.set(p.sess.id, list);
+  closeMemo();
+  flashToast(T.memoSent || 'Sent');
+  p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+// ↑ 요청했던 위치로 — 터미널 기록(스크롤백)에서 그 글을 찾아 그 줄로 스크롤 + 잠깐 표시
+function jumpToReq(rq) { jumpToReqIn(memoPane(), rq); }   // 메모장의 ↑ 버튼용
+function jumpToReqIn(p, rq) {                             // 요청내역 패널의 행 클릭용 (창 지정)
+  if (!p) { flashToast(T.memoJumpNoSess || 'Session not open'); return; }
+  const buf = p.term.buffer.active;
+  const first = ((rq.text || '').split('\n')[0] || '').trim();
+  const needle = first.slice(0, Math.max(8, Math.min(38, p.term.cols - 12)));   // 박스 안 줄바꿈 대비
+  let y = -1;
+  for (let i = buf.length - 1; i >= 0; i--) {
+    const l = buf.getLine(i);
+    if (l && l.translateToString(true).includes(needle)) { y = i; break; }
+  }
+  if (y < 0) { flashToast(T.memoJumpMiss || 'Not found in scrollback'); return; }
+  closeMemo();
+  p.term.scrollToLine(Math.max(0, y - 2));   // 살짝 위 여백을 두고 그 줄로
+  try {   // 찾은 줄을 1.5초간 선택 표시로 반짝 — 어디로 왔는지 보이게
+    p.term.select(0, y, p.term.cols);
+    setTimeout(() => { try { p.term.clearSelection(); } catch (e) {} }, 1500);
+  } catch (e) {}
+  p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 async function commitMemoNew() {   // 저장(💾 버튼·Ctrl+Enter) — 쓰던 글 → 작성일·체크박스 붙은 메모 행으로
   const ta = document.getElementById('memoNew');

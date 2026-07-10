@@ -17,7 +17,7 @@ const PORT = Number(process.env.PORT) || 7777;   // 포트 충돌 시 PORT 환�
 
 // 사용자 데이터(세션·토큰·최근목록)는 앱 폴더가 아니라 홈의 고정 위치에 저장한다.
 // → 새로 다운받아 폴더가 달라져도, 버전이 올라가도, 세션 세팅이 그대로 유지됨.
-const DATA_DIR = path.join(os.homedir(), '.powerterminal');
+const DATA_DIR = process.env.PT_DATA_DIR || path.join(os.homedir(), '.powerterminal');   // PT_DATA_DIR = 테스트용 격리 저장소
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 function dataFile(name) {
   const dest = path.join(DATA_DIR, name);
@@ -858,6 +858,13 @@ app.post('/api/memos/toggle', (req, res) => {         // 체크 = 완료영역�
   if (it) { it.done = !!req.body.done; it.doneTs = it.done ? Date.now() : undefined; saveMemos(); }
   res.json({ ok: true, memo: m });
 });
+app.post('/api/memos/edit', (req, res) => {           // ✏ 메모 내용 수정 (작성일은 유지)
+  const m = memoOf(req.body.path);
+  const it = m.items.find(x => x.id === req.body.id);
+  const text = String((req.body && req.body.text) || '').trim();
+  if (it && text) { it.text = text.slice(0, 4000); saveMemos(); }
+  res.json({ ok: !!(it && text), memo: m });
+});
 app.post('/api/memos/del', (req, res) => {            // 완료 항목 빨강 ✕ 삭제
   const m = memoOf(req.body.path);
   m.items = m.items.filter(x => x.id !== req.body.id);
@@ -928,11 +935,38 @@ app.post('/api/reboot', (req, res) => {
   setTimeout(() => process.exit(75), 300);   // 75 = "재시작" 신호 (런처가 감지해 루프)
 });
 
-// 프로젝트 폴더 정적 서빙 (미리보기 토글용)
+// 프로젝트 폴더 정적 서빙 (미리보기 토글용) — index.html이 없는 폴더는 파일 목록으로 보여줌
 app.use('/preview/:id', (req, res, next) => {
   const s = sessions.find(x => x.id === req.params.id);
   if (!s) return res.status(404).end();
-  express.static(s.path)(req, res, next);
+  express.static(s.path)(req, res, () => {
+    // 정적 파일이 아니면: 폴더일 때 간단한 목록 페이지 (클릭해서 파일 열기 / 하위 폴더 이동)
+    let rel = ''; try { rel = decodeURIComponent(req.path); } catch (e) { rel = req.path; }
+    const base = path.resolve(s.path);
+    const abs = path.resolve(path.join(base, rel));
+    if (abs !== base && !abs.startsWith(base + path.sep)) return res.status(403).end();   // 상위 폴더 탈출 방지
+    let st; try { st = fs.statSync(abs); } catch (e) { return res.status(404).end(); }
+    if (!st.isDirectory()) return res.status(404).end();
+    let ents = []; try { ents = fs.readdirSync(abs, { withFileTypes: true }); } catch (e) {}
+    const h = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+    const row = (icon, name, href, meta) => `<a href="${h(href)}"><span>${icon} ${h(name)}</span><small>${meta || ''}</small></a>`;
+    const dirs = ents.filter(e => e.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
+    const files = ents.filter(e => e.isFile()).sort((a, b) => a.name.localeCompare(b.name));
+    const up = rel.replace(/\/+$/, '') ? row('↩', '..', '../', '') : '';
+    const body = up
+      + dirs.map(d => row('📁', d.name, encodeURIComponent(d.name) + '/', '')).join('')
+      + files.map(f => {
+          let sz = ''; try { sz = fmtSize(fs.statSync(path.join(abs, f.name)).size); } catch (e) {}
+          return row('📄', f.name, encodeURIComponent(f.name), sz);
+        }).join('');
+    res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(path.basename(abs) || s.title)}</title>
+<style>body{font-family:system-ui,sans-serif;background:#0f172a;color:#e5e7eb;max-width:760px;margin:24px auto;padding:0 14px}
+h2{font-size:16px;margin:0 0 4px}p{color:#94a3b8;font-size:12px;margin:0 0 14px}
+a{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;margin:3px 0;border:1px solid #1f2937;border-radius:8px;color:#e5e7eb;text-decoration:none;background:#111827}
+a:hover{border-color:#8a38f5}small{color:#94a3b8;flex:0 0 auto}span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style>
+<h2>📂 ${h(path.basename(abs) || s.title)}</h2><p>No index.html — showing folder contents · index.html이 없어 폴더 내용을 표시합니다</p>${body || '<p>(empty)</p>'}`);
+  });
 });
 
 // ---------- WebSocket (터미널) ----------
