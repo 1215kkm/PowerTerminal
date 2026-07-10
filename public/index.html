@@ -2101,7 +2101,9 @@ async function refreshBanner() {
   try {
     const b = await api('GET', '/api/banner');
     const el = document.getElementById('banner');
-    const list = (b.banners || []).filter(x => x && x.text);
+    // 관리자 배너의 원본은 한글칸(나머지 언어는 자동번역) — 한글이 비어 있으면 "안 쓴 배너"로 취급.
+    // (남은 자동번역 잔재 때문에 기본 버전배너가 안 뜨던 문제 방지)
+    const list = (b.banners || []).filter(x => x && x.text && (x.text.ko || '').trim());
     // 관리자가 배너를 하나도 안 썼으면 기본 배너: "새 버전 vX 다운받기" (흐르는 글자, 클릭=재부팅 업데이트)
     // 단, 이미 최신 버전인 사용자에겐 안 보임 — 받을 새 버전이 없는데 '다운받기'라고 하면 거짓 안내라서.
     if (!list.length && b.latestVersion && b.currentVersion &&
