@@ -112,6 +112,16 @@ function flushMemos() {
   clearTimeout(memoSaveT);
   try { fs.writeFileSync(MEMOS_FILE, JSON.stringify(memos, null, 2)); } catch (e) {}
 }
+// 종료·세션닫기 시점의 정확한 스탬프: 그 폴더 세션이 작업 중(busy)이었으면 '종료로 중단',
+// 일이 끝난(idle/done) 상태로 꺼진 거면 '완료' — 예전엔 무조건 '종료로 중단'이라 완료된 요청까지 그렇게 남았음.
+function pathBusy(dir) {
+  for (const s of sessions) {
+    if (memoKey(s.path) !== memoKey(dir)) continue;
+    const p = ptys.get(s.id);
+    if (p && !p.dead && p.busy && !p.done) return true;
+  }
+  return false;
+}
 // 요청 내역의 '진행중(run)' 항목을 done(완료)·stop(중단)·off(종료로 중단)로 스탬프
 function stampReqs(dir, st) {
   const m = memos[memoKey(dir)];
@@ -874,13 +884,14 @@ app.post('/api/reorder', (req, res) => {
 
 app.delete('/api/sessions/:id', (req, res) => {
   const p = ptys.get(req.params.id);
+  const wasBusy = !!(p && !p.dead && p.busy && !p.done);   // 죽이기 전에 작업중이었는지 기억
   if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
   ptys.delete(req.params.id);
   const gone = sessions.find(x => x.id === req.params.id);
   if (gone) addRecent(gone);   // 닫아도 최근 목록엔 남겨 회색으로 다시 켤 수 있게
   sessions = sessions.filter(x => x.id !== req.params.id);
-  // 그 폴더에 다른 세션이 안 남았으면, 진행중이던 요청은 '종료로 중단' 스탬프
-  if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, 'off');
+  // 그 폴더에 다른 세션이 안 남았으면 스탬프: 일 끝난 상태로 닫힘=완료 · 작업 중 닫힘=종료로 중단
+  if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, wasBusy ? 'off' : 'done');
   saveSessions();
   res.json({ ok: true });
 });
@@ -889,7 +900,7 @@ app.delete('/api/sessions/:id', (req, res) => {
 // 세션 목록/배열은 sessions.json에 저장돼 다음 실행 때 그대로 복원됨(초기화 아님).
 app.post('/api/shutdown', (req, res) => {
   saveSessions();                            // 배열·레이아웃 먼저 저장
-  for (const k of Object.keys(memos)) stampReqs(k, 'off');   // 진행중 요청 = 종료로 중단
+  for (const k of Object.keys(memos)) stampReqs(k, pathBusy(k) ? 'off' : 'done');   // 일 끝났으면 완료, 작업 중이던 것만 종료로 중단
   flushMemos();                              // 디바운스 저장이 exit보다 늦지 않게 즉시 기록
   res.json({ ok: true });
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
@@ -900,7 +911,7 @@ app.post('/api/shutdown', (req, res) => {
 // 최신 코드를 다시 받아(git sync) 서버를 자동으로 재기동함. 세션은 저장돼 그대로 복원됨.
 app.post('/api/reboot', (req, res) => {
   saveSessions();
-  for (const k of Object.keys(memos)) stampReqs(k, 'off');
+  for (const k of Object.keys(memos)) stampReqs(k, pathBusy(k) ? 'off' : 'done');
   flushMemos();
   res.json({ ok: true });
   console.log('\n  🔄 재시작 요청 — 최신 버전을 받아 서버를 다시 시작합니다. (세션은 저장됨, 다음 실행 때 복원)');
