@@ -151,6 +151,14 @@
   .reqPanel .memo-row.mreq:hover { background: #f3f4f6; }
   .pane-body.hist .term { right: 200px; }        /* 패널이 열리면 터미널을 그만큼 줄임 */
   .pane-body.hist .termCancel { right: 218px; }
+  .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
+  /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
+  .xterm-rows span[style*="background-color:#373737"],
+  .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
+    background-color: #fefefe !important; color: #111827 !important; font-weight: 700; }
+  html.light .xterm-rows span[style*="background-color:#373737"],
+  html.light .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
+    background-color: #ede9fe !important; }   /* 라이트 모드: 터미널이 흰색이라 연보라 종이로 구분 */
   .quick textarea { flex: 1; background: #000; border: 1px solid var(--line); color: var(--fg);
                     border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit;
                     resize: none; max-height: 34vh; overflow-y: auto; line-height: 1.45; }
@@ -387,10 +395,8 @@
                     transition: transform .08s ease, filter .08s ease; }
     /* 팡팡 누르는 맛: 폰에선 더 세게 눌리고 밝아짐 (튀어오름 애니는 전역 규칙) */
     .quick .qSend:active { transform: scale(.92); filter: brightness(1.3); }
-    /* 스크롤하면 로고·세션탭(미니맵)만 남기고 헤더 나머지는 부드럽게 사라짐 */
-    header > * { transition: opacity .22s ease; }
-    html.hdr-fade header > :not(.logo-wrap), html.hdr-fade #usage .ub { opacity: 0; pointer-events: none; }
-    html.hdr-gone header > :not(.logo-wrap), html.hdr-gone #usage .ub { display: none !important; }
+    /* 폰: 헤더(로고 포함)는 페이지와 함께 위로 스크롤되고, 세션탭(미니맵)만 상단에 고정 */
+    header { position: static; }
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
     #qrCols > div { width: 100%; }
@@ -417,7 +423,7 @@
     #minimap { display: flex; flex-wrap: wrap; gap: 5px;
                padding: 6px 8px; position: sticky; top: 0; z-index: 49;
                background: var(--bg); border-bottom: 1px solid var(--line); }
-    /* top 값은 JS가 헤더 높이에 맞춰 설정 (헤더가 줄바꿈으로 높이가 변하므로) */
+    /* 헤더는 static이라 같이 스크롤되고, 미니맵만 top:0에 고정됨 */
     .mm-cell { display: flex; align-items: center; gap: 5px;
                border: 2px solid var(--line); border-radius: 8px; padding: 5px 9px;
                font-size: 12px; font-weight: 700; cursor: pointer;
@@ -1285,12 +1291,10 @@ function buildPane(sess, idx) {
       const rep = (att.type === 'text') ? att.value : '"' + att.value + '"';
       val = val.split(token).join(rep);
     }
-    const echoVal = val;   // 터미널에 에코될 실제 내용 (칩 확장 후) — 하이라이트 검색용
     // 직접 타이핑한 줄바꿈은 ESC+CR(제출 없는 개행)로 변환 — 여러 줄이 한 요청으로 감
     val = val.replace(/\r?\n/g, '\x1b\r');
     ws.send(JSON.stringify({ type: 'in', data: val }));
     setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
-    trackEcho(echoVal);   // 내가 보낸 요청이 화면에 나타나면 보라 배경으로 눈에 띄게
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
@@ -1309,59 +1313,13 @@ function buildPane(sess, idx) {
   });
   el.querySelector('.qSend').onclick = send;   // 팡 효과는 send() 안에서 (클릭·엔터 공통)
 
-  // 🟣 내가 보낸 요청 하이라이트 — 제출 후 Claude가 회색 박스로 에코하면 그 줄들에 보라 배경을 깔아
-  // 스크롤 중에도 "내 요청"이 한눈에 띄게. (터미널은 글자판이라 개별 메시지 스타일링이 불가 →
-  // xterm 데코레이션으로 해당 줄 범위만 칠함. Claude가 화면을 다시 배치하면 위치가 어긋날 수 있음)
-  function trackEcho(sent) {
-    const first = (String(sent || '').split('\n')[0] || '').trim();
-    if (!first) return;
-    let tries = 0;
-    const lineTxt = i => { const l = term.buffer.active.getLine(i); return l ? l.translateToString(true) : ''; };
-    const tick = () => {
-      if (++tries > 14) return;   // 약 8초까지만 찾음
-      const buf = term.buffer.active;
-      // 좁은 화면에선 박스 안에서 줄바꿈되므로 한 줄에 들어갈 만큼만 잘라 검색
-      const needle = first.slice(0, Math.max(8, Math.min(38, term.cols - 12)));
-      let y = -1;
-      for (let i = buf.length - 1; i >= 0; i--) { if (lineTxt(i).includes(needle)) { y = i; break; } }
-      if (y < 0) { setTimeout(tick, 550); return; }
-      // 에코 박스(╭…╰) 범위 감지 — 박스가 없으면 이어 감긴(wrap) 줄까지만
-      let top = y, bot = y;
-      for (let i = y - 1; i >= Math.max(0, y - 40); i--) {
-        const s = lineTxt(i).trim();
-        if (/^[╭┌]/.test(s)) { top = i; break; }
-        if (!/^[│|]/.test(s)) break;
-        top = i;
-      }
-      for (let i = y + 1; i <= Math.min(buf.length - 1, y + 40); i++) {
-        const s = lineTxt(i).trim();
-        if (/^[╰└]/.test(s)) { bot = i; break; }
-        if (/^[│|]/.test(s)) { bot = i; continue; }
-        const l = buf.getLine(i);
-        if (l && l.isWrapped) { bot = i; continue; }
-        break;
-      }
-      try {
-        const marker = term.registerMarker(top - (buf.baseY + buf.cursorY));   // 커서 기준 상대 위치 (위쪽 = 음수)
-        if (!marker) return;
-        const dec = term.registerDecoration({ marker, x: 0, width: term.cols, height: bot - top + 1, layer: 'bottom' });
-        if (dec) dec.onRender(dd => {   // 반투명 보라 — 글자를 가리지 않게 rgba로 직접 지정
-          dd.style.background = themeLight ? 'rgba(138,56,245,.10)' : 'rgba(138,56,245,.22)';
-          dd.style.pointerEvents = 'none';
-        });
-      } catch (e) {}
-    };
-    setTimeout(tick, 700);   // 제출 직후엔 입력칸에도 같은 글이 있어 오인 — 입력칸이 비워진 뒤부터 검색
-  }
-
-  // 메모장 '📤 전송' 등 외부에서 이 세션 터미널로 보내기 — send()와 같은 경로 (요청내역 기록 + 하이라이트)
+  // 메모장 '📤 전송' 등 외부에서 이 세션 터미널로 보내기 — send()와 같은 경로 (요청내역 기록)
   const sendText = (text) => {
     const t = String(text || '').trim();
     if (!t || ws.readyState !== 1) return false;
     api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => refreshReq());
     ws.send(JSON.stringify({ type: 'in', data: t.replace(/\r?\n/g, '\x1b\r') }));
     setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
-    trackEcho(t);
     return true;
   };
 
@@ -1384,13 +1342,22 @@ function buildPane(sess, idx) {
     const list = el.querySelector('.rp-list'); list.innerHTML = '';
     const reqs = (m && m.reqs) || [];
     if (!reqs.length) { list.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`; return; }
+    // 현재 터미널 기록 전체를 한 번만 텍스트로 — 기록에 남아있는 요청만 클릭 이동 가능, 없는 건 흐리게
+    let bufText = '';
+    try {
+      const b = term.buffer.active, arr = [];
+      for (let i = 0; i < b.length; i++) { const l = b.getLine(i); if (l) arr.push(l.translateToString(true)); }
+      bufText = arr.join('\n');
+    } catch (e) {}
     reqs.forEach(rq => {   // 최신순 — 클릭하면 터미널에서 그 요청 위치로
       const r = document.createElement('div'); r.className = 'memo-row mreq';
       const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
       const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
       r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)} <span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
                   + `<span class="mtext">${esc(rq.text)}</span>`;
-      r.title = T.memoJumpT || '';
+      const findable = bufText.includes(reqNeedle(rq.text, term.cols));
+      r.classList.toggle('gone', !findable);
+      r.title = findable ? (T.memoJumpT || '') : (T.memoJumpMiss || '');
       r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
       list.appendChild(r);
     });
@@ -1400,7 +1367,7 @@ function buildPane(sess, idx) {
     const on = !reqPanel.classList.toggle('hidden');
     el.querySelector('.pane-body').classList.toggle('hist', on);
     el.querySelector('.qHist').classList.toggle('on', on);
-    refreshReq();
+    refreshReq().then(() => { reqPanel.scrollTop = 0; });   // 열 때 항상 맨 위(최신)부터
     // 패널이 터미널 폭을 바꾸니 다시 맞춤
     setTimeout(() => { try { fit.fit(); if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); } catch (e) {} }, 60);
   };
@@ -1761,7 +1728,6 @@ function renderMinimap() {
   });
   applyLayout();
   saveOrder();   // 배열이 바뀔 때마다 현재 순서 기억 → 재시작 시 그대로 복원
-  if (typeof syncStickyOffset === 'function') syncStickyOffset();
 }
 
 // PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
@@ -2510,14 +2476,7 @@ setInterval(refreshBanner, 10 * 60 * 1000);
 
 document.querySelectorAll('.atab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
-// 미니맵을 헤더 바로 아래에 고정 (헤더가 줄바꿈으로 높이가 변하니 실시간 반영)
-const headerEl = document.querySelector('header');
-const minimapEl = document.getElementById('minimap');
-function syncStickyOffset() {
-  minimapEl.style.top = isMobileNow() ? headerEl.offsetHeight + 'px' : '';
-}
-new ResizeObserver(syncStickyOffset).observe(headerEl);
-addEventListener('resize', syncStickyOffset);
+// 폰: 헤더는 페이지와 함께 스크롤되고 미니맵만 상단 고정 (CSS sticky top:0) — 별도 위치 보정 불필요
 addEventListener('resize', applyLayout);   // 창 크기가 줄면 한 줄→2줄로 자동 접기
 
 // 레이아웃/크기 변경 후 모든 터미널 재fit — pane이 커졌는데 내용이 절반만 보이는 문제 방지
@@ -2575,26 +2534,6 @@ addEventListener('scroll', () => {
   clearTimeout(scrollFlag);
   scrollFlag = setTimeout(() => document.documentElement.classList.remove('pt-scrolling'), 400);
 }, { passive: true });
-
-// 📱 폰: 스크롤 내리면 헤더에서 로고·세션탭(미니맵)만 남기고 나머지는 부드럽게 사라짐
-// (fade 0.22초 후 display:none으로 자리까지 접힘 — 미니맵 sticky 위치는 ResizeObserver가 자동 보정)
-if (isMobile) {
-  let hdrHidden = false, hdrT;
-  addEventListener('scroll', () => {
-    const want = scrollY > 60;
-    if (want === hdrHidden) return;
-    hdrHidden = want;
-    clearTimeout(hdrT);
-    const root = document.documentElement;
-    if (want) {
-      root.classList.add('hdr-fade');                                   // 먼저 투명하게
-      hdrT = setTimeout(() => root.classList.add('hdr-gone'), 240);     // 그 다음 자리 접기
-    } else {
-      root.classList.remove('hdr-gone');                                // 자리 먼저 복구
-      requestAnimationFrame(() => root.classList.remove('hdr-fade'));   // 그리고 서서히 나타남
-    }
-  }, { passive: true });
-}
 
 // ---------- 📝 세션 메모장 ----------
 // 폴더 경로 기준으로 서버(~/.powerterminal/memos.json)에 저장 — 세션을 껐다 켜도, 폰·PC 어디서 봐도 같은 메모.
@@ -2721,13 +2660,24 @@ function sendMemoToTerminal(it) {
   flashToast(T.memoSent || 'Sent');
   p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+// 요청 텍스트 → 터미널에서 찾을 검색어: 첫 줄을 '한 줄에 들어가는 칸 수'만큼만 (한글 등 넓은 글자 = 2칸 계산)
+function reqNeedle(text, cols) {
+  const first = ((text || '').split('\n')[0] || '').trim();
+  const budget = Math.max(8, (cols || 80) - 12);
+  let cells = 0, out = '';
+  for (const ch of first) {
+    cells += ch.charCodeAt(0) > 255 ? 2 : 1;
+    if (cells > budget) break;
+    out += ch;
+  }
+  return out || first.slice(0, 4);
+}
 // ↑ 요청했던 위치로 — 터미널 기록(스크롤백)에서 그 글을 찾아 그 줄로 스크롤 + 잠깐 표시
 function jumpToReq(rq) { jumpToReqIn(memoPane(), rq); }   // 메모장의 ↑ 버튼용
 function jumpToReqIn(p, rq) {                             // 요청내역 패널의 행 클릭용 (창 지정)
   if (!p) { flashToast(T.memoJumpNoSess || 'Session not open'); return; }
   const buf = p.term.buffer.active;
-  const first = ((rq.text || '').split('\n')[0] || '').trim();
-  const needle = first.slice(0, Math.max(8, Math.min(38, p.term.cols - 12)));   // 박스 안 줄바꿈 대비
+  const needle = reqNeedle(rq.text, p.term.cols);
   let y = -1;
   for (let i = buf.length - 1; i >= 0; i--) {
     const l = buf.getLine(i);
