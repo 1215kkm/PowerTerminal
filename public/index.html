@@ -2262,19 +2262,22 @@ async function pollUntilBackThenReload() {
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
 
-// 배너 관리자(⚙) — 이 PC(로컬)에서만 노출. 일반 사용자(원격)에겐 버튼 자체가 안 보임.
-// (원격 비밀번호 로그인 API/admin 비번칸은 서버에 그대로 남겨둠 — 언젠가 원격 관리가 필요할 때 이 버튼만 다시 열면 됨.)
-if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+// 배너 관리자(⚙)·사용자요청 배지(✉) — 개발자 전용.
+// localhost 조건만으론 부족: PowerTerminal을 설치한 다른 사용자도 자기 PC에선 localhost라 버튼이 보였음.
+// → 이 PC의 GitHub CLI 로그인 계정이 개발자(1215kkm)일 때만 노출. (배너 발행 자체도 그 계정만 push 가능)
+(async () => {
+  if (!['localhost', '127.0.0.1'].includes(location.hostname)) return;
+  let u = null;
+  try { u = await api('GET', '/api/gh-user'); } catch (e) {}
+  if (!u || u.login !== '1215kkm') return;
+
   const b = document.createElement('button');
   b.textContent = '⚙';
   b.title = 'Banner admin';
   // 새 탭으로 열기 — 같은 탭으로 이동하면 메인이 리로드돼 입력 중이던 요청글이 날아감
   b.onclick = () => { window.open('/admin.html?token=' + TOKEN, '_blank'); };
   document.querySelector('header').insertBefore(b, document.getElementById('langSel'));
-}
 
-// 사용자 요청(GitHub Issues) 개수 배지 — 서버 PC(localhost, 즉 개발자)에서만 노출
-if (['localhost', '127.0.0.1'].includes(location.hostname)) {
   // 사용자 요청(GitHub Issues) 개수 배지 — 새 요청이 있으면 ✉N 표시
   const iss = document.createElement('button');
   iss.style.display = 'none';
@@ -2293,7 +2296,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
   }
   checkIssues();
   setInterval(checkIssues, 10 * 60 * 1000);
-}
+})();
 
 document.querySelectorAll('.atab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
