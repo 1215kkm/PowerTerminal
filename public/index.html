@@ -147,14 +147,15 @@
   .reqPanel.hidden { display: none; }
   .reqPanel .rp-head { font-size: 11px; font-weight: 700; color: #6b7280; padding: 2px 4px 5px;
                        position: sticky; top: -4px; background: #fefefe; }
-  .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer; }
+  .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer;
+                             font-size: var(--tfs, 13px); }   /* 세션 글자크기 드롭다운을 따라감 */
   .reqPanel .memo-row.mreq:hover { background: #f3f4f6; }
   .pane-body.hist .term { right: 200px; }        /* 패널이 열리면 터미널을 그만큼 줄임 */
   .pane-body.hist .termCancel { right: 218px; }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
   /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 전문 표시(말줄임 없음), 클릭하면 그 위치로 */
   .reqSticky { position: absolute; top: 0; left: 0; right: 0; z-index: 6; cursor: pointer;
-               background: #fefefe; color: #111827; font-weight: 700; font-size: 12px; line-height: 1.5;
+               background: #fefefe; color: #111827; font-weight: 700; font-size: var(--tfs, 12px); line-height: 1.5;
                padding: 6px 96px 6px 10px;              /* 오른쪽 여백 = 방금요청취소 버튼 자리 */
                border-bottom: 2px solid #c4b5fd; box-shadow: 0 2px 8px rgba(0,0,0,.25);
                max-height: 45%; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
@@ -1261,7 +1262,12 @@ function buildPane(sess, idx) {
 
   // 글자 크기 — 선택식 드롭다운
   const fontSel = el.querySelector('.fontSel');
-  fontSel.onchange = ev => { ev.stopPropagation(); term.options.fontSize = +fontSel.value; sendResize(); };
+  fontSel.onchange = ev => {
+    ev.stopPropagation();
+    term.options.fontSize = +fontSel.value;
+    el.style.setProperty('--tfs', fontSel.value + 'px');   // 요청내역 패널·📌 고정배너 글자도 같이 커지게
+    sendResize();
+  };
 
   // ⇄ 모드 전환 버튼은 제거됨 (터미널에서 Shift+Tab으로 직접 전환) — 남은 참조 대비 가드
   const modeBtn = el.querySelector('.btnMode');
