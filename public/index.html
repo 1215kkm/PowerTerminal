@@ -57,7 +57,8 @@
   .pane.done .donebadge { display: block; }
 
   .pane-head { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px;
-               background: #111827; border-bottom: 1px solid var(--line); cursor: grab; }
+               background: #111827; border-bottom: 1px solid var(--line); cursor: grab;
+               user-select: none; -webkit-user-select: none; }   /* 제목·경로 글자에서 드래그 시작하면 '텍스트 선택'이 이겨서 창 이동이 안 되던 문제 — 헤더 전체를 선택불가로 */
   .ph-top { display: flex; align-items: center; gap: 6px; }
   .ph-bottom { display: flex; align-items: center; gap: 8px; }
   .ph-bottom .folder { flex: 0 1 auto; }
@@ -270,7 +271,8 @@
                background: #111827; transition: border-color .15s, transform .1s; }
   .mini-pane:hover { border-color: var(--violet); transform: translateY(-1px); }
   .mp-head { display: flex; align-items: center; gap: 6px; padding: 5px 7px;
-             background: #1f2937; border-bottom: 1px solid var(--line); cursor: grab; }
+             background: #1f2937; border-bottom: 1px solid var(--line); cursor: grab;
+             user-select: none; -webkit-user-select: none; }   /* 미니카드도 제목 글자에서 드래그 시작 가능하게 */
   .mp-head:active { cursor: grabbing; }
   .mini-pane.dragging { opacity: .5; }
   .mp-num { min-width: 18px; height: 18px; border-radius: 5px; font-size: 11px; font-weight: 700;
@@ -338,7 +340,7 @@
     /* 이미지 첨부/찾기 버튼 — 폰에서 누르기 쉽게 크게 */
     .quick .qImg { padding: 8px 12px; }
     .quick .qImg svg { width: 20px; height: 20px; }
-    .quick .qSend { padding: 8px 12px; }
+    .quick .qSend { padding: 8px 12px; min-height: 62px; }   /* 폰: 전송 버튼 높이 2배 (엄지로 누르기 쉽게) */
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
     #qrCols > div { width: 100%; }
@@ -605,6 +607,8 @@ const I18N = {
     memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Ctrl+Enter or the Save button to save',
     memoSaveBtn:'Save', memoSaveTip:'Save this memo (Ctrl+Enter)',
     themeT:'Light / dark mode (terminal included)',
+    previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
+    mDefaultLong:'Auto — account default (usually Opus)',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     cancelReqT:'Stop the request in progress (sends ESC to the terminal)',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
@@ -631,6 +635,8 @@ const I18N = {
     memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Ctrl+Enter 또는 저장 버튼으로 저장',
     memoSaveBtn:'저장', memoSaveTip:'이 메모 저장 (Ctrl+Enter)',
     themeT:'라이트/다크 모드 전환 (터미널 포함)',
+    previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
+    mDefaultLong:'자동 — 계정 기본 모델 (보통 Opus)',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     cancelReqT:'진행 중인 요청 중단 (터미널에 ESC 전송)',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
@@ -845,6 +851,20 @@ function toggleTheme() {
 }
 applyTheme();   // 저장된 테마로 시작 (터미널 생성 전에 themeLight 확정)
 
+// 모델 선택의 'Auto' — 펼쳤을 때만 설명("자동 — 계정 기본 모델(보통 Opus)")을 보여주고, 닫히면 'Auto'만
+function autoOptExpand(sel) {
+  if (!sel) return;
+  const opt = sel.querySelector('option[value="default"]');
+  if (!opt) return;
+  const expand = () => { opt.textContent = T.mDefaultLong || T.mDefault || 'Auto'; };
+  const collapse = () => { opt.textContent = T.mDefault || 'Auto'; };
+  sel.addEventListener('mousedown', expand);   // 펼치기 직전에 긴 설명으로
+  sel.addEventListener('focus', expand);       // 키보드로 펼칠 때도
+  sel.addEventListener('change', collapse);
+  sel.addEventListener('blur', collapse);
+}
+autoOptExpand(document.getElementById('addModel'));   // 세션추가 창의 모델 선택
+
 function buildPane(sess, idx) {
   const el = document.createElement('div');
   el.className = 'pane';
@@ -1046,12 +1066,18 @@ function buildPane(sess, idx) {
   }, true);
 
   // 👁 미리보기 — 만든 웹페이지/앱을 새 브라우저 창으로 연다
-  el.querySelector('.btnPrev').onclick = (ev) => {
+  el.querySelector('.btnPrev').onclick = async (ev) => {
     ev.stopPropagation();
     let url = prompt(T.previewPrompt, sess.previewUrl || 'http://localhost:3000');
     if (url === null) return;             // 취소
     url = url.trim();
-    if (!url) url = location.origin + '/preview/' + sess.id + '/index.html?token=' + (TOKEN || '');
+    if (!url) {                           // 비워두면 폴더의 index.html을 내장 서버로 — 없으면 이유를 알려줌
+      url = location.origin + '/preview/' + sess.id + '/index.html?token=' + (TOKEN || '');
+      try {
+        const chk = await fetch(url, { method: 'HEAD' });
+        if (!chk.ok) { alert(T.previewNoIndex || 'No index.html in this folder — run your dev server and enter its address (e.g. http://localhost:3000).'); return; }
+      } catch (e) {}
+    }
     sess.previewUrl = url;
     api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
     window.open(url, '_blank');           // 새 창
@@ -1078,6 +1104,7 @@ function buildPane(sess, idx) {
 
   // AI 모델 선택 (Claude 세션) — 확실히 바꾸려면 세션을 그 모델로 재시작 (대화는 --continue로 이어짐)
   const modelDrop = el.querySelector('.modelSel');
+  autoOptExpand(modelDrop);   // 펼칠 때만 Auto 설명 표시
   if (modelDrop) modelDrop.onchange = async (ev) => {
     ev.stopPropagation();
     const prev = sess.model || 'default';

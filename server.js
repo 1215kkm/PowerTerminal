@@ -144,7 +144,11 @@ function agentCommand(sess) {
   const model = sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '';
   if (IS_WIN) {
     switch (sess.agent) {
-      case 'codex':  return 'codex resume --last; if ($LASTEXITCODE -ne 0) { codex }';
+      // codex 미설치면 빨간 PowerShell 에러 대신 설치 안내 (GPT 세션 = OpenAI Codex CLI 실행)
+      case 'codex':  return 'if (Get-Command codex -ErrorAction SilentlyContinue) { codex resume --last; if ($LASTEXITCODE -ne 0) { codex } } ' +
+                            'else { Write-Host ""; Write-Host "  GPT(codex) CLI is not installed / GPT(codex) CLI가 설치되어 있지 않아요" -ForegroundColor Yellow; ' +
+                            'Write-Host "  Install / 설치:  npm install -g @openai/codex" -ForegroundColor Cyan; ' +
+                            'Write-Host "  (Node.js required · after install, close this session with X and open a new GPT session / 설치 후 이 세션을 X로 닫고 GPT 세션을 새로 여세요)" -ForegroundColor DarkGray }';
       case 'shell':  return 'Write-Host "PowerShell 세션" -ForegroundColor Magenta';
       case 'custom': return sess.cmd || 'powershell';
       default:       return 'claude' + model + ' --continue; if ($LASTEXITCODE -ne 0) { claude' + model + ' }';
@@ -152,7 +156,8 @@ function agentCommand(sess) {
   }
   // Mac/Linux (POSIX 셸)
   switch (sess.agent) {
-    case 'codex':  return 'codex resume --last || codex';
+    case 'codex':  return 'if command -v codex >/dev/null 2>&1; then codex resume --last || codex; ' +
+                          'else echo ""; echo "  GPT(codex) CLI is not installed / GPT(codex) CLI가 설치되어 있지 않아요"; echo "  Install / 설치:  npm install -g @openai/codex"; fi';
     case 'shell':  return 'echo "shell session"';
     case 'custom': return sess.cmd || '';
     default:       return 'claude' + model + ' --continue || claude' + model;
