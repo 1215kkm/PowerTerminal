@@ -274,7 +274,8 @@ setInterval(() => {
 
 // ---------- HTTP ----------
 const app = express();
-app.use(express.json({ limit: '30mb' }));   // 이미지 붙여넣기(base64) 수용
+app.use(express.json({ limit: '30mb',      // 이미지 붙여넣기(base64) 수용
+  verify: (req, res, buf) => { req.rawBody = buf; } }));   // 프록시 중계용 원본 보존
 
 function isLocal(sock) { return /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
 
@@ -976,6 +977,57 @@ a{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;margin:3p
 a:hover{border-color:#8a38f5}small{color:#94a3b8;flex:0 0 auto}span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style>
 <h2>📂 ${h(path.basename(abs) || s.title)}</h2><p>No index.html — showing folder contents · index.html이 없어 폴더 내용을 표시합니다</p>${body || '<p>(empty)</p>'}`);
   });
+});
+
+// ---------- 🌐 개발서버 프록시 ----------
+// 폰에서는 PC의 localhost:3000 을 직접 못 연다(그 주소는 "폰 자신"을 가리킴).
+// 그래서 PT가 중간에서 대신 받아 전달: 폰 → (터널) → PT → PC의 개발서버.
+// /proxy/<세션id>/... 로 들어온 요청을 그 세션의 previewUrl(로컬 개발서버)로 넘긴다.
+function localPreviewTarget(s) {
+  if (!s || !s.previewUrl) return null;
+  let u; try { u = new URL(s.previewUrl); } catch (e) { return null; }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const host = u.hostname.toLowerCase();          // 로컬 개발서버만 — 외부 주소로는 중계하지 않음
+  if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') return null;
+  return u;
+}
+function proxyPass(target, req, res) {
+  const opt = { hostname: target.hostname, port: target.port || (target.protocol === 'https:' ? 443 : 80),
+                path: req.url, method: req.method,
+                headers: { ...req.headers, host: target.host } };
+  const mod = target.protocol === 'https:' ? https : http;
+  const up = mod.request(opt, r => {
+    const h = { ...r.headers };
+    delete h['connection']; delete h['keep-alive']; delete h['transfer-encoding'];
+    res.writeHead(r.statusCode || 502, h);
+    r.pipe(res);
+  });
+  up.on('error', () => {
+    if (res.headersSent) { try { res.end(); } catch (e) {} return; }
+    res.status(502).send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<body style="font-family:system-ui,sans-serif;background:#0f172a;color:#e5e7eb;padding:40px 20px;text-align:center">'
+      + '<h2>⚠ ' + target.host + ' 이 응답하지 않습니다</h2>'
+      + '<p>PC에서 개발 서버가 실행 중인지 확인하세요.<br>Dev server is not responding — make sure it is running on the PC.</p>');
+  });
+  if (req.rawBody !== undefined) up.end(req.rawBody);   // express.json이 이미 읽은 본문은 원본 그대로
+  else req.pipe(up);
+}
+app.use('/proxy/:id', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  const target = localPreviewTarget(s);
+  if (!target) return res.redirect('/preview/' + encodeURIComponent(req.params.id) + '/');   // 개발서버 미설정이면 폴더 미리보기로
+  // HTML 진입 시 쿠키를 심음 — 페이지가 /assets/.. 같은 절대경로로 부르는 리소스를 아래 폴백이 이어받게
+  if ((req.headers.accept || '').includes('text/html'))
+    res.setHeader('Set-Cookie', 'pt_proxy=' + s.id + '; Path=/');   // 세션 쿠키 (브라우저 닫으면 소멸)
+  proxyPass(target, req, res);
+});
+// 절대경로 리소스 폴백 — PT 자체 라우트에 안 걸린 요청 중 pt_proxy 쿠키가 있으면 개발서버로 전달
+app.use((req, res, next) => {
+  const pid = (req.headers.cookie || '').split('pt_proxy=')[1]?.split(';')[0];
+  if (!pid) return next();
+  const target = localPreviewTarget(sessions.find(x => x.id === pid));
+  if (!target) return next();
+  proxyPass(target, req, res);
 });
 
 // ---------- WebSocket (터미널) ----------

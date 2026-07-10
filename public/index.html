@@ -692,7 +692,7 @@ const I18N = {
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
     bnNewVer:'🔄 New version v{v} is out — click to update',
     confirmClose:'Close session "{t}"? (terminal ends, folder stays)',
-    previewPrompt:'Open which page in a new tab? (your dev server, e.g. http://localhost:3000 — leave empty to open the folder index.html)',
+    previewPrompt:'Open which page in a new tab? (your dev server, e.g. http://localhost:3000 — PowerTerminal relays it so it opens on your phone too · leave empty to open the folder)',
     customPrompt:'Command to run (e.g. codex, aider, gemini)',
     infoHead:'📡 Access URLs', wifi:'Same Wi-Fi', lte:'External access (anywhere)', tunnelNone:'Tunnel starting or cloudflared missing', urlChanges:'(URL changes when server restarts)',
     qrLte:'Anywhere via LTE: ', qrWifi:'Same Wi-Fi: ',
@@ -725,7 +725,7 @@ const I18N = {
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
     bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 다운받기',
     confirmClose:'"{t}" 세션을 닫을까요? (터미널 종료, 폴더는 그대로)',
-    previewPrompt:'새 탭에서 열 주소를 입력하세요 (개발서버 실행 중이면 http://localhost:3000 · 비우면 폴더의 index.html을 엽니다)',
+    previewPrompt:'새 탭에서 열 주소를 입력하세요 (개발서버 실행 중이면 http://localhost:3000 — PT가 중간 전달해줘서 폰에서도 열려요 · 비우면 폴더를 엽니다)',
     customPrompt:'실행할 명령 (예: codex, aider, gemini)',
     infoHead:'📡 접속 주소', wifi:'같은 와이파이', lte:'외부접속 (어디서든)', tunnelNone:'터널 준비 중이거나 cloudflared 미설치', urlChanges:'(서버 재시작 시 주소 변경됨)',
     qrLte:'외부 LTE 어디서든: ', qrWifi:'같은 와이파이: ',
@@ -1176,11 +1176,19 @@ function buildPane(sess, idx) {
     let url = prompt(T.previewPrompt, sess.previewUrl || 'http://localhost:3000');
     if (url === null) return;             // 취소
     url = url.trim();
-    // 비워두면 내장 서버로 폴더를 연다 — index.html이 있으면 그 페이지, 없으면 파일 목록(클릭해서 열기)
-    if (!url) url = location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || '');
+    let open;
+    if (!url) {
+      // 비워두면 내장 서버로 폴더를 연다 — index.html이 있으면 그 페이지, 없으면 파일 목록(클릭해서 열기)
+      open = location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || '');
+    } else if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url)) {
+      // 로컬 개발서버 주소는 PT 프록시를 거쳐 연다 — 같은 링크가 폰(터널)에서도 열림
+      open = location.origin + '/proxy/' + sess.id + '/?token=' + (TOKEN || '');
+    } else {
+      open = url;                         // 외부 주소는 그대로
+    }
     sess.previewUrl = url;
     api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
-    window.open(url, '_blank');           // 새 창
+    window.open(open, '_blank');          // 새 창
   };
 
   // 세션 AI(agent) 변경 — 다른 AI로 세션 재시작 (헤더가 바뀌므로 pane 재생성, 위치 유지)
@@ -1799,9 +1807,8 @@ function renderMinimap() {
       // 클릭한 탭 강조 + 연결된 화면 잠깐 반짝 → 몇번 탭이 몇번 화면인지 직관적으로
       mm.querySelectorAll('.mm-cell').forEach(c => c.classList.remove('active'));
       cell.classList.add('active');
-      // 고정 헤더+탭메뉴 높이만큼 빼서 스크롤 — 제목이 가려지지 않게
-      const hdr = document.querySelector('header');
-      const overlay = (hdr ? hdr.offsetHeight : 0) + mm.offsetHeight + 6;
+      // 상단에 고정되는 건 탭메뉴뿐(헤더는 같이 스크롤됨) — 탭메뉴 높이만 빼야 정확히 붙는다
+      const overlay = mm.offsetHeight + 6;
       const y = paneEl.getBoundingClientRect().top + window.scrollY - overlay;
       window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
       paneEl.style.transition = 'box-shadow .2s';
