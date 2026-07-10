@@ -811,6 +811,26 @@ app.post('/api/sessions/:id/upload-image', (req, res) => {
   }
 });
 
+// 📎 아무 파일 첨부(문서·텍스트 등) — 원본 이름을 살려 세션 폴더에 저장 → 절대경로 반환 (Claude가 읽음)
+app.post('/api/sessions/:id/upload-file', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  const data = req.body && req.body.data;
+  if (!data) return res.status(400).json({ error: 'no data' });
+  const m = /^data:[^;,]*;base64,(.*)$/.exec(data);
+  const b64 = m ? m[1] : data;
+  const safe = String((req.body && req.body.name) || 'file').replace(/[\\/:*?"<>|]/g, '_').slice(-80) || 'file';
+  try {
+    const dir = path.join(s.path, '.pt-images');   // 첨부 폴더 (이미지와 같은 곳)
+    fs.mkdirSync(dir, { recursive: true });
+    const full = path.join(dir, Date.now().toString(36) + '-' + safe);
+    fs.writeFileSync(full, Buffer.from(b64, 'base64'));
+    res.json({ ok: true, path: full });
+  } catch (e) {
+    res.json({ error: String((e && e.message) || e) });
+  }
+});
+
 // 붙여넣은 긴/여러 줄 텍스트를 파일로 저장 → 경로 반환 (전송 시 경로만 보내 조기 제출 문제 회피, Claude가 파일을 읽음)
 app.post('/api/sessions/:id/upload-text', (req, res) => {
   const s = sessions.find(x => x.id === req.params.id);
@@ -894,6 +914,30 @@ app.post('/api/memos/reqst', (req, res) => {          // 요청 상태 스탬프
   const st = ['done', 'stop', 'off'].includes(req.body && req.body.st) ? req.body.st : 'done';
   stampReqs(req.body.path, st);
   res.json({ ok: true });
+});
+// 📊 메모·요청내역 CSV 내보내기 (엑셀용, UTF-8 BOM) — ?path=폴더: 그 세션만 · ?all=1: 전체 세션
+app.get('/api/memos/export', (req, res) => {
+  const all = req.query.all === '1';
+  const keys = all ? Object.keys(memos) : [memoKey(req.query.path)];
+  const p2 = n => String(n).padStart(2, '0');
+  const fmtD = ms => { if (!ms) return ''; const d = new Date(ms);
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const ST = { run: '진행중', done: '완료', stop: '중단', off: '종료로 중단' };
+  const rows = [['구분 Type', '작성일시 Created', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session'].map(q).join(',')];
+  for (const k of keys) {
+    const m = memos[k]; if (!m) continue;
+    const folder = path.basename(k || '');
+    ((m.reqs || []).slice().reverse()).forEach(r =>   // 저장은 최신순 → 시간순으로 뒤집어 내보냄
+      rows.push(['요청', fmtD(r.ts), r.text, ST[r.st] || r.st || '', fmtD(r.endTs), folder].map(q).join(',')));
+    (m.items || []).forEach(it =>
+      rows.push(['메모', fmtD(it.ts), it.text, it.done ? '완료' : '작성', fmtD(it.doneTs), folder].map(q).join(',')));
+  }
+  const base = all ? 'all-sessions' : (path.basename(keys[0] || '') || 'memo');
+  const name = 'powerterminal-' + base + '-' + fmtD(Date.now()).slice(0, 10) + '.csv';
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', "attachment; filename=\"export.csv\"; filename*=UTF-8''" + encodeURIComponent(name));
+  res.send(String.fromCharCode(0xFEFF) + rows.join('\r\n'));   // BOM — 엑셀이 UTF-8 한글을 바로 읽게
 });
 
 app.post('/api/sessions/:id/clear-done', (req, res) => {
