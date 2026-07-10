@@ -43,6 +43,7 @@
   .pane.dragover { outline: 2px dashed var(--pink); }
   /* 새 세션창 등장 애니메이션 (드래그 이동은 JS FLIP으로 transform 처리) */
   @keyframes paneIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+  @keyframes sendPop { 0% { transform: scale(.9); } 55% { transform: scale(1.06); } 100% { transform: scale(1); } }
   .pane.pane-in { animation: paneIn .28s ease; }
   /* 헤더 버튼 6개(📝☰⛶👁⇄글자크기)는 평소 숨김 — 마우스를 그 세션에 올리면 표시 (호버 없는 폰은 항상 표시) */
   @media (hover: hover) and (pointer: fine) {
@@ -191,6 +192,11 @@
            border-radius: 12px; max-width: 92vw; width: 460px; }
   /* 📝 세션 메모장 — 밝은 종이(#fefefe) 배경 + 진한 글자, 여백 최소, 3단 (메모 | 완료 | 요청내역) */
   #memoDlg { width: min(96vw, 1150px); max-width: 96vw; padding: 8px; background: #fefefe; color: #1f2937; border-color: #d1d5db; }
+  /* 열 때 빠르고 부드럽게 커지고, 닫을 때 반대로 작아지며 사라짐 */
+  @keyframes memoIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+  @keyframes memoOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.93); } }
+  #memoDlg[open] { animation: memoIn .18s ease-out; }
+  #memoDlg.closing { animation: memoOut .15s ease-in forwards; }
   .memo-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 6px; }
   .memo-head h3 { font-size: 14px; color: #111827; }
   #memoClose { background: #e5e7eb; color: #1f2937; font-weight: 700; }
@@ -336,12 +342,21 @@
     .pane-head { padding: 8px 10px; gap: 5px; }
     .pane-head .folder { font-size: 12px; }
     .pane-head .modelSel { font-size: 13px; padding: 5px 8px; }
-    .btnMax, .btnTasks, .btnPrev { display: none; }  /* 폰: 인라인확대·작업목록·미리보기(👁) 버튼 숨김 (👁는 폰에서 PC의 localhost에 못 닿아 빈화면) */
+    .btnMax, .btnTasks { display: none; }  /* 폰: 인라인확대·작업목록 버튼 숨김. 👁 미리보기는 폰에서도 표시 — 내장 미리보기(폴더 index.html)는 서버 경유라 폰에서도 잘 열림 */
     .btnZoom { display: inline-block; }    /* 폰에선 전체화면 확대(🔍) 버튼 표시 */
-    /* 이미지 첨부/찾기 버튼 — 폰에서 누르기 쉽게 크게 */
+    /* 이미지 첨부/찾기·취소 버튼 — 폰에서 누르기 쉽게 크게 (입력줄 높이에 맞춤) */
     .quick .qImg { padding: 8px 12px; }
     .quick .qImg svg { width: 20px; height: 20px; }
-    .quick .qSend { padding: 8px 12px; min-height: 62px; }   /* 폰: 전송 버튼 높이 2배 (엄지로 누르기 쉽게) */
+    .quick .qCancel { padding: 11px 12px; font-size: 13px; }
+    .quick .qSend { padding: 8px 12px; min-height: 62px;     /* 폰: 전송 버튼 높이 2배 (엄지로 누르기 쉽게) */
+                    transition: transform .08s ease, filter .08s ease; }
+    /* 팡팡 누르는 맛: 누르는 순간 눌리고(스케일다운+밝아짐), 전송되면 톡 튀어오름 */
+    .quick .qSend:active { transform: scale(.92); filter: brightness(1.3); }
+    .quick .qSend.pop { animation: sendPop .3s cubic-bezier(.34,1.56,.64,1); }
+    /* 스크롤하면 로고·세션탭(미니맵)만 남기고 헤더 나머지는 부드럽게 사라짐 */
+    header > * { transition: opacity .22s ease; }
+    html.hdr-fade header > :not(.logo-wrap), html.hdr-fade #usage .ub { opacity: 0; pointer-events: none; }
+    html.hdr-gone header > :not(.logo-wrap), html.hdr-gone #usage .ub { display: none !important; }
     /* QR: 폰에선 두 개가 겹치지 않게 위아래로 쌓기 */
     #qrCols { flex-direction: column !important; align-items: center; }
     #qrCols > div { width: 100%; }
@@ -1225,7 +1240,13 @@ function buildPane(sess, idx) {
     }
     if (!ev.shiftKey) { ev.preventDefault(); send(); }   // 그냥 Enter = 전송 · Shift+Enter = 줄바꿈
   });
-  el.querySelector('.qSend').onclick = send;
+  const qSendBtn = el.querySelector('.qSend');
+  qSendBtn.onclick = () => {
+    // 팡팡 누르는 맛 — 전송 순간 톡 튀어오르는 애니 + (안드로이드) 짧은 진동
+    qSendBtn.classList.remove('pop'); void qSendBtn.offsetWidth; qSendBtn.classList.add('pop');
+    if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    send();
+  };
 
   // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송 = 터미널에서 ESC 누르는 것과 동일). 요청 내역엔 '중단' 스탬프.
   const doCancel = ev => {
@@ -2394,6 +2415,26 @@ addEventListener('scroll', () => {
   scrollFlag = setTimeout(() => document.documentElement.classList.remove('pt-scrolling'), 400);
 }, { passive: true });
 
+// 📱 폰: 스크롤 내리면 헤더에서 로고·세션탭(미니맵)만 남기고 나머지는 부드럽게 사라짐
+// (fade 0.22초 후 display:none으로 자리까지 접힘 — 미니맵 sticky 위치는 ResizeObserver가 자동 보정)
+if (isMobile) {
+  let hdrHidden = false, hdrT;
+  addEventListener('scroll', () => {
+    const want = scrollY > 60;
+    if (want === hdrHidden) return;
+    hdrHidden = want;
+    clearTimeout(hdrT);
+    const root = document.documentElement;
+    if (want) {
+      root.classList.add('hdr-fade');                                   // 먼저 투명하게
+      hdrT = setTimeout(() => root.classList.add('hdr-gone'), 240);     // 그 다음 자리 접기
+    } else {
+      root.classList.remove('hdr-gone');                                // 자리 먼저 복구
+      requestAnimationFrame(() => root.classList.remove('hdr-fade'));   // 그리고 서서히 나타남
+    }
+  }, { passive: true });
+}
+
 // ---------- 📝 세션 메모장 ----------
 // 폴더 경로 기준으로 서버(~/.powerterminal/memos.json)에 저장 — 세션을 껐다 켜도, 폰·PC 어디서 봐도 같은 메모.
 const memoDlg = document.getElementById('memoDlg');
@@ -2478,8 +2519,13 @@ async function commitMemoNew() {   // 저장(💾 버튼·Ctrl+Enter) — 쓰던
   if (res && res.memo) { memoData = res.memo; renderMemo(); }
 }
 // 닫기(✕·바탕클릭·ESC)는 저장하지 않음 — 쓰던 글은 입력란에 그대로 남음 (localStorage 임시보관)
-function closeMemo() { try { memoDlg.close(); } catch (e) {} }
+function closeMemo() {   // 닫을 땐 축소 애니 먼저, 끝나면 실제로 닫음
+  if (!memoDlg.open || memoDlg.classList.contains('closing')) return;
+  memoDlg.classList.add('closing');
+  setTimeout(() => { memoDlg.classList.remove('closing'); try { memoDlg.close(); } catch (e) {} }, 150);
+}
 memoDlg.addEventListener('click', ev => { if (ev.target === memoDlg) closeMemo(); });   // 백드롭 클릭 = 닫기만
+memoDlg.addEventListener('cancel', ev => { ev.preventDefault(); closeMemo(); });        // ESC도 애니메이션 타고 닫힘
 {
   const ta = document.getElementById('memoNew');
   ta.addEventListener('input', () => {   // 타이핑할 때마다 임시보관 (닫았다 열어도 유지)
