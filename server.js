@@ -991,7 +991,7 @@ function localPreviewTarget(s) {
   if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') return null;
   return u;
 }
-function proxyPass(target, req, res) {
+function proxyPass(target, req, res, sid) {
   const opt = { hostname: target.hostname, port: target.port || (target.protocol === 'https:' ? 443 : 80),
                 path: req.url, method: req.method,
                 headers: { ...req.headers, host: target.host } };
@@ -1007,7 +1007,8 @@ function proxyPass(target, req, res) {
     res.status(502).send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
       + '<body style="font-family:system-ui,sans-serif;background:#0f172a;color:#e5e7eb;padding:40px 20px;text-align:center">'
       + '<h2>⚠ ' + target.host + ' 이 응답하지 않습니다</h2>'
-      + '<p>PC에서 개발 서버가 실행 중인지 확인하세요.<br>Dev server is not responding — make sure it is running on the PC.</p>');
+      + '<p>PC에서 개발 서버가 실행 중인지 확인하세요.<br>Dev server is not responding — make sure it is running on the PC.</p>'
+      + (sid ? '<p style="margin-top:24px"><a href="/preview/' + encodeURIComponent(sid) + '/" style="color:#c4b5fd;font-weight:700">📂 대신 폴더 내용 보기 · Browse the folder instead</a></p>' : ''));
   });
   if (req.rawBody !== undefined) up.end(req.rawBody);   // express.json이 이미 읽은 본문은 원본 그대로
   else req.pipe(up);
@@ -1019,7 +1020,7 @@ app.use('/proxy/:id', (req, res) => {
   // HTML 진입 시 쿠키를 심음 — 페이지가 /assets/.. 같은 절대경로로 부르는 리소스를 아래 폴백이 이어받게
   if ((req.headers.accept || '').includes('text/html'))
     res.setHeader('Set-Cookie', 'pt_proxy=' + s.id + '; Path=/');   // 세션 쿠키 (브라우저 닫으면 소멸)
-  proxyPass(target, req, res);
+  proxyPass(target, req, res, s.id);
 });
 // 절대경로 리소스 폴백 — PT 자체 라우트에 안 걸린 요청 중 pt_proxy 쿠키가 있으면 개발서버로 전달
 app.use((req, res, next) => {

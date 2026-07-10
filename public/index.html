@@ -252,12 +252,18 @@
   .memo-row .mdate { font-size: 10px; color: #9ca3af; line-height: 1.5; padding-top: 1px; white-space: nowrap; }
   .memo-row input[type=checkbox] { margin: 2px 0 0; accent-color: var(--violet); cursor: pointer; }
   .memo-row .mtext { white-space: pre-wrap; word-break: break-word; line-height: 1.5; color: #1f2937; }
-  /* 완료 행: 취소선 + 우측 빨강 ✕ */
-  .memo-row.mdone { grid-template-columns: 86px 1fr 20px; }
+  /* 완료 행: 취소선 (날짜|본문 2칸 — ✕는 절대위치) */
+  .memo-row.mdone { grid-template-columns: 86px 1fr; }
   .memo-row.mdone .mtext { text-decoration: line-through; color: #9ca3af; }
-  .memo-row .mdel { width: 18px; height: 18px; padding: 0; border-radius: 5px; background: #ef4444; color: #fff;
-                    font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; flex: 0 0 auto; }
+  /* 빨강 ✕ 삭제 — 메모·완료 행 공통: 우측 위, 마우스 올렸을 때만 표시 (터치기기는 항상) */
+  .memo-row { position: relative; }
+  .memo-row .mdel { position: absolute; right: 4px; top: 5px; width: 20px; height: 20px; padding: 0;
+                    border-radius: 6px; background: #ef4444; color: #fff; border: none;
+                    font-size: 12px; line-height: 20px; text-align: center; cursor: pointer; display: none; }
+  .memo-row:hover .mdel { display: block; }
   .memo-row .mdel:hover { background: #b91c1c; }
+  @media (hover: none) { .memo-row .mdel { display: block; } }
+  .memo-row.mdone .mtext, #memoItems .memo-row .mtext { padding-right: 24px; }   /* ✕ 자리와 글 안 겹치게 */
   /* 요청 내역 행: [작성일+상태 | 본문] */
   .memo-row.mreq { grid-template-columns: 86px 1fr; }
   .memo-row.mreq .mtext { color: #374151; }
@@ -677,14 +683,14 @@ const I18N = {
     renameHint:'Double-click to rename', previewT:'Toggle live preview', fontUp:'Bigger font', fontDn:'Smaller font', closeT:'Close this session',
     zoomT:'Full-screen this session', zoomExit:'✕ Exit full screen',
     quickPh:'Type a request and press Enter', send:'Send', done:'✅ Done',
-    memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Ctrl+Enter or the Save button to save',
-    memoSaveBtn:'Save', memoSaveTip:'Save this memo (Ctrl+Enter)',
+    memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Enter to save · Shift+Enter for a new line',
+    memoSaveBtn:'Save', memoSaveTip:'Save this memo (Enter)',
     themeT:'Light / dark mode (terminal included)',
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — account default (usually Opus)',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes',
-    memoEdit:'Edit', memoDelBtn:'Del', memoEditSaveT:'Save (Ctrl+Enter)', memoEditCancelT:'Cancel editing (Esc)',
+    memoEdit:'Edit', memoDelBtn:'Del', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -710,14 +716,14 @@ const I18N = {
     renameHint:'더블클릭으로 이름 수정', previewT:'실제 모습 미리보기 토글', fontUp:'글자 크게', fontDn:'글자 작게', closeT:'이 세션 닫기',
     zoomT:'이 세션 전체화면으로 크게 보기', zoomExit:'✕ 전체화면 닫기',
     quickPh:'요청 입력 후 엔터 (폰에서 편하게 타이핑)', send:'전송', done:'✅ 완료',
-    memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Ctrl+Enter 또는 저장 버튼으로 저장',
-    memoSaveBtn:'저장', memoSaveTip:'이 메모 저장 (Ctrl+Enter)',
+    memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Enter로 저장 · Shift+Enter는 줄바꿈',
+    memoSaveBtn:'저장', memoSaveTip:'이 메모 저장 (Enter)',
     themeT:'라이트/다크 모드 전환 (터미널 포함)',
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — 계정 기본 모델 (보통 Opus)',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동',
-    memoEdit:'수정', memoDelBtn:'삭제', memoEditSaveT:'저장 (Ctrl+Enter)', memoEditCancelT:'수정 취소 (Esc)',
+    memoEdit:'수정', memoDelBtn:'삭제', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -2673,8 +2679,9 @@ function renderMemo() {
     const r = document.createElement('div'); r.className = 'memo-row';
     r.innerHTML = `<span class="mdate">${fmtMemoDate(it.ts)}`
                 + `<span class="mbtns"><button class="msend" title="${esc(T.memoSendTip || '')}">📤 ${esc(T.memoSend || 'Send')}</button>`
-                + `<button class="medit2">✏ ${esc(T.memoEdit || 'Edit')}</button><button class="mdel2" title="${esc(T.memoDelT || 'Delete')}">✕ ${esc(T.memoDelBtn || 'Del')}</button></span>`
-                + `</span><input type="checkbox"><span class="mtext">${esc(it.text)}</span>`;
+                + `<button class="medit2">✏ ${esc(T.memoEdit || 'Edit')}</button></span>`
+                + `</span><input type="checkbox"><span class="mtext">${esc(it.text)}</span>`
+                + `<button class="mdel" title="${esc(T.memoDelT || 'Delete')}">✕</button>`;   // 완료 항목과 같은 빨강 ✕ — 마우스 올리면 표시
     r.querySelector('input').onchange = async () => {   // 체크 = 완료영역으로 이동
       const res = await api('POST', '/api/memos/toggle', { path: memoPath, id: it.id, done: true });
       if (res && res.memo) memoData = res.memo;
@@ -2700,12 +2707,19 @@ function renderMemo() {
       mt.querySelector('.mesave').onclick = save;
       mt.querySelector('.mecancel').onclick = () => renderMemo();
       ed.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); save(); }
+        if (ev.key === 'Enter' && !ev.isComposing && !ev.shiftKey) {   // Enter = 저장 · Shift/Ctrl+Enter = 줄바꿈
+          ev.preventDefault();
+          if (ev.ctrlKey || ev.metaKey) {
+            const s = ed.selectionStart, e2 = ed.selectionEnd;
+            ed.value = ed.value.slice(0, s) + '\n' + ed.value.slice(e2);
+            ed.selectionStart = ed.selectionEnd = s + 1;
+          } else save();
+        }
         if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); renderMemo(); }   // 다이얼로그까지 안 닫히게
       });
     };
     // ✕ 삭제 — 완료로 보내지 않고 바로 지움
-    r.querySelector('.mdel2').onclick = async () => {
+    r.querySelector('.mdel').onclick = async () => {
       const res = await api('POST', '/api/memos/del', { path: memoPath, id: it.id });
       if (res && res.memo) memoData = res.memo;
       renderMemo();
@@ -2826,8 +2840,16 @@ memoDlg.addEventListener('cancel', ev => { ev.preventDefault(); closeMemo(); });
   ta.addEventListener('input', () => {   // 타이핑할 때마다 임시보관 (닫았다 열어도 유지)
     try { ta.value ? localStorage.setItem('pt_memodraft_' + memoPath, ta.value) : localStorage.removeItem('pt_memodraft_' + memoPath); } catch (e) {}
   });
-  ta.addEventListener('keydown', ev => {   // Ctrl+Enter(⌘+Enter) = 저장
-    if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); commitMemoNew(); }
+  ta.addEventListener('keydown', ev => {   // Enter = 저장 · Shift+Enter/Ctrl+Enter = 줄바꿈
+    if (ev.key !== 'Enter' || ev.isComposing) return;   // 한글 조합 중 Enter는 무시
+    if (ev.shiftKey) return;                            // Shift+Enter: 기본 동작(줄바꿈)
+    ev.preventDefault();
+    if (ev.ctrlKey || ev.metaKey) {                     // Ctrl+Enter: 줄바꿈 (기본으론 아무것도 안 하므로 직접 삽입)
+      const s = ta.selectionStart, e = ta.selectionEnd;
+      ta.value = ta.value.slice(0, s) + '\n' + ta.value.slice(e);
+      ta.selectionStart = ta.selectionEnd = s + 1;
+      ta.dispatchEvent(new Event('input'));             // 임시보관도 갱신
+    } else commitMemoNew();
   });
 }
 
