@@ -536,6 +536,9 @@
     <div class="memo-col">
       <div class="memo-list" id="memoItems"></div>
       <textarea id="memoNew" rows="3"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:-2px">
+        <button class="small primary" id="memoSave" onclick="commitMemoNew()"></button>
+      </div>
     </div>
     <div class="memo-col">
       <div class="memo-colhead" id="memoDoneH"></div>
@@ -570,7 +573,8 @@ const I18N = {
     renameHint:'Double-click to rename', previewT:'Toggle live preview', fontUp:'Bigger font', fontDn:'Smaller font', closeT:'Close this session',
     zoomT:'Full-screen this session', zoomExit:'✕ Exit full screen',
     quickPh:'Type a request and press Enter', send:'Send', done:'✅ Done',
-    memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… saved when you close this window',
+    memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Ctrl+Enter or the Save button to save',
+    memoSaveBtn:'Save', memoSaveTip:'Save this memo (Ctrl+Enter)',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     cancelReqT:'Stop the request in progress (sends ESC to the terminal)',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
@@ -594,7 +598,8 @@ const I18N = {
     renameHint:'더블클릭으로 이름 수정', previewT:'실제 모습 미리보기 토글', fontUp:'글자 크게', fontDn:'글자 작게', closeT:'이 세션 닫기',
     zoomT:'이 세션 전체화면으로 크게 보기', zoomExit:'✕ 전체화면 닫기',
     quickPh:'요청 입력 후 엔터 (폰에서 편하게 타이핑)', send:'전송', done:'✅ 완료',
-    memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… 창을 닫으면 저장돼요',
+    memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Ctrl+Enter 또는 저장 버튼으로 저장',
+    memoSaveBtn:'저장', memoSaveTip:'이 메모 저장 (Ctrl+Enter)',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     cancelReqT:'진행 중인 요청 중단 (터미널에 ESC 전송)',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
@@ -1168,6 +1173,7 @@ function buildPane(sess, idx) {
     if (!qThumbs) return;
     const d = document.createElement('div');
     d.className = 'qth';
+    d.dataset.token = token;   // 입력창에서 칩이 사라지면(Ctrl+Z·삭제) 썸네일도 같이 숨기기 위한 연결고리
     const img = document.createElement('img'); img.src = src; img.alt = '';
     const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×'; rm.title = T.imgRemove || 'Remove';
     rm.onclick = () => {
@@ -1179,6 +1185,19 @@ function buildPane(sess, idx) {
     d.appendChild(img); d.appendChild(rm);
     qThumbs.appendChild(d);
   }
+  // 칩 토큰이 입력창에서 사라지면(Ctrl+Z·직접 삭제) 썸네일 숨김 — Ctrl+Y로 되돌아오면 다시 표시
+  const syncThumbs = () => {
+    if (!qThumbs) return;
+    let any = false;
+    [...qThumbs.children].forEach(d => {
+      if (!d.dataset.token) return;
+      const show = qInput.value.includes(d.dataset.token);
+      d.style.display = show ? '' : 'none';
+      if (show) any = true;
+    });
+    qThumbs.style.display = (any || !qThumbs.children.length) ? '' : 'none';
+  };
+  qInput.addEventListener('input', syncThumbs);
   // 여러 줄 긴 글은 서버에 .txt로 저장 → 전송 시 경로만 (조기 제출 방지, Claude가 파일을 읽음)
   async function attachText(text) {
     qInput.disabled = true; const ph = qInput.placeholder; qInput.placeholder = '⏳ ' + (T.imgUploading || 'uploading…');
@@ -2295,8 +2314,12 @@ async function openMemo(sess) {
   }
   document.getElementById('memoDoneH').textContent = T.memoDoneCol || 'Completed';
   document.getElementById('memoReqH').textContent = T.memoReqCol || 'Requests';
+  const sv = document.getElementById('memoSave');
+  sv.textContent = '💾 ' + (T.memoSaveBtn || 'Save'); sv.title = T.memoSaveTip || '';
   const ta = document.getElementById('memoNew');
-  ta.placeholder = T.memoNewPh || ''; ta.value = '';
+  ta.placeholder = T.memoNewPh || '';
+  // 쓰다 만 글은 저장 전까지 입력란에 그대로 — 닫았다 열어도, 새로고침해도 남아있게 localStorage 보관
+  ta.value = localStorage.getItem('pt_memodraft_' + memoPath) || '';
   memoData = { items: [], reqs: [] };
   try { const m = await api('GET', '/api/memos?path=' + encodeURIComponent(memoPath)); if (m && m.items) memoData = m; } catch (e) {}
   renderMemo();
@@ -2340,17 +2363,27 @@ function renderMemo() {
     boxR.appendChild(r);
   });
 }
-async function commitMemoNew() {   // 쓰던 글 → 작성일·체크박스 붙은 메모 행으로 저장
+async function commitMemoNew() {   // 저장(💾 버튼·Ctrl+Enter) — 쓰던 글 → 작성일·체크박스 붙은 메모 행으로
   const ta = document.getElementById('memoNew');
   const text = ta.value.trim();
   if (!text || !memoPath) return;
   ta.value = '';
+  localStorage.removeItem('pt_memodraft_' + memoPath);   // 저장됐으니 임시보관 삭제
   const res = await api('POST', '/api/memos/item', { path: memoPath, text });
   if (res && res.memo) { memoData = res.memo; renderMemo(); }
 }
-async function closeMemo() { await commitMemoNew(); try { memoDlg.close(); } catch (e) {} }
-memoDlg.addEventListener('click', ev => { if (ev.target === memoDlg) closeMemo(); });   // 백드롭 클릭 = 저장하고 닫기
-memoDlg.addEventListener('close', () => { commitMemoNew(); });                          // ESC로 닫아도 쓰던 글 저장
+// 닫기(✕·바탕클릭·ESC)는 저장하지 않음 — 쓰던 글은 입력란에 그대로 남음 (localStorage 임시보관)
+function closeMemo() { try { memoDlg.close(); } catch (e) {} }
+memoDlg.addEventListener('click', ev => { if (ev.target === memoDlg) closeMemo(); });   // 백드롭 클릭 = 닫기만
+{
+  const ta = document.getElementById('memoNew');
+  ta.addEventListener('input', () => {   // 타이핑할 때마다 임시보관 (닫았다 열어도 유지)
+    try { ta.value ? localStorage.setItem('pt_memodraft_' + memoPath, ta.value) : localStorage.removeItem('pt_memodraft_' + memoPath); } catch (e) {}
+  });
+  ta.addEventListener('keydown', ev => {   // Ctrl+Enter(⌘+Enter) = 저장
+    if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); commitMemoNew(); }
+  });
+}
 
 // 세션창 위치 교체를 부드럽게 (FLIP: 이동 전후 좌표 차이를 transform으로 애니메이션)
 function flipGrid(mutate) {
