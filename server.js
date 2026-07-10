@@ -150,10 +150,19 @@ function pickShell() {
   for (const s of ['/bin/zsh', '/bin/bash', '/bin/sh']) { try { if (fs.existsSync(s)) return s; } catch (e) {} }
   return '/bin/sh';
 }
+// Claude Code 2.1.x가 기본으로 전체화면 TUI(대체 스크린)를 써서 대화가 터미널 스크롤백에 안 남음 →
+// PT 안에서는 클래식(인라인) 렌더러로 실행해 스크롤백·드래그복사·요청 점프·📌 고정 배너가 동작하게 함.
+// (PT가 띄우는 Claude에만 적용 — 사용자가 다른 터미널에서 쓰는 Claude에는 영향 없음)
+const TUI_FILE = dataFile('claude-inline.json');
+try { if (!fs.existsSync(TUI_FILE)) fs.writeFileSync(TUI_FILE, '{"tui": "default"}\n'); } catch (e) {}
+function claudeTuiFlag() {
+  try { if (fs.existsSync(TUI_FILE)) return ' --settings "' + TUI_FILE + '"'; } catch (e) {}
+  return '';
+}
 // fresh=true: 같은 폴더에 이미 살아있는 세션이 있을 때 — --continue를 붙이면 그 세션의 대화를
 // 이어받아 버려서(Claude Code는 대화를 '폴더 단위'로 저장) 두 창이 같은 대화를 공유하게 됨 → 새 대화로 시작.
 function agentCommand(sess, fresh) {
-  const model = sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '';
+  const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag();
   if (IS_WIN) {
     switch (sess.agent) {
       // codex 미설치면 빨간 PowerShell 에러 대신 설치 안내 (GPT 세션 = OpenAI Codex CLI 실행)

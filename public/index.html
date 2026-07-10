@@ -152,10 +152,18 @@
   .pane-body.hist .term { right: 200px; }        /* 패널이 열리면 터미널을 그만큼 줄임 */
   .pane-body.hist .termCancel { right: 218px; }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
+  /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 전문 표시(말줄임 없음), 클릭하면 그 위치로 */
+  .reqSticky { position: absolute; top: 0; left: 0; right: 0; z-index: 6; cursor: pointer;
+               background: #fefefe; color: #111827; font-weight: 700; font-size: 12px; line-height: 1.5;
+               padding: 6px 96px 6px 10px;              /* 오른쪽 여백 = 방금요청취소 버튼 자리 */
+               border-bottom: 2px solid #c4b5fd; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+               max-height: 45%; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+  html.light .reqSticky { background: #ede9fe; }
+  .pane-body.hist .reqSticky { right: 200px; }
   /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
   .xterm-rows span[style*="background-color:#373737"],
   .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
-    background-color: #fefefe !important; color: #111827 !important; font-weight: 700; }
+    background-color: #fefefe !important; color: #111827 !important; font-weight: 700 !important; }
   html.light .xterm-rows span[style*="background-color:#373737"],
   html.light .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
     background-color: #ede9fe !important; }   /* 라이트 모드: 터미널이 흰색이라 연보라 종이로 구분 */
@@ -1284,7 +1292,7 @@ function buildPane(sess, idx) {
     if (sb) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); }
     if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
-    api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => refreshReq());
+    api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
     for (const [token, att] of attachMap) {   // 칩 → 실제 내용
       if (!val.includes(token)) continue;
       // 이미지·여러줄텍스트(파일) = 경로만 / 한 줄 긴 글 = 인라인 (개행 없으니 조기 제출 없음)
@@ -1317,7 +1325,7 @@ function buildPane(sess, idx) {
   const sendText = (text) => {
     const t = String(text || '').trim();
     if (!t || ws.readyState !== 1) return false;
-    api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => refreshReq());
+    api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => { reqsCache = null; refreshReq(); });
     ws.send(JSON.stringify({ type: 'in', data: t.replace(/\r?\n/g, '\x1b\r') }));
     setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
     return true;
@@ -1333,6 +1341,7 @@ function buildPane(sess, idx) {
   };
   el.querySelector('.termCancel').onclick = doCancel;       // 작업 중 터미널 우상단 '방금 요청 취소' 오버레이
 
+  let reqsCache = null;   // 이 폴더의 요청내역 캐시 — 📜 패널과 📌 상단 고정 배너가 같이 씀
   // 📜 요청내역 토글 — 터미널 오른쪽 200px 패널 (메모장 '요청했던 내역들'과 같은 데이터·스타일)
   const reqPanel = el.querySelector('.reqPanel');
   const refreshReq = async () => {
@@ -1342,20 +1351,18 @@ function buildPane(sess, idx) {
     const list = el.querySelector('.rp-list'); list.innerHTML = '';
     const reqs = (m && m.reqs) || [];
     if (!reqs.length) { list.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`; return; }
-    // 현재 터미널 기록 전체를 한 번만 텍스트로 — 기록에 남아있는 요청만 클릭 이동 가능, 없는 건 흐리게
+    // 현재 터미널 기록 전체를 공백 제거해 한 번만 이어붙임 — 기록에 남아있는 요청만 클릭 이동 가능, 없는 건 흐리게
     let bufText = '';
-    try {
-      const b = term.buffer.active, arr = [];
-      for (let i = 0; i < b.length; i++) { const l = b.getLine(i); if (l) arr.push(l.translateToString(true)); }
-      bufText = arr.join('\n');
-    } catch (e) {}
+    try { bufText = bufNormLines(term).join(''); } catch (e) {}
+    reqsCache = reqs;   // 📌 상단 고정 배너가 원문(전문)을 찾을 때 재사용
     reqs.forEach(rq => {   // 최신순 — 클릭하면 터미널에서 그 요청 위치로
       const r = document.createElement('div'); r.className = 'memo-row mreq';
       const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
       const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
       r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)} <span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
                   + `<span class="mtext">${esc(rq.text)}</span>`;
-      const findable = bufText.includes(reqNeedle(rq.text, term.cols));
+      const needle = reqNeedle(rq.text);
+      const findable = !!needle && bufText.includes(needle);
       r.classList.toggle('gone', !findable);
       r.title = findable ? (T.memoJumpT || '') : (T.memoJumpMiss || '');
       r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
@@ -1371,6 +1378,62 @@ function buildPane(sess, idx) {
     // 패널이 터미널 폭을 바꾸니 다시 맞춤
     setTimeout(() => { try { fit.fit(); if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); } catch (e) {} }, 60);
   };
+
+  // 📌 스크롤을 올리면 "지금 보는 구간이 어떤 요청의 결과인지"를 터미널 상단에 고정 표시.
+  // 요청 줄은 Claude가 칠하는 회색 배경(#373737)으로 찾고, 기록된 원문이 있으면 전문(말줄임 없음)을 보여줌.
+  const stickyEl = document.createElement('div');
+  stickyEl.className = 'reqSticky';
+  stickyEl.style.display = 'none';
+  stickyEl.title = T.memoJumpT || '';
+  el.querySelector('.pane-body').appendChild(stickyEl);
+  const isReqRow = (buf, y) => {
+    const l = buf.getLine(y); if (!l) return false;
+    for (let x = 0; x < Math.min(l.length, 8); x++) {
+      const c = l.getCell(x);
+      if (c && c.isBgRGB() && c.getBgColor() === 0x373737) return true;
+    }
+    return false;
+  };
+  const updateSticky = () => {
+    const buf = term.buffer.active;
+    const vy = buf.viewportY;
+    if (vy <= 0 || vy >= buf.baseY) { stickyEl.style.display = 'none'; return; }   // 맨 아래(생방송)에선 숨김
+    let y = -1;
+    for (let i = vy - 1; i >= Math.max(0, vy - 5000); i--) { if (isReqRow(buf, i)) { y = i; break; } }
+    if (y < 0) { stickyEl.style.display = 'none'; return; }
+    let top = y; while (top > 0 && isReqRow(buf, top - 1)) top--;
+    let bot = y; const maxB = Math.min(buf.length - 1, y + 40); while (bot < maxB && isReqRow(buf, bot + 1)) bot++;
+    const parts = [];
+    for (let i = top; i <= bot; i++) { const l = buf.getLine(i); if (l) parts.push(l.translateToString(true).trim()); }
+    let text = parts.join(' ').replace(/^>\s*/, '').trim();
+    // 기록된 요청 원문과 매칭되면 그걸로 — 터미널이 긴 요청을 말줄임했어도 전문 표시
+    const key = text.replace(/\s+/g, '').slice(0, 24);
+    if (reqsCache && key) {
+      const hit = reqsCache.find(r => {
+        const n = (r.text || '').replace(/\s+/g, '');
+        return n.slice(0, 24) === key || n.startsWith(key) || key.startsWith(n.slice(0, 24));
+      });
+      if (hit) text = hit.text;
+    }
+    if (!text) { stickyEl.style.display = 'none'; return; }
+    stickyEl.textContent = '📌 ' + text;
+    stickyEl.style.display = 'block';
+    stickyEl.onclick = () => { try { term.scrollToLine(Math.max(0, top - 1)); } catch (e) {} };
+  };
+  let stickyT;
+  const schedSticky = () => {
+    clearTimeout(stickyT);
+    stickyT = setTimeout(() => {
+      if (!reqsCache) {   // 원문 표시용 요청내역을 1회 로드 (이후엔 캐시)
+        api('GET', '/api/memos?path=' + encodeURIComponent(sess.path))
+          .then(m => { reqsCache = (m && m.reqs) || []; updateSticky(); })
+          .catch(() => { reqsCache = []; updateSticky(); });
+        return;
+      }
+      updateSticky();
+    }, 120);
+  };
+  term.onScroll(schedSticky);
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
   async function attachImage(file) {
@@ -2660,35 +2723,37 @@ function sendMemoToTerminal(it) {
   flashToast(T.memoSent || 'Sent');
   p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
-// 요청 텍스트 → 터미널에서 찾을 검색어: 첫 줄을 '한 줄에 들어가는 칸 수'만큼만 (한글 등 넓은 글자 = 2칸 계산)
-function reqNeedle(text, cols) {
-  const first = ((text || '').split('\n')[0] || '').trim();
-  const budget = Math.max(8, (cols || 80) - 12);
-  let cells = 0, out = '';
-  for (const ch of first) {
-    cells += ch.charCodeAt(0) > 255 ? 2 : 1;
-    if (cells > budget) break;
-    out += ch;
+// 요청 텍스트 → 터미널에서 찾을 검색어: 첫 줄에서 공백을 전부 빼고 24자 —
+// 터미널이 단어 단위로 줄을 바꾸거나 간격을 바꿔도 공백 무시 비교로 찾아짐
+function reqNeedle(text) {
+  return ((text || '').split('\n')[0] || '').replace(/\s+/g, '').slice(0, 24);
+}
+// 버퍼 전체를 공백 제거한 줄 배열로 (검색용)
+function bufNormLines(term) {
+  const buf = term.buffer.active, out = [];
+  for (let i = 0; i < buf.length; i++) {
+    const l = buf.getLine(i);
+    out.push(l ? l.translateToString(true).replace(/\s+/g, '') : '');
   }
-  return out || first.slice(0, 4);
+  return out;
 }
 // ↑ 요청했던 위치로 — 터미널 기록(스크롤백)에서 그 글을 찾아 그 줄로 스크롤 + 잠깐 표시
 function jumpToReq(rq) { jumpToReqIn(memoPane(), rq); }   // 메모장의 ↑ 버튼용
 function jumpToReqIn(p, rq) {                             // 요청내역 패널의 행 클릭용 (창 지정)
   if (!p) { flashToast(T.memoJumpNoSess || 'Session not open'); return; }
-  const buf = p.term.buffer.active;
-  const needle = reqNeedle(rq.text, p.term.cols);
+  const needle = reqNeedle(rq.text);
+  const lines = bufNormLines(p.term);
   let y = -1;
-  for (let i = buf.length - 1; i >= 0; i--) {
-    const l = buf.getLine(i);
-    if (l && l.translateToString(true).includes(needle)) { y = i; break; }
+  if (needle) for (let i = lines.length - 1; i >= 0; i--) {   // 세 줄 창으로 — 줄바꿈에 걸쳐 있어도 찾음
+    if (!lines[i]) continue;
+    if ((lines[i] + (lines[i + 1] || '') + (lines[i + 2] || '')).includes(needle)) { y = i; break; }
   }
   if (y < 0) { flashToast(T.memoJumpMiss || 'Not found in scrollback'); return; }
   closeMemo();
   p.term.scrollToLine(Math.max(0, y - 2));   // 살짝 위 여백을 두고 그 줄로
   try {   // 찾은 줄을 1.5초간 선택 표시로 반짝 — 어디로 왔는지 보이게
     p.term.select(0, y, p.term.cols);
-    setTimeout(() => { try { p.term.clearSelection(); } catch (e) {} }, 1500);
+    setTimeout(() => { try { p.term.clearSelection(); p.term.refresh(0, p.term.rows - 1); } catch (e) {} }, 1500);
   } catch (e) {}
   p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
