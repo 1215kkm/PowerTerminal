@@ -315,7 +315,7 @@
   #brList.lv { display: block !important; }
   #brList.lv .brfolder { text-align: left; padding: 8px 11px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   #brList.lv .brfolder .brname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #brList.lv .brfolder .brdate { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+  #brList.lv .brfolder .brdate { display: inline; flex: 0 0 auto; color: var(--muted); font-size: 11px; }   /* 세로 보기에선 날짜 표시 (아래 숨김 규칙을 되살림) */
   .brfolder .brdate { display: none; }   /* 바둑판 보기에선 날짜 숨김, 세로 자세히 보기에서만 표시 */
   .brViewBtn.on { background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
   .pick-card { position: relative; border: 2px solid var(--line); border-radius: 10px; padding: 12px 10px;
