@@ -158,6 +158,33 @@
   /* 모바일: 터미널 중앙 1/3 = 터미널 스크롤백 존 · 양옆 = 페이지 스크롤 */
   .scrollzone, .pgzone { display: none; }
 
+  /* ---------- ☀ 라이트 모드 (터미널 색은 JS의 TERM_THEME_LIGHT가 담당) ---------- */
+  html.light { --bg: #f3f4f6; --panel: #ffffff; --line: #d1d5db; --fg: #1f2937; --muted: #6b7280; }
+  html.light button { background: #e5e7eb; color: var(--fg); }
+  html.light button.primary { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; }   /* 그라데이션 버튼 유지 */
+  html.light #langSel { background: #fff !important; }               /* 인라인 다크 배경보다 우선 */
+  html.light .pane-head { background: #eef0f4; }
+  html.light .pane-head .title:hover { background: #e5e7eb; }
+  html.light .pane-head .modelSel { background: #fff; }
+  html.light .quick { background: #eef0f4; }
+  html.light .quick textarea { background: #fff; color: #111827; }
+  html.light .xterm-viewport { scrollbar-color: #9ca3af #e5e7eb; }
+  html.light .xterm-viewport::-webkit-scrollbar-track { background: #e5e7eb; }
+  html.light .xterm-viewport::-webkit-scrollbar-thumb { background: #9ca3af; border-color: #e5e7eb; }
+  html.light dialog input, html.light select { background: #fff; color: var(--fg); border: 1px solid var(--line); }
+  html.light .pane-head .aiSel { border: 0; }                        /* AI 배지는 원래 색 유지 */
+  html.light .brfolder, html.light .pick-card, html.light .mini-pane { background: #fff; }
+  html.light .mp-head { background: #eef0f4; }
+  html.light .mini-pane.on { background: #f5f3ff; }
+  html.light .mini-pane.on .mp-head { background: #ede9fe; }
+  html.light .mini-pane.on .mp-title { color: #111827; }
+  html.light .atab { background: #e5e7eb; }
+  html.light .ub-track { background: #e5e7eb; }
+  html.light #zoomModal { background: rgba(229,231,235,.95); }
+  html.light .card-icons button { background: #000; color: #fff; }   /* 카드 아이콘은 라이트에서도 검정 배경 유지 */
+  html.light .termCancel { background: rgba(59,29,36,.92); color: #fca5a5; }   /* 중단 버튼 색 유지 */
+  html.light #hverBadge, html.light #verBadge { background: #e5e7eb; }
+
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
   /* 📝 세션 메모장 — 밝은 종이(#fefefe) 배경 + 진한 글자, 여백 최소, 3단 (메모 | 완료 | 요청내역) */
@@ -282,6 +309,7 @@
     .logo-wrap { order: 0; display: inline-block; }   /* 폭=로고 글자 폭 → 배지 오른쪽 끝 기준 */
     #hverBadge { position: absolute; right: 0; bottom: 100%; margin-bottom: 1px; }   /* 로고 우측 끝 바로 위 */
     header .sp { order: 2; }
+    #btnTheme { order: 3; }
     #btnSound { order: 3; }
     #btnQR { order: 3; }
     #btnPick { order: 3; }
@@ -368,6 +396,7 @@
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
+  <button id="btnTheme" onclick="toggleTheme()" data-i18n-title="themeT">☀</button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
   <button id="btnQR" onclick="toggleQR()" data-i18n-title="infoBtn"><svg class="qric" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm1 1h2v2H6V6zm7-3h8v8h-8V3zm2 2v4h4V5h-4zm1 1h2v2h-2V6zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm1 1h2v2H6v-2zm7-3h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg><span class="qrtxt"> QR</span></button>
   <select id="langSel" onchange="setLang(this.value)" title="Language"
@@ -575,6 +604,7 @@ const I18N = {
     quickPh:'Type a request and press Enter', send:'Send', done:'✅ Done',
     memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Ctrl+Enter or the Save button to save',
     memoSaveBtn:'Save', memoSaveTip:'Save this memo (Ctrl+Enter)',
+    themeT:'Light / dark mode (terminal included)',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     cancelReqT:'Stop the request in progress (sends ESC to the terminal)',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
@@ -600,6 +630,7 @@ const I18N = {
     quickPh:'요청 입력 후 엔터 (폰에서 편하게 타이핑)', send:'전송', done:'✅ 완료',
     memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Ctrl+Enter 또는 저장 버튼으로 저장',
     memoSaveBtn:'저장', memoSaveTip:'이 메모 저장 (Ctrl+Enter)',
+    themeT:'라이트/다크 모드 전환 (터미널 포함)',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     cancelReqT:'진행 중인 요청 중단 (터미널에 ESC 전송)',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
@@ -790,6 +821,30 @@ document.addEventListener('mousemove', ev => {
   if (t) { t.style.left = (ev.clientX + 12) + 'px'; t.style.top = (ev.clientY + 16) + 'px'; }
 });
 
+// ---------- ☀/🌙 라이트·다크 모드 (터미널 포함) ----------
+const TERM_THEME_DARK = { background: '#283543' };   // 기존 기본값 (전경·ANSI는 xterm 기본)
+const TERM_THEME_LIGHT = {   // 흰 배경에서도 읽히게 어둡게 조정한 ANSI 팔레트
+  background: '#ffffff', foreground: '#1f2937', cursor: '#1f2937', cursorAccent: '#ffffff',
+  selectionBackground: '#bfdbfe', selectionForeground: '#111827',
+  black: '#111827', red: '#b91c1c', green: '#15803d', yellow: '#a16207',
+  blue: '#1d4ed8', magenta: '#a21caf', cyan: '#0e7490', white: '#6b7280',
+  brightBlack: '#6b7280', brightRed: '#dc2626', brightGreen: '#16a34a', brightYellow: '#b45309',
+  brightBlue: '#2563eb', brightMagenta: '#c026d3', brightCyan: '#0891b2', brightWhite: '#111827'
+};
+let themeLight = localStorage.getItem('pt_theme') === 'light';
+function applyTheme() {
+  document.documentElement.classList.toggle('light', themeLight);
+  const b = document.getElementById('btnTheme');
+  if (b) b.textContent = themeLight ? '🌙' : '☀';   // 버튼은 "누르면 바뀔 모드"가 아니라 토글 아이콘
+  panes.forEach(p => { try { p.term.options.theme = themeLight ? TERM_THEME_LIGHT : TERM_THEME_DARK; } catch (e) {} });
+}
+function toggleTheme() {
+  themeLight = !themeLight;
+  localStorage.setItem('pt_theme', themeLight ? 'light' : 'dark');
+  applyTheme();
+}
+applyTheme();   // 저장된 테마로 시작 (터미널 생성 전에 themeLight 확정)
+
 function buildPane(sess, idx) {
   const el = document.createElement('div');
   el.className = 'pane';
@@ -850,10 +905,10 @@ function buildPane(sess, idx) {
   el.classList.add('pane-in');
   setTimeout(() => el.classList.remove('pane-in'), 350);
 
-  // 터미널
+  // 터미널 — 색은 현재 테마(라이트/다크)에 맞춰 시작, 토글 시 applyTheme()가 실시간 교체
   const term = new Terminal({
     fontSize: isMobile ? 13 : 15, fontFamily: 'Consolas, D2Coding, monospace',
-    theme: { background: '#283543' }, convertEol: false, scrollback: 5000
+    theme: themeLight ? TERM_THEME_LIGHT : TERM_THEME_DARK, convertEol: false, scrollback: 5000
   });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
@@ -1233,6 +1288,23 @@ function buildPane(sess, idx) {
   const qFile = el.querySelector('.qFile');
   el.querySelector('.qImg').onclick = ev => { ev.stopPropagation(); qFile.click(); };
   qFile.onchange = async () => { for (const f of [...qFile.files]) await attachImage(f); qFile.value = ''; };   // 여러 장 순차 첨부
+
+  // 🖼 입력창에 이미지 끌어다 놓기 = 첨부 (붙여넣기와 동일 처리, 여러 장 가능)
+  const quickBox = el.querySelector('.quick');
+  ['dragover', 'dragenter'].forEach(t => quickBox.addEventListener(t, ev => {
+    if ([...((ev.dataTransfer && ev.dataTransfer.items) || [])].some(i => i.kind === 'file')) {
+      ev.preventDefault(); ev.stopPropagation();          // 브라우저의 '이미지 열기' 기본동작·pane 드래그표시 방지
+      quickBox.style.outline = '2px dashed var(--violet)';
+    }
+  }));
+  quickBox.addEventListener('dragleave', () => { quickBox.style.outline = ''; });
+  quickBox.addEventListener('drop', ev => {
+    quickBox.style.outline = '';
+    const files = [...((ev.dataTransfer && ev.dataTransfer.files) || [])].filter(f => f.type && f.type.startsWith('image/'));
+    if (!files.length) return;
+    ev.preventDefault(); ev.stopPropagation();
+    (async () => { for (const f of files) await attachImage(f); })();
+  });
 
   // 드래그로 순서 바꾸기
   const head = el.querySelector('.pane-head');
