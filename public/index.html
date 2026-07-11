@@ -177,6 +177,8 @@
              margin: 50px auto; border: 1px solid var(--line); border-radius: 14px; padding: 0;
              background: var(--bg); color: var(--fg); overflow: hidden; }
   #mindDlg::backdrop { background: rgba(0,0,0,.4); }
+  #mindDlg[open] { animation: memoIn .18s ease-out; }
+  #mindDlg.closing { animation: memoOut .15s ease-in forwards; }
   .mind-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line);
               background: #111827; }
   .mind-title { font-weight: 700; font-size: 14px; white-space: nowrap; }
@@ -3258,6 +3260,12 @@ async function openMind() {
   MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5;
   mindRender();
 }
+function closeMind() {   // 메모장처럼 축소 애니 먼저, 끝나면 실제로 닫음
+  if (!mindDlg.open || mindDlg.classList.contains('closing')) return;
+  mindCommitEdit();
+  mindDlg.classList.add('closing');
+  setTimeout(() => { mindDlg.classList.remove('closing'); try { mindDlg.close(); } catch (e) {} }, 150);
+}
 let mindSpace = false, mindPan = null, mindPointers = new Map(), mindPinch = null;
 function mindInitCanvas() {
   const canvas = document.getElementById('mindCanvas');
@@ -3309,8 +3317,8 @@ function mindInitCanvas() {
   });
   canvas.addEventListener('keyup', ev => { if (ev.code === 'Space') mindSpace = false; });
   canvas.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape' && MIND.connectMode) { MIND.connectMode = false; MIND.linkFrom = null; mindUpdateHint(); mindRender(); return; }
-    if (ev.key === 'Escape' && MIND.selLink) { mindClearLinkSel(); mindRender(); return; }
+    if (ev.key === 'Escape' && MIND.connectMode) { ev.preventDefault(); MIND.connectMode = false; MIND.linkFrom = null; mindUpdateHint(); mindRender(); return; }   // Esc가 다이얼로그까지 닫지 않게
+    if (ev.key === 'Escape' && MIND.selLink) { ev.preventDefault(); mindClearLinkSel(); mindRender(); return; }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && MIND.selLink) { ev.preventDefault(); mindDeleteLink(MIND.selLink); return; }   // Delete = 선택된 화살표 삭제
     if (ev.key === 'Delete' && MIND.sel) { ev.preventDefault(); mindDeleteSelected(); return; }   // Delete = 선택된 가지/뿌리 삭제 (첫 뿌리 보호·하위 확인 그대로)
     if (ev.key === 'F2' && MIND.sel) { ev.preventDefault(); const c = MIND.cache.get(MIND.sel); if (c) mindStartEdit(c.node, true); return; }   // F2 = 선택 노드 이름수정
@@ -3340,8 +3348,8 @@ function mindInitCanvas() {
   };
   document.getElementById('mindDel').onclick = mindDeleteSelected;
   document.getElementById('mindReset').onclick = () => { const cr = canvas.getBoundingClientRect(); MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5; mindApplyTransform(); };
-  document.getElementById('mindClose').onclick = () => { mindCommitEdit(); mindDlg.close(); };
-  mindDlg.addEventListener('cancel', ev => { ev.preventDefault(); mindCommitEdit(); mindDlg.close(); });
+  document.getElementById('mindClose').onclick = closeMind;
+  mindDlg.addEventListener('cancel', ev => { ev.preventDefault(); closeMind(); });
 }
 
 // 배너 관리자(🛠)·사용자요청 배지(✉) — 개발자 전용.
