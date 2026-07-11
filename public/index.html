@@ -192,6 +192,19 @@
   .maddbtn { cursor: pointer; }
   .mind-edit { position: absolute; z-index: 5; box-sizing: border-box; border: 2px solid #f59e0b; border-radius: 6px;
                padding: 2px 6px; font-family: inherit; outline: none; background: var(--panel,#1f2937); color: var(--fg); }
+  #mindLink.on, #mindDlg .mind-bar button.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  .mind-linkpop { position: absolute; z-index: 6; transform: translate(-50%, 8px); width: 230px;
+                  background: var(--panel,#1f2937); color: var(--fg); border: 1px solid var(--line); border-radius: 10px;
+                  padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  .mind-linkpop .mlp-dir { display: flex; gap: 6px; margin-bottom: 8px; }
+  .mind-linkpop .mlp-dir button { flex: 1; padding: 6px; font-size: 12px; border-radius: 7px; cursor: pointer;
+                                  border: 1px solid var(--line); background: #374151; color: var(--fg); }
+  .mind-linkpop .mlp-dir button.on { background: #f59e0b; color: #111827; border-color: transparent; font-weight: 700; }
+  .mind-linkpop .mlp-note { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 13px;
+                            border-radius: 7px; border: 1px solid var(--line); background: #111827; color: var(--fg); padding: 6px; }
+  .mind-linkpop .mlp-btns { display: flex; justify-content: space-between; margin-top: 8px; }
+  .mind-linkpop .mlp-btns button { padding: 5px 10px; font-size: 12px; border-radius: 7px; cursor: pointer; border: 1px solid var(--line); background: #374151; color: var(--fg); }
+  .mind-linkpop .mlp-del { color: #fca5a5; }
   html.light .mind-canvas { background:
                    radial-gradient(circle, rgba(100,116,139,.18) 1px, transparent 1px) 0 0 / 22px 22px; }
   /* 세션 안에서 뜨는 확인창 — 전역 confirm 대신 이 세션에만 겹쳐 떠서 "이 세션만 재시작"임을 분명히 */
@@ -707,6 +720,7 @@
     <span class="mind-title">🧠 <span id="mindTitleTxt"></span></span>
     <span class="mind-sp"></span>
     <button class="small" id="mindAdd"></button>
+    <button class="small" id="mindLink"></button>
     <button class="small" id="mindDel"></button>
     <button class="small" id="mindReset" title=""></button>
     <span class="mind-hint" id="mindHint"></span>
@@ -714,8 +728,14 @@
   </div>
   <div class="mind-canvas" id="mindCanvas" tabindex="0">
     <svg id="mindSvg" width="100%" height="100%">
+      <defs>
+        <marker id="mmArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"></path>
+        </marker>
+      </defs>
       <g id="mindContent">
         <g id="mindLines"></g>
+        <g id="mindArrows"></g>
         <g id="mindNodes"></g>
       </g>
     </svg>
@@ -812,6 +832,8 @@ const I18N = {
     mindBtn:'Mind map', mindTitle:'Mind map', mindRootTitle:"{u}'s map", mindRootNoUser:'My map', mindNewNode:'New branch',
     mindAdd:'Branch', mindDelBtn:'Delete', mindReset:'Reset view', mindDelConfirm:'This deletes the branch and everything under it. Continue?',
     mindHint:'Hover a node for + in 8 directions · drag to move · double-click to rename · Ctrl+wheel zoom · Space/middle-drag to pan',
+    mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
+    mindOneWay:'One-way', mindTwoWay:'Two-way', mindNotePh:'Note about this connection…',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -857,6 +879,8 @@ const I18N = {
     mindBtn:'마인드맵', mindTitle:'마인드맵', mindRootTitle:'{u}의 지도', mindRootNoUser:'내 지도', mindNewNode:'새 가지',
     mindAdd:'가지', mindDelBtn:'삭제', mindReset:'뷰 초기화', mindDelConfirm:'하위 가지까지 삭제됩니다. 계속?',
     mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭 이름수정 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
+    mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
+    mindOneWay:'단방향', mindTwoWay:'양방향', mindNotePh:'이 연결에 대한 메모…',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -2734,8 +2758,9 @@ async function openSettings() {
 // 서버(/api/mindmap)에 트리 JSON 1개 저장 → 기기 간 동기화(memos와 같은 철학).
 const MIND = {
   NODE_H: 34, DIR: [[0,-1],[0.7,-0.7],[1,0],[0.7,0.7],[0,1],[-0.7,0.7],[-1,0],[-0.7,-0.7]],
-  root: null, sel: null, zoom: 1, panX: 0, panY: 0, cache: new Map(), parent: new Map(),
-  adderId: null, adderTimer: null, saveTimer: null, userName: '', inited: false, editEl: null
+  root: null, links: [], sel: null, zoom: 1, panX: 0, panY: 0, cache: new Map(), parent: new Map(),
+  adderId: null, adderTimer: null, saveTimer: null, userName: '', inited: false, editEl: null,
+  linkFrom: null, linkPop: null
 };
 function mindUid() { try { return crypto.randomUUID(); } catch (e) { return 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 function mindWidth(n) { return Math.max(64, (n.title || '').length * 13 + 24); }
@@ -2746,7 +2771,7 @@ function mindDefaultRoot() {
 }
 function mindSave() {   // 커밋 시점(추가·삭제·이름확정·드롭)에만 — 드래그 매 프레임은 저장 안 함
   clearTimeout(MIND.saveTimer);
-  MIND.saveTimer = setTimeout(() => { api('POST', '/api/mindmap', { root: MIND.root }); }, 400);
+  MIND.saveTimer = setTimeout(() => { api('POST', '/api/mindmap', { root: MIND.root, links: MIND.links }); }, 400);
 }
 // 미배치(placed=false) 자식에게만 기본 오프셋 — 오른쪽 세로 분배(이미 배치된 형제와 안 겹치게 미배치끼리만 인덱싱)
 function mindEnsureOffsets(node) {
@@ -2804,8 +2829,45 @@ function mindRender() {
     node.children.forEach(ch => build(ch, cx + ch.offX, cy + ch.offY, { x: cx, y: cy }));
   };
   build(MIND.root, 0, 0, null);
+  mindRenderArrows();
   mindRenderAdders();
   mindApplyTransform();
+}
+// 🔗 가지 사이 화살표(파이프라인 관계) — 트리선과 별개, 노드 테두리에서 시작/끝, 방향·메모 표시
+function mindBorderPoint(c, tx, ty) {
+  const dx = tx - c.cx, dy = ty - c.cy, halfW = c.w / 2 + 2, halfH = MIND.NODE_H / 2 + 2;
+  const ax = Math.abs(dx) || 1e-6, ay = Math.abs(dy) || 1e-6, t = Math.min(halfW / ax, halfH / ay);
+  return { x: c.cx + dx * t, y: c.cy + dy * t };
+}
+function mindRenderArrows() {
+  const g = document.getElementById('mindArrows'); if (!g) return; g.innerHTML = '';
+  MIND.links.forEach(link => {
+    const a = MIND.cache.get(link.from), b = MIND.cache.get(link.to);
+    if (!a || !b) return;
+    const p1 = mindBorderPoint(a, b.cx, b.cy), p2 = mindBorderPoint(b, a.cx, a.cy);
+    const grp = document.createElementNS(SVGNS, 'g'); grp.style.cursor = 'pointer';
+    const hit = document.createElementNS(SVGNS, 'line');   // 넓은 투명 클릭 영역
+    hit.setAttribute('x1', p1.x); hit.setAttribute('y1', p1.y); hit.setAttribute('x2', p2.x); hit.setAttribute('y2', p2.y);
+    hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', 14);
+    const line = document.createElementNS(SVGNS, 'line');
+    line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y); line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+    line.setAttribute('stroke', '#f59e0b'); line.setAttribute('stroke-width', 2);
+    line.setAttribute('marker-end', 'url(#mmArrow)');
+    if (link.dir === 'both') line.setAttribute('marker-start', 'url(#mmArrow)');
+    grp.appendChild(hit); grp.appendChild(line);
+    if (link.note) {   // 메모: 화살표 중앙에 라벨(반투명 배경 + 주황 글씨)
+      const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+      const t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', mx); t.setAttribute('y', my - 4); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('fill', '#f59e0b'); t.setAttribute('font-size', 12); t.setAttribute('font-family', 'inherit');
+      t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', 'rgba(0,0,0,.6)'); t.setAttribute('stroke-width', 3);
+      t.textContent = link.note.length > 22 ? link.note.slice(0, 22) + '…' : link.note;
+      grp.appendChild(t);
+    }
+    grp.addEventListener('pointerdown', ev => { ev.stopPropagation(); });
+    grp.addEventListener('click', ev => { ev.stopPropagation(); mindEditLink(link); });
+    g.appendChild(grp);
+  });
 }
 // 8방향 + 버튼 — hover 중이거나 선택된 노드 주변에 표시(터치는 선택으로 뜸)
 function mindRenderAdders() {
@@ -2871,13 +2933,19 @@ document.addEventListener('pointermove', ev => {
   mindDownInfo.node.offX = mindDownInfo.baseX + dx / MIND.zoom;   // 화면이동 ÷ zoom = 캔버스 좌표
   mindDownInfo.node.offY = mindDownInfo.baseY + dy / MIND.zoom;
   mindUpdateSubtree(mindDownInfo.node);   // 실시간: 이 노드 + 모든 자손·연결선 함께
+  if (MIND.links.length) mindRenderArrows();   // 연결 화살표도 실시간 추적
 });
 document.addEventListener('pointerup', ev => {
   if (!mindDownInfo || ev.pointerId !== mindDownInfo.pointerId) return;
   const info = mindDownInfo; mindDownInfo = null;
-  if (!info.moved) {   // 클릭 = 선택 토글(재클릭 해제)
-    MIND.sel = (MIND.sel === info.node.id) ? null : info.node.id;
-    mindRender();
+  if (!info.moved) {
+    if (MIND.linkFrom) {   // 🔗 연결 모드: 대상 노드 클릭 → 화살표 생성
+      if (info.node.id !== MIND.linkFrom) mindCreateLink(MIND.linkFrom, info.node.id);
+      MIND.linkFrom = null; mindUpdateHint(); mindRender();
+    } else {               // 클릭 = 선택 토글(재클릭 해제)
+      MIND.sel = (MIND.sel === info.node.id) ? null : info.node.id;
+      mindRender();
+    }
   } else if (!info.isRoot) {
     info.node.placed = true;
     if (info.node.offX === 0 && info.node.offY === 0) info.node.offX = 1;   // (0,0) 센티널 함정 회피
@@ -2936,20 +3004,63 @@ function mindDeleteSelected() {
   const node = MIND.cache.get(MIND.sel) && MIND.cache.get(MIND.sel).node;
   const par = findParent(MIND.root, MIND.sel);
   if (!node || !par) return;
-  const doDel = () => { par.children = par.children.filter(c => c.id !== node.id); MIND.sel = null; MIND.adderId = null; mindSave(); mindRender(); };
+  const collect = (n, set) => { set.add(n.id); n.children.forEach(c => collect(c, set)); return set; };
+  const doDel = () => {
+    const gone = collect(node, new Set());
+    par.children = par.children.filter(c => c.id !== node.id);
+    MIND.links = MIND.links.filter(l => !gone.has(l.from) && !gone.has(l.to));   // 삭제된 노드에 걸린 화살표도 제거
+    MIND.sel = null; MIND.adderId = null; mindSave(); mindRender();
+  };
   if (node.children.length) { if (confirm(T.mindDelConfirm || '하위 가지까지 삭제됩니다. 계속?')) doDel(); }
   else doDel();
 }
+// 🔗 연결(화살표) 만들기 — 중복이면 방향만 갱신, 아니면 새로 만들고 바로 편집
+function mindCreateLink(from, to) {
+  let link = MIND.links.find(l => (l.from === from && l.to === to) || (l.from === to && l.to === from));
+  if (!link) { link = { id: mindUid(), from, to, dir: 'one', note: '' }; MIND.links.push(link); }
+  mindSave(); mindRender(); mindEditLink(link);
+}
+function mindEditLink(link) {
+  mindCloseLinkPop();
+  const a = MIND.cache.get(link.from), b = MIND.cache.get(link.to); if (!a || !b) return;
+  const canvas = document.getElementById('mindCanvas');
+  const mx = MIND.panX + ((a.cx + b.cx) / 2) * MIND.zoom, my = MIND.panY + ((a.cy + b.cy) / 2) * MIND.zoom;
+  const pop = document.createElement('div'); pop.className = 'mind-linkpop';
+  pop.style.left = mx + 'px'; pop.style.top = my + 'px';
+  pop.innerHTML = `<div class="mlp-dir"><button data-d="one">→ ${esc(T.mindOneWay || 'One-way')}</button>`
+                + `<button data-d="both">↔ ${esc(T.mindTwoWay || 'Two-way')}</button></div>`
+                + `<textarea class="mlp-note" rows="2" placeholder="${esc(T.mindNotePh || 'Note about this connection…')}"></textarea>`
+                + `<div class="mlp-btns"><button class="mlp-del">🗑 ${esc(T.mindDelBtn || 'Delete')}</button>`
+                + `<button class="mlp-close">✕</button></div>`;
+  canvas.appendChild(pop); MIND.linkPop = pop;
+  const syncDir = () => pop.querySelectorAll('.mlp-dir button').forEach(x => x.classList.toggle('on', x.dataset.d === link.dir));
+  syncDir();
+  pop.querySelectorAll('.mlp-dir button').forEach(x => x.onclick = () => { link.dir = x.dataset.d; syncDir(); mindSave(); mindRenderArrows(); });
+  const ta = pop.querySelector('.mlp-note'); ta.value = link.note || '';
+  ta.oninput = () => { link.note = ta.value; mindSave(); };
+  ta.onblur = () => mindRenderArrows();
+  ta.addEventListener('keydown', ev => ev.stopPropagation());
+  pop.querySelector('.mlp-del').onclick = () => { MIND.links = MIND.links.filter(l => l.id !== link.id); mindCloseLinkPop(); mindSave(); mindRender(); };
+  pop.querySelector('.mlp-close').onclick = () => { mindCloseLinkPop(); mindRenderArrows(); };
+}
+function mindCloseLinkPop() { if (MIND.linkPop) { MIND.linkPop.remove(); MIND.linkPop = null; } }
+function mindUpdateHint() {
+  const h = document.getElementById('mindHint');
+  h.textContent = MIND.linkFrom ? (T.mindLinkPick || 'Click the target node to connect (Esc to cancel)') : (T.mindHint || '');
+  document.getElementById('mindLink').classList.toggle('on', !!MIND.linkFrom);
+}
+
 async function openMind() {
   document.getElementById('mindTitleTxt').textContent = T.mindTitle || 'Mind map';
   document.getElementById('mindAdd').textContent = '＋ ' + (T.mindAdd || 'Branch');
+  document.getElementById('mindLink').textContent = '🔗 ' + (T.mindLinkBtn || 'Connect');
   document.getElementById('mindDel').textContent = '－ ' + (T.mindDelBtn || 'Delete');
   document.getElementById('mindReset').textContent = '⊙';
   document.getElementById('mindReset').title = T.mindReset || 'Reset view';
   document.getElementById('mindHint').textContent = T.mindHint || '';
   if (!MIND.userName) { try { const inf = await api('GET', '/api/info'); MIND.userName = (inf && inf.userName) || ''; } catch (e) {} }
-  try { const m = await api('GET', '/api/mindmap'); MIND.root = (m && m.root) ? m.root : mindDefaultRoot(); } catch (e) { MIND.root = mindDefaultRoot(); }
-  MIND.sel = null; MIND.adderId = null;
+  try { const m = await api('GET', '/api/mindmap'); MIND.root = (m && m.root) ? m.root : mindDefaultRoot(); MIND.links = (m && Array.isArray(m.links)) ? m.links : []; } catch (e) { MIND.root = mindDefaultRoot(); MIND.links = []; }
+  MIND.sel = null; MIND.adderId = null; MIND.linkFrom = null; mindCloseLinkPop();
   mindDlg.showModal();
   if (!MIND.inited) { mindInitCanvas(); MIND.inited = true; }
   // 초기 뷰: 루트(콘텐츠 0,0)가 왼쪽-가운데 즈음 오도록
@@ -2979,7 +3090,9 @@ function mindInitCanvas() {
       canvas.classList.add('panning');
       try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
     } else if (ev.target === canvas || ev.target.id === 'mindSvg' || ev.target.id === 'mindContent') {
-      if (MIND.sel) { MIND.sel = null; MIND.adderId = null; mindRender(); }   // 빈 곳 클릭 = 선택 해제
+      mindCloseLinkPop();
+      if (MIND.linkFrom) { MIND.linkFrom = null; mindUpdateHint(); mindRender(); }   // 빈 곳 클릭 = 연결 취소
+      else if (MIND.sel) { MIND.sel = null; MIND.adderId = null; mindRender(); }      // 빈 곳 클릭 = 선택 해제
     }
   });
   canvas.addEventListener('pointermove', ev => {
@@ -3004,7 +3117,14 @@ function mindInitCanvas() {
     ev.preventDefault(); mindSpace = true;
   });
   canvas.addEventListener('keyup', ev => { if (ev.code === 'Space') mindSpace = false; });
+  canvas.addEventListener('keydown', ev => { if (ev.key === 'Escape' && MIND.linkFrom) { MIND.linkFrom = null; mindUpdateHint(); mindRender(); } });
   document.getElementById('mindAdd').onclick = () => { const t = (MIND.sel && MIND.cache.get(MIND.sel)) ? MIND.cache.get(MIND.sel).node : MIND.root; mindAddChild(t, 4); };
+  document.getElementById('mindLink').onclick = () => {   // 🔗 연결 시작: 선택한 노드에서 → 다음에 클릭한 노드로
+    if (MIND.linkFrom) { MIND.linkFrom = null; }
+    else if (MIND.sel) { MIND.linkFrom = MIND.sel; }
+    else { flashToast(T.mindLinkNeedSel || 'Select a node first, then Connect'); return; }
+    mindUpdateHint();
+  };
   document.getElementById('mindDel').onclick = mindDeleteSelected;
   document.getElementById('mindReset').onclick = () => { const cr = canvas.getBoundingClientRect(); MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5; mindApplyTransform(); };
   document.getElementById('mindClose').onclick = () => { mindCommitEdit(); mindDlg.close(); };

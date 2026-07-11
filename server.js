@@ -647,7 +647,7 @@ try { mindData = readJson(MIND_FILE); } catch (e) {}
 app.get('/api/mindmap', (req, res) => res.json(mindData || {}));
 app.post('/api/mindmap', (req, res) => {
   if (req.body && req.body.root) {
-    mindData = { root: req.body.root, updated: Date.now() };
+    mindData = { root: req.body.root, links: Array.isArray(req.body.links) ? req.body.links : [], updated: Date.now() };
     try { fs.writeFileSync(MIND_FILE, JSON.stringify(mindData)); } catch (e) {}
   }
   res.json({ ok: true });
