@@ -945,7 +945,7 @@ function genReqNotes(dir, reqId, text) {
     proc.on('error', () => clearTimeout(kill));
     const lines = [];
     if (wantI) lines.push('REASON: <one short sentence — WHY the user is asking / what problem they want solved>');
-    if (wantS) lines.push('SUMMARY: <one short sentence — WHAT they asked for>');
+    if (wantS) lines.push('SUMMARY: <one short IMPERATIVE prompt — the same request compressed into a command the user could reuse verbatim, e.g. "check whether X works" not "asked whether X works". Keep the user\'s voice and language.>');
     proc.stdin.write('Analyze the user request below. Reply in the SAME language as the request, with EXACTLY these labeled lines and nothing else:\n'
       + lines.join('\n') + '\n\nRequest:\n' + text.slice(0, 1000));
     proc.stdin.end();
@@ -980,7 +980,7 @@ app.get('/api/memos/export', (req, res) => {
       body.push('<tr>' + cell('메모') + cell(fmtD(it.ts)) + cell('', true) + cell('', true) + cell(it.text, true)
         + cell(it.done ? '완료' : '작성') + cell(fmtD(it.doneTs)) + cell(folder) + '</tr>'));
   }
-  const head = ['구분 Type', '작성일시 Created', '요청 이유 Reason', '요청 요약 Summary', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session']
+  const head = ['구분 Type', '작성일시 Created', '요청 이유 Reason', '요약 프롬프트 Summary prompt', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session']
     .map(t => '<th style="background:#7C3AED;color:#ffffff;font-weight:bold;border:1px solid #5b21b6;padding:5px 8px;white-space:nowrap">' + h(t) + '</th>').join('');
   const widths = [56, 115, 200, 200, 486, 90, 115, 120];   // 내용 486px = 엑셀 폭 60자 (실측 보정)
   const html = String.fromCharCode(0xFEFF) + '<html><head><meta charset="utf-8"></head><body>'   // BOM — 엑셀 한글 인식

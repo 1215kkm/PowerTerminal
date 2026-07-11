@@ -290,8 +290,10 @@
                      border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; cursor: pointer; }
   .memo-row:hover .mcopy { display: inline-block; }
   @media (hover: none) { .memo-row .mcopy { display: inline-block; } }
-  /* 🧭📝 요청 이유·요약(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
-  .memo-row .mintent { display: none; color: #7c3aed; font-size: 11px; line-height: 1.5; }
+  /* 🧭📝 요청 이유·요약프롬프트(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
+  .memo-row .mintent { display: none; font-size: 11px; line-height: 1.5; }
+  .memo-row .mintent.nreason { color: #7c3aed; }    /* 이유 = 보라 */
+  .memo-row .mintent.nsummary { color: #2563eb; }   /* 요약프롬프트 = 파랑 */
   .memo-row .mintent + .mintent { margin-top: 1px; }
   .memo-row:hover .mintent { display: block; }
   @media (hover: none) { .memo-row .mintent { display: block; } }
@@ -750,9 +752,9 @@ const I18N = {
     setBtnT:'Settings', setTitle:'⚙ Settings', setSub:'When a request is saved, an AI can add short notes to it. These notes show on hover in the request history and in the Excel download, and may use a small amount of AI tokens.',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
-    setSummaryL:'Summary of the request',
-    setSummaryHint:'One line on WHAT you asked for — a short version you could reuse as a concise request.',
-    noteReasonL:'Why you asked', noteSummaryL:'Request summary',
+    setSummaryL:'Summary prompt',
+    setSummaryHint:'A short imperative prompt that captures WHAT you asked — phrased as a command you could reuse verbatim next time.',
+    noteReasonL:'Why you asked', noteSummaryL:'Summary prompt',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -792,9 +794,9 @@ const I18N = {
     setBtnT:'설정', setTitle:'⚙ 설정', setSub:'요청이 기록될 때 AI가 짧은 메모를 함께 남깁니다. 메모장의 요청내역과 \'엑셀 다운받기\'에서 마우스를 올리면 보이고, 약간의 AI 토큰이 발생할 수 있어요.',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
-    setSummaryL:'요청한 내용 요약',
-    setSummaryHint:'무엇을 요청했는지 한 줄 요약 — 다음엔 이렇게 짧게 요청해도 되는 압축본이에요.',
-    noteReasonL:'요청한 이유', noteSummaryL:'요청 요약',
+    setSummaryL:'요약 프롬프트',
+    setSummaryHint:'무엇을 요청했는지 명령형 한 줄 프롬프트 — 다음엔 이걸 그대로 복붙해 요청해도 되는 압축본이에요.',
+    noteReasonL:'요청한 이유', noteSummaryL:'요약 프롬프트',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -2942,14 +2944,14 @@ function sendMemoToTerminal(it) {
 function reqNeedle(text) {
   return ((text || '').split('\n')[0] || '').replace(/\s+/g, '').slice(0, 24);
 }
-// 🧭📝 요청 메모(이유·요약) — 있는 것만 라벨 붙여서. asText=true면 툴팁/복사용 순수 텍스트
+// 🧭📝 요청 메모(이유·요약프롬프트) — 있는 것만 라벨 붙여서. asText=true면 툴팁/복사용 순수 텍스트
 function reqNotes(rq, asText) {
-  const parts = [];
-  if (rq.intent) parts.push(['🧭 ' + (T.noteReasonL || 'Why'), rq.intent]);
-  if (rq.summary) parts.push(['📝 ' + (T.noteSummaryL || 'Summary'), rq.summary]);
+  const parts = [];   // [label, text, cssClass]
+  if (rq.intent) parts.push(['🧭 ' + (T.noteReasonL || 'Why'), rq.intent, 'nreason']);
+  if (rq.summary) parts.push(['📝 ' + (T.noteSummaryL || 'Summary'), rq.summary, 'nsummary']);
   if (!parts.length) return '';
   if (asText) return parts.map(p => p[0] + ': ' + p[1]).join('\n');
-  return parts.map(p => `<span class="mintent"><b>${esc(p[0])}</b> ${esc(p[1])}</span>`).join('');
+  return parts.map(p => `<span class="mintent ${p[2]}"><b>${esc(p[0])}</b> ${esc(p[1])}</span>`).join('');
 }
 // 버퍼 전체를 공백 제거한 줄 배열로 (검색용)
 function bufNormLines(term) {
