@@ -2221,10 +2221,11 @@ async function browseTo(dir) {
   ap.scrollLeft = ap.scrollWidth;   // 경로가 길면 끝(마지막 폴더)이 보이도록 스크롤
   const list = document.getElementById('brList');
   list.innerHTML = '';
+  const sep = r.sep || '\\';   // 서버 OS 경로 구분자 (윈도우 '\' · 맥/리눅스 '/')
   r.folders.forEach(f => {
     const nm = (f && typeof f === 'object') ? f.name : f;   // 서버가 {name,mtime} 반환 (구버전 호환)
     const mt = (f && typeof f === 'object') ? f.mtime : 0;
-    const full = r.dir ? (r.dir.endsWith('\\') ? r.dir + nm : r.dir + '\\' + nm) : nm;
+    const full = r.dir ? (r.dir.endsWith(sep) ? r.dir + nm : r.dir + sep + nm) : nm;
     const cell = document.createElement('div');
     cell.className = 'brfolder';
     cell.title = nm;

@@ -353,16 +353,21 @@ app.get('/api/sessions', (req, res) => {
 
 // 폴더 탐색 (세션 추가 시 마우스로 폴더 고르기 — 폰에서도 동작)
 app.get('/api/browse', (req, res) => {
-  const dir = (req.query.dir || '').toString();
+  let dir = (req.query.dir || '').toString();
+  const isWin = process.platform === 'win32';
   try {
     if (!dir) {
-      // 드라이브 목록
-      const drives = [];
-      for (let c = 65; c <= 90; c++) {
-        const d = String.fromCharCode(c) + ':\\';
-        try { if (fs.existsSync(d)) drives.push({ name: d, mtime: 0 }); } catch (e) {}
+      if (isWin) {
+        // 윈도우: 드라이브 목록 (C:\ ~ Z:\)
+        const drives = [];
+        for (let c = 65; c <= 90; c++) {
+          const d = String.fromCharCode(c) + ':\\';
+          try { if (fs.existsSync(d)) drives.push({ name: d, mtime: 0 }); } catch (e) {}
+        }
+        return res.json({ dir: '', parent: null, sep: '\\', folders: drives });
       }
-      return res.json({ dir: '', parent: null, folders: drives });
+      // 맥/리눅스: 드라이브 문자가 없으니 홈 폴더에서 시작 (없으면 루트)
+      dir = os.homedir() || '/';
     }
     // 폴더명 + 수정날짜(자세히 보기용). 폴더 용량은 재귀라 비싸서 제외(윈도우도 폴더 크기는 비움)
     const folders = fs.readdirSync(dir, { withFileTypes: true })
@@ -373,8 +378,10 @@ app.get('/api/browse', (req, res) => {
         return { name: e.name, mtime };
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-    const parent = path.dirname(dir) === dir ? '' : path.dirname(dir);
-    res.json({ dir, parent, folders });
+    // 상위: 루트('/'나 'C:\')면 윈도우는 드라이브목록('')·맥은 없음(null)
+    const up = path.dirname(dir);
+    const parent = up === dir ? (isWin ? '' : null) : up;
+    res.json({ dir, parent, sep: path.sep, folders });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
