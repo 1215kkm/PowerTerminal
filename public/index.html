@@ -50,9 +50,8 @@
     .ph-top { min-height: 25px; }                 /* 버튼이 사라져도 헤더 높이 고정 (터미널 흔들림 방지) */
     .pane .ph-top .hv { display: none; }
     .pane:hover .ph-top .hv, .pane:focus-within .ph-top .hv { display: inline-block; }
-    /* 입력영역(글칸+버튼) 위에 마우스가 있거나 입력칸에 포커스면 — 헤더 버튼은 숨긴 채 유지 */
-    .pane:has(.quick:hover) .ph-top .hv,
-    .pane:has(.quick:focus-within) .ph-top .hv { display: none; }
+    /* 입력영역(글칸+버튼) 위에 마우스가 있을 땐 — 헤더 버튼은 숨긴 채 유지 (포커스만으론 안 숨김) */
+    .pane:has(.quick:hover) .ph-top .hv { display: none; }
   }
   /* 번호 밑 '완료' 초록 배지 */
   .numwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
