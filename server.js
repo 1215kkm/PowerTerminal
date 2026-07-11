@@ -45,7 +45,9 @@ if (!config.token) { config.token = crypto.randomBytes(4).toString('hex'); confi
 // 관리자 비밀번호: 이 PC(localhost)는 항상 무비번 통과, 원격(폰 등)에서 배너관리자를 열려면 필요.
 // 값은 관리자 페이지에서 이 PC로 접속했을 때만 확인/재발급 가능(원격에선 절대 노출 안 함).
 if (!config.adminPassword) { config.adminPassword = crypto.randomBytes(4).toString('hex'); configDirty = true; }
+if (config.intentNotes === undefined) { config.intentNotes = false; configDirty = true; }   // 🧠 요청 의도 자동 기록 (옵트인)
 if (configDirty) fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+function saveConfig() { try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2)); } catch (e) {} }
 function isAdmin(req) {
   if (isLocal(req.socket)) return true;
   const cookiePw = (req.headers.cookie || '').split('cc_admin=')[1]?.split(';')[0];
@@ -636,6 +638,13 @@ app.get('/api/info', (req, res) => {
   res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR });
 });
 
+// ---------- ⚙ 사용자 설정 (요청 의도 자동 기록 등) ----------
+app.get('/api/settings', (req, res) => res.json({ intentNotes: !!config.intentNotes }));
+app.post('/api/settings', (req, res) => {
+  if (req.body && typeof req.body.intentNotes === 'boolean') { config.intentNotes = req.body.intentNotes; saveConfig(); }
+  res.json({ ok: true, intentNotes: !!config.intentNotes });
+});
+
 // ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------
 const BANNER_URL = config.bannerUrl ||
   'https://raw.githubusercontent.com/1215kkm/PowerTerminal/main/banner.json';
@@ -902,39 +911,76 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   const m = memoOf(req.body.path);
   const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
   if (!text) return res.json({ ok: false });
-  m.reqs.unshift({ id: crypto.randomBytes(6).toString('hex'), text, ts: Date.now(), st: 'run' });
+  const rid = crypto.randomBytes(6).toString('hex');
+  m.reqs.unshift({ id: rid, text, ts: Date.now(), st: 'run' });
   m.reqs = m.reqs.slice(0, 200);
   saveMemos();
+  if (config.intentNotes) genIntent(req.body.path, rid, text);   // 🧠 설정을 켠 경우만 — 약간의 토큰 사용
   res.json({ ok: true });
 });
+// 🧠 요청 의도 한 줄 생성 — claude -p(haiku)에게 짧게 물어 요청내역에 저장. 실패하면 조용히 생략.
+// PT에서 유일하게 AI 토큰을 쓰는 기능이라 기본 꺼짐(⚙ 설정에서 옵트인).
+function genIntent(dir, reqId, text) {
+  try {
+    const proc = spawn('claude', ['-p', '--model', 'haiku'], { shell: true, windowsHide: true, cwd: os.homedir() });
+    let out = '';
+    proc.stdout.on('data', d => { out += d; });
+    const kill = setTimeout(() => { try { proc.kill(); } catch (e) {} }, 90000);
+    proc.on('close', () => {
+      clearTimeout(kill);
+      const intent = out.trim().replace(/\s+/g, ' ').slice(0, 200);
+      if (!intent) return;
+      const m = memos[memoKey(dir)];
+      const r = m && (m.reqs || []).find(x => x.id === reqId);
+      if (r) { r.intent = intent; saveMemos(); }
+    });
+    proc.on('error', () => clearTimeout(kill));
+    proc.stdin.write('Answer with ONE short sentence (max 60 chars) describing the goal/intent behind this request, '
+      + 'in the SAME language as the request. No prefix, no explanation.\n\nRequest:\n' + text.slice(0, 1000));
+    proc.stdin.end();
+  } catch (e) {}
+}
 app.post('/api/memos/reqst', (req, res) => {          // 요청 상태 스탬프: done(완료)·stop(중단)·off(종료로 중단)
   const st = ['done', 'stop', 'off'].includes(req.body && req.body.st) ? req.body.st : 'done';
   stampReqs(req.body.path, st);
   res.json({ ok: true });
 });
-// 📊 메모·요청내역 CSV 내보내기 (엑셀용, UTF-8 BOM) — ?path=폴더: 그 세션만 · ?all=1: 전체 세션
+// 📊 메모·요청내역 엑셀 내보내기 — 서식 있는 HTML 표를 .xls로 (헤더 색·내용 폭 60자·자동 줄바꿈).
+// ?path=폴더: 그 세션만 · ?all=1: 전체 세션. 열: 구분·작성일시·의도·내용·상태·완료일시·세션 폴더
 app.get('/api/memos/export', (req, res) => {
   const all = req.query.all === '1';
   const keys = all ? Object.keys(memos) : [memoKey(req.query.path)];
   const p2 = n => String(n).padStart(2, '0');
   const fmtD = ms => { if (!ms) return ''; const d = new Date(ms);
     return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
-  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const h = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const cell = (v, wrap) => '<td style="border:1px solid #d1d5db;padding:3px 6px;vertical-align:top;'
+    + (wrap ? 'white-space:normal;word-wrap:break-word;' : 'white-space:nowrap;') + '">'
+    + h(v).replace(/\n/g, '<br style="mso-data-placement:same-cell">') + '</td>';
   const ST = { run: '진행중', done: '완료', stop: '중단', off: '종료로 중단' };
-  const rows = [['구분 Type', '작성일시 Created', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session'].map(q).join(',')];
+  const body = [];
   for (const k of keys) {
     const m = memos[k]; if (!m) continue;
     const folder = path.basename(k || '');
     ((m.reqs || []).slice().reverse()).forEach(r =>   // 저장은 최신순 → 시간순으로 뒤집어 내보냄
-      rows.push(['요청', fmtD(r.ts), r.text, ST[r.st] || r.st || '', fmtD(r.endTs), folder].map(q).join(',')));
+      body.push('<tr>' + cell('요청') + cell(fmtD(r.ts)) + cell(r.intent || '', true) + cell(r.text, true)
+        + cell(ST[r.st] || r.st || '') + cell(fmtD(r.endTs)) + cell(folder) + '</tr>'));
     (m.items || []).forEach(it =>
-      rows.push(['메모', fmtD(it.ts), it.text, it.done ? '완료' : '작성', fmtD(it.doneTs), folder].map(q).join(',')));
+      body.push('<tr>' + cell('메모') + cell(fmtD(it.ts)) + cell('', true) + cell(it.text, true)
+        + cell(it.done ? '완료' : '작성') + cell(fmtD(it.doneTs)) + cell(folder) + '</tr>'));
   }
+  const head = ['구분 Type', '작성일시 Created', '의도 Intent', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session']
+    .map(t => '<th style="background:#7C3AED;color:#ffffff;font-weight:bold;border:1px solid #5b21b6;padding:5px 8px;white-space:nowrap">' + h(t) + '</th>').join('');
+  const widths = [56, 115, 210, 486, 90, 115, 120];   // 내용 486px = 엑셀 폭 60자 (실측 보정)
+  const html = String.fromCharCode(0xFEFF) + '<html><head><meta charset="utf-8"></head><body>'   // BOM — 엑셀 한글 인식
+    + '<table border="0" style="border-collapse:collapse;font-size:11pt">'
+    + '<colgroup>' + widths.map(w => '<col width="' + w + '">').join('') + '</colgroup>'
+    + '<tr>' + head + '</tr>' + body.join('') + '</table></body></html>';
   const base = all ? 'all-sessions' : (path.basename(keys[0] || '') || 'memo');
-  const name = 'powerterminal-' + base + '-' + fmtD(Date.now()).slice(0, 10) + '.csv';
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', "attachment; filename=\"export.csv\"; filename*=UTF-8''" + encodeURIComponent(name));
-  res.send(String.fromCharCode(0xFEFF) + rows.join('\r\n'));   // BOM — 엑셀이 UTF-8 한글을 바로 읽게
+  const name = 'powerterminal-' + base + '-' + fmtD(Date.now()).slice(0, 10) + '.xls';
+  res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+  res.setHeader('Content-Disposition', "attachment; filename=\"export.xls\"; filename*=UTF-8''" + encodeURIComponent(name));
+  res.send(html);
 });
 
 app.post('/api/sessions/:id/clear-done', (req, res) => {

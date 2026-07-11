@@ -278,13 +278,27 @@
   .memo-row .mst.done { background: #dcfce7; color: #15803d; }
   .memo-row .mst.stop { background: #ffedd5; color: #b45309; }
   .memo-row .mst.off { background: #fee2e2; color: #b91c1c; }
-  /* 메모 행 버튼: 날짜 아래 [📤 전송] 그 밑에 [✏ 수정][✕ 삭제] 좌우 */
-  .memo-row .mbtns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; white-space: nowrap; }
-  .memo-row .mbtns button { flex: 1 1 auto; padding: 2px 4px; font-size: 10px; border-radius: 5px; cursor: pointer;
+  /* 메모 행 버튼: 날짜 아래 [📤 전송] [✏ 수정] [📋 복사] 세로 — 높이 넉넉하게(기존 2배) */
+  .memo-row .mbtns { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; white-space: nowrap; }
+  .memo-row .mbtns button { width: 100%; padding: 11px 4px; font-size: 10px; border-radius: 5px; cursor: pointer;
                             border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; line-height: 1.5; }
   .memo-row .mbtns button:hover { filter: brightness(.92); }
-  .memo-row .mbtns .msend { flex: 1 1 100%; border: none; color: #fff; font-weight: 700;
+  .memo-row .mbtns .msend { border: none; color: #fff; font-weight: 700;
                             background: linear-gradient(90deg, var(--violet), var(--pink)); }
+  /* 완료·요청 행: 마우스 올리면 날짜 밑에 📋 복사 */
+  .memo-row .mcopy { display: none; margin-top: 3px; padding: 2px 8px; font-size: 10px; border-radius: 5px;
+                     border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; cursor: pointer; }
+  .memo-row:hover .mcopy { display: inline-block; }
+  @media (hover: none) { .memo-row .mcopy { display: inline-block; } }
+  /* 🧠 요청 의도(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
+  .memo-row .mintent { display: none; color: #7c3aed; font-size: 11px; }
+  .memo-row:hover .mintent { display: inline; }
+  @media (hover: none) { .memo-row .mintent { display: inline; } }
+  /* 컬럼 제목 줄: 제목 + 우측 전체복사 */
+  .memo-colhead { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .memo-colhead .mcopyall { padding: 2px 9px; font-size: 10px; border-radius: 5px; cursor: pointer;
+                            border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; }
+  .memo-colhead .mcopyall:hover { filter: brightness(.92); }
   /* 요청 행에 마우스 올리면 ↑ (터미널에서 그 요청 위치로 이동) */
   .memo-row.mreq { position: relative; }
   .memo-row.mreq .mjump { position: absolute; right: 4px; top: 5px; width: 22px; height: 22px; padding: 0;
@@ -468,6 +482,12 @@
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
     #grid.maxmode .pane.maxed { min-height: 86vh; }
     #grid.maxmode .pane.mini { min-height: 92px; }
+    /* 폰: 요청내역 패널은 터미널 폭을 줄이지 않고 위에 덮음 — 터미널이 12글자 폭으로 재줄바꿈되는 문제 방지 */
+    .pane-body.hist .term { right: 0; }
+    .pane-body.hist .termCancel { right: 18px; }
+    .pane-body.hist .reqSticky { right: 0; }
+    .pane-body.hist .termBot { right: 14px; }
+    .reqPanel { width: 240px; max-width: 76vw; box-shadow: -5px 0 16px rgba(0,0,0,.45); }
     /* 폰 메모장 닫기: 우측 위 모서리에 1/4쯤 걸친 큰 빨강 원형 ✕ */
     #memoDlg { overflow: visible; }
     #memoClose { position: absolute; top: -12px; right: -12px; width: 46px; height: 46px;
@@ -648,16 +668,27 @@
 </dialog>
 
 <!-- 📝 세션 메모장 — 좌: 메모(작성일·체크 표) · 중: 완료(취소선+삭제) · 우: 보냈던 요청 내역 -->
+<!-- ⚙ 설정 — 모든 사용자용 (요청 의도 자동 기록 등) -->
+<dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:18px;max-width:420px">
+  <h3 id="setTitle" style="margin:0 0 12px"></h3>
+  <label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-size:13px;line-height:1.5">
+    <input type="checkbox" id="setIntent" style="margin-top:3px;accent-color:var(--violet)">
+    <span><span id="setIntentL"></span><br><small id="setIntentHint" style="color:var(--muted)"></small></span>
+  </label>
+  <div style="display:flex;justify-content:flex-end;margin-top:14px">
+    <button class="small" id="setClose" onclick="setDlg.close()"></button>
+  </div>
+</dialog>
 <dialog id="memoDlg">
   <div class="memo-head">
     <h3 id="memoTitle" style="margin:0"></h3>
     <span id="memoPathBadge" title="" style="flex:1;min-width:0;font-size:10px;color:#9ca3af;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left"></span>
-    <button class="small" id="memoExport"></button>
     <button class="small" id="memoExportAll"></button>
     <button class="small" id="memoClose" onclick="closeMemo()"></button>
   </div>
   <div class="memo-cols">
     <div class="memo-col">
+      <div class="memo-colhead" id="memoNewH"></div>
       <div class="memo-list" id="memoItems"></div>
       <textarea id="memoNew" rows="3"></textarea>
       <div style="display:flex;justify-content:flex-end;margin-top:-2px">
@@ -705,14 +736,18 @@ const I18N = {
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes',
     memoEdit:'Edit', memoDelBtn:'Del', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
-    memoExport:'Excel', memoExportT:'Download this session\'s memos & request history as CSV (opens in Excel)',
-    memoExportAll:'Excel (all)', memoExportAllT:'Download memos & request history of ALL sessions as one CSV',
+    memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
+    memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
+    copyAll:'Copy all', copyAllT:'Copy everything in this column',
+    setBtnT:'Settings', setTitle:'⚙ Settings',
+    setIntentL:'Also record the AI-detected intent when a request is saved',
+    setIntentHint:'Shows "why you asked" in the request history and Excel export — may use a small amount of AI tokens per request',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
     cancelLast:'Stop\ncurrent\nrequest', toBottomT:'Jump to the latest output', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
-    bnNewVer:'🔄 New version v{v} is out — click to update',
+    bnNewVer:'🔄 New version v{v} is out — click to restart & update',
     confirmClose:'Close session "{t}"? (terminal ends, folder stays)',
     previewPrompt:'Open which page in a new tab? (your dev server, e.g. http://localhost:3000 — PowerTerminal relays it so it opens on your phone too · leave empty to open the folder)',
     customPrompt:'Command to run (e.g. codex, aider, gemini)',
@@ -740,14 +775,18 @@ const I18N = {
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동',
     memoEdit:'수정', memoDelBtn:'삭제', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
-    memoExport:'엑셀', memoExportT:'이 세션의 메모·요청내역을 CSV로 저장 (엑셀에서 열림, 한글 안 깨짐)',
-    memoExportAll:'엑셀(전체)', memoExportAllT:'모든 세션의 메모·요청내역을 CSV 하나로 저장',
+    memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
+    memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
+    copyAll:'전체 복사', copyAllT:'이 영역의 글 전부 복사',
+    setBtnT:'설정', setTitle:'⚙ 설정',
+    setIntentL:'요청 저장 시 AI가 파악한 의도도 함께 기록',
+    setIntentHint:'요청내역과 엑셀에 "왜 요청했는지"가 남습니다 — 요청마다 약간의 AI 토큰이 발생할 수 있어요',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
     cancelLast:'진행\n요청\n중지', toBottomT:'최신 출력(맨아래)으로 이동', reqHistBtn:'요청내역', reqHistT:'이 터미널 옆에 요청내역 패널 표시/숨기기 — 항목을 클릭하면 그 위치로 이동',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
-    bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 다운받기',
+    bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 업데이트 재실행하기',
     confirmClose:'"{t}" 세션을 닫을까요? (터미널 종료, 폴더는 그대로)',
     previewPrompt:'새 탭에서 열 주소를 입력하세요 (개발서버 실행 중이면 http://localhost:3000 — PT가 중간 전달해줘서 폰에서도 열려요 · 비우면 폴더를 엽니다)',
     customPrompt:'실행할 명령 (예: codex, aider, gemini)',
@@ -1418,20 +1457,25 @@ function buildPane(sess, idx) {
       const needle = reqNeedle(rq.text);
       const findable = !!needle && bufText.includes(needle);
       r.classList.toggle('gone', !findable);
-      r.title = findable ? (T.memoJumpT || '') : (T.memoJumpMiss || '');
+      r.title = (rq.intent ? '🧠 ' + rq.intent + '\n' : '')   // 🧠 의도 — 마우스 올리면 툴팁으로
+              + (findable ? (T.memoJumpT || '') : (T.memoJumpMiss || ''));
       r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
       list.appendChild(r);
     });
   };
-  el.querySelector('.qHist').onclick = ev => {
-    ev.stopPropagation();
-    const on = !reqPanel.classList.toggle('hidden');
+  const setHist = on => {
+    reqPanel.classList.toggle('hidden', !on);
     el.querySelector('.pane-body').classList.toggle('hist', on);
     el.querySelector('.qHist').classList.toggle('on', on);
-    refreshReq().then(() => { reqPanel.scrollTop = 0; });   // 열 때 항상 맨 위(최신)부터
-    // 패널이 터미널 폭을 바꾸니 다시 맞춤
+    if (on) refreshReq().then(() => { reqPanel.scrollTop = 0; });   // 열 때 항상 맨 위(최신)부터
+    // 패널이 터미널 폭을 바꾸니 다시 맞춤 (폰에선 오버레이라 폭 그대로 — fit이 알아서 무변경 처리)
     setTimeout(() => { try { fit.fit(); if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); } catch (e) {} }, 60);
   };
+  el.querySelector('.qHist').onclick = ev => { ev.stopPropagation(); setHist(reqPanel.classList.contains('hidden')); };
+  // 모달처럼: 패널이 열려 있을 때 옆의 터미널 영역을 누르면 패널 닫힘
+  el.querySelector('.term').addEventListener('pointerdown', () => {
+    if (!reqPanel.classList.contains('hidden')) setHist(false);
+  }, true);
 
   // 📌 스크롤을 올리면 "지금 보는 구간이 어떤 요청의 결과인지"를 터미널 상단에 고정 표시.
   // 요청 줄은 Claude가 칠하는 회색 배경(#373737)으로 찾고, 기록된 원문이 있으면 전문(말줄임 없음)을 보여줌.
@@ -2584,7 +2628,26 @@ async function pollUntilBackThenReload() {
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
 
-// 배너 관리자(⚙)·사용자요청 배지(✉) — 개발자 전용.
+// ⚙ 설정 — 모든 사용자. 요청 의도 자동 기록(약간의 토큰) 켜기/끄기
+{
+  const sb = document.createElement('button');
+  sb.textContent = '⚙';
+  sb.title = T.setBtnT || 'Settings';
+  sb.onclick = openSettings;
+  document.querySelector('header').insertBefore(sb, document.getElementById('langSel'));
+}
+async function openSettings() {
+  document.getElementById('setTitle').textContent = T.setTitle || '⚙ Settings';
+  document.getElementById('setIntentL').textContent = T.setIntentL || '';
+  document.getElementById('setIntentHint').textContent = T.setIntentHint || '';
+  document.getElementById('setClose').textContent = T.close || 'Close';
+  const cb = document.getElementById('setIntent');
+  try { const s = await api('GET', '/api/settings'); cb.checked = !!(s && s.intentNotes); } catch (e) {}
+  cb.onchange = () => api('POST', '/api/settings', { intentNotes: cb.checked });
+  setDlg.showModal();
+}
+
+// 배너 관리자(🛠)·사용자요청 배지(✉) — 개발자 전용.
 // localhost 조건만으론 부족: PowerTerminal을 설치한 다른 사용자도 자기 PC에선 localhost라 버튼이 보였음.
 // → 이 PC의 GitHub CLI 로그인 계정이 개발자(1215kkm)일 때만 노출. (배너 발행 자체도 그 계정만 push 가능)
 (async () => {
@@ -2594,8 +2657,8 @@ setInterval(refreshBanner, 10 * 60 * 1000);
   if (!u || u.login !== '1215kkm') return;
 
   const b = document.createElement('button');
-  b.textContent = '⚙';
-  b.title = 'Banner admin';
+  b.textContent = '🛠';
+  b.title = 'Banner admin (dev)';
   // 새 탭으로 열기 — 같은 탭으로 이동하면 메인이 리로드돼 입력 중이던 요청글이 날아감
   b.onclick = () => { window.open('/admin.html?token=' + TOKEN, '_blank'); };
   document.querySelector('header').insertBefore(b, document.getElementById('langSel'));
@@ -2697,14 +2760,10 @@ async function openMemo(sess) {
   memoPath = sess.path;
   document.getElementById('memoTitle').textContent = (T.memoTitle || '📝 Memo') + ' — ' + sess.title;
   document.getElementById('memoClose').textContent = isMobile ? '✕' : (T.close || 'Close');   // 폰: 빨강 원형 X
-  // 📊 CSV(엑셀) 내보내기 — 이 세션 / 전체 세션. UX 개선 요청 이력을 포트폴리오 자료로 뽑는 용도
-  const dl = qs => { const a = document.createElement('a'); a.href = '/api/memos/export?' + qs + '&token=' + (TOKEN || ''); a.click(); };
-  const ex = document.getElementById('memoExport');
-  ex.textContent = '⬇ ' + (T.memoExport || 'Excel'); ex.title = T.memoExportT || '';
-  ex.onclick = () => dl('path=' + encodeURIComponent(memoPath));
+  // 📊 엑셀 내보내기 — 전체 세션 통합(.xls, 서식 포함). UX 개선 요청 이력을 포트폴리오 자료로 뽑는 용도
   const exa = document.getElementById('memoExportAll');
-  exa.textContent = '⬇ ' + (T.memoExportAll || 'All'); exa.title = T.memoExportAllT || '';
-  exa.onclick = () => dl('all=1');
+  exa.textContent = '⬇ ' + (T.memoExport || 'Excel'); exa.title = T.memoExportAllT || '';
+  exa.onclick = () => { const a = document.createElement('a'); a.href = '/api/memos/export?all=1&token=' + (TOKEN || ''); a.click(); };
   // 제목 옆 회색 저장경로 — 클릭하면 그 폴더 열기
   try { if (!memoDataDir) { const inf = await api('GET', '/api/info'); memoDataDir = (inf && inf.dataDir) || ''; } } catch (e) {}
   const pb = document.getElementById('memoPathBadge');
@@ -2713,8 +2772,21 @@ async function openMemo(sess) {
     pb.title = memoDataDir;
     pb.onclick = () => { if (memoDataDir) openFolder(memoDataDir); };
   }
-  document.getElementById('memoDoneH').textContent = T.memoDoneCol || 'Completed';
-  document.getElementById('memoReqH').textContent = T.memoReqCol || 'Requests';
+  // 컬럼 제목 3개 + 각 제목 우측 [📋 전체복사] — 그 영역의 글 전부를 "[날짜] 내용" 줄로 복사
+  const colHead = (id, title, getLines) => {
+    const hEl = document.getElementById(id);
+    hEl.innerHTML = `<span>${esc(title)}</span><button class="mcopyall" title="${esc(T.copyAllT || '')}">📋 ${esc(T.copyAll || 'Copy all')}</button>`;
+    hEl.querySelector('.mcopyall').onclick = () => {
+      const lines = getLines();
+      if (lines.length) copyTxt(lines.join('\n\n'));
+    };
+  };
+  colHead('memoNewH', T.memoNewCol || 'New memos',
+    () => (memoData.items || []).filter(i => !i.done).map(i => fmtMemoDate(i.ts) + '  ' + i.text));
+  colHead('memoDoneH', T.memoDoneCol || 'Completed',
+    () => (memoData.items || []).filter(i => i.done).map(i => fmtMemoDate(i.doneTs || i.ts) + '  ' + i.text));
+  colHead('memoReqH', T.memoReqCol || 'Requests',
+    () => (memoData.reqs || []).map(r => fmtMemoDate(r.ts) + '  ' + r.text + (r.intent ? '\n  🧠 ' + r.intent : '')));
   const sv = document.getElementById('memoSave');
   sv.textContent = '💾 ' + (T.memoSaveBtn || 'Save'); sv.title = T.memoSaveTip || '';
   const ta = document.getElementById('memoNew');
@@ -2736,9 +2808,11 @@ function renderMemo() {
     const r = document.createElement('div'); r.className = 'memo-row';
     r.innerHTML = `<span class="mdate">${fmtMemoDate(it.ts)}`
                 + `<span class="mbtns"><button class="msend" title="${esc(T.memoSendTip || '')}">📤 ${esc(T.memoSend || 'Send')}</button>`
-                + `<button class="medit2">✏ ${esc(T.memoEdit || 'Edit')}</button></span>`
+                + `<button class="medit2">✏ ${esc(T.memoEdit || 'Edit')}</button>`
+                + `<button class="mcopy2" title="${esc(T.memoCopyT || '')}">📋 ${esc(T.memoCopy || 'Copy')}</button></span>`
                 + `</span><input type="checkbox"><span class="mtext">${esc(it.text)}</span>`
                 + `<button class="mdel" title="${esc(T.memoDelT || 'Delete')}">✕</button>`;   // 완료 항목과 같은 빨강 ✕ — 마우스 올리면 표시
+    r.querySelector('.mcopy2').onclick = () => copyTxt(it.text);
     r.querySelector('input').onchange = async () => {   // 체크 = 완료영역으로 이동
       const res = await api('POST', '/api/memos/toggle', { path: memoPath, id: it.id, done: true });
       if (res && res.memo) memoData = res.memo;
@@ -2790,8 +2864,10 @@ function renderMemo() {
   const boxD = document.getElementById('memoDone'); boxD.innerHTML = '';
   done.forEach(it => {
     const r = document.createElement('div'); r.className = 'memo-row mdone';
-    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.doneTs || it.ts)}</span><span class="mtext">${esc(it.text)}</span>`
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.doneTs || it.ts)}<br><button class="mcopy" title="${esc(T.memoCopyT || '')}">📋</button></span>`
+                + `<span class="mtext">${esc(it.text)}</span>`
                 + `<button class="mdel" title="${esc(T.memoDelT || 'Delete')}">✕</button>`;
+    r.querySelector('.mcopy').onclick = () => copyTxt(it.text);
     r.querySelector('.mdel').onclick = async () => {
       const res = await api('POST', '/api/memos/del', { path: memoPath, id: it.id });
       if (res && res.memo) memoData = res.memo;
@@ -2804,12 +2880,27 @@ function renderMemo() {
     const r = document.createElement('div'); r.className = 'memo-row mreq';
     const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
     const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
-    r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)}<br><span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
-                + `<span class="mtext">${esc(rq.text)}</span>`
-                + `<button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)}<br><span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span>`
+                + `<br><button class="mcopy" title="${esc(T.memoCopyT || '')}">📋</button></span>`
+                + `<span class="mtext">${esc(rq.text)}`
+                + (rq.intent ? `<br><span class="mintent">🧠 ${esc(rq.intent)}</span>` : '')   // 🧠 의도 — 마우스 올리면 표시
+                + `</span><button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
     r.querySelector('.mjump').onclick = () => jumpToReq(rq);   // 터미널에서 이 요청 위치로
+    r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (rq.intent ? '\n🧠 ' + rq.intent : ''));
     boxR.appendChild(r);
   });
+}
+// 📋 클립보드 복사 + 토스트 (https/localhost가 아니면 구식 execCommand 폴백)
+function copyTxt(t) {
+  const ok = () => flashToast(T.copied || 'Copied');
+  const legacy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); ok(); } catch (e) { flashToast(T.copyFail || 'Copy failed'); }
+    ta.remove();
+  };
+  try { navigator.clipboard.writeText(t).then(ok, legacy); } catch (e) { legacy(); }
 }
 // 이 메모장 폴더로 열려 있는 세션 창 찾기 (같은 폴더 중 첫 번째)
 function memoPane() {
