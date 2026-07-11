@@ -646,8 +646,10 @@ let mindData = null;
 try { mindData = readJson(MIND_FILE); } catch (e) {}
 app.get('/api/mindmap', (req, res) => res.json(mindData || {}));
 app.post('/api/mindmap', (req, res) => {
-  if (req.body && req.body.root) {
-    mindData = { root: req.body.root, links: Array.isArray(req.body.links) ? req.body.links : [], updated: Date.now() };
+  const b = req.body || {};
+  const roots = Array.isArray(b.roots) && b.roots.length ? b.roots : (b.root ? [b.root] : null);
+  if (roots) {
+    mindData = { roots, root: roots[0], links: Array.isArray(b.links) ? b.links : [], updated: Date.now() };
     try { fs.writeFileSync(MIND_FILE, JSON.stringify(mindData)); } catch (e) {}
   }
   res.json({ ok: true });
