@@ -1530,14 +1530,13 @@ function buildPane(sess, idx) {
       const r = document.createElement('div'); r.className = 'memo-row mreq';
       const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
       const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
+      // 이 패널(입력칸 옆 요청내역)에는 이유·요약을 표시하지 않음 — 그건 메모장에서만
       r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)} <span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
-                  + `<span class="mtext">${esc(rq.text)}${reqNotes(rq, false)}</span>`;
+                  + `<span class="mtext">${esc(rq.text)}</span>`;
       const needle = reqNeedle(rq.text);
       const findable = !!needle && bufText.includes(needle);
       r.classList.toggle('gone', !findable);
-      const nt = reqNotes(rq, true);
-      r.title = (nt ? nt + '\n' : '')   // 🧭📝 이유·요약 — 마우스 올리면 툴팁으로
-              + (findable ? (T.memoJumpT || '') : (T.memoJumpMiss || ''));
+      r.title = findable ? (T.memoJumpT || '') : (T.memoJumpMiss || '');
       r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
       list.appendChild(r);
     });
