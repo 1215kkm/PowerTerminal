@@ -671,13 +671,16 @@
 
 <!-- 📝 세션 메모장 — 좌: 메모(작성일·체크 표) · 중: 완료(취소선+삭제) · 우: 보냈던 요청 내역 -->
 <!-- ⚙ 설정 — 모든 사용자용 (요청 의도 자동 기록 등) -->
-<dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:18px;max-width:420px">
-  <h3 id="setTitle" style="margin:0 0 12px"></h3>
-  <label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-size:13px;line-height:1.5">
-    <input type="checkbox" id="setIntent" style="margin-top:3px;accent-color:var(--violet)">
-    <span><span id="setIntentL"></span><br><small id="setIntentHint" style="color:var(--muted)"></small></span>
+<dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:20px;max-width:460px">
+  <h3 id="setTitle" style="margin:0 0 14px"></h3>
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer">
+    <input type="checkbox" id="setIntent" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
+    <span style="display:block">
+      <span id="setIntentL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
+      <small id="setIntentHint" style="display:block;margin-top:7px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+    </span>
   </label>
-  <div style="display:flex;justify-content:flex-end;margin-top:14px">
+  <div style="display:flex;justify-content:flex-end;margin-top:16px">
     <button class="small" id="setClose" onclick="setDlg.close()"></button>
   </div>
 </dialog>
@@ -742,8 +745,8 @@ const I18N = {
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
     copyAll:'Copy all', copyAllT:'Copy everything in this column',
     setBtnT:'Settings', setTitle:'⚙ Settings',
-    setIntentL:'Also record the AI-detected intent when a request is saved',
-    setIntentHint:'Shows "why you asked" in the request history and Excel export — may use a small amount of AI tokens per request',
+    setIntentL:'When a request is recorded, also keep the user\'s intent as the AI understood it',
+    setIntentHint:'The "request intent" appears in the memo pad\'s request history and in the Excel download. These intent notes may use a small amount of AI tokens.',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -781,8 +784,8 @@ const I18N = {
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
     copyAll:'전체 복사', copyAllT:'이 영역의 글 전부 복사',
     setBtnT:'설정', setTitle:'⚙ 설정',
-    setIntentL:'요청 저장 시 AI가 파악한 의도도 함께 기록',
-    setIntentHint:'요청내역과 엑셀에 "왜 요청했는지"가 남습니다 — 요청마다 약간의 AI 토큰이 발생할 수 있어요',
+    setIntentL:'요청이 기록될 때 사용자의 요청의도를 AI가 파악한 대로 함께 기록에 남기기',
+    setIntentHint:'메모장에 기록된 요청내역과 메모장의 \'엑셀 다운받기\'를 할 경우 "요청의도"가 남습니다. 이런 사용자의 요청의도 파악 메모는 약간의 AI 토큰이 발생할 수 있어요.',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -1469,9 +1472,19 @@ function buildPane(sess, idx) {
     reqPanel.classList.toggle('hidden', !on);
     el.querySelector('.pane-body').classList.toggle('hist', on);
     el.querySelector('.qHist').classList.toggle('on', on);
-    if (on) refreshReq().then(() => { reqPanel.scrollTop = 0; });   // 열 때 항상 맨 위(최신)부터
-    // 패널이 터미널 폭을 바꾸니 다시 맞춤 (폰에선 오버레이라 폭 그대로 — fit이 알아서 무변경 처리)
-    setTimeout(() => { try { fit.fit(); if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows })); } catch (e) {} }, 60);
+    if (on) refreshReq().then(() => { reqPanel.scrollTop = 0; });   // 패널만 맨 위(최신)부터
+    // 패널이 터미널 폭을 바꾸니 다시 맞춤 — 크기 조정 때 터미널 스크롤이 맨 위로 튀지 않게 위치 복원
+    const buf = term.buffer.active;
+    const atBottom = buf.viewportY >= buf.baseY;
+    const keepLine = buf.viewportY;
+    setTimeout(() => {
+      try {
+        fit.fit();
+        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        if (atBottom) term.scrollToBottom();
+        else term.scrollToLine(Math.min(keepLine, term.buffer.active.baseY));
+      } catch (e) {}
+    }, 60);
   };
   el.querySelector('.qHist').onclick = ev => { ev.stopPropagation(); setHist(reqPanel.classList.contains('hidden')); };
   // 모달처럼: 패널이 열려 있을 때 옆의 터미널 영역을 누르면 패널 닫힘
@@ -1505,7 +1518,7 @@ function buildPane(sess, idx) {
   const updateSticky = () => {
     const buf = term.buffer.active;
     const vy = buf.viewportY;
-    botBtn.style.display = (buf.baseY > 0 && vy < buf.baseY - 1) ? '' : 'none';   // ⬇ 위로 올라가 있을 때만
+    botBtn.style.display = (buf.baseY > 0 && vy < buf.baseY) ? '' : 'none';   // ⬇ 맨 하단이 아니면 표시
     if (vy <= 0 || vy >= buf.baseY) { stickyEl.style.display = 'none'; return; }   // 맨 아래(생방송)에선 숨김
     // 요청글이 지금 화면 안에 보이면 배너를 안 띄움 — 같은 글이 2번 보이는 중복 방지
     const vend = Math.min(buf.length, vy + term.rows);
@@ -1546,6 +1559,7 @@ function buildPane(sess, idx) {
     }, 120);
   };
   term.onScroll(schedSticky);
+  term.onResize(schedSticky);   // 패널 여닫기 등 크기 변경 후에도 ⬇/📌 상태 재계산
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
   async function attachImage(file) {
