@@ -161,8 +161,12 @@ function claudeTuiFlag() {
 }
 // fresh=true: 같은 폴더에 이미 살아있는 세션이 있을 때 — --continue를 붙이면 그 세션의 대화를
 // 이어받아 버려서(Claude Code는 대화를 '폴더 단위'로 저장) 두 창이 같은 대화를 공유하게 됨 → 새 대화로 시작.
-function agentCommand(sess, fresh) {
+// resume=true: 작업 중에 서버가 꺼졌던 세션 — 재개 문구를 실행 인자로 넣어 뜨자마자 이어서 작업.
+// (예전엔 부팅 후 터미널에 타이핑했는데, Claude 로딩 중 입력은 먹혀 사라져서 실패했음)
+const RESUME_MSG = 'Continue the previous task where you left off.';
+function agentCommand(sess, fresh, resume) {
   const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag();
+  const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {
       // codex 미설치면 빨간 PowerShell 에러 대신 설치 안내 (GPT 세션 = OpenAI Codex CLI 실행)
@@ -174,7 +178,7 @@ function agentCommand(sess, fresh) {
       case 'shell':  return 'Write-Host "PowerShell 세션" -ForegroundColor Magenta';
       case 'custom': return sess.cmd || 'powershell';
       default:       return fresh ? 'claude' + model
-                                  : 'claude' + model + ' --continue; if ($LASTEXITCODE -ne 0) { claude' + model + ' }';
+                                  : 'claude' + model + contArgs + '; if ($LASTEXITCODE -ne 0) { claude' + model + ' }';
     }
   }
   // Mac/Linux (POSIX 셸)
@@ -183,7 +187,7 @@ function agentCommand(sess, fresh) {
                           'else echo ""; echo "  GPT(codex) CLI is not installed / GPT(codex) CLI가 설치되어 있지 않아요"; echo "  Install / 설치:  npm install -g @openai/codex"; fi';
     case 'shell':  return 'echo "shell session"';
     case 'custom': return sess.cmd || '';
-    default:       return fresh ? 'claude' + model : 'claude' + model + ' --continue || claude' + model;
+    default:       return fresh ? 'claude' + model : 'claude' + model + contArgs + ' || claude' + model;
   }
 }
 
@@ -196,7 +200,11 @@ function getPty(sess) {
     const q = ptys.get(s.id);
     return q && !q.dead;
   });
-  const cmd = agentCommand(sess, dupAlive);
+  // 재시작 자동 이어하기: 작업 중(busy)이던 Claude 세션이 꺼졌다 다시 뜨면 재개 문구를 실행 인자로 포함
+  const isClaudeAgent = !sess.agent || sess.agent === 'claude';
+  const resume = isClaudeAgent && !!sess.resumeOnStart && !dupAlive;
+  if (sess.resumeOnStart) { sess.resumeOnStart = false; try { saveSessions(); } catch (e) {} }
+  const cmd = agentCommand(sess, dupAlive, resume);
   const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd: sess.path, env: process.env };
   let proc;
   if (IS_WIN) {
@@ -207,14 +215,11 @@ function getPty(sess) {
     proc = pty.spawn(pickShell(), ['-l'], opts);
     if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
   }
-  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now(), resumePending: false };
-  const isClaude = !sess.agent || sess.agent === 'claude';
-  // 재시작 자동 이어하기: 작업 중(busy)이던 Claude 세션이 종료됐다 다시 뜨면, 로딩이 잦아든 뒤 자동으로 continue 전송
-  if (isClaude && sess.resumeOnStart) { p.resumePending = true; sess.resumeOnStart = false; try { saveSessions(); } catch (e) {} }
+  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
+  const isClaude = isClaudeAgent;
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
-    if (p.resumePending) { clearTimeout(p.resumeTimer); p.resumeTimer = setTimeout(() => fireResume(p), 2500); }   // 출력이 2.5초 조용해지면 준비 완료로 보고 전송
     if (isClaude) {
       // Claude는 작업 중일 때 하단에 'esc to interrupt'를 계속 그림 → 이 표시로 작업중/완료 판별
       // (사용량 정지 중 카운트다운 같은 잔출력에 상태가 흔들리지 않음)
@@ -232,7 +237,6 @@ function getPty(sess) {
     for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'exit' })); } catch (e) {} }
   });
   ptys.set(sess.id, p);
-  if (p.resumePending) setTimeout(() => fireResume(p), 20000);   // 출력이 계속 흘러도 20초 뒤엔 한 번 시도
   return p;
 }
 
@@ -241,13 +245,6 @@ function broadcastStatus(id, p) {
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
 }
 
-// 재시작 자동 이어하기: 로딩이 충분히 지나 잦아들면 "continue"를 한 번 전송
-function fireResume(p) {
-  if (!p || !p.resumePending) return;
-  if (Date.now() - p.spawnAt < 3500) { clearTimeout(p.resumeTimer); p.resumeTimer = setTimeout(() => fireResume(p), 1500); return; }
-  p.resumePending = false;
-  try { p.proc.write('Continue the previous task where you left off.\r'); } catch (e) {}
-}
 // 세션이 작업 중이었는지 여부를 sessions.json에 저장 (busy=true 저장 → 종료돼도 재시작 때 이어하기)
 function setResume(sess, val) {
   if (!sess || !!sess.resumeOnStart === val) return;
@@ -1106,7 +1103,6 @@ wss.on('connection', (ws, req) => {
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
-      if (p.resumePending) p.resumePending = false;   // 사용자가 먼저 타이핑하면 자동 이어하기 취소
       p.proc.write(m.data);
       if (p.done) { p.done = false; broadcastStatus(id, p); }   // 입력하면 초록 해제
       const isClaude = !sess.agent || sess.agent === 'claude';

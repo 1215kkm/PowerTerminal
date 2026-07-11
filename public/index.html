@@ -468,6 +468,13 @@
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
     #grid.maxmode .pane.maxed { min-height: 86vh; }
     #grid.maxmode .pane.mini { min-height: 92px; }
+    /* 폰 메모장 닫기: 우측 위 모서리에 1/4쯤 걸친 큰 빨강 원형 ✕ */
+    #memoDlg { overflow: visible; }
+    #memoClose { position: absolute; top: -12px; right: -12px; width: 46px; height: 46px;
+                 border-radius: 50%; background: #ef4444; color: #fff; border: none;
+                 font-size: 21px; font-weight: 700; line-height: 1; padding: 0;
+                 box-shadow: 0 2px 10px rgba(0,0,0,.45); z-index: 5; }
+    #memoClose:active { background: #b91c1c; }
   }
 </style>
 </head>
@@ -1310,6 +1317,12 @@ function buildPane(sess, idx) {
     qInput.style.height = Math.min(qInput.scrollHeight, window.innerHeight * 0.34) + 'px';
   };
   qInput.addEventListener('input', autoGrow);
+  // 입력창 기본 높이 = 우측 [요청내역]+[파일] 버튼 두 개(간격 포함) 높이와 동일 — PC·모바일 공통
+  // (rAF는 백그라운드 탭에서 안 돌아서 setTimeout 사용)
+  setTimeout(() => {
+    const qb = el.querySelector('.qBtns');
+    if (qb && qb.offsetHeight) qInput.style.minHeight = qb.offsetHeight + 'px';
+  }, 120);
   // 쓰다 만 요청글 보존 — 리로드·재부팅·관리자 다녀오기에도 안 날아가게 localStorage에 임시저장 (전송·닫기 시 삭제)
   const draftKey = 'pt_draft_' + sess.id;
   try { const d = localStorage.getItem(draftKey); if (d) { qInput.value = d; setTimeout(autoGrow, 60); } } catch (e) {}
@@ -2683,7 +2696,7 @@ let memoDataDir = '';   // 메모 실제 저장 폴더 (~/.powerterminal) — /a
 async function openMemo(sess) {
   memoPath = sess.path;
   document.getElementById('memoTitle').textContent = (T.memoTitle || '📝 Memo') + ' — ' + sess.title;
-  document.getElementById('memoClose').textContent = T.close || 'Close';
+  document.getElementById('memoClose').textContent = isMobile ? '✕' : (T.close || 'Close');   // 폰: 빨강 원형 X
   // 📊 CSV(엑셀) 내보내기 — 이 세션 / 전체 세션. UX 개선 요청 이력을 포트폴리오 자료로 뽑는 용도
   const dl = qs => { const a = document.createElement('a'); a.href = '/api/memos/export?' + qs + '&token=' + (TOKEN || ''); a.click(); };
   const ex = document.getElementById('memoExport');
@@ -2740,7 +2753,11 @@ function renderMemo() {
                    + `<div style="display:flex;gap:4px;margin-top:3px"><button class="mesave" title="${esc(T.memoEditSaveT || '')}" style="padding:2px 10px;border-radius:5px;border:none;background:var(--violet);color:#fff;font-size:11px;cursor:pointer">💾</button>`
                    + `<button class="mecancel" title="${esc(T.memoEditCancelT || '')}" style="padding:2px 10px;border-radius:5px;border:1px solid #d1d5db;background:#f3f4f6;color:#374151;font-size:11px;cursor:pointer">✕</button></div>`;
       const ed = mt.querySelector('.medit');
-      ed.value = it.text; ed.focus();
+      ed.value = it.text;
+      // 수정칸 높이 = 글 길이만큼 자동 확장 (열 때 + 타이핑할 때, 최대 화면의 40%)
+      const grow = () => { ed.style.height = 'auto'; ed.style.height = Math.min(ed.scrollHeight + 4, window.innerHeight * 0.4) + 'px'; };
+      grow(); ed.addEventListener('input', grow);
+      ed.focus();
       const save = async () => {
         const nt = ed.value.trim();
         if (!nt || nt === it.text) return renderMemo();
