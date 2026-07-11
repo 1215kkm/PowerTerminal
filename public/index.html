@@ -155,8 +155,8 @@
   .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer;
                              font-size: var(--tfs, 13px); }   /* 세션 글자크기 드롭다운을 따라감 */
   .reqPanel .memo-row.mreq:hover { background: #f3f4f6; }
-  .pane-body.hist .term { right: 200px; }        /* 패널이 열리면 터미널을 그만큼 줄임 */
-  .pane-body.hist .termCancel { right: 218px; }
+  /* 패널은 터미널을 줄이지 않고 위에 겹쳐서 뜸(오버레이) — 터미널 폭이 안 바뀌니 글자폭 재계산 문제 없음 */
+  .reqPanel { box-shadow: -5px 0 16px rgba(0,0,0,.4); }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
   /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 전문 표시(말줄임 없음), 클릭하면 그 위치로 */
   .reqSticky { position: absolute; top: 0; left: 0; right: 0; z-index: 6; cursor: pointer;
@@ -165,14 +165,12 @@
                border-bottom: 2px solid #c4b5fd; box-shadow: 0 2px 8px rgba(0,0,0,.25);
                max-height: 45%; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
   html.light .reqSticky { background: #ede9fe; }
-  .pane-body.hist .reqSticky { right: 200px; }
   /* ⬇ 맨아래로 — 스크롤을 올려 두었을 때만 나타나는 둥근 버튼, 누르면 최신 출력으로 복귀 */
   .termBot { position: absolute; right: 14px; bottom: 14px; z-index: 7; cursor: pointer;
              width: 36px; height: 36px; border-radius: 50%; border: none;
              background: var(--violet); color: #fff; font-size: 16px; line-height: 1;
              box-shadow: 0 2px 8px rgba(0,0,0,.35); }   /* 평소에도 보라색으로 잘 보이게 */
   .termBot:hover { filter: brightness(.8); }            /* 마우스 올리면 조금 진하게 */
-  .pane-body.hist .termBot { right: 214px; }   /* 요청내역 패널이 열려 있으면 그만큼 안쪽으로 */
   /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
   .xterm-rows span[style*="background-color:#373737"],
   .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
@@ -292,10 +290,11 @@
                      border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; cursor: pointer; }
   .memo-row:hover .mcopy { display: inline-block; }
   @media (hover: none) { .memo-row .mcopy { display: inline-block; } }
-  /* 🧠 요청 의도(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
-  .memo-row .mintent { display: none; color: #7c3aed; font-size: 11px; }
-  .memo-row:hover .mintent { display: inline; }
-  @media (hover: none) { .memo-row .mintent { display: inline; } }
+  /* 🧭📝 요청 이유·요약(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
+  .memo-row .mintent { display: none; color: #7c3aed; font-size: 11px; line-height: 1.5; }
+  .memo-row .mintent + .mintent { margin-top: 1px; }
+  .memo-row:hover .mintent { display: block; }
+  @media (hover: none) { .memo-row .mintent { display: block; } }
   /* 컬럼 제목 줄: 제목 + 우측 전체복사 */
   .memo-colhead { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .memo-colhead .mcopyall { padding: 2px 9px; font-size: 10px; border-radius: 5px; cursor: pointer;
@@ -484,12 +483,8 @@
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
     #grid.maxmode .pane.maxed { min-height: 86vh; }
     #grid.maxmode .pane.mini { min-height: 92px; }
-    /* 폰: 요청내역 패널은 터미널 폭을 줄이지 않고 위에 덮음 — 터미널이 12글자 폭으로 재줄바꿈되는 문제 방지 */
-    .pane-body.hist .term { right: 0; }
-    .pane-body.hist .termCancel { right: 18px; }
-    .pane-body.hist .reqSticky { right: 0; }
-    .pane-body.hist .termBot { right: 14px; }
-    .reqPanel { width: 240px; max-width: 76vw; box-shadow: -5px 0 16px rgba(0,0,0,.45); }
+    /* 폰: 요청내역 패널 폭만 조금 넓게 (오버레이는 이제 전 기기 공통) */
+    .reqPanel { width: 240px; max-width: 76vw; }
     /* 폰 메모장 닫기: 우측 위 모서리에 1/4쯤 걸친 큰 빨강 원형 ✕ */
     #memoDlg { overflow: visible; }
     #memoClose { position: absolute; top: -12px; right: -12px; width: 46px; height: 46px;
@@ -670,17 +665,25 @@
 </dialog>
 
 <!-- 📝 세션 메모장 — 좌: 메모(작성일·체크 표) · 중: 완료(취소선+삭제) · 우: 보냈던 요청 내역 -->
-<!-- ⚙ 설정 — 모든 사용자용 (요청 의도 자동 기록 등) -->
-<dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:20px;max-width:460px">
-  <h3 id="setTitle" style="margin:0 0 14px"></h3>
-  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer">
+<!-- ⚙ 설정 — 모든 사용자용 (요청 이유 파악·내용 요약 기록) -->
+<dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:20px;max-width:470px">
+  <h3 id="setTitle" style="margin:0 0 6px"></h3>
+  <p id="setSub" style="margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.6"></p>
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-bottom:16px">
     <input type="checkbox" id="setIntent" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
     <span style="display:block">
       <span id="setIntentL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
-      <small id="setIntentHint" style="display:block;margin-top:7px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+      <small id="setIntentHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
     </span>
   </label>
-  <div style="display:flex;justify-content:flex-end;margin-top:16px">
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer">
+    <input type="checkbox" id="setSummary" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
+    <span style="display:block">
+      <span id="setSummaryL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
+      <small id="setSummaryHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+    </span>
+  </label>
+  <div style="display:flex;justify-content:flex-end;margin-top:18px">
     <button class="small" id="setClose" onclick="setDlg.close()"></button>
   </div>
 </dialog>
@@ -744,9 +747,12 @@ const I18N = {
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
     copyAll:'Copy all', copyAllT:'Copy everything in this column',
-    setBtnT:'Settings', setTitle:'⚙ Settings',
-    setIntentL:'When a request is recorded, also keep the user\'s intent as the AI understood it',
-    setIntentHint:'The "request intent" appears in the memo pad\'s request history and in the Excel download. These intent notes may use a small amount of AI tokens.',
+    setBtnT:'Settings', setTitle:'⚙ Settings', setSub:'When a request is saved, an AI can add short notes to it. These notes show on hover in the request history and in the Excel download, and may use a small amount of AI tokens.',
+    setIntentL:'Reason the user asked (intent)',
+    setIntentHint:'One line on WHY you asked / what problem you want solved.',
+    setSummaryL:'Summary of the request',
+    setSummaryHint:'One line on WHAT you asked for — a short version you could reuse as a concise request.',
+    noteReasonL:'Why you asked', noteSummaryL:'Request summary',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -783,9 +789,12 @@ const I18N = {
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
     copyAll:'전체 복사', copyAllT:'이 영역의 글 전부 복사',
-    setBtnT:'설정', setTitle:'⚙ 설정',
-    setIntentL:'요청이 기록될 때 사용자의 요청의도를 AI가 파악한 대로 함께 기록에 남기기',
-    setIntentHint:'메모장에 기록된 요청내역과 메모장의 \'엑셀 다운받기\'를 할 경우 "요청의도"가 남습니다. 이런 사용자의 요청의도 파악 메모는 약간의 AI 토큰이 발생할 수 있어요.',
+    setBtnT:'설정', setTitle:'⚙ 설정', setSub:'요청이 기록될 때 AI가 짧은 메모를 함께 남깁니다. 메모장의 요청내역과 \'엑셀 다운받기\'에서 마우스를 올리면 보이고, 약간의 AI 토큰이 발생할 수 있어요.',
+    setIntentL:'사용자가 요청한 이유 파악',
+    setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
+    setSummaryL:'요청한 내용 요약',
+    setSummaryHint:'무엇을 요청했는지 한 줄 요약 — 다음엔 이렇게 짧게 요청해도 되는 압축본이에요.',
+    noteReasonL:'요청한 이유', noteSummaryL:'요청 요약',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -1458,33 +1467,23 @@ function buildPane(sess, idx) {
       const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
       const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
       r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)} <span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span></span>`
-                  + `<span class="mtext">${esc(rq.text)}</span>`;
+                  + `<span class="mtext">${esc(rq.text)}${reqNotes(rq, false)}</span>`;
       const needle = reqNeedle(rq.text);
       const findable = !!needle && bufText.includes(needle);
       r.classList.toggle('gone', !findable);
-      r.title = (rq.intent ? '🧠 ' + rq.intent + '\n' : '')   // 🧠 의도 — 마우스 올리면 툴팁으로
+      const nt = reqNotes(rq, true);
+      r.title = (nt ? nt + '\n' : '')   // 🧭📝 이유·요약 — 마우스 올리면 툴팁으로
               + (findable ? (T.memoJumpT || '') : (T.memoJumpMiss || ''));
       r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
       list.appendChild(r);
     });
   };
   const setHist = on => {
+    // 패널은 터미널 위에 겹쳐 뜨는 오버레이 — 터미널 폭이 안 바뀌므로 refit도, 스크롤 튐도 없음
     reqPanel.classList.toggle('hidden', !on);
     el.querySelector('.pane-body').classList.toggle('hist', on);
     el.querySelector('.qHist').classList.toggle('on', on);
     if (on) refreshReq().then(() => { reqPanel.scrollTop = 0; });   // 패널만 맨 위(최신)부터
-    // 패널이 터미널 폭을 바꾸니 다시 맞춤 — 크기 조정 때 터미널 스크롤이 맨 위로 튀지 않게 위치 복원
-    const buf = term.buffer.active;
-    const atBottom = buf.viewportY >= buf.baseY;
-    const keepLine = buf.viewportY;
-    setTimeout(() => {
-      try {
-        fit.fit();
-        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-        if (atBottom) term.scrollToBottom();
-        else term.scrollToLine(Math.min(keepLine, term.buffer.active.baseY));
-      } catch (e) {}
-    }, 60);
   };
   el.querySelector('.qHist').onclick = ev => { ev.stopPropagation(); setHist(reqPanel.classList.contains('hidden')); };
   // 모달처럼: 패널이 열려 있을 때 옆의 터미널 영역을 누르면 패널 닫힘
@@ -2654,12 +2653,16 @@ setInterval(refreshBanner, 10 * 60 * 1000);
 }
 async function openSettings() {
   document.getElementById('setTitle').textContent = T.setTitle || '⚙ Settings';
+  document.getElementById('setSub').textContent = T.setSub || '';
   document.getElementById('setIntentL').textContent = T.setIntentL || '';
   document.getElementById('setIntentHint').textContent = T.setIntentHint || '';
+  document.getElementById('setSummaryL').textContent = T.setSummaryL || '';
+  document.getElementById('setSummaryHint').textContent = T.setSummaryHint || '';
   document.getElementById('setClose').textContent = T.close || 'Close';
-  const cb = document.getElementById('setIntent');
-  try { const s = await api('GET', '/api/settings'); cb.checked = !!(s && s.intentNotes); } catch (e) {}
-  cb.onchange = () => api('POST', '/api/settings', { intentNotes: cb.checked });
+  const ci = document.getElementById('setIntent'), cs = document.getElementById('setSummary');
+  try { const s = await api('GET', '/api/settings'); ci.checked = !!(s && s.intentNotes); cs.checked = !!(s && s.summaryNotes); } catch (e) {}
+  ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
+  cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
   setDlg.showModal();
 }
 
@@ -2802,7 +2805,7 @@ async function openMemo(sess) {
   colHead('memoDoneH', T.memoDoneCol || 'Completed',
     () => (memoData.items || []).filter(i => i.done).map(i => fmtMemoDate(i.doneTs || i.ts) + '  ' + i.text));
   colHead('memoReqH', T.memoReqCol || 'Requests',
-    () => (memoData.reqs || []).map(r => fmtMemoDate(r.ts) + '  ' + r.text + (r.intent ? '\n  🧠 ' + r.intent : '')));
+    () => (memoData.reqs || []).map(r => { const n = reqNotes(r, true); return fmtMemoDate(r.ts) + '  ' + r.text + (n ? '\n  ' + n.replace(/\n/g, '\n  ') : ''); }));
   const sv = document.getElementById('memoSave');
   sv.textContent = '💾 ' + (T.memoSaveBtn || 'Save'); sv.title = T.memoSaveTip || '';
   const ta = document.getElementById('memoNew');
@@ -2896,13 +2899,14 @@ function renderMemo() {
     const r = document.createElement('div'); r.className = 'memo-row mreq';
     const stTxt = { run: T.stRun, done: T.stDone, stop: T.stStop, off: T.stOff }[rq.st] || rq.st || '';
     const ic = { run: '⏳', done: '✅', stop: '⛔', off: '🔌' }[rq.st] || '';
+    const notesHtml = reqNotes(rq, false), notesTxt = reqNotes(rq, true);
     r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)}<br><span class="mst ${esc(rq.st || '')}">${ic} ${esc(stTxt)}</span>`
                 + `<br><button class="mcopy" title="${esc(T.memoCopyT || '')}">📋</button></span>`
                 + `<span class="mtext">${esc(rq.text)}`
-                + (rq.intent ? `<br><span class="mintent">🧠 ${esc(rq.intent)}</span>` : '')   // 🧠 의도 — 마우스 올리면 표시
+                + (notesHtml ? '<br>' + notesHtml : '')   // 🧭📝 이유·요약 — 마우스 올리면 표시
                 + `</span><button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
     r.querySelector('.mjump').onclick = () => jumpToReq(rq);   // 터미널에서 이 요청 위치로
-    r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (rq.intent ? '\n🧠 ' + rq.intent : ''));
+    r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (notesTxt ? '\n' + notesTxt : ''));
     boxR.appendChild(r);
   });
 }
@@ -2937,6 +2941,15 @@ function sendMemoToTerminal(it) {
 // 터미널이 단어 단위로 줄을 바꾸거나 간격을 바꿔도 공백 무시 비교로 찾아짐
 function reqNeedle(text) {
   return ((text || '').split('\n')[0] || '').replace(/\s+/g, '').slice(0, 24);
+}
+// 🧭📝 요청 메모(이유·요약) — 있는 것만 라벨 붙여서. asText=true면 툴팁/복사용 순수 텍스트
+function reqNotes(rq, asText) {
+  const parts = [];
+  if (rq.intent) parts.push(['🧭 ' + (T.noteReasonL || 'Why'), rq.intent]);
+  if (rq.summary) parts.push(['📝 ' + (T.noteSummaryL || 'Summary'), rq.summary]);
+  if (!parts.length) return '';
+  if (asText) return parts.map(p => p[0] + ': ' + p[1]).join('\n');
+  return parts.map(p => `<span class="mintent"><b>${esc(p[0])}</b> ${esc(p[1])}</span>`).join('');
 }
 // 버퍼 전체를 공백 제거한 줄 배열로 (검색용)
 function bufNormLines(term) {

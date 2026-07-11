@@ -45,7 +45,8 @@ if (!config.token) { config.token = crypto.randomBytes(4).toString('hex'); confi
 // 관리자 비밀번호: 이 PC(localhost)는 항상 무비번 통과, 원격(폰 등)에서 배너관리자를 열려면 필요.
 // 값은 관리자 페이지에서 이 PC로 접속했을 때만 확인/재발급 가능(원격에선 절대 노출 안 함).
 if (!config.adminPassword) { config.adminPassword = crypto.randomBytes(4).toString('hex'); configDirty = true; }
-if (config.intentNotes === undefined) { config.intentNotes = false; configDirty = true; }   // 🧠 요청 의도 자동 기록 (옵트인)
+if (config.intentNotes === undefined) { config.intentNotes = false; configDirty = true; }     // 🧭 요청 이유 파악 기록 (옵트인)
+if (config.summaryNotes === undefined) { config.summaryNotes = false; configDirty = true; }   // 📝 요청 내용 요약 기록 (옵트인)
 if (configDirty) fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 function saveConfig() { try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2)); } catch (e) {} }
 function isAdmin(req) {
@@ -638,11 +639,14 @@ app.get('/api/info', (req, res) => {
   res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR });
 });
 
-// ---------- ⚙ 사용자 설정 (요청 의도 자동 기록 등) ----------
-app.get('/api/settings', (req, res) => res.json({ intentNotes: !!config.intentNotes }));
+// ---------- ⚙ 사용자 설정 (요청 이유·요약 자동 기록 등) ----------
+app.get('/api/settings', (req, res) => res.json({ intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes }));
 app.post('/api/settings', (req, res) => {
-  if (req.body && typeof req.body.intentNotes === 'boolean') { config.intentNotes = req.body.intentNotes; saveConfig(); }
-  res.json({ ok: true, intentNotes: !!config.intentNotes });
+  let dirty = false;
+  if (req.body && typeof req.body.intentNotes === 'boolean') { config.intentNotes = req.body.intentNotes; dirty = true; }
+  if (req.body && typeof req.body.summaryNotes === 'boolean') { config.summaryNotes = req.body.summaryNotes; dirty = true; }
+  if (dirty) saveConfig();
+  res.json({ ok: true, intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes });
 });
 
 // ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------
@@ -915,12 +919,14 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   m.reqs.unshift({ id: rid, text, ts: Date.now(), st: 'run' });
   m.reqs = m.reqs.slice(0, 200);
   saveMemos();
-  if (config.intentNotes) genIntent(req.body.path, rid, text);   // 🧠 설정을 켠 경우만 — 약간의 토큰 사용
+  if (config.intentNotes || config.summaryNotes) genReqNotes(req.body.path, rid, text);   // 🧭📝 설정을 켠 경우만 — 약간의 토큰 사용
   res.json({ ok: true });
 });
-// 🧠 요청 의도 한 줄 생성 — claude -p(haiku)에게 짧게 물어 요청내역에 저장. 실패하면 조용히 생략.
-// PT에서 유일하게 AI 토큰을 쓰는 기능이라 기본 꺼짐(⚙ 설정에서 옵트인).
-function genIntent(dir, reqId, text) {
+// 🧭 요청 이유 / 📝 요청 요약 생성 — claude -p(haiku)에게 짧게 물어 요청내역에 저장. 실패하면 조용히 생략.
+// PT에서 유일하게 AI 토큰을 쓰는 기능이라 기본 꺼짐(⚙ 설정에서 항목별 옵트인).
+function genReqNotes(dir, reqId, text) {
+  const wantI = !!config.intentNotes, wantS = !!config.summaryNotes;
+  if (!wantI && !wantS) return;
   try {
     const proc = spawn('claude', ['-p', '--model', 'haiku'], { shell: true, windowsHide: true, cwd: os.homedir() });
     let out = '';
@@ -928,15 +934,20 @@ function genIntent(dir, reqId, text) {
     const kill = setTimeout(() => { try { proc.kill(); } catch (e) {} }, 90000);
     proc.on('close', () => {
       clearTimeout(kill);
-      const intent = out.trim().replace(/\s+/g, ' ').slice(0, 200);
-      if (!intent) return;
+      const grab = tag => { const mt = out.match(new RegExp('^' + tag + ':\\s*(.+)$', 'm')); return mt ? mt[1].trim().replace(/\s+/g, ' ').slice(0, 200) : ''; };
+      const intent = wantI ? grab('REASON') : '';
+      const summary = wantS ? grab('SUMMARY') : '';
+      if (!intent && !summary) return;
       const m = memos[memoKey(dir)];
       const r = m && (m.reqs || []).find(x => x.id === reqId);
-      if (r) { r.intent = intent; saveMemos(); }
+      if (r) { if (intent) r.intent = intent; if (summary) r.summary = summary; saveMemos(); }
     });
     proc.on('error', () => clearTimeout(kill));
-    proc.stdin.write('Answer with ONE short sentence (max 60 chars) describing the goal/intent behind this request, '
-      + 'in the SAME language as the request. No prefix, no explanation.\n\nRequest:\n' + text.slice(0, 1000));
+    const lines = [];
+    if (wantI) lines.push('REASON: <one short sentence — WHY the user is asking / what problem they want solved>');
+    if (wantS) lines.push('SUMMARY: <one short sentence — WHAT they asked for>');
+    proc.stdin.write('Analyze the user request below. Reply in the SAME language as the request, with EXACTLY these labeled lines and nothing else:\n'
+      + lines.join('\n') + '\n\nRequest:\n' + text.slice(0, 1000));
     proc.stdin.end();
   } catch (e) {}
 }
@@ -963,15 +974,15 @@ app.get('/api/memos/export', (req, res) => {
     const m = memos[k]; if (!m) continue;
     const folder = path.basename(k || '');
     ((m.reqs || []).slice().reverse()).forEach(r =>   // 저장은 최신순 → 시간순으로 뒤집어 내보냄
-      body.push('<tr>' + cell('요청') + cell(fmtD(r.ts)) + cell(r.intent || '', true) + cell(r.text, true)
+      body.push('<tr>' + cell('요청') + cell(fmtD(r.ts)) + cell(r.intent || '', true) + cell(r.summary || '', true) + cell(r.text, true)
         + cell(ST[r.st] || r.st || '') + cell(fmtD(r.endTs)) + cell(folder) + '</tr>'));
     (m.items || []).forEach(it =>
-      body.push('<tr>' + cell('메모') + cell(fmtD(it.ts)) + cell('', true) + cell(it.text, true)
+      body.push('<tr>' + cell('메모') + cell(fmtD(it.ts)) + cell('', true) + cell('', true) + cell(it.text, true)
         + cell(it.done ? '완료' : '작성') + cell(fmtD(it.doneTs)) + cell(folder) + '</tr>'));
   }
-  const head = ['구분 Type', '작성일시 Created', '의도 Intent', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session']
+  const head = ['구분 Type', '작성일시 Created', '요청 이유 Reason', '요청 요약 Summary', '내용 Content', '상태 Status', '완료일시 Finished', '세션 폴더 Session']
     .map(t => '<th style="background:#7C3AED;color:#ffffff;font-weight:bold;border:1px solid #5b21b6;padding:5px 8px;white-space:nowrap">' + h(t) + '</th>').join('');
-  const widths = [56, 115, 210, 486, 90, 115, 120];   // 내용 486px = 엑셀 폭 60자 (실측 보정)
+  const widths = [56, 115, 200, 200, 486, 90, 115, 120];   // 내용 486px = 엑셀 폭 60자 (실측 보정)
   const html = String.fromCharCode(0xFEFF) + '<html><head><meta charset="utf-8"></head><body>'   // BOM — 엑셀 한글 인식
     + '<table border="0" style="border-collapse:collapse;font-size:11pt">'
     + '<colgroup>' + widths.map(w => '<col width="' + w + '">').join('') + '</colgroup>'
