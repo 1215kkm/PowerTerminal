@@ -172,6 +172,28 @@
              background: var(--violet); color: #fff; font-size: 16px; line-height: 1;
              box-shadow: 0 2px 8px rgba(0,0,0,.35); }   /* 평소에도 보라색으로 잘 보이게 */
   .termBot:hover { filter: brightness(.8); }            /* 마우스 올리면 조금 진하게 */
+  /* 🧠 마인드맵 오버레이 */
+  #mindDlg { width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; border: 0; padding: 0;
+             background: var(--bg); color: var(--fg); overflow: hidden; }
+  #mindDlg::backdrop { background: rgba(0,0,0,.4); }
+  .mind-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line);
+              background: #111827; }
+  .mind-title { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .mind-sp { flex: 1 1 auto; }
+  .mind-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .mind-close { font-size: 15px; }
+  .mind-canvas { position: absolute; inset: 49px 0 0 0; outline: none; overflow: hidden;
+                 background:
+                   radial-gradient(circle, rgba(148,163,184,.13) 1px, transparent 1px) 0 0 / 22px 22px; cursor: default; }
+  .mind-canvas.panning { cursor: grabbing; }
+  #mindSvg { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; touch-action: none; }
+  #mindSvg text { pointer-events: none; }
+  .mnode-rect { cursor: grab; }
+  .maddbtn { cursor: pointer; }
+  .mind-edit { position: absolute; z-index: 5; box-sizing: border-box; border: 2px solid #f59e0b; border-radius: 6px;
+               padding: 2px 6px; font-family: inherit; outline: none; background: var(--panel,#1f2937); color: var(--fg); }
+  html.light .mind-canvas { background:
+                   radial-gradient(circle, rgba(100,116,139,.18) 1px, transparent 1px) 0 0 / 22px 22px; }
   /* 세션 안에서 뜨는 확인창 — 전역 confirm 대신 이 세션에만 겹쳐 떠서 "이 세션만 재시작"임을 분명히 */
   .pane-confirm { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
                   background: rgba(0,0,0,.55); padding: 16px; }
@@ -521,6 +543,7 @@
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
   <button id="btnTheme" onclick="toggleTheme()" data-i18n-title="themeT">☀</button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
+  <button id="btnMind" onclick="openMind()" data-i18n-title="mindBtn">🧠</button>
   <button id="btnQR" onclick="toggleQR()" data-i18n-title="infoBtn"><svg class="qric" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm1 1h2v2H6V6zm7-3h8v8h-8V3zm2 2v4h4V5h-4zm1 1h2v2h-2V6zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm1 1h2v2H6v-2zm7-3h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg></button>
   <select id="langSel" onchange="setLang(this.value)" title="Language"
           style="background:#374151;border:0;color:var(--fg);border-radius:8px;padding:8px;font-family:inherit;font-size:13px">
@@ -678,6 +701,26 @@
 </dialog>
 
 <!-- 📝 세션 메모장 — 좌: 메모(작성일·체크 표) · 중: 완료(취소선+삭제) · 우: 보냈던 요청 내역 -->
+<!-- 🧠 마인드맵 — 전체화면 오버레이 (QR 왼쪽 🧠 버튼) -->
+<dialog id="mindDlg">
+  <div class="mind-bar">
+    <span class="mind-title">🧠 <span id="mindTitleTxt"></span></span>
+    <span class="mind-sp"></span>
+    <button class="small" id="mindAdd"></button>
+    <button class="small" id="mindDel"></button>
+    <button class="small" id="mindReset" title=""></button>
+    <span class="mind-hint" id="mindHint"></span>
+    <button class="small mind-close" id="mindClose">✕</button>
+  </div>
+  <div class="mind-canvas" id="mindCanvas" tabindex="0">
+    <svg id="mindSvg" width="100%" height="100%">
+      <g id="mindContent">
+        <g id="mindLines"></g>
+        <g id="mindNodes"></g>
+      </g>
+    </svg>
+  </div>
+</dialog>
 <!-- ⚙ 설정 — 모든 사용자용 (요청 이유 파악·내용 요약 기록) -->
 <dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:20px;max-width:470px">
   <h3 id="setTitle" style="margin:0 0 6px"></h3>
@@ -766,6 +809,9 @@ const I18N = {
     setSummaryL:'Summary prompt',
     setSummaryHint:'A short imperative prompt that captures WHAT you asked — phrased as a command you could reuse verbatim next time.',
     noteReasonL:'Why you asked', noteSummaryL:'Summary prompt',
+    mindBtn:'Mind map', mindTitle:'Mind map', mindRootTitle:"{u}'s map", mindRootNoUser:'My map', mindNewNode:'New branch',
+    mindAdd:'Branch', mindDelBtn:'Delete', mindReset:'Reset view', mindDelConfirm:'This deletes the branch and everything under it. Continue?',
+    mindHint:'Hover a node for + in 8 directions · drag to move · double-click to rename · Ctrl+wheel zoom · Space/middle-drag to pan',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -808,6 +854,9 @@ const I18N = {
     setSummaryL:'요약 프롬프트',
     setSummaryHint:'무엇을 요청했는지 명령형 한 줄 프롬프트 — 다음엔 이걸 그대로 복붙해 요청해도 되는 압축본이에요.',
     noteReasonL:'요청한 이유', noteSummaryL:'요약 프롬프트',
+    mindBtn:'마인드맵', mindTitle:'마인드맵', mindRootTitle:'{u}의 지도', mindRootNoUser:'내 지도', mindNewNode:'새 가지',
+    mindAdd:'가지', mindDelBtn:'삭제', mindReset:'뷰 초기화', mindDelConfirm:'하위 가지까지 삭제됩니다. 계속?',
+    mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭 이름수정 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -2679,6 +2728,288 @@ async function openSettings() {
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
   setDlg.showModal();
+}
+
+// ================= 🧠 마인드맵 (전체화면 오버레이) =================
+// 자유 배치 마인드맵 — SVG 하나 + Pointer Events. 각 노드는 부모중심 기준 상대오프셋(offX/offY)을 직접 가짐.
+// 서버(/api/mindmap)에 트리 JSON 1개 저장 → 기기 간 동기화(memos와 같은 철학).
+const MIND = {
+  NODE_H: 34, DIR: [[0,-1],[0.7,-0.7],[1,0],[0.7,0.7],[0,1],[-0.7,0.7],[-1,0],[-0.7,-0.7]],
+  root: null, sel: null, zoom: 1, panX: 0, panY: 0, cache: new Map(), parent: new Map(),
+  adderId: null, adderTimer: null, saveTimer: null, userName: '', inited: false, editEl: null
+};
+function mindUid() { try { return crypto.randomUUID(); } catch (e) { return 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
+function mindWidth(n) { return Math.max(64, (n.title || '').length * 13 + 24); }
+function mindDefaultRoot() {
+  const nm = MIND.userName || '';
+  const title = nm ? (T.mindRootTitle || '{u}의 지도').replace('{u}', nm) : (T.mindRootNoUser || '내 지도');
+  return { id: mindUid(), title, children: [], offX: 0, offY: 0, placed: true };
+}
+function mindSave() {   // 커밋 시점(추가·삭제·이름확정·드롭)에만 — 드래그 매 프레임은 저장 안 함
+  clearTimeout(MIND.saveTimer);
+  MIND.saveTimer = setTimeout(() => { api('POST', '/api/mindmap', { root: MIND.root }); }, 400);
+}
+// 미배치(placed=false) 자식에게만 기본 오프셋 — 오른쪽 세로 분배(이미 배치된 형제와 안 겹치게 미배치끼리만 인덱싱)
+function mindEnsureOffsets(node) {
+  const un = node.children.filter(c => !c.placed);
+  const n = un.length;
+  un.forEach((c, i) => {
+    c.offX = mindWidth(node) / 2 + 130;
+    c.offY = (i - (n - 1) / 2) * 60;
+    c.placed = true;
+  });
+  node.children.forEach(mindEnsureOffsets);
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+function mindApplyTransform() {
+  document.getElementById('mindContent').setAttribute('transform',
+    `translate(${MIND.panX},${MIND.panY}) scale(${MIND.zoom})`);
+}
+function mindRender() {
+  mindCommitEdit();
+  mindEnsureOffsets(MIND.root);
+  const gL = document.getElementById('mindLines'), gN = document.getElementById('mindNodes');
+  gL.innerHTML = ''; gN.innerHTML = ''; MIND.cache.clear(); MIND.parent.clear();
+  const cssVar = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || '';
+  const build = (node, cx, cy, parentCenter) => {
+    let line = null;
+    if (parentCenter) {   // 선 먼저(노드 뒤) — parentCenter→childCenter
+      line = document.createElementNS(SVGNS, 'line');
+      line.setAttribute('x1', parentCenter.x); line.setAttribute('y1', parentCenter.y);
+      line.setAttribute('x2', cx); line.setAttribute('y2', cy);
+      line.setAttribute('stroke', cssVar('--line') || '#374151'); line.setAttribute('stroke-width', 1.4);
+      gL.appendChild(line);
+    }
+    const w = mindWidth(node), h = MIND.NODE_H, isRoot = node === MIND.root, isSel = MIND.sel === node.id;
+    const g = document.createElementNS(SVGNS, 'g'); g.dataset.id = node.id;
+    const rect = document.createElementNS(SVGNS, 'rect');
+    rect.setAttribute('class', 'mnode-rect');
+    rect.setAttribute('x', cx - w / 2); rect.setAttribute('y', cy - h / 2);
+    rect.setAttribute('width', w); rect.setAttribute('height', h);
+    rect.setAttribute('rx', isRoot ? 17 : 8);
+    rect.setAttribute('fill', isRoot ? (cssVar('--violet') || '#7C3AED') : (cssVar('--panel') || '#1f2937'));
+    rect.setAttribute('stroke', isSel ? '#f59e0b' : (isRoot ? 'transparent' : (cssVar('--line') || '#374151')));
+    rect.setAttribute('stroke-width', isSel ? 2.5 : 1.2);
+    g.appendChild(rect);
+    const text = document.createElementNS(SVGNS, 'text');
+    text.setAttribute('x', cx); text.setAttribute('y', cy);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'central');
+    text.setAttribute('fill', isRoot ? '#fff' : (cssVar('--fg') || '#e5e7eb'));
+    text.setAttribute('font-size', 13); if (isRoot) text.setAttribute('font-weight', '700');
+    text.setAttribute('font-family', 'inherit'); text.textContent = node.title;
+    g.appendChild(text);
+    gN.appendChild(g);
+    MIND.cache.set(node.id, { node, cx, cy, g, rect, text, line, w });
+    MIND.parent.set(node.id, parentCenter);   // 부모 중심(드래그 실시간 갱신에 사용) — 루트는 null
+    mindWireNode(node, g, rect);
+    node.children.forEach(ch => build(ch, cx + ch.offX, cy + ch.offY, { x: cx, y: cy }));
+  };
+  build(MIND.root, 0, 0, null);
+  mindRenderAdders();
+  mindApplyTransform();
+}
+// 8방향 + 버튼 — hover 중이거나 선택된 노드 주변에 표시(터치는 선택으로 뜸)
+function mindRenderAdders() {
+  const old = document.getElementById('mindAdders'); if (old) old.remove();
+  const id = MIND.adderId || MIND.sel;
+  if (!id) return;
+  const c = MIND.cache.get(id); if (!c) return;
+  const g = document.createElementNS(SVGNS, 'g'); g.id = 'mindAdders';
+  g.addEventListener('pointerenter', () => { clearTimeout(MIND.adderTimer); });
+  g.addEventListener('pointerleave', () => mindScheduleHideAdder(id));
+  const w = c.w, h = MIND.NODE_H;
+  MIND.DIR.forEach((v, d) => {
+    const ax = c.cx + v[0] * (w / 2 + 22), ay = c.cy + v[1] * (h / 2 + 22);
+    const b = document.createElementNS(SVGNS, 'g'); b.setAttribute('class', 'maddbtn');
+    const r = document.createElementNS(SVGNS, 'rect');
+    r.setAttribute('x', ax - 9); r.setAttribute('y', ay - 9); r.setAttribute('width', 18); r.setAttribute('height', 18);
+    r.setAttribute('rx', 4); r.setAttribute('fill', '#3b82f6');
+    const t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('x', ax); t.setAttribute('y', ay + 0.5); t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('dominant-baseline', 'central'); t.setAttribute('fill', '#fff'); t.setAttribute('font-size', 15); t.textContent = '+';
+    b.appendChild(r); b.appendChild(t);
+    b.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindAddChild(c.node, d); });
+    g.appendChild(b);
+  });
+  document.getElementById('mindContent').appendChild(g);
+}
+function mindScheduleHideAdder(id) {
+  clearTimeout(MIND.adderTimer);
+  MIND.adderTimer = setTimeout(() => { if (MIND.adderId === id && MIND.sel !== id) { MIND.adderId = null; mindRenderAdders(); } }, 140);
+}
+function mindAddChild(parent, d) {
+  const v = MIND.DIR[d], w = mindWidth(parent);
+  let ox = v[0] * (w / 2 + 130), oy = v[1] * 110;
+  // 같은 방향 중복 방지: 비슷한 위치의 형제가 있으면 조금씩 밀어냄
+  const near = o => parent.children.some(c => Math.abs(c.offX - o.ox) < 24 && Math.abs(c.offY - o.oy) < 24);
+  let guard = 0; while (near({ ox, oy }) && guard++ < 30) { ox += v[0] * 26 || 26; oy += v[1] * 26 || 22; }
+  const child = { id: mindUid(), title: T.mindNewNode || '새 가지', children: [], offX: ox, offY: oy, placed: true };
+  parent.children.push(child);
+  MIND.sel = child.id; MIND.adderId = null;
+  mindSave(); mindRender();
+  mindStartEdit(child, true);   // ✏ 새 노드는 바로 이름 편집 (전체 선택 상태로)
+}
+let mindDownInfo = null;
+function mindWireNode(node, g, rect) {
+  g.addEventListener('pointerenter', () => { clearTimeout(MIND.adderTimer); MIND.adderId = node.id; mindRenderAdders(); });
+  g.addEventListener('pointerleave', () => mindScheduleHideAdder(node.id));
+  g.addEventListener('dblclick', ev => { ev.stopPropagation(); mindStartEdit(node, true); });
+  rect.addEventListener('pointerdown', ev => {
+    if (ev.button === 1) return;   // 가운데 버튼은 팬(캔버스가 처리)
+    ev.stopPropagation();          // 노드 드래그가 캔버스 팬으로 오인되지 않게
+    try { rect.setPointerCapture(ev.pointerId); } catch (e) {}
+    const isRoot = node === MIND.root;
+    mindDownInfo = { node, isRoot, startX: ev.clientX, startY: ev.clientY,
+                     baseX: node.offX, baseY: node.offY, moved: false, pointerId: ev.pointerId, rect };
+  });
+}
+document.addEventListener('pointermove', ev => {
+  if (!mindDownInfo || ev.pointerId !== mindDownInfo.pointerId) return;
+  const dx = ev.clientX - mindDownInfo.startX, dy = ev.clientY - mindDownInfo.startY;
+  if (!mindDownInfo.moved && Math.hypot(dx, dy) < 4) return;   // 4px 임계값 — 미만은 클릭
+  mindDownInfo.moved = true;
+  if (mindDownInfo.isRoot) return;   // 루트는 이동 불가(선택만)
+  mindDownInfo.node.offX = mindDownInfo.baseX + dx / MIND.zoom;   // 화면이동 ÷ zoom = 캔버스 좌표
+  mindDownInfo.node.offY = mindDownInfo.baseY + dy / MIND.zoom;
+  mindUpdateSubtree(mindDownInfo.node);   // 실시간: 이 노드 + 모든 자손·연결선 함께
+});
+document.addEventListener('pointerup', ev => {
+  if (!mindDownInfo || ev.pointerId !== mindDownInfo.pointerId) return;
+  const info = mindDownInfo; mindDownInfo = null;
+  if (!info.moved) {   // 클릭 = 선택 토글(재클릭 해제)
+    MIND.sel = (MIND.sel === info.node.id) ? null : info.node.id;
+    mindRender();
+  } else if (!info.isRoot) {
+    info.node.placed = true;
+    if (info.node.offX === 0 && info.node.offY === 0) info.node.offX = 1;   // (0,0) 센티널 함정 회피
+    mindSave(); mindRender();
+  }
+});
+// 드래그 중 실시간 갱신 — 노드 위치·연결선을 캐시로 직접 조작(매 프레임 리렌더 안 함)
+function mindUpdateSubtree(node) {
+  const pc = MIND.parent.get(node.id);   // 부모 중심(드래그 중 고정)
+  const walk = (n, parentCenter) => {
+    const c = MIND.cache.get(n.id); if (!c) return;
+    const cx = parentCenter ? parentCenter.x + n.offX : 0, cy = parentCenter ? parentCenter.y + n.offY : 0;
+    c.cx = cx; c.cy = cy;
+    const w = c.w, h = MIND.NODE_H;
+    c.rect.setAttribute('x', cx - w / 2); c.rect.setAttribute('y', cy - h / 2);
+    c.text.setAttribute('x', cx); c.text.setAttribute('y', cy);
+    if (c.line && parentCenter) { c.line.setAttribute('x1', parentCenter.x); c.line.setAttribute('y1', parentCenter.y); c.line.setAttribute('x2', cx); c.line.setAttribute('y2', cy); }
+    n.children.forEach(ch => walk(ch, { x: cx, y: cy }));
+  };
+  walk(node, pc);
+}
+// 부모중심 캐시를 build 시 채우기 위해 build에서 parent 맵 갱신 — mindRender build 안에서 처리
+// (아래 오버라이드: build 재귀에서 MIND.parent.set 호출)
+function mindScreenToContent(mx, my) { return { x: (mx - MIND.panX) / MIND.zoom, y: (my - MIND.panY) / MIND.zoom }; }
+function mindClamp(z) { return Math.max(0.3, Math.min(3.0, z)); }
+// ✏ 인라인 편집 — 노드 위에 HTML input 오버레이(현재 pan/zoom에 맞춰 위치·크기)
+function mindStartEdit(node, selectAll) {
+  mindCommitEdit();
+  const c = MIND.cache.get(node.id); if (!c) return;
+  const canvas = document.getElementById('mindCanvas'), cr = canvas.getBoundingClientRect();
+  const sx = MIND.panX + c.cx * MIND.zoom, sy = MIND.panY + c.cy * MIND.zoom;
+  const w = c.w * MIND.zoom, h = MIND.NODE_H * MIND.zoom;
+  const inp = document.createElement('input');
+  inp.className = 'mind-edit'; inp.value = node.title;
+  inp.style.left = (sx - w / 2) + 'px'; inp.style.top = (sy - h / 2) + 'px';
+  inp.style.width = w + 'px'; inp.style.height = h + 'px';
+  inp.style.fontSize = (13 * MIND.zoom) + 'px'; inp.style.textAlign = 'center';
+  MIND.editEl = { inp, node };
+  canvas.appendChild(inp); inp.focus(); if (selectAll) inp.select();
+  inp.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); mindCommitEdit(); mindRender(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); MIND.editEl = null; inp.remove(); }
+    ev.stopPropagation();
+  });
+  inp.addEventListener('blur', () => { mindCommitEdit(); mindRender(); });
+}
+function mindCommitEdit() {
+  if (!MIND.editEl) return;
+  const { inp, node } = MIND.editEl; MIND.editEl = null;
+  const v = inp.value.trim(); if (v) { node.title = v; mindSave(); }   // 빈 값 무시
+  inp.remove();
+}
+function mindDeleteSelected() {
+  if (!MIND.sel || MIND.sel === MIND.root.id) return;   // 루트 보호
+  const findParent = (n, target) => { for (const c of n.children) { if (c.id === target) return n; const r = findParent(c, target); if (r) return r; } return null; };
+  const node = MIND.cache.get(MIND.sel) && MIND.cache.get(MIND.sel).node;
+  const par = findParent(MIND.root, MIND.sel);
+  if (!node || !par) return;
+  const doDel = () => { par.children = par.children.filter(c => c.id !== node.id); MIND.sel = null; MIND.adderId = null; mindSave(); mindRender(); };
+  if (node.children.length) { if (confirm(T.mindDelConfirm || '하위 가지까지 삭제됩니다. 계속?')) doDel(); }
+  else doDel();
+}
+async function openMind() {
+  document.getElementById('mindTitleTxt').textContent = T.mindTitle || 'Mind map';
+  document.getElementById('mindAdd').textContent = '＋ ' + (T.mindAdd || 'Branch');
+  document.getElementById('mindDel').textContent = '－ ' + (T.mindDelBtn || 'Delete');
+  document.getElementById('mindReset').textContent = '⊙';
+  document.getElementById('mindReset').title = T.mindReset || 'Reset view';
+  document.getElementById('mindHint').textContent = T.mindHint || '';
+  if (!MIND.userName) { try { const inf = await api('GET', '/api/info'); MIND.userName = (inf && inf.userName) || ''; } catch (e) {} }
+  try { const m = await api('GET', '/api/mindmap'); MIND.root = (m && m.root) ? m.root : mindDefaultRoot(); } catch (e) { MIND.root = mindDefaultRoot(); }
+  MIND.sel = null; MIND.adderId = null;
+  mindDlg.showModal();
+  if (!MIND.inited) { mindInitCanvas(); MIND.inited = true; }
+  // 초기 뷰: 루트(콘텐츠 0,0)가 왼쪽-가운데 즈음 오도록
+  const cr = document.getElementById('mindCanvas').getBoundingClientRect();
+  MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5;
+  mindRender();
+}
+let mindSpace = false, mindPan = null, mindPointers = new Map(), mindPinch = null;
+function mindInitCanvas() {
+  const canvas = document.getElementById('mindCanvas');
+  canvas.addEventListener('wheel', ev => {
+    if (!ev.ctrlKey) return;   // Ctrl+휠만 줌 (브라우저 페이지 줌 차단)
+    ev.preventDefault();
+    const cr = canvas.getBoundingClientRect(), mx = ev.clientX - cr.left, my = ev.clientY - cr.top;
+    const before = mindScreenToContent(mx, my);
+    MIND.zoom = mindClamp(MIND.zoom * (ev.deltaY < 0 ? 1.1 : 1 / 1.1));
+    MIND.panX = mx - before.x * MIND.zoom; MIND.panY = my - before.y * MIND.zoom;   // 커서 밑 점 고정
+    mindApplyTransform();
+  }, { passive: false });
+  // 팬: 스페이스+드래그 / 가운데(휠)버튼 드래그. 빈 캔버스 클릭 = 선택 해제
+  canvas.addEventListener('pointerdown', ev => {
+    mindPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (mindPointers.size === 2) { const p = [...mindPointers.values()]; mindPinch = { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), z: MIND.zoom }; return; }
+    if (ev.button === 1) ev.preventDefault();   // 가운데버튼 자동스크롤 아이콘 차단
+    if (mindSpace || ev.button === 1) {
+      mindPan = { x: ev.clientX, y: ev.clientY, panX: MIND.panX, panY: MIND.panY };
+      canvas.classList.add('panning');
+      try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+    } else if (ev.target === canvas || ev.target.id === 'mindSvg' || ev.target.id === 'mindContent') {
+      if (MIND.sel) { MIND.sel = null; MIND.adderId = null; mindRender(); }   // 빈 곳 클릭 = 선택 해제
+    }
+  });
+  canvas.addEventListener('pointermove', ev => {
+    if (mindPointers.has(ev.pointerId)) mindPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (mindPinch && mindPointers.size >= 2) {   // 두 손가락 핀치 줌 (터치)
+      const p = [...mindPointers.values()], nd = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      const cr = canvas.getBoundingClientRect(), mx = (p[0].x + p[1].x) / 2 - cr.left, my = (p[0].y + p[1].y) / 2 - cr.top;
+      const before = mindScreenToContent(mx, my);
+      MIND.zoom = mindClamp(mindPinch.z * (nd / mindPinch.d));
+      MIND.panX = mx - before.x * MIND.zoom; MIND.panY = my - before.y * MIND.zoom;
+      mindApplyTransform(); return;
+    }
+    if (mindPan) { MIND.panX = mindPan.panX + (ev.clientX - mindPan.x); MIND.panY = mindPan.panY + (ev.clientY - mindPan.y); mindApplyTransform(); }
+  });
+  const endPtr = ev => { mindPointers.delete(ev.pointerId); if (mindPointers.size < 2) mindPinch = null; if (mindPan) { mindPan = null; canvas.classList.remove('panning'); } };
+  canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+  // 스페이스: 입력창(편집) 중이면 무시, 아니면 페이지 스크롤 차단하고 팬 모드
+  canvas.addEventListener('keydown', ev => {
+    if (ev.code !== 'Space') return;
+    const a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) return;
+    ev.preventDefault(); mindSpace = true;
+  });
+  canvas.addEventListener('keyup', ev => { if (ev.code === 'Space') mindSpace = false; });
+  document.getElementById('mindAdd').onclick = () => { const t = (MIND.sel && MIND.cache.get(MIND.sel)) ? MIND.cache.get(MIND.sel).node : MIND.root; mindAddChild(t, 4); };
+  document.getElementById('mindDel').onclick = mindDeleteSelected;
+  document.getElementById('mindReset').onclick = () => { const cr = canvas.getBoundingClientRect(); MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5; mindApplyTransform(); };
+  document.getElementById('mindClose').onclick = () => { mindCommitEdit(); mindDlg.close(); };
+  mindDlg.addEventListener('cancel', ev => { ev.preventDefault(); mindCommitEdit(); mindDlg.close(); });
 }
 
 // 배너 관리자(🛠)·사용자요청 배지(✉) — 개발자 전용.

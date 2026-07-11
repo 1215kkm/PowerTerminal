@@ -636,7 +636,21 @@ app.get('/api/info', (req, res) => {
   for (const addrs of Object.values(os.networkInterfaces()))
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
   // token 포함: 이 API 자체가 인증 뒤에서만 응답하므로 안전 — QR/주소 생성에 사용
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR });
+  let userName = ''; try { userName = os.userInfo().username || ''; } catch (e) {}
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName });
+});
+
+// ---------- 🧠 마인드맵 저장 — PT 데이터 폴더에 트리 JSON 1개 (memos와 같은 철학: 기기 간 동기화) ----------
+const MIND_FILE = dataFile('mindmap.json');
+let mindData = null;
+try { mindData = readJson(MIND_FILE); } catch (e) {}
+app.get('/api/mindmap', (req, res) => res.json(mindData || {}));
+app.post('/api/mindmap', (req, res) => {
+  if (req.body && req.body.root) {
+    mindData = { root: req.body.root, updated: Date.now() };
+    try { fs.writeFileSync(MIND_FILE, JSON.stringify(mindData)); } catch (e) {}
+  }
+  res.json({ ok: true });
 });
 
 // ---------- ⚙ 사용자 설정 (요청 이유·요약 자동 기록 등) ----------
