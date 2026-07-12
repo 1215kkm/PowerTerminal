@@ -36,7 +36,9 @@
           background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
           display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
           transition: border-color .3s; }
-  .pane.busy { border-color: var(--sky); }                    /* 작업 중(하늘색) */
+  .pane.busy { border-color: #7dd8ff;                         /* 작업 중 — 밝은 하늘색 + 은은한 빛 (더 눈에 띄게) */
+               outline: 2px solid rgba(125,216,255,.55);
+               box-shadow: 0 0 14px rgba(56,189,248,.4); }
   .pane.done { border-color: var(--green);                    /* 전부 완료(초록·2배 두께 — outline이라 레이아웃 안 흔들림) */
                outline: 2px solid var(--green);
                box-shadow: 0 0 14px rgba(34,197,94,.55); }
@@ -542,7 +544,7 @@
                        background: linear-gradient(135deg, var(--violet), var(--pink)); }
     .mm-cell .mm-title { overflow: hidden; text-overflow: ellipsis; }
     .mm-cell.active { border-color: var(--pink); }
-    .mm-cell.busy { border-color: var(--sky); }
+    .mm-cell.busy { border-color: #7dd8ff; }
     .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); }
     /* ⋯ 자리를 항상 잡아둠 — 작업중 표시가 생겼다 사라져도 탭 폭이 안 변해 줄바꿈이 안 흔들림 */
     .mm-cell .mm-title::after { content: ' ⋯'; color: var(--sky); opacity: 0; }
@@ -742,7 +744,6 @@
     <button class="small" id="mindRedo" title="">↷</button>
     <button class="small" id="mindAdd"></button>
     <button class="small" id="mindLink"></button>
-    <button class="small" id="mindAddRoot"></button>
     <button class="small" id="mindDel"></button>
     <button class="small" id="mindExport"></button>
     <button class="small" id="mindReset" title=""></button>
@@ -854,7 +855,8 @@ const I18N = {
     noteReasonL:'Why you asked', noteSummaryL:'Summary prompt',
     mindBtn:'Mind map', mindTitle:'Mind map', mindRootTitle:"{u}'s map", mindRootNoUser:'My map', mindNewNode:'New branch', mindNewRoot:'New root',
     mindAdd:'Branch', mindDelBtn:'Delete', mindReset:'Reset view', mindDelConfirm:'This deletes the branch and everything under it. Continue?',
-    mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2 rename · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
+    mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2/Enter rename · + adds a branch · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
+    mindAddBranchT:'Add a branch under the selected node (+ key)',
     mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
     mindLinkPick1:'Click the first branch to connect', mindLinkPick2:'Click the second branch · click empty space to reset · Esc to cancel',
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
@@ -906,7 +908,8 @@ const I18N = {
     noteReasonL:'요청한 이유', noteSummaryL:'요약 프롬프트',
     mindBtn:'마인드맵', mindTitle:'마인드맵', mindRootTitle:'{u}의 지도', mindRootNoUser:'내 지도', mindNewNode:'새 가지', mindNewRoot:'새 뿌리',
     mindAdd:'가지', mindDelBtn:'삭제', mindReset:'뷰 초기화', mindDelConfirm:'하위 가지까지 삭제됩니다. 계속?',
-    mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2 이름수정 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
+    mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2·Enter 이름수정 · + 키 가지추가 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
+    mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
@@ -1172,7 +1175,7 @@ function buildPane(sess, idx) {
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         <span class="st"></span>
         <button class="small btnMemo hv" title="${T.memoT}">📝</button>
-        <button class="small btnTasks hv" title="${T.tasksT}">☰</button>
+        <button class="small btnTasks hv" title="${T.tasksT}" style="display:none">☰</button><!-- 작업목록 토글 — 사용자 요청으로 숨김(Ctrl+T 배선은 유지) -->
         <button class="small btnMax hv" title="${T.maxT}">⛶</button>
         <button class="small btnZoom" title="${T.zoomT}">⛶</button>
         <button class="small btnPrev hv" title="${T.previewT}">👁</button>
@@ -2865,7 +2868,7 @@ function mindRender() {
     rect.setAttribute('x', cx - w / 2); rect.setAttribute('y', cy - h / 2);
     rect.setAttribute('width', w); rect.setAttribute('height', h);
     rect.setAttribute('rx', isRoot ? 17 : 8);
-    rect.setAttribute('fill', isRoot ? (cssVar('--violet') || '#7C3AED') : (cssVar('--panel') || '#1f2937'));
+    rect.setAttribute('fill', isRoot ? mindRootColor(node, cssVar('--violet') || '#7C3AED') : (cssVar('--panel') || '#1f2937'));
     rect.setAttribute('stroke', (isSel || isLinkEnd) ? '#f59e0b' : (isRoot ? 'transparent' : (cssVar('--line') || '#374151')));
     rect.setAttribute('stroke-width', (isSel || isLinkEnd) ? 2.5 : 1.2);
     if (isLinkEnd && !isSel) rect.setAttribute('stroke-dasharray', '5 3');   // 화살표 양끝은 점선 주황(선택과 구분)
@@ -2887,6 +2890,20 @@ function mindRender() {
   mindRenderArrows();
   mindRenderAdders();
   mindApplyTransform();
+  mindUpdateAddBtn();
+}
+// ＋ 버튼 라벨 — 선택 있음: 그 가지에 새 가지 / 선택 없음: 새 뿌리 (뿌리추가 버튼 통합)
+function mindUpdateAddBtn() {
+  const b = document.getElementById('mindAdd'); if (!b) return;
+  const hasSel = !!(MIND.sel && MIND.cache.get(MIND.sel));
+  b.textContent = hasSel ? '＋ ' + (T.mindAdd || 'Branch') : '🌱 ' + (T.mindAddRoot || 'Add root');
+  b.title = hasSel ? (T.mindAddBranchT || '') : (T.mindAddRootT || '');
+}
+// 뿌리 색: 첫 뿌리 = 보라, 추가한 뿌리는 순서대로 다른 색 (구분용)
+const MIND_ROOT_COLORS = ['#0e7490', '#047857', '#b45309', '#be185d', '#4338ca', '#5f7085'];
+function mindRootColor(node, fallback) {
+  const i = MIND.roots.indexOf(node);
+  return i <= 0 ? fallback : MIND_ROOT_COLORS[(i - 1) % MIND_ROOT_COLORS.length];
 }
 // 🔗 가지 사이 화살표(파이프라인 관계) — 트리선과 별개, 노드 테두리에서 시작/끝, 방향·메모 표시
 function mindBorderPoint(c, tx, ty) {
@@ -3169,7 +3186,7 @@ function mindDoExport(scopeRoots) {
   // 노드
   cells.forEach(c => {
     const isR = mindIsRoot(c.node), p = off(c.cx, c.cy), w = c.w;
-    svg += `<rect x="${p.x - w / 2}" y="${p.y - h / 2}" width="${w}" height="${h}" rx="${isR ? 17 : 8}" fill="${isR ? violet : panel}" stroke="${isR ? 'none' : lineC}" stroke-width="1.2"/>`;
+    svg += `<rect x="${p.x - w / 2}" y="${p.y - h / 2}" width="${w}" height="${h}" rx="${isR ? 17 : 8}" fill="${isR ? mindRootColor(c.node, violet) : panel}" stroke="${isR ? 'none' : lineC}" stroke-width="1.2"/>`;
     svg += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central" fill="${isR ? '#fff' : fg}" font-size="13"${isR ? ' font-weight="700"' : ''}>${esc(c.node.title)}</text>`;
   });
   const doc = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">`
@@ -3252,9 +3269,8 @@ function mindUpdateHint() {
 
 async function openMind() {
   document.getElementById('mindTitleTxt').textContent = T.mindTitle || 'Mind map';
-  document.getElementById('mindAdd').textContent = '＋ ' + (T.mindAdd || 'Branch');
+  mindUpdateAddBtn();   // ＋가지/🌱뿌리 겸용 버튼 (mindRender에서도 갱신)
   document.getElementById('mindLink').textContent = '🔗 ' + (T.mindLinkBtn || 'Connect');
-  { const b = document.getElementById('mindAddRoot'); if (b) { b.textContent = '🌱 ' + (T.mindAddRoot || 'Add root'); b.title = T.mindAddRootT || ''; } }
   { const b = document.getElementById('mindExport'); if (b) { b.textContent = '🖼 ' + (T.mindExport || 'Save image'); b.title = T.mindExportT || ''; } }
   document.getElementById('mindDel').textContent = '－ ' + (T.mindDelBtn || 'Delete');
   document.getElementById('mindReset').textContent = '⊙';
@@ -3331,7 +3347,8 @@ function mindInitCanvas() {
     if (ev.key === 'Escape' && MIND.selLink) { ev.preventDefault(); mindClearLinkSel(); mindRender(); return; }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && MIND.selLink) { ev.preventDefault(); mindDeleteLink(MIND.selLink); return; }   // Delete = 선택된 화살표 삭제
     if (ev.key === 'Delete' && MIND.sel) { ev.preventDefault(); mindDeleteSelected(); return; }   // Delete = 선택된 가지/뿌리 삭제 (첫 뿌리 보호·하위 확인 그대로)
-    if (ev.key === 'F2' && MIND.sel) { ev.preventDefault(); const c = MIND.cache.get(MIND.sel); if (c) mindStartEdit(c.node, true); return; }   // F2 = 선택 노드 이름수정
+    if ((ev.key === 'F2' || ev.key === 'Enter') && MIND.sel) { ev.preventDefault(); const c = MIND.cache.get(MIND.sel); if (c) mindStartEdit(c.node, true); return; }   // F2·Enter = 선택 노드 이름수정
+    if (ev.key === '+' && MIND.sel) { ev.preventDefault(); const c = MIND.cache.get(MIND.sel); if (c) mindAddChild(c.node, 4); return; }   // + = 선택 노드에 가지 추가
     if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === 'z' || ev.key === 'Z')) { ev.preventDefault(); mindUndo(); }
     else if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || ev.key === 'Y' || (ev.shiftKey && (ev.key === 'z' || ev.key === 'Z')))) { ev.preventDefault(); mindRedo(); }
   });
@@ -3347,8 +3364,10 @@ function mindInitCanvas() {
   document.getElementById('mindRedo').onclick = mindRedo;
   document.getElementById('mindUndo').title = T.mindUndoT || 'Undo (Ctrl+Z)';
   document.getElementById('mindRedo').title = T.mindRedoT || 'Redo (Ctrl+Y)';
-  document.getElementById('mindAdd').onclick = () => { const t = (MIND.sel && MIND.cache.get(MIND.sel)) ? MIND.cache.get(MIND.sel).node : MIND.roots[0]; mindAddChild(t, 4); };
-  const arBtn = document.getElementById('mindAddRoot'); if (arBtn) arBtn.onclick = () => mindAddRoot();   // 뿌리추가: 화면 중앙 근처
+  document.getElementById('mindAdd').onclick = () => {   // 선택 있음 = 그 가지에 새 가지 · 없음 = 새 뿌리
+    const c = MIND.sel && MIND.cache.get(MIND.sel);
+    if (c) mindAddChild(c.node, 4); else mindAddRoot();
+  };
   const exBtn = document.getElementById('mindExport'); if (exBtn) exBtn.onclick = mindExportImage;
   document.getElementById('mindLink').onclick = () => {   // 🔗 연결 모드 토글: 켜면 두 가지를 차례로 클릭
     MIND.connectMode = !MIND.connectMode;
