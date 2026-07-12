@@ -855,7 +855,7 @@ const I18N = {
     noteReasonL:'Why you asked', noteSummaryL:'Summary prompt',
     mindBtn:'Mind map', mindTitle:'Mind map', mindRootTitle:"{u}'s map", mindRootNoUser:'My map', mindNewNode:'New branch', mindNewRoot:'New root',
     mindAdd:'Branch', mindDelBtn:'Delete', mindReset:'Reset view', mindDelConfirm:'This deletes the branch and everything under it. Continue?',
-    mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2/Enter rename · + adds a branch · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
+    mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2/Enter rename (Tab commits) · + adds a branch · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
     mindAddBranchT:'Add a branch under the selected node (+ key)',
     mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
     mindLinkPick1:'Click the first branch to connect', mindLinkPick2:'Click the second branch · click empty space to reset · Esc to cancel',
@@ -908,7 +908,7 @@ const I18N = {
     noteReasonL:'요청한 이유', noteSummaryL:'요약 프롬프트',
     mindBtn:'마인드맵', mindTitle:'마인드맵', mindRootTitle:'{u}의 지도', mindRootNoUser:'내 지도', mindNewNode:'새 가지', mindNewRoot:'새 뿌리',
     mindAdd:'가지', mindDelBtn:'삭제', mindReset:'뷰 초기화', mindDelConfirm:'하위 가지까지 삭제됩니다. 계속?',
-    mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2·Enter 이름수정 · + 키 가지추가 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
+    mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2·Enter 이름수정(Tab으로 확정) · + 키 가지추가 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
     mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
@@ -3094,7 +3094,12 @@ function mindStartEdit(node, selectAll) {
   MIND.editEl = { inp, node, snap: mindSnapshot() };
   canvas.appendChild(inp); inp.focus(); if (selectAll) inp.select();
   inp.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') { ev.preventDefault(); mindCommitEdit(); mindRender(); }
+    if (ev.key === 'Enter' || ev.key === 'Tab') {   // Enter·Tab = 편집 확정, 그 가지 선택 유지 + 캔버스 포커스(바로 +/Enter/Delete 가능)
+      ev.preventDefault();
+      MIND.sel = node.id;
+      mindCommitEdit(); mindRender();
+      try { document.getElementById('mindCanvas').focus(); } catch (e) {}
+    }
     else if (ev.key === 'Escape') { ev.preventDefault(); MIND.editEl = null; inp.remove(); mindRender(); }
     ev.stopPropagation();
   });
