@@ -1274,21 +1274,49 @@ function buildPane(sess, idx) {
     const sz = document.createElement('div'); sz.className = 'scrollzone';
     body.appendChild(pl); body.appendChild(pr); body.appendChild(sz);
     // 가운데 존 세로 드래그: 스크롤백(위 내용) 있으면 이 터미널 스크롤, 없으면 페이지 스크롤 (항상 반응)
-    let sy = 0;
-    sz.addEventListener('touchstart', e => { sy = e.touches[0].clientY; sz.classList.add('touching'); }, { passive: true });
+    // + 관성 스크롤: 슬라이드 속도 그대로 미끄러지다 마찰로 감속, 손대면 즉시 정지 (네이티브 스크롤 감각)
+    let sy = 0, syT = 0, vel = 0, momId = null;
+    const stopMomentum = () => { if (momId) { cancelAnimationFrame(momId); momId = null; } vel = 0; };
+    sz.addEventListener('touchstart', e => {
+      stopMomentum();                                         // 미끄러지는 중 다시 터치 = 그 자리에 정지
+      sy = e.touches[0].clientY; syT = performance.now();
+      sz.classList.add('touching');
+    }, { passive: true });
     sz.addEventListener('touchmove', e => {
-      const dy = sy - e.touches[0].clientY;
+      const y = e.touches[0].clientY, now = performance.now();
+      const dy = sy - y;
       if (Math.abs(dy) < 4) return;
+      vel = 0.7 * (dy / Math.max(1, now - syT)) + 0.3 * vel;  // px/ms — 최근 속도 위주로 부드럽게 평활
       const buf = term.buffer.active;
       const canUp = buf.viewportY > 0;                        // 위로 더 볼 내용
       const canDown = buf.viewportY < buf.baseY;              // 아래로 더 볼 내용
       const lines = Math.max(1, Math.round(Math.abs(dy) / 12));   // 드래그 거리에 비례해 여러 줄
       if ((dy < 0 && canUp) || (dy > 0 && canDown)) term.scrollLines(dy > 0 ? lines : -lines);
       else window.scrollBy(0, dy);                            // 스크롤백 없으면 페이지 스크롤
-      sy = e.touches[0].clientY;
+      sy = y; syT = now;
     }, { passive: true });
-    sz.addEventListener('touchend', () => setTimeout(() => sz.classList.remove('touching'), 250), { passive: true });
-    sz.addEventListener('touchcancel', () => sz.classList.remove('touching'), { passive: true });
+    sz.addEventListener('touchend', () => {
+      // 놓는 순간 속도가 충분하면 관성 활공 — 감속하며 계속 스크롤, 끝나면 하이라이트 해제
+      if (Math.abs(vel) > 0.25 && performance.now() - syT < 120) {   // 멈춰 쥐고 있다 뗀 경우(오래된 속도)는 활공 안 함
+        let v = Math.max(-4, Math.min(4, vel)), acc = 0, last = performance.now();
+        const finish = () => { momId = null; sz.classList.remove('touching'); };
+        const step = now => {
+          const dt = Math.min(50, now - last); last = now;
+          v *= Math.pow(0.95, dt / 16.7);                     // 프레임당 5% 마찰 감속
+          acc += v * dt / 12;                                 // 12px = 1줄 (드래그와 같은 비율)
+          const n = acc > 0 ? Math.floor(acc) : Math.ceil(acc);
+          if (n) {
+            const buf = term.buffer.active;
+            if ((n < 0 && buf.viewportY <= 0) || (n > 0 && buf.viewportY >= buf.baseY)) { finish(); return; }   // 끝에 닿으면 정지
+            term.scrollLines(n); acc -= n;
+          }
+          if (Math.abs(v) < 0.04) { finish(); return; }
+          momId = requestAnimationFrame(step);
+        };
+        momId = requestAnimationFrame(step);
+      } else setTimeout(() => { if (!momId) sz.classList.remove('touching'); }, 250);
+    }, { passive: true });
+    sz.addEventListener('touchcancel', () => { stopMomentum(); sz.classList.remove('touching'); }, { passive: true });
     // 마우스 휠/트랙패드로도 이 존에서 스크롤되게 (터치스크린+마우스 겸용 기기 대응) —
     // 스크롤백이 있으면 이 터미널을, 없으면 페이지를 스크롤
     sz.addEventListener('wheel', e => {
