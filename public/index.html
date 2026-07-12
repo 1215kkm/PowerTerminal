@@ -161,12 +161,22 @@
   /* 패널은 터미널을 줄이지 않고 위에 겹쳐서 뜸(오버레이) — 터미널 폭이 안 바뀌니 글자폭 재계산 문제 없음 */
   .reqPanel { box-shadow: -5px 0 16px rgba(0,0,0,.4); }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
-  /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 전문 표시(말줄임 없음), 클릭하면 그 위치로 */
+  /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 3줄까지 표시(말줄임), 마우스 올리면 전문, 클릭하면 그 위치로 */
   .reqSticky { position: absolute; top: 0; left: 0; right: 0; z-index: 6; cursor: pointer;
                background: #fefefe; color: #111827; font-weight: 700; font-size: var(--tfs, 12px); line-height: 1.5;
-               padding: 6px 96px 6px 10px;              /* 오른쪽 여백 = 방금요청취소 버튼 자리 */
-               border-bottom: 2px solid #c4b5fd; box-shadow: 0 2px 8px rgba(0,0,0,.25);
-               max-height: 45%; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+               padding: 6px 96px 6px 10px;              /* 오른쪽 여백 = 취소 버튼 자리 */
+               border-bottom: 2px solid #c4b5fd; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .reqSticky .rs-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+                        overflow: hidden; white-space: pre-wrap; word-break: break-word; }
+  .reqSticky:hover { max-height: 60%; overflow-y: auto; }
+  .reqSticky:hover .rs-text { -webkit-line-clamp: unset; }   /* 호버 = 전문 */
+  /* 배너 우측 ⏹ 취소 — 작업 중일 때만. 배너가 떠 있는 동안엔 우상단 '방금요청취소'를 대신함(겹침 방지) */
+  .reqSticky .rs-cancel { display: none; position: absolute; top: 5px; right: 10px; z-index: 7;
+                          padding: 4px 10px; border-radius: 7px; cursor: pointer; font-size: 11px; font-weight: 700;
+                          background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .pane.busy .reqSticky .rs-cancel { display: inline-block; }
+  .reqSticky .rs-cancel:hover { background: #b91c1c; color: #fff; }
+  .pane.hasSticky .termCancel { display: none; }   /* 배너에 취소가 있으니 중복 표시 안 함 */
   html.light .reqSticky { background: #ede9fe; }
   /* ⬇ 맨아래로 — 스크롤을 올려 두었을 때만 나타나는 둥근 버튼, 누르면 최신 출력으로 복귀 */
   .termBot { position: absolute; right: 14px; bottom: 14px; z-index: 7; cursor: pointer;
@@ -544,6 +554,8 @@
                        background: linear-gradient(135deg, var(--violet), var(--pink)); }
     .mm-cell .mm-title { overflow: hidden; text-overflow: ellipsis; }
     .mm-cell.active { border-color: var(--pink); }
+    /* 📱 지금 보고 있는 세션 = 보라 링 유지 (busy 하늘·done 초록 테두리와 별개라 안 겹침) */
+    .pane.current { box-shadow: 0 0 0 3px var(--violet); }
     .mm-cell.busy { border-color: #7dd8ff; }
     .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); }
     /* ⋯ 자리를 항상 잡아둠 — 작업중 표시가 생겼다 사라져도 탭 폭이 안 변해 줄바꿈이 안 흔들림 */
@@ -667,12 +679,12 @@
     <div id="browser" style="display:none;border:2px solid var(--sky);border-radius:8px;margin-top:8px">
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px;border-bottom:1px solid var(--line)">
         <button class="small" onclick="browseUp()">⬆</button>
-        <span id="brCur" style="flex:1;min-width:120px;font-size:12px;color:var(--muted);word-break:break-all"></span>
+        <span id="brCur" style="flex:1;min-width:120px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left" title=""></span>
         <button class="small" onclick="mkFolder()" data-i18n="newFolder">＋ 새 폴더</button>
         <button class="small brViewBtn" id="brViewGrid" onclick="setBrView('grid')" data-i18n-title="brwGrid" title="바둑판 보기">▦</button>
         <button class="small brViewBtn" id="brViewList" onclick="setBrView('list')" data-i18n-title="brwList" title="세로 자세히 보기">☰</button>
       </div>
-      <div id="brList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;padding:8px;max-height:34vh;overflow:auto"></div>
+      <div id="brList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;padding:8px;height:34vh;overflow:auto;align-content:start"></div>
     </div>
   </div>
 
@@ -1620,7 +1632,11 @@ function buildPane(sess, idx) {
   stickyEl.className = 'reqSticky';
   stickyEl.style.display = 'none';
   stickyEl.title = T.memoJumpT || '';
+  stickyEl.innerHTML = `<span class="rs-text"></span><button class="rs-cancel" title="${esc(T.cancelReqT || '')}">⏹ ${esc(T.cancel || 'Cancel')}</button>`;
+  const rsText = stickyEl.querySelector('.rs-text');
+  stickyEl.querySelector('.rs-cancel').onclick = ev => { ev.stopPropagation(); doCancel(ev); };   // 배너 클릭(위치 이동)과 분리
   el.querySelector('.pane-body').appendChild(stickyEl);
+  const stickyShow = on => { stickyEl.style.display = on ? 'block' : 'none'; el.classList.toggle('hasSticky', on); };
   // ⬇ 맨아래로 — 스크롤을 올려 두면 나타나고, 누르면 최신 출력(생방송)으로 부드럽게 복귀
   const botBtn = document.createElement('button');
   botBtn.className = 'termBot';
@@ -1641,13 +1657,13 @@ function buildPane(sess, idx) {
     const buf = term.buffer.active;
     const vy = buf.viewportY;
     botBtn.style.display = (buf.baseY > 0 && vy < buf.baseY) ? '' : 'none';   // ⬇ 맨 하단이 아니면 표시
-    if (vy <= 0 || vy >= buf.baseY) { stickyEl.style.display = 'none'; return; }   // 맨 아래(생방송)에선 숨김
+    if (vy <= 0 || vy >= buf.baseY) { stickyShow(false); return; }   // 맨 아래(생방송)에선 숨김
     // 요청글이 지금 화면 안에 보이면 배너를 안 띄움 — 같은 글이 2번 보이는 중복 방지
     const vend = Math.min(buf.length, vy + term.rows);
-    for (let i = vy; i < vend; i++) if (isReqRow(buf, i)) { stickyEl.style.display = 'none'; return; }
+    for (let i = vy; i < vend; i++) if (isReqRow(buf, i)) { stickyShow(false); return; }
     let y = -1;
     for (let i = vy - 1; i >= Math.max(0, vy - 5000); i--) { if (isReqRow(buf, i)) { y = i; break; } }
-    if (y < 0) { stickyEl.style.display = 'none'; return; }
+    if (y < 0) { stickyShow(false); return; }
     let top = y; while (top > 0 && isReqRow(buf, top - 1)) top--;
     let bot = y; const maxB = Math.min(buf.length - 1, y + 40); while (bot < maxB && isReqRow(buf, bot + 1)) bot++;
     const parts = [];
@@ -1662,9 +1678,9 @@ function buildPane(sess, idx) {
       });
       if (hit) text = hit.text;
     }
-    if (!text) { stickyEl.style.display = 'none'; return; }
-    stickyEl.textContent = '📌 ' + text;
-    stickyEl.style.display = 'block';
+    if (!text) { stickyShow(false); return; }
+    rsText.textContent = '📌 ' + text;
+    stickyShow(true);
     stickyEl.onclick = () => { try { smoothTermScroll(term, Math.max(0, top - 1)); } catch (e) {} };
   };
   let stickyT;
@@ -2041,22 +2057,43 @@ function renderMinimap() {
     cell.dataset.mm = id;
     cell.innerHTML = `<span class="mm-num">${i + 1}</span><span class="mm-title">${esc(p ? p.sess.title : '')}</span>`;
     cell.onclick = () => {
-      // 클릭한 탭 강조 + 연결된 화면 잠깐 반짝 → 몇번 탭이 몇번 화면인지 직관적으로
-      mm.querySelectorAll('.mm-cell').forEach(c => c.classList.remove('active'));
-      cell.classList.add('active');
+      // 탭 클릭 = 그 창으로 스크롤 + 보라 링 즉시 이동 (링은 반짝이 아니라 유지 — 스크롤로 다른 세션 가면 따라감)
+      mmSetCurrent(id);
       // 상단에 고정되는 건 탭메뉴뿐(헤더는 같이 스크롤됨) — 탭메뉴 높이만 빼야 정확히 붙는다
       const overlay = mm.offsetHeight + 6;
       const y = paneEl.getBoundingClientRect().top + window.scrollY - overlay;
       window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-      paneEl.style.transition = 'box-shadow .2s';
-      paneEl.style.boxShadow = '0 0 0 3px var(--pink)';
-      setTimeout(() => { paneEl.style.boxShadow = ''; }, 900);
     };
     mm.appendChild(cell);
   });
   applyLayout();
+  mmCurId = undefined; mmSpy();   // 셀을 새로 그렸으니 현재 세션 강조 다시 칠하기
   saveOrder();   // 배열이 바뀔 때마다 현재 순서 기억 → 재시작 시 그대로 복원
 }
+// 📱 스크롤 추적 — 화면 기준점(탭메뉴 아래 35% 지점)을 차지한 세션에 보라 링 + 탭메뉴 강조를 유지.
+// 스크롤·탭클릭으로 다른 세션에 가면 이전 것은 꺼지고 그 세션이 켜짐. (미니맵이 없는 PC 배치에선 전부 끔)
+let mmCurId = null;
+function mmSetCurrent(id) {
+  if (id === mmCurId) return;
+  mmCurId = id;
+  [...grid.children].forEach(el => el.classList.toggle('current', el.dataset.id === id));
+  document.querySelectorAll('#minimap .mm-cell').forEach(c => c.classList.toggle('active', c.dataset.mm === id));
+}
+function mmSpy() {
+  const mm = document.getElementById('minimap');
+  if (!mm || getComputedStyle(mm).display === 'none') { mmSetCurrent(null); return; }
+  const refY = mm.offsetHeight + (window.innerHeight - mm.offsetHeight) * 0.35;
+  let best = null, bestD = Infinity;
+  [...grid.children].forEach(el => {
+    const r = el.getBoundingClientRect();
+    const d = (r.top <= refY && r.bottom >= refY) ? 0 : Math.min(Math.abs(r.top - refY), Math.abs(r.bottom - refY));
+    if (d < bestD) { bestD = d; best = el; }
+  });
+  mmSetCurrent(best ? best.dataset.id : null);
+}
+let mmSpyRaf = null;
+addEventListener('scroll', () => { if (!mmSpyRaf) mmSpyRaf = requestAnimationFrame(() => { mmSpyRaf = null; mmSpy(); }); }, { passive: true });
+addEventListener('resize', mmSpy);
 
 // PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
 function applyLayout() {
@@ -2233,7 +2270,7 @@ async function browseTo(dir) {
   const r = await api('GET', '/api/browse?dir=' + encodeURIComponent(dir));
   if (r.error) { if (dir) return browseTo(''); return; }
   brDir = r.dir;
-  document.getElementById('brCur').textContent = r.dir || '💻 ' + (T.drives || 'Drives');
+  { const bc = document.getElementById('brCur'); bc.textContent = r.dir || '💻 ' + (T.drives || 'Drives'); bc.title = r.dir || ''; }   // 한 줄 말줄임 + 전체경로는 툴팁
   const ap = document.getElementById('addPath');
   ap.value = r.dir || '';
   ap.scrollLeft = ap.scrollWidth;   // 경로가 길면 끝(마지막 폴더)이 보이도록 스크롤

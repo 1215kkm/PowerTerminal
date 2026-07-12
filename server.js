@@ -224,9 +224,12 @@ function getPty(sess) {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
     if (isClaude) {
-      // Claude는 작업 중일 때 하단에 'esc to interrupt'를 계속 그림 → 이 표시로 작업중/완료 판별
+      // Claude는 작업 중일 때 'esc to interrupt'를 계속 그림 → 이 표시로 작업중/완료 판별
       // (사용량 정지 중 카운트다운 같은 잔출력에 상태가 흔들리지 않음)
-      if (p.buffer.slice(-1500).includes('esc to interrupt')) p.lastMarker = Date.now();
+      // CC 2.1.x부터 이 문구가 하단 바로 옮겨가 좁은 창에선 'esc to int…'로 말줄임되고,
+      // 긴 생각 중 스피너는 'still thinking'만 보임 → 셋 다 작업중으로 인정
+      const t15 = p.buffer.slice(-1500);
+      if (t15.includes('esc to int') || t15.includes('still thinking')) p.lastMarker = Date.now();
     } else {
       const wasIdle = !p.busy || p.done;
       p.busy = true;
@@ -988,16 +991,17 @@ app.get('/api/memos/export', (req, res) => {
   const fmtD = ms => { if (!ms) return ''; const d = new Date(ms);
     return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
   const h = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const cell = (v, wrap) => '<td style="border:1px solid #d1d5db;padding:3px 6px;vertical-align:top;'
-    + (wrap ? 'white-space:normal;word-wrap:break-word;' : 'white-space:nowrap;') + '">'
+  const cell = (v, wrap, color) => '<td style="border:1px solid #d1d5db;padding:3px 6px;vertical-align:top;'
+    + (wrap ? 'white-space:normal;word-wrap:break-word;' : 'white-space:nowrap;')
+    + (color ? 'color:' + color + ';' : '') + '">'
     + h(v).replace(/\n/g, '<br style="mso-data-placement:same-cell">') + '</td>';
   const ST = { run: '진행중', done: '완료', stop: '중단', off: '종료로 중단' };
   const body = [];
   for (const k of keys) {
     const m = memos[k]; if (!m) continue;
     const folder = path.basename(k || '');
-    ((m.reqs || []).slice().reverse()).forEach(r =>   // 저장은 최신순 → 시간순으로 뒤집어 내보냄
-      body.push('<tr>' + cell('요청') + cell(fmtD(r.ts)) + cell(r.intent || '', true) + cell(r.summary || '', true) + cell(r.text, true)
+    ((m.reqs || []).slice().reverse()).forEach(r =>   // 저장은 최신순 → 시간순으로 뒤집어 내보냄. 이유=보라·요약=파랑 (메모장과 동일)
+      body.push('<tr>' + cell('요청') + cell(fmtD(r.ts)) + cell(r.intent || '', true, '#7C3AED') + cell(r.summary || '', true, '#2563EB') + cell(r.text, true)
         + cell(ST[r.st] || r.st || '') + cell(fmtD(r.endTs)) + cell(folder) + '</tr>'));
     (m.items || []).forEach(it =>
       body.push('<tr>' + cell('메모') + cell(fmtD(it.ts)) + cell('', true) + cell('', true) + cell(it.text, true)
