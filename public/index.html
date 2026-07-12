@@ -1669,12 +1669,14 @@ function buildPane(sess, idx) {
     const parts = [];
     for (let i = top; i <= bot; i++) { const l = buf.getLine(i); if (l) parts.push(l.translateToString(true).trim()); }
     let text = parts.join(' ').replace(/^>\s*/, '').trim();
-    // 기록된 요청 원문과 매칭되면 그걸로 — 터미널이 긴 요청을 말줄임했어도 전문 표시
+    // 기록된 요청 원문과 매칭되면 그걸로 — 터미널이 긴 요청을 말줄임했어도 전문 표시.
+    // 긴 요청은 회색 박스에 끝부분만 남으므로(앞부분 잘림) '어디든 포함'으로도 찾는다 → 배너가 항상 첫 문장부터 보임
     const key = text.replace(/\s+/g, '').slice(0, 24);
     if (reqsCache && key) {
       const hit = reqsCache.find(r => {
         const n = (r.text || '').replace(/\s+/g, '');
-        return n.slice(0, 24) === key || n.startsWith(key) || key.startsWith(n.slice(0, 24));
+        return n.slice(0, 24) === key || n.startsWith(key) || key.startsWith(n.slice(0, 24))
+            || (key.length >= 12 && n.includes(key));
       });
       if (hit) text = hit.text;
     }
