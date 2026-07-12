@@ -372,7 +372,17 @@
              padding: 8px 9px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 54px; }
   #memoNew:focus { outline: 1px solid var(--violet); }
   .memo-empty { color: #9ca3af; font-size: 12px; padding: 8px 4px; }
-  @media (max-width: 768px) { .memo-cols { grid-template-columns: 1fr; } .memo-col { min-height: 130px; max-height: 40vh; } }
+  /* 📱 모바일 아코디언 — 제목 클릭으로 그 컬럼만 펼침: ▲=펼쳐짐(누르면 접힘) · ▼=접힘(누르면 펼침) */
+  .memo-colhead .mfold { display: none; font-size: 9px; color: #9ca3af; margin-right: 5px; }
+  @media (max-width: 768px) {
+    .memo-cols { grid-template-columns: 1fr; }
+    .memo-col { min-height: 130px; max-height: 40vh; }
+    .memo-colhead { cursor: pointer; padding: 6px 4px; }   /* 폰: 터치 목표 넉넉히 */
+    .memo-colhead .mfold { display: inline; }
+    .memo-col.mcollapsed { min-height: 0; }
+    .memo-col.mcollapsed .memo-list, .memo-col.mcollapsed #memoNew { display: none; }
+    .memo-col.mcollapsed .memo-savebar { display: none !important; }   /* 인라인 display:flex보다 우선 */
+  }
   #qrDlg { position: relative; overflow: hidden; }
   /* QR 경고 관문 — 반투명 유리(blur)로 뒤 QR이 살짝 비침 */
   #qrGate { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column;
@@ -788,7 +798,7 @@
       <div class="memo-colhead" id="memoNewH"></div>
       <div class="memo-list" id="memoItems"></div>
       <textarea id="memoNew" rows="3"></textarea>
-      <div style="display:flex;justify-content:flex-end;margin-top:-2px">
+      <div class="memo-savebar" style="display:flex;justify-content:flex-end;margin-top:-2px">
         <button class="small primary" id="memoSave" onclick="commitMemoNew()"></button>
       </div>
     </div>
@@ -3480,7 +3490,7 @@ async function openMemo(sess) {
   // 컬럼 제목 3개 + 각 제목 우측 [📋 전체복사] — 그 영역의 글 전부를 "[날짜] 내용" 줄로 복사
   const colHead = (id, title, getLines) => {
     const hEl = document.getElementById(id);
-    hEl.innerHTML = `<span>${esc(title)}</span><button class="mcopyall" title="${esc(T.copyAllT || '')}">📋 ${esc(T.copyAll || 'Copy all')}</button>`;
+    hEl.innerHTML = `<span><span class="mfold">▲</span>${esc(title)}</span><button class="mcopyall" title="${esc(T.copyAllT || '')}">📋 ${esc(T.copyAll || 'Copy all')}</button>`;
     hEl.querySelector('.mcopyall').onclick = () => {
       const lines = getLines();
       if (lines.length) copyTxt(lines.join('\n\n'));
@@ -3492,6 +3502,21 @@ async function openMemo(sess) {
     () => (memoData.items || []).filter(i => i.done).map(i => fmtMemoDate(i.doneTs || i.ts) + '  ' + i.text));
   colHead('memoReqH', T.memoReqCol || 'Requests',
     () => (memoData.reqs || []).map(r => { const n = reqNotes(r, true); return fmtMemoDate(r.ts) + '  ' + r.text + (n ? '\n  ' + n.replace(/\n/g, '\n  ') : ''); }));
+  // 📱 좁은 화면(한 줄 배치) 아코디언 — 제목 탭하면 그 컬럼만 펼치고 나머지 접기. 데스크톱은 무동작(CSS도 미적용).
+  const narrow = () => matchMedia('(max-width: 768px)').matches;
+  const cols = [...document.querySelectorAll('#memoDlg .memo-col')];
+  const setFold = (col, fold) => {
+    col.classList.toggle('mcollapsed', fold);
+    const f = col.querySelector('.mfold'); if (f) f.textContent = fold ? '▼' : '▲';
+  };
+  cols.forEach((col, i) => {
+    setFold(col, i > 0);   // 열 때 기본: 새 메모만 펼침 (넓은 화면에선 CSS가 무시)
+    col.querySelector('.memo-colhead').onclick = ev => {
+      if (!narrow() || ev.target.closest('.mcopyall')) return;   // 📋 전체복사 클릭은 그대로
+      const wasFolded = col.classList.contains('mcollapsed');
+      cols.forEach(c => setFold(c, c !== col || !wasFolded));    // 접힌 걸 누르면 그것만 펼침 · 펼친 걸 누르면 다 접힘
+    };
+  });
   const sv = document.getElementById('memoSave');
   sv.textContent = '💾 ' + (T.memoSaveBtn || 'Save'); sv.title = T.memoSaveTip || '';
   const ta = document.getElementById('memoNew');
