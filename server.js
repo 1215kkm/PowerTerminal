@@ -923,6 +923,25 @@ app.post('/api/sessions/:id/upload-text', (req, res) => {
   }
 });
 
+// 🔗 터미널 속 파일 링크(Ctrl+클릭)로 파일/폴더 열기 — 절대경로 또는 세션 폴더 기준 상대 이름
+app.post('/api/open-path', (req, res) => {
+  let p = String((req.body && req.body.path) || '').trim();
+  const base = String((req.body && req.body.base) || '').trim();
+  if (!p) return res.status(400).json({ error: 'no path' });
+  if (!fs.existsSync(p) && base) {   // "파일이름.html"처럼 이름만 왔으면 세션 폴더에서 찾기
+    const j = path.join(base, p);
+    if (fs.existsSync(j)) p = j;
+  }
+  if (!fs.existsSync(p)) return res.json({ error: '파일을 찾지 못했어요: ' + p.slice(0, 120) });
+  try {
+    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open';
+    const pr = spawn(cmd, [p], { detached: true, stdio: 'ignore' });
+    pr.on('error', () => {});
+    pr.unref();
+    res.json({ ok: true });
+  } catch (e) { res.json({ error: String((e && e.message) || e) }); }
+});
+
 // 폴더를 OS 파일 관리자로 열기 — Windows(explorer) / Mac(open) / Linux(xdg-open)
 app.post('/api/open-folder', (req, res) => {
   const dir = (req.body && req.body.path) || '';
@@ -979,6 +998,16 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   const m = memoOf(req.body.path);
   const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
   if (!text) return res.json({ ok: false });
+  if (req.body.src === 'term') {   // ⌨ 터미널 회색 요청박스에서 읽어온 요청 — 이미 기록된 같은 글(말줄임·부분 포함)은 스킵
+    const nrm = t => String(t || '').replace(/\s+/g, '');
+    const nn = nrm(text);
+    const dup = m.reqs.slice(0, 20).some(r => {
+      const no = nrm(r.text);
+      return no === nn || no.includes(nn.slice(0, 40)) || nn.includes(no.slice(0, 40))
+          || (nn.length >= 20 && no.includes(nn.slice(-40)));
+    });
+    if (dup) return res.json({ ok: false, dup: true });
+  }
   const rid = crypto.randomBytes(6).toString('hex');
   const entry = { id: rid, text, ts: Date.now(), st: 'run' };
   if (/질문|question/i.test(text.slice(0, 20))) entry.q = true;   // ❓ "질문~"으로 시작 = 완료 시 답변을 추출해 밑에 기록

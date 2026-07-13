@@ -899,6 +899,7 @@ const I18N = {
     pvStarting:'Starting dev server…', pvFail:'Could not find the dev server address.',
     dropPick:'Same-named folders found — enter the number to open:', dropMiss:"Couldn't locate this folder's real path — use [+ Session] → 📂 Browse.",
     ghCopyOpen:'Copy code → open GitHub', ghCopyOpenT:'Copies the code and opens the GitHub approval page',
+    fileOpened:'Opened',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
     setSummaryL:'Summary prompt',
@@ -967,6 +968,7 @@ const I18N = {
     pvStarting:'개발서버 시작 중…', pvFail:'개발서버 주소를 찾지 못했어요.',
     dropPick:'같은 이름의 폴더가 여러 개예요 — 열 번호를 입력하세요:', dropMiss:'이 폴더의 실제 경로를 찾지 못했어요 — [+세션] → 📂 찾아보기로 열어주세요.',
     ghCopyOpen:'코드 복사 → GitHub 열기', ghCopyOpenT:'코드를 복사하고 GitHub 승인 페이지를 엽니다',
+    fileOpened:'열었어요',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
     setSummaryL:'요약 프롬프트',
@@ -1297,6 +1299,54 @@ function buildPane(sess, idx) {
       },
       { hover: (event) => showLinkTip(event), leave: () => hideLinkTip() }));
   } catch (e) {}
+  // 🔗 파일 경로/파일명도 링크로 — Ctrl(⌘)+클릭하면 OS 기본 프로그램으로 열림 (폰은 그냥 탭).
+  // 절대경로(D:\...)와 확장자 있는 파일명(보고서.html 등, 세션 폴더 기준)을 인식.
+  try {
+    const openPath = t => api('POST', '/api/open-path', { path: t, base: sess.path })
+      .then(r => flashToast(r && r.error ? '⚠ ' + r.error : '📂 ' + (T.fileOpened || 'Opened')));
+    term.registerLinkProvider({
+      provideLinks(y, cb) {
+        const line = term.buffer.active.getLine(y - 1);
+        if (!line) return cb(undefined);
+        // 셀 → 문자열 매핑 (한글 같은 2칸 문자 보정)
+        const idx2col = []; let s = '';
+        for (let x = 0; x < line.length; x++) {
+          const c = line.getCell(x); if (!c) break;
+          if (c.getWidth() === 0) continue;              // 와이드 문자의 뒷칸
+          const ch = c.getChars() || ' ';
+          for (let k = 0; k < ch.length; k++) idx2col.push(x);
+          s += ch;
+        }
+        const links = [], taken = [];
+        const add = (start, text) => {
+          const x1 = idx2col[start], xe = idx2col[start + text.length - 1];
+          if (x1 == null || xe == null) return;
+          const we = xe + Math.max(1, (line.getCell(xe) && line.getCell(xe).getWidth()) || 1) - 1;
+          taken.push([start, start + text.length]);
+          links.push({
+            range: { start: { x: x1 + 1, y }, end: { x: we + 1, y } },
+            text,
+            activate(ev, t) { if (isTouch || ev.ctrlKey || ev.metaKey) openPath(t); },
+            hover(ev) { try { showLinkTip(ev); } catch (e) {} },
+            leave() { try { hideLinkTip(); } catch (e) {} }
+          });
+        };
+        // ① 절대경로 (D:\폴더\파일) — 끝의 문장부호는 제외
+        let m; const reAbs = /[A-Za-z]:\\[^\s"'`<>|*?]+/g;
+        while ((m = reAbs.exec(s))) { const t = m[0].replace(/[.,;'")\]»…]+$/, ''); if (t.length > 3) add(m.index, t); }
+        // ② 확장자 있는 파일명 (경로 없이) — URL의 일부나 절대경로가 이미 잡은 구간은 건너뜀
+        const reFile = /[^\s\\/"'`<>|:*?]{1,120}\.(?:html?|mdx?|txt|pdf|png|jpe?g|gif|svg|webp|mp4|xlsx?|csv|json|zip|log|md)\b/gi;
+        while ((m = reFile.exec(s))) {
+          if (taken.some(([a, b]) => m.index < b && m.index + m[0].length > a)) continue;
+          const before = s.slice(0, m.index);
+          const wordStart = Math.max(before.lastIndexOf(' '), before.lastIndexOf('(')) + 1;
+          if (s.slice(wordStart, m.index).includes('://')) continue;   // URL 꼬리 부분은 URL 링크가 처리
+          add(m.index, m[0]);
+        }
+        cb(links.length ? links : undefined);
+      }
+    });
+  } catch (e) {}
   term.open(el.querySelector('.term'));
   // 드래그로 글자 선택 후 놓으면 자동 복사 (터미널은 Ctrl+C가 '중단'이라 복사가 안 됨)
   el.querySelector('.term').addEventListener('mouseup', () => {
@@ -1409,7 +1459,12 @@ function buildPane(sess, idx) {
           if (dm && modelDrop.value !== dm) { modelDrop.value = dm; sess.model = dm; }
         }
       }
-      else if (m.type === 'status') setState(el, m.done, m.busy);
+      else if (m.type === 'status') {
+        const wasBusy = el.classList.contains('busy');
+        setState(el, m.done, m.busy);
+        // 작업 시작 순간(유휴→busy) — 터미널에 직접 타이핑한 요청이면 회색 박스를 읽어 기록
+        if (!wasBusy && m.busy && !m.done) setTimeout(scanTermReq, 1200);
+      }
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
     };
     // 접속 직후 한 번 + 레이아웃/주소창 확정 뒤 두 번 더 (모바일 반쪽 높이 방지)
@@ -1770,6 +1825,27 @@ function buildPane(sess, idx) {
     }
     return false;
   };
+  // ⌨ 터미널에 직접 타이핑한 요청도 요청내역에 — 작업이 시작되는(busy) 순간 회색 요청박스를 읽어 기록.
+  // 빠른입력줄로 보낸 요청은 이미 기록돼 있어 서버가 같은 글(잘림·부분일치 포함)을 걸러줌.
+  let lastTermScan = 0;
+  const scanTermReq = () => {
+    if (Date.now() - lastTermScan < 3000) return;
+    lastTermScan = Date.now();
+    try {
+      const buf = term.buffer.active, end = buf.baseY + term.rows;
+      let y = -1;
+      for (let i = Math.min(buf.length, end) - 1; i >= Math.max(0, end - 400); i--) if (isReqRow(buf, i)) { y = i; break; }
+      if (y < 0) return;
+      let top = y; while (top > 0 && isReqRow(buf, top - 1)) top--;
+      let bot = y; const mx = Math.min(buf.length - 1, y + 40); while (bot < mx && isReqRow(buf, bot + 1)) bot++;
+      const parts = [];
+      for (let i = top; i <= bot; i++) { const l = buf.getLine(i); if (l) parts.push(l.translateToString(true).trim()); }
+      const text = parts.join(' ').replace(/^>\s*/, '').trim();
+      if (!text || text.length < 2) return;
+      api('POST', '/api/memos/req', { path: sess.path, text, src: 'term' })
+        .then(r => { if (r && r.ok) { reqsCache = null; refreshReq(); } });
+    } catch (e) {}
+  };
   const updateSticky = () => {
     const buf = term.buffer.active;
     const vy = buf.viewportY;
@@ -1983,12 +2059,17 @@ function speak(text) {
         speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
 }
 let audioCtx;
-function chime() {   // 띵동(도어벨풍 2음) — Web Audio 합성, 파일 없음
+// 외부(터널) 주소로 보는 중인지 — 로컬·같은 와이파이(사설 IP)가 아니면 원격 접속
+const IS_REMOTE_VIEW = !/^(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+function chime() {   // 띵동(도어벨풍 2음) — Web Audio 합성, 파일 없음. 외부접속으로 볼 땐 딩동댕 3음(구분용)
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const now = audioCtx.currentTime;
-    [[988, 0], [784, 0.18]].forEach(([f, t]) => {   // B5 → G5 = 띵~동
+    const notes = IS_REMOTE_VIEW
+      ? [[659, 0], [880, 0.16], [1047, 0.32]]   // E5→A5→C6 상승 3음 = 딩동댕 (밖에서 보는 중)
+      : [[988, 0], [784, 0.18]];                // B5→G5 = 띵~동 (로컬/집)
+    notes.forEach(([f, t]) => {
       const o = audioCtx.createOscillator(), g = audioCtx.createGain();
       o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
       const s = now + t;
@@ -2003,7 +2084,7 @@ function speakNum(n) {   // 띵동 후 "session two done"
   if (!soundOn || !n) return;
   chime();
   const w = NUMWORDS[n] || String(n);
-  setTimeout(() => speak('session ' + w + ' done'), 560);
+  setTimeout(() => speak('session ' + w + ' done'), IS_REMOTE_VIEW ? 800 : 560);   // 3음 차임이 끝난 뒤 말하기
 }
 function updateSoundBtn() {
   const b = document.getElementById('btnSound'); if (!b) return;
