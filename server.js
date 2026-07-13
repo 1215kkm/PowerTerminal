@@ -130,8 +130,11 @@ function stampReqs(dir, st) {
   const m = memos[memoKey(dir)];
   if (!m || !m.reqs) return;
   let hit = false;
-  m.reqs.forEach(r => { if (r.st === 'run') { r.st = st; r.endTs = Date.now(); hit = true; } });
+  const stamped = [];
+  m.reqs.forEach(r => { if (r.st === 'run') { r.st = st; r.endTs = Date.now(); hit = true; stamped.push(r); } });
   if (hit) saveMemos();
+  // ❓ "질문~"으로 시작한 요청이 완료되면 터미널 출력에서 답변을 뽑아 질문 밑에 기록
+  if (st === 'done') stamped.forEach(r => { if (r.q && !r.answer) genReqAnswer(dir, r.id, r.text); });
 }
 // 지난 실행에서 '진행중'으로 남은 요청 = 서버가 그대로 꺼졌던 것 → 종료로 중단 표시
 {
@@ -942,7 +945,9 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
   if (!text) return res.json({ ok: false });
   const rid = crypto.randomBytes(6).toString('hex');
-  m.reqs.unshift({ id: rid, text, ts: Date.now(), st: 'run' });
+  const entry = { id: rid, text, ts: Date.now(), st: 'run' };
+  if (/질문|question/i.test(text.slice(0, 20))) entry.q = true;   // ❓ "질문~"으로 시작 = 완료 시 답변을 추출해 밑에 기록
+  m.reqs.unshift(entry);
   m.reqs = m.reqs.slice(0, 200);
   saveMemos();
   if (config.intentNotes || config.summaryNotes) genReqNotes(req.body.path, rid, text);   // 🧭📝 설정을 켠 경우만 — 약간의 토큰 사용
@@ -974,6 +979,40 @@ function genReqNotes(dir, reqId, text) {
     if (wantS) lines.push('SUMMARY: <one short IMPERATIVE prompt — the same request compressed into a command the user could reuse verbatim, e.g. "check whether X works" not "asked whether X works". Keep the user\'s voice and language.>');
     proc.stdin.write('Analyze the user request below. Reply in the SAME language as the request, with EXACTLY these labeled lines and nothing else:\n'
       + lines.join('\n') + '\n\nRequest:\n' + text.slice(0, 1000));
+    proc.stdin.end();
+  } catch (e) {}
+}
+// ❓ 질문 답변 기록 — "질문~"으로 시작한 요청이 완료되면 그 폴더 터미널의 최근 출력에서
+// 답변을 추출해(claude -p haiku) 메모장 요청내역의 질문 밑에 남김. 실패하면 조용히 생략.
+function genReqAnswer(dir, reqId, question) {
+  try {
+    const cands = sessions.filter(s => memoKey(s.path) === memoKey(dir)).map(s => ptys.get(s.id)).filter(p => p && !p.dead);
+    if (!cands.length) return;
+    const pty = cands.reduce((a, b) => (a.lastOut > b.lastOut ? a : b));
+    const log = pty.buffer
+      .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '')   // OSC 시퀀스 제거
+      .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')            // CSI 시퀀스 제거
+      .replace(/[\x00-\x08\x0b-\x1f]/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .slice(-7000);
+    const proc = spawn('claude', ['-p', '--model', 'haiku'], { shell: true, windowsHide: true, cwd: os.homedir() });
+    let out = '';
+    proc.stdout.on('data', d => { out += d; });
+    const kill = setTimeout(() => { try { proc.kill(); } catch (e) {} }, 90000);
+    proc.on('close', () => {
+      clearTimeout(kill);
+      const mt = out.match(/ANSWER:\s*([\s\S]+)/);
+      if (!mt) return;
+      const ans = mt[1].trim().slice(0, 1500);
+      const m = memos[memoKey(dir)];
+      const r = m && (m.reqs || []).find(x => x.id === reqId);
+      if (r && ans) { r.answer = ans; saveMemos(); }
+    });
+    proc.on('error', () => clearTimeout(kill));
+    proc.stdin.write('Below is the tail of a terminal log where an AI assistant just answered the user\'s question.\n'
+      + 'Extract the assistant\'s answer to that question. Reply in the SAME language as the question, formatted EXACTLY as:\n'
+      + 'ANSWER: <the answer — keep the substance, condense to at most ~600 characters>\n\n'
+      + 'Question:\n' + String(question || '').slice(0, 500) + '\n\nTerminal log:\n' + log);
     proc.stdin.end();
   } catch (e) {}
 }

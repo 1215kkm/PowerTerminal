@@ -357,6 +357,9 @@
                      border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; cursor: pointer; }
   .memo-row:hover .mcopy { display: inline-block; }
   @media (hover: none) { .memo-row .mcopy { display: inline-block; } }
+  /* ❓ 질문 답변 — "질문~"으로 시작한 요청이 끝나면 답변이 질문 밑에 항상 표시 */
+  .memo-row .mans { display: block; margin-top: 5px; font-size: 12px; line-height: 1.55; color: #065f46;
+                    background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 7px; padding: 5px 8px; white-space: pre-wrap; }
   /* 🧭📝 요청 이유·요약프롬프트(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
   .memo-row .mintent { display: none; font-size: 11px; line-height: 1.5; }
   .memo-row .mintent.nreason { color: #7c3aed; }    /* 이유 = 보라 */
@@ -395,6 +398,19 @@
     .memo-col.mcollapsed .memo-list, .memo-col.mcollapsed #memoNew { display: none; }
     .memo-col.mcollapsed .memo-savebar { display: none !important; }   /* 인라인 display:flex보다 우선 */
   }
+  /* 🎈 온보딩 말풍선 — 처음 사용자에게 기능을 하나씩 안내 (뾰족 화살표) · 유휴 5분 힌트에도 재사용 */
+  .obub { position: absolute; z-index: 300; max-width: 250px; background: linear-gradient(135deg, var(--violet), var(--pink));
+          color: #fff; border-radius: 11px; padding: 10px 26px 10px 13px; font-size: 12.5px; line-height: 1.55;
+          box-shadow: 0 6px 22px rgba(0,0,0,.5); animation: memoIn .18s ease-out; }
+  .obub::before { content: ''; position: absolute; top: -6px; left: var(--ax, 24px); width: 13px; height: 13px;
+                  background: var(--violet); transform: rotate(45deg); border-radius: 2px; }
+  .obub.up::before { top: auto; bottom: -6px; background: var(--pink); }   /* 화살표가 아래를 향하는 변형(대상이 아래쪽) */
+  .obub b { display: block; margin-bottom: 2px; font-size: 13px; }
+  .obub .ob-x { position: absolute; top: 5px; right: 6px; background: rgba(255,255,255,.18); border: none; color: #fff;
+                width: 19px; height: 19px; border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1; padding: 0; }
+  .obub .ob-links { margin-top: 8px; display: flex; gap: 12px; align-items: center; }
+  .obub .ob-links a { color: #fff; font-size: 11px; text-decoration: underline; cursor: pointer; opacity: .9; }
+  .obub .ob-links .ob-step { opacity: .7; font-size: 10.5px; margin-left: auto; }
   #qrDlg { position: relative; overflow: hidden; }
   /* QR 경고 관문 — 반투명 유리(blur)로 뒤 QR이 살짝 비침 */
   #qrGate { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column;
@@ -795,7 +811,15 @@
       <small id="setSummaryHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
     </span>
   </label>
-  <div style="display:flex;justify-content:flex-end;margin-top:18px">
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
+    <input type="checkbox" id="setHints" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
+    <span style="display:block">
+      <span id="setHintsL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
+      <small id="setHintsHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+    </span>
+  </label>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">
+    <button class="small" id="setOnboard"></button>
     <button class="small" id="setClose" onclick="setDlg.close()"></button>
   </div>
 </dialog>
@@ -847,7 +871,7 @@ const I18N = {
     curSession:'Claude session', weeklyAll:'Claude weekly', weeklyPfx:'Weekly ', resets:'resets',
     renameHint:'Double-click to rename', previewT:'Toggle live preview', fontUp:'Bigger font', fontDn:'Smaller font', closeT:'Close this session',
     zoomT:'Full-screen this session', zoomExit:'✕ Exit full screen',
-    quickPh:'Type a request and press Enter', send:'Send', done:'✅ Done',
+    quickPh:'Type a request and press Enter · start with "question…" to save the answer to the memo pad', send:'Send', done:'✅ Done',
     memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Enter to save · Shift+Enter for a new line',
     memoSaveBtn:'Save', memoSaveTip:'Save this memo (Enter)',
     themeT:'Light / dark mode (terminal included)',
@@ -860,6 +884,17 @@ const I18N = {
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
     copyAll:'Copy all', copyAllT:'Copy everything in this column',
     setBtnT:'Settings', setTitle:'⚙ Settings', setSub:'When a request is saved, an AI can add short notes to it. These notes show on hover in the request history and in the Excel download, and may use a small amount of AI tokens.',
+    setHintsL:'Show feature tip balloons', setHintsHint:'The first-run feature tour, plus one random 3-second tip after 5 idle minutes.',
+    setOnboard:'🎈 Show the feature tour again',
+    obNext:'Next →', obCloseAll:'Close all', obNever:"Don't show again",
+    obAdd:'Add a session', obAddD:'Pick a work folder and run an AI terminal in it.',
+    obQR:'Open on your phone', obQRD:'Scan the QR code — Wi-Fi at home, External from anywhere.',
+    obMind:'Mind map', obMindD:'Organize ideas as branches and export as an image.',
+    obTheme:'Light / dark', obThemeD:'Switch the theme for the whole app, terminal included.',
+    obFeedback:'Send a request', obFeedbackD:'Send the developer a feature request or bug report.',
+    obMemo:'Memo pad', obMemoD:'Per-folder memos and every request you sent — with Excel export.',
+    obHist:'Request history', obHistD:'Your past requests — click one to jump to it in the terminal.',
+    obInput:'Request input', obInputD:'Type here and press Enter. Start with "question…" to save the answer to the memo pad.',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
     setSummaryL:'Summary prompt',
@@ -900,7 +935,7 @@ const I18N = {
     curSession:'클로드 세션', weeklyAll:'클로드 주간', weeklyPfx:'주간 ', resets:'재설정',
     renameHint:'더블클릭으로 이름 수정', previewT:'실제 모습 미리보기 토글', fontUp:'글자 크게', fontDn:'글자 작게', closeT:'이 세션 닫기',
     zoomT:'이 세션 전체화면으로 크게 보기', zoomExit:'✕ 전체화면 닫기',
-    quickPh:'요청 입력 후 엔터 (폰에서 편하게 타이핑)', send:'전송', done:'✅ 완료',
+    quickPh:'요청 입력 후 엔터 · "질문~"으로 시작하면 답변이 메모장에 기록돼요', send:'전송', done:'✅ 완료',
     memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Enter로 저장 · Shift+Enter는 줄바꿈',
     memoSaveBtn:'저장', memoSaveTip:'이 메모 저장 (Enter)',
     themeT:'라이트/다크 모드 전환 (터미널 포함)',
@@ -913,6 +948,17 @@ const I18N = {
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
     copyAll:'전체 복사', copyAllT:'이 영역의 글 전부 복사',
     setBtnT:'설정', setTitle:'⚙ 설정', setSub:'요청이 기록될 때 AI가 짧은 메모를 함께 남깁니다. 메모장의 요청내역과 \'엑셀 다운받기\'에서 마우스를 올리면 보이고, 약간의 AI 토큰이 발생할 수 있어요.',
+    setHintsL:'기능 안내 말풍선 표시', setHintsHint:'처음 실행 시 기능 안내 투어 + 5분간 조작이 없으면 힌트 하나를 3초간 보여줘요.',
+    setOnboard:'🎈 기능 안내 다시 보기',
+    obNext:'다음 →', obCloseAll:'모두 닫기', obNever:'앞으로 그만보기',
+    obAdd:'세션 추가', obAddD:'작업 폴더를 골라 그 안에서 AI 터미널을 돌려요.',
+    obQR:'폰으로 접속', obQRD:'QR을 찍으면 폰에서 그대로 — 집은 와이파이, 밖은 외부접속.',
+    obMind:'마인드맵', obMindD:'아이디어를 가지로 정리하고 이미지로 저장해요.',
+    obTheme:'라이트/다크', obThemeD:'터미널까지 통째로 테마를 바꿔요.',
+    obFeedback:'기능 요청', obFeedbackD:'개발자에게 기능 요청·버그 신고를 보내요.',
+    obMemo:'메모장', obMemoD:'폴더별 메모 + 보낸 요청 기록 — 엑셀로도 내려받아요.',
+    obHist:'요청 내역', obHistD:'보냈던 요청 목록 — 누르면 터미널 그 위치로 이동해요.',
+    obInput:'요청 입력', obInputD:'여기에 쓰고 엔터. "질문~"으로 시작하면 답변이 메모장에 기록돼요.',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
     setSummaryL:'요약 프롬프트',
@@ -2854,8 +2900,86 @@ async function openSettings() {
   try { const s = await api('GET', '/api/settings'); ci.checked = !!(s && s.intentNotes); cs.checked = !!(s && s.summaryNotes); } catch (e) {}
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
+  // 🎈 온보딩 — 말풍선 표시 여부(이 기기 저장) + 다시 보기
+  document.getElementById('setHintsL').textContent = T.setHintsL || '';
+  document.getElementById('setHintsHint').textContent = T.setHintsHint || '';
+  const chH = document.getElementById('setHints');
+  chH.checked = obHintsOn();
+  chH.onchange = () => localStorage.setItem(OB_KEY, chH.checked ? 'seen' : 'off');
+  const ob = document.getElementById('setOnboard');
+  ob.textContent = T.setOnboard || '🎈';
+  ob.onclick = () => { localStorage.setItem(OB_KEY, 'seen'); setDlg.close(); showOnboarding(); };
   setDlg.showModal();
 }
+
+// ================= 🎈 온보딩 말풍선 =================
+// 처음 사용자: 각 기능 옆에 뾰족 말풍선을 하나씩 — ✕(다음으로)·모두 닫기·앞으로 그만보기.
+// 유휴 힌트: 5분간 조작이 없으면 기능 말풍선 하나를 랜덤으로 3초간. 설정(⚙)에서 켜고 끔.
+const OB_KEY = 'pt_hints';   // (없음)=처음 → 자동 투어 · 'seen'=봤음 · 'off'=다시 안보기
+function obHintsOn() { return localStorage.getItem(OB_KEY) !== 'off'; }
+function obTargets() {       // [셀렉터, i18n키, 말풍선을 위에 띄울지] — 없는 대상은 자동 건너뜀
+  return [
+    ['#btnAdd', 'obAdd'],
+    ['#btnQR', 'obQR'],
+    ['#btnMind', 'obMind'],
+    ['#btnTheme', 'obTheme'],
+    ['#btnFeedback', 'obFeedback'],
+    ['.pane .btnMemo', 'obMemo'],
+    ['.pane .qHist', 'obHist', true],
+    ['.pane .quick textarea', 'obInput', true],
+  ];
+}
+function obClearAll() { document.querySelectorAll('.obub').forEach(b => b.remove()); }
+function obBubble(el, key, above, opts) {   // opts: {step, total, onNext} 없으면 단독(유휴 힌트)
+  const r = el.getBoundingClientRect();
+  if (!r.width && !r.height) return null;   // 안 보이는 대상
+  const b = document.createElement('div');
+  b.className = 'obub' + (above ? ' up' : '');
+  const links = opts
+    ? `<span class="ob-links"><a class="ob-all">${esc(T.obCloseAll || 'Close all')}</a>`
+      + `<a class="ob-never">${esc(T.obNever || "Don't show again")}</a>`
+      + `<span class="ob-step">${opts.step}/${opts.total}</span></span>`
+    : '';
+  b.innerHTML = `<button class="ob-x">✕</button><b>${esc(T[key] || '')}</b>${esc(T[key + 'D'] || '')}${links}`;
+  document.body.appendChild(b);
+  const bw = b.offsetWidth, bh = b.offsetHeight;
+  const x = Math.max(6, Math.min(innerWidth - bw - 6, r.left + r.width / 2 - 30));
+  const y = above ? r.top + scrollY - bh - 9 : r.bottom + scrollY + 9;
+  b.style.left = x + 'px'; b.style.top = Math.max(4, y) + 'px';
+  b.style.setProperty('--ax', Math.max(10, Math.min(bw - 24, r.left + r.width / 2 - x - 6)) + 'px');
+  b.querySelector('.ob-x').onclick = () => { b.remove(); if (opts && opts.onNext) opts.onNext(); };   // ✕ = 이건 닫고 다음 기능
+  const all = b.querySelector('.ob-all'); if (all) all.onclick = obClearAll;
+  const nev = b.querySelector('.ob-never'); if (nev) nev.onclick = () => { localStorage.setItem(OB_KEY, 'off'); obClearAll(); };
+  return b;
+}
+function showOnboarding() {   // 순차 투어 — 겹치지 않게 한 번에 하나, ✕ 누르면 다음
+  obClearAll();
+  const list = obTargets().map(([sel, key, above]) => [document.querySelector(sel), key, above]).filter(c => c[0]);
+  let i = 0;
+  const next = () => {
+    if (i >= list.length) return;
+    const [el, key, above] = list[i++];
+    if (!obBubble(el, key, above, { step: i, total: list.length, onNext: next })) next();   // 숨은 대상은 건너뜀
+  };
+  next();
+}
+addEventListener('resize', obClearAll);   // 위치가 틀어지면 그냥 닫음 (다시 열면 새 위치)
+// 처음 사용(이 기기에서 본 적 없음) → 화면이 자리 잡은 뒤 자동 투어
+if (!localStorage.getItem(OB_KEY)) setTimeout(() => { if (!localStorage.getItem(OB_KEY)) { localStorage.setItem(OB_KEY, 'seen'); showOnboarding(); } }, 2000);
+// 💤 유휴 힌트 — 5분간 조작 없으면 랜덤 기능 말풍선 하나를 3초간
+let obIdleT = Date.now();
+['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { obIdleT = Date.now(); }, { passive: true, capture: true }));
+setInterval(() => {
+  if (!obHintsOn() || document.hidden || Date.now() - obIdleT < 5 * 60 * 1000) return;
+  if (document.querySelector('.obub') || document.querySelector('dialog[open]')) return;   // 뭔가 떠 있으면 방해 안 함
+  const cands = obTargets().map(([sel, key, above]) => [document.querySelector(sel), key, above])
+    .filter(c => c[0] && (c[0].getBoundingClientRect().width > 0));   // 화면에 실제로 보이는 기능만
+  if (!cands.length) return;
+  const [el, key, above] = cands[Math.floor(Math.random() * cands.length)];
+  const b = obBubble(el, key, above, null);
+  if (b) setTimeout(() => b.remove(), 3000);
+  obIdleT = Date.now();   // 계속 유휴면 다음 힌트는 5분 뒤
+}, 20000);
 
 // ================= 🧠 마인드맵 (전체화면 오버레이) =================
 // 자유 배치 마인드맵 — SVG 하나 + Pointer Events. 각 노드는 부모중심 기준 상대오프셋(offX/offY)을 직접 가짐.
@@ -3708,9 +3832,10 @@ function renderMemo() {
                 + `<br><button class="mcopy" title="${esc(T.memoCopyT || '')}">📋</button></span>`
                 + `<span class="mtext">${esc(rq.text)}`
                 + (notesHtml ? '<br>' + notesHtml : '')   // 🧭📝 이유·요약 — 마우스 올리면 표시
+                + (rq.answer ? `<span class="mans">💬 ${esc(rq.answer)}</span>` : '')   // ❓ 질문이면 답변이 밑에 항상 표시
                 + `</span><button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
     r.querySelector('.mjump').onclick = () => jumpToReq(rq);   // 터미널에서 이 요청 위치로
-    r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (notesTxt ? '\n' + notesTxt : ''));
+    r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (notesTxt ? '\n' + notesTxt : '') + (rq.answer ? '\n💬 ' + rq.answer : ''));
     boxR.appendChild(r);
   });
 }
