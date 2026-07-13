@@ -244,6 +244,12 @@ function getPty(sess) {
   proc.onExit(() => {
     p.dead = true;
     for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'exit' })); } catch (e) {} }
+    // 설치용 임시 세션(autoClose) — 명령이 끝나면 결과를 8초 보여주고 목록에서 자동 제거 (클라는 reconcile로 정리)
+    if (sess.autoClose) setTimeout(() => {
+      ptys.delete(sess.id);
+      sessions = sessions.filter(x => x.id !== sess.id);
+      saveSessions();
+    }, 8000);
   });
   ptys.set(sess.id, p);
   return p;
@@ -787,11 +793,40 @@ app.post('/api/sessions', (req, res) => {
   const id = crypto.randomBytes(4).toString('hex');
   const sess = { id, title: title || path.basename(dir), path: dir, previewUrl: '',
                  agent: agent || 'claude', model: (model && String(model)) || 'default', cmd: cmd || '' };
+  if (req.body.autoClose) sess.autoClose = true;   // 설치용 임시 세션 — 명령 종료 후 자동 제거
   sessions.push(sess);
   saveSessions();
-  addRecent(sess);
+  if (!sess.autoClose) addRecent(sess);            // 임시 세션은 최근 목록에 안 남김
   getPty(sess);
   res.json(sess);
+});
+
+// 📁 드래그한 폴더의 실제 경로 찾기 — 브라우저는 절대경로를 안 주므로 폴더 이름 + 안의 파일 이름 몇 개로
+// 아는 위치들(세션·최근 목록의 부모, 홈·바탕화면·문서·다운로드, 드라이브 루트)을 뒤져 맞춰봄
+app.post('/api/resolve-drop', (req, res) => {
+  const name = String((req.body && req.body.name) || '').trim();
+  const children = Array.isArray(req.body && req.body.children) ? req.body.children.slice(0, 30).map(String) : [];
+  if (!name || /[\\/:*?"<>|]/.test(name)) return res.json({ matches: [] });
+  const parents = new Set();
+  const addP = p => { try { if (p && fs.existsSync(p)) parents.add(path.resolve(p)); } catch (e) {} };
+  sessions.forEach(s => { addP(path.dirname(s.path)); addP(path.dirname(path.dirname(s.path))); });
+  recent.forEach(r => { addP(path.dirname(r.path)); addP(path.dirname(path.dirname(r.path))); });
+  addP(os.homedir());
+  ['Desktop', 'Documents', 'Downloads'].forEach(d => addP(path.join(os.homedir(), d)));
+  if (process.platform === 'win32') { for (let c = 67; c <= 90; c++) addP(String.fromCharCode(c) + ':\\'); }   // C:~Z: 루트
+  const matches = [];
+  for (const par of parents) {
+    const full = path.join(par, name);
+    try {
+      if (!fs.statSync(full).isDirectory()) continue;
+      if (children.length) {   // 동명 폴더 오인 방지 — 안의 항목 이름이 일부라도 일치해야
+        const have = new Set(fs.readdirSync(full));
+        if (children.filter(c => have.has(c)).length < Math.min(2, children.length)) continue;
+      }
+      matches.push(full);
+    } catch (e) {}
+  }
+  res.json({ matches: [...new Set(matches)].slice(0, 8) });
 });
 
 app.patch('/api/sessions/:id', (req, res) => {
@@ -1076,6 +1111,7 @@ app.post('/api/reorder', (req, res) => {
 app.delete('/api/sessions/:id', (req, res) => {
   const p = ptys.get(req.params.id);
   const wasBusy = !!(p && !p.dead && p.busy && !p.done);   // 죽이기 전에 작업중이었는지 기억
+  killDev(req.params.id);   // 이 세션이 켠 dev 서버도 같이 종료
   if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
   ptys.delete(req.params.id);
   const gone = sessions.find(x => x.id === req.params.id);
@@ -1095,6 +1131,7 @@ app.post('/api/shutdown', (req, res) => {
   flushMemos();                              // 디바운스 저장이 exit보다 늦지 않게 즉시 기록
   res.json({ ok: true });
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
+  killAllDev();
   setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료 (exit 0 = 완전 종료, 런처가 다시 안 켬)
 });
 
@@ -1106,8 +1143,73 @@ app.post('/api/reboot', (req, res) => {
   flushMemos();
   res.json({ ok: true });
   console.log('\n  🔄 재시작 요청 — 최신 버전을 받아 서버를 다시 시작합니다. (세션은 저장됨, 다음 실행 때 복원)');
+  killAllDev();
   setTimeout(() => process.exit(75), 300);   // 75 = "재시작" 신호 (런처가 감지해 루프)
 });
+
+// 👁 미리보기 계획 — 폴더를 살펴 dev 스크립트(npm run dev 등)와 열 수 있는 html 파일을 알려줌
+const devProcs = new Map();   // sessionId -> { proc, url, dead, out, waiters }
+app.get('/api/preview-plan', (req, res) => {
+  const s = sessions.find(x => x.id === req.query.id);
+  if (!s) return res.status(404).json({});
+  const plan = { dev: null, htmls: [], running: null };
+  try {
+    const pj = JSON.parse(fs.readFileSync(path.join(s.path, 'package.json'), 'utf8'));
+    const scripts = (pj && pj.scripts) || {};
+    for (const k of ['dev', 'start', 'serve', 'preview']) if (scripts[k]) { plan.dev = { script: k, cmd: 'npm run ' + k }; break; }
+  } catch (e) {}
+  try {
+    const order = f => f.toLowerCase() === 'index.html' ? 0 : f.toLowerCase() === 'main.html' ? 1 : 2;
+    plan.htmls = fs.readdirSync(s.path).filter(f => /\.html?$/i.test(f))
+      .sort((a, b) => order(a) - order(b) || a.localeCompare(b)).slice(0, 30);
+  } catch (e) {}
+  const dp = devProcs.get(s.id);
+  if (dp && dp.url && !dp.dead) plan.running = dp.url;
+  res.json(plan);
+});
+// 👁 dev 서버 실행 — 그 폴더에서 npm run <script>를 켜고 출력에서 로컬 주소를 찾아 돌려줌
+app.post('/api/preview-dev', (req, res) => {
+  const s = sessions.find(x => x.id === (req.body && req.body.id));
+  if (!s) return res.status(404).json({});
+  const old = devProcs.get(s.id);
+  if (old && !old.dead) {
+    if (old.url) return res.json({ url: old.url });
+    old.waiters.push(res); return;   // 시작 중 — 주소가 잡히면 같이 응답
+  }
+  let script = 'dev';
+  try { const sc = JSON.parse(fs.readFileSync(path.join(s.path, 'package.json'), 'utf8')).scripts || {};
+        for (const k of ['dev', 'start', 'serve', 'preview']) if (sc[k]) { script = k; break; } } catch (e) {}
+  const proc = spawn('npm', ['run', script], { cwd: s.path, shell: true, windowsHide: true,
+    env: Object.assign({}, process.env, { BROWSER: 'none', FORCE_COLOR: '0' }) });   // CRA 등의 브라우저 자동열기 방지
+  const st = { proc, url: '', dead: false, out: '', waiters: [res] };
+  devProcs.set(s.id, st);
+  const answer = url => {
+    const ws = st.waiters.splice(0);
+    ws.forEach(r => { try { url ? r.json({ url }) : r.status(500).json({ error: 'dev server address not found', log: st.out.replace(/\x1b\[[0-9;]*m/g, '').slice(-700) }); } catch (e) {} });
+  };
+  const to = setTimeout(() => answer(st.url || null), 45000);
+  const onData = d => {
+    st.out = (st.out + d).slice(-8000);
+    if (st.url) return;
+    const m = st.out.replace(/\x1b\[[0-9;]*m/g, '').match(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+[^\s"'<>]*/);
+    if (m) { st.url = m[0].replace('0.0.0.0', 'localhost'); clearTimeout(to); answer(st.url); }
+  };
+  proc.stdout.on('data', onData);
+  proc.stderr.on('data', onData);
+  proc.on('exit', () => { st.dead = true; clearTimeout(to); if (!st.url) answer(null); });
+  proc.on('error', () => { st.dead = true; clearTimeout(to); answer(null); });
+});
+// dev 서버 종료 — 세션을 닫거나 서버가 꺼질 때 같이 정리 (Windows는 셸 트리째로)
+function killDev(id) {
+  const dp = devProcs.get(id);
+  if (!dp || dp.dead) { devProcs.delete(id); return; }
+  try {
+    if (process.platform === 'win32') spawn('taskkill', ['/F', '/T', '/PID', String(dp.proc.pid)], { windowsHide: true });
+    else dp.proc.kill();
+  } catch (e) {}
+  dp.dead = true; devProcs.delete(id);
+}
+function killAllDev() { for (const id of [...devProcs.keys()]) killDev(id); }
 
 // 프로젝트 폴더 정적 서빙 (미리보기 토글용) — index.html이 없는 폴더는 파일 목록으로 보여줌
 app.use('/preview/:id', (req, res, next) => {

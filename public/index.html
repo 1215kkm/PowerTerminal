@@ -895,6 +895,10 @@ const I18N = {
     obMemo:'Memo pad', obMemoD:'Per-folder memos and every request you sent — with Excel export.',
     obHist:'Request history', obHistD:'Your past requests — click one to jump to it in the terminal.',
     obInput:'Request input', obInputD:'Type here and press Enter. Start with "question…" to save the answer to the memo pad.',
+    pvDev:'Run dev server & preview', pvRunning:'Open running dev server', pvFolder:'Open folder listing', pvUrl:'Enter an address manually',
+    pvStarting:'Starting dev server…', pvFail:'Could not find the dev server address.',
+    dropPick:'Same-named folders found — enter the number to open:', dropMiss:"Couldn't locate this folder's real path — use [+ Session] → 📂 Browse.",
+    ghCopyOpen:'Copy code → open GitHub', ghCopyOpenT:'Copies the code and opens the GitHub approval page',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
     setSummaryL:'Summary prompt',
@@ -959,6 +963,10 @@ const I18N = {
     obMemo:'메모장', obMemoD:'폴더별 메모 + 보낸 요청 기록 — 엑셀로도 내려받아요.',
     obHist:'요청 내역', obHistD:'보냈던 요청 목록 — 누르면 터미널 그 위치로 이동해요.',
     obInput:'요청 입력', obInputD:'여기에 쓰고 엔터. "질문~"으로 시작하면 답변이 메모장에 기록돼요.',
+    pvDev:'개발서버 실행해 미리보기', pvRunning:'실행 중인 개발서버 열기', pvFolder:'폴더 목록 열기', pvUrl:'주소 직접 입력',
+    pvStarting:'개발서버 시작 중…', pvFail:'개발서버 주소를 찾지 못했어요.',
+    dropPick:'같은 이름의 폴더가 여러 개예요 — 열 번호를 입력하세요:', dropMiss:'이 폴더의 실제 경로를 찾지 못했어요 — [+세션] → 📂 찾아보기로 열어주세요.',
+    ghCopyOpen:'코드 복사 → GitHub 열기', ghCopyOpenT:'코드를 복사하고 GitHub 승인 페이지를 엽니다',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
     setSummaryL:'요약 프롬프트',
@@ -1457,25 +1465,60 @@ function buildPane(sess, idx) {
     }
   }, true);
 
-  // 👁 미리보기 — 만든 웹페이지/앱을 새 브라우저 창으로 연다
+  // 👁 미리보기 — 폴더를 살펴 알아서: dev 스크립트가 있으면 실행해 열고, html이 있으면 그 파일로,
+  // 여러 개면 골라서. 아무것도 모르겠으면 주소 직접 입력(기존 방식).
+  const pvOpenFile = f => window.open(location.origin + '/preview/' + sess.id + '/' + encodeURIComponent(f) + '?token=' + (TOKEN || ''), '_blank');
+  const pvOpenProxy = async url => {   // 로컬 dev 주소는 PT 프록시로 — 폰(터널)에서도 열림
+    sess.previewUrl = url;
+    await api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
+    window.open(location.origin + '/proxy/' + sess.id + '/?token=' + (TOKEN || ''), '_blank');
+  };
+  const pvRunDev = async cmd => {
+    flashToast('⏳ ' + (T.pvStarting || 'Starting dev server…') + (cmd ? ' (' + cmd + ')' : ''));
+    const r = await api('POST', '/api/preview-dev', { id: sess.id });
+    if (r && r.url) pvOpenProxy(r.url);
+    else alert((T.pvFail || 'Could not find the dev server address.') + (r && r.log ? '\n\n' + r.log : ''));
+  };
+  const pvAskUrl = () => {
+    let url = prompt(T.previewPrompt, sess.previewUrl || 'http://localhost:3000');
+    if (url === null) return;
+    url = url.trim();
+    if (!url) window.open(location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || ''), '_blank');
+    else if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url)) pvOpenProxy(url);
+    else { sess.previewUrl = url; api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url }); window.open(url, '_blank'); }
+  };
+  const pvMenu = items => {   // 세션 안에 겹쳐 뜨는 선택 메뉴 (pane-confirm과 같은 톤)
+    el.querySelectorAll('.pane-confirm').forEach(n => n.remove());
+    const ov = document.createElement('div'); ov.className = 'pane-confirm';
+    const bx = document.createElement('div'); bx.className = 'pc-box'; bx.style.minWidth = '240px';
+    items.forEach(it => {
+      const b = document.createElement('button');
+      b.textContent = it.label;
+      b.style.cssText = 'display:block;width:100%;margin:4px 0;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#111827;color:var(--fg);cursor:pointer;text-align:left;font-size:13px';
+      b.onclick = e2 => { e2.stopPropagation(); ov.remove(); it.act(); };
+      bx.appendChild(b);
+    });
+    const c = document.createElement('button');
+    c.textContent = T.cancel || 'Cancel';
+    c.style.cssText = 'display:block;width:100%;margin:8px 0 0;padding:7px;border-radius:8px;border:none;background:#374151;color:var(--fg);cursor:pointer;font-size:12px';
+    c.onclick = e2 => { e2.stopPropagation(); ov.remove(); };
+    bx.appendChild(c);
+    ov.addEventListener('click', e2 => { if (e2.target === ov) ov.remove(); });
+    ov.appendChild(bx); el.appendChild(ov);
+  };
   el.querySelector('.btnPrev').onclick = async (ev) => {
     ev.stopPropagation();
-    let url = prompt(T.previewPrompt, sess.previewUrl || 'http://localhost:3000');
-    if (url === null) return;             // 취소
-    url = url.trim();
-    let open;
-    if (!url) {
-      // 비워두면 내장 서버로 폴더를 연다 — index.html이 있으면 그 페이지, 없으면 파일 목록(클릭해서 열기)
-      open = location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || '');
-    } else if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url)) {
-      // 로컬 개발서버 주소는 PT 프록시를 거쳐 연다 — 같은 링크가 폰(터널)에서도 열림
-      open = location.origin + '/proxy/' + sess.id + '/?token=' + (TOKEN || '');
-    } else {
-      open = url;                         // 외부 주소는 그대로
-    }
-    sess.previewUrl = url;
-    api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url });
-    window.open(open, '_blank');          // 새 창
+    const plan = await api('GET', '/api/preview-plan?id=' + sess.id) || {};
+    const htmls = plan.htmls || [];
+    if (!plan.running && !plan.dev && !htmls.length) return pvAskUrl();          // 단서 없음 → 주소 입력
+    if (!plan.running && !plan.dev && htmls.length === 1) return pvOpenFile(htmls[0]);   // html 하나뿐 → 바로
+    const items = [];
+    if (plan.running) items.push({ label: '🌐 ' + (T.pvRunning || 'Open running dev server') + ' — ' + plan.running, act: () => pvOpenProxy(plan.running) });
+    else if (plan.dev) items.push({ label: '▶ ' + (T.pvDev || 'Run dev server & preview') + ' (' + plan.dev.cmd + ')', act: () => pvRunDev(plan.dev.cmd) });
+    htmls.slice(0, 8).forEach(f => items.push({ label: '📄 ' + f, act: () => pvOpenFile(f) }));
+    items.push({ label: '📂 ' + (T.pvFolder || 'Open folder listing'), act: () => window.open(location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || ''), '_blank') });
+    items.push({ label: '✏ ' + (T.pvUrl || 'Enter an address manually'), act: pvAskUrl });
+    pvMenu(items);
   };
 
   // 세션 AI(agent) 변경 — 다른 AI로 세션 재시작 (헤더가 바뀌므로 pane 재생성, 위치 유지)
@@ -2540,11 +2583,14 @@ async function updateGhPick() {
   const who = (u && u.login) ? u.login : (T.ghNoLogin || 'not signed in');
   p.textContent = base + ' — ' + (T.ghId || 'ID') + ' : ' + who;
 }
-// ⚡ PowerShell(터미널) 세션을 열어 winget으로 gh를 바로 설치. 설치 후 GitHub 탭에서 '다시 시도'.
+// ⚡ PowerShell(터미널) 세션을 열어 winget으로 gh를 바로 설치. 설치가 끝나면 그 세션은 자동으로 닫힘.
 async function ghInstallViaPS() {
   try { addDlg.close(); } catch (e) {}
   await addSession('', 'GitHub CLI 설치', 'custom',
-    'winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements', true);
+    'winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements; '
+    + 'Write-Host ""; Write-Host "  Done — this session closes itself in a few seconds / 설치 끝 — 이 세션은 잠시 후 자동으로 닫혀요" -ForegroundColor Green; '
+    + 'Start-Sleep -Seconds 5; exit',   // exit → 서버가 autoClose 세션을 목록에서 제거
+    true, { autoClose: true });
 }
 async function loadRepos() {
   updateGhPick();
@@ -2616,9 +2662,13 @@ async function ghLogin() {
   }
   box.innerHTML = `<div style="font-size:13px;padding:10px;line-height:1.7">`
     + `<div>${esc(T.ghStep1 || '1) Copy this code  2) open GitHub  3) paste & approve')}</div>`
-    + `<div style="font-size:24px;font-weight:800;letter-spacing:4px;margin:8px 0;user-select:all;color:var(--accent,#8a38f5)">${esc(j.user_code)}</div>`
-    + `<button class="primary" onclick="window.open('${j.verification_uri}','_blank')">🌐 ${esc(T.ghOpen || 'Open GitHub')}</button>`
+    + `<div id="ghCode" title="${esc(T.ghCopyOpenT || '')}" style="font-size:24px;font-weight:800;letter-spacing:4px;margin:8px 0;user-select:all;cursor:pointer;color:var(--accent,#8a38f5)">${esc(j.user_code)}</div>`
+    + `<button class="primary" id="ghCopyOpen">📋 ${esc(T.ghCopyOpen || 'Copy code → open GitHub')}</button>`
     + `<div id="ghPollMsg" style="color:var(--muted);margin-top:10px">${esc(T.ghWaiting || 'Waiting for approval…')}</div></div>`;
+  // 복사가 끝나면 깃허브 승인창이 바로 뜨게 — 코드 글자를 눌러도 동일
+  const copyOpen = () => { copyTxt(j.user_code); setTimeout(() => window.open(j.verification_uri, '_blank'), 350); };
+  document.getElementById('ghCopyOpen').onclick = copyOpen;
+  document.getElementById('ghCode').onclick = copyOpen;
   ghPollTimer = setInterval(async () => {
     const p = await api('POST', '/api/gh-login/poll');
     if (!p) return;
@@ -2678,9 +2728,9 @@ async function addManual() {
   renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
   if (s) showAddMsg(s.title || title || p);
 }
-async function addSession(path, title, agent, cmd, skipPrompt) {
+async function addSession(path, title, agent, cmd, skipPrompt, extra) {
   const pick = document.getElementById('addAgent').value;
-  const s = await api('POST', '/api/sessions', { path, title, agent: agent || pick, cmd, model: curAddModel() });
+  const s = await api('POST', '/api/sessions', Object.assign({ path, title, agent: agent || pick, cmd, model: curAddModel() }, extra || {}));
   if (s.error) { alert(s.error); return null; }
   if (skipPrompt) addHere(s);          // 이전에 쓰던 세션 다시 열기 = 새 창 묻지 않고 이 창에
   else await placeNewSession(s);       // 완전히 새 폴더 추가 = 5개↑면 새 창 물어봄
@@ -2989,6 +3039,40 @@ setInterval(() => {
   showIdle(true);
   obIdleT = Date.now();   // 계속 유휴면 다음 힌트는 5분 뒤
 }, 20000);
+
+// ================= 📁 폴더 드래그 → 세션 추가 =================
+// 탐색기에서 폴더를 페이지에 끌어다 놓으면 세션으로. 브라우저는 절대경로를 안 주므로
+// 폴더 이름 + 안의 항목 이름들을 서버로 보내 아는 위치들에서 실제 경로를 찾아냄.
+// (이미지·파일 드롭은 각 입력줄의 첨부 기능이 그대로 처리 — 여기선 '폴더'만 가로챔)
+addEventListener('dragover', ev => {
+  if ([...(ev.dataTransfer && ev.dataTransfer.types || [])].includes('Files')) ev.preventDefault();
+});
+addEventListener('drop', async ev => {
+  const items = [...((ev.dataTransfer && ev.dataTransfer.items) || [])];
+  const entry = items.map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).find(e2 => e2 && e2.isDirectory);
+  if (!entry) {   // 폴더가 아니면: 세션 창 안은 기존 처리(첨부·순서변경)에 맡기고, 빈 곳이면 페이지 이탈만 차단
+    if (((ev.dataTransfer && ev.dataTransfer.files) || []).length && !(ev.target.closest && ev.target.closest('.pane'))) ev.preventDefault();
+    return;
+  }
+  ev.preventDefault(); ev.stopPropagation();
+  const children = await new Promise(res => {
+    try { entry.createReader().readEntries(es => res(es.map(x => x.name).slice(0, 20)), () => res([])); } catch (e) { res([]); }
+  });
+  const r = await api('POST', '/api/resolve-drop', { name: entry.name, children });
+  const matches = (r && r.matches) || [];
+  if (matches.length === 1) {
+    const s = await addSession(matches[0], entry.name, null, '', false);
+    if (s) flashToast('✅ ' + entry.name);
+  } else if (matches.length > 1) {
+    const pick = prompt((T.dropPick || 'Same-named folders found — enter the number to open:') + '\n'
+      + matches.map((m, i) => (i + 1) + ') ' + m).join('\n'), '1');
+    const idx = parseInt(pick, 10) - 1;
+    if (matches[idx]) { const s = await addSession(matches[idx], entry.name, null, '', false); if (s) flashToast('✅ ' + entry.name); }
+  } else {
+    alert(T.dropMiss || "Couldn't locate this folder's real path — use [+ Session] → 📂 Browse.");
+    openAdd();
+  }
+}, true);
 
 // ================= 🧠 마인드맵 (전체화면 오버레이) =================
 // 자유 배치 마인드맵 — SVG 하나 + Pointer Events. 각 노드는 부모중심 기준 상대오프셋(offX/offY)을 직접 가짐.
