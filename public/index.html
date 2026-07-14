@@ -4371,8 +4371,10 @@ applyStatic();
   }
 
   const mine  = list.filter(s => !popped.has(s.id));
-  const alive = mine.filter(s => s.alive)    // 서버가 계속 켜져 있던 경우(새로고침) — 그대로 복원
-                    .sort((a, b) => orderRank(a.path) - orderRank(b.path));   // 기억된 화면 배열 순서로
+  // 살아있던 세션(새로고침)은 서버 배열 순서 그대로 복원 — 서버 순서가 단일 기준(드래그·추가 때마다 저장됨).
+  // 예전엔 여기서 localStorage(pt_order)로 재정렬했는데, 그게 서버 순서와 어긋나면(다른 브라우저·팝업창·부분저장)
+  // 열 때마다 세션 위치가 뒤바뀌는 원인이었음 → 클라 재정렬 제거.
+  const alive = mine.filter(s => s.alive);
   const idle  = mine.filter(s => !s.alive);  // 껐다 켠 경우 — 선택창으로
 
   alive.forEach((s, i) => buildPane(s, i));

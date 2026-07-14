@@ -227,12 +227,16 @@ function getPty(sess) {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
     if (isClaude) {
-      // Claude는 작업 중일 때 'esc to interrupt'를 계속 그림 → 이 표시로 작업중/완료 판별
-      // (사용량 정지 중 카운트다운 같은 잔출력에 상태가 흔들리지 않음)
-      // CC 2.1.x부터 이 문구가 하단 바로 옮겨가 좁은 창에선 'esc to int…'로 말줄임되고,
-      // 긴 생각 중 스피너는 'still thinking'만 보임 → 셋 다 작업중으로 인정
-      const t15 = p.buffer.slice(-1500);
-      if (t15.includes('esc to int') || t15.includes('still thinking')) p.lastMarker = Date.now();
+      // Claude가 작업 중일 때 그리는 표시로 작업중/완료 판별 (사용량 정지 중 잔출력에 안 흔들리게).
+      // 좁은 분할·폰 화면에선 하단 상태바가 잘려 'esc to interrupt'가 버퍼에 안 남음(v1.10.2까지 오완료의 원인).
+      // → 화면 폭과 무관하게 항상 남는 '스피너'로 판별: 제라운드… (4m 44s · ↓ 15.4k tokens) 형태.
+      //   괄호 경과시간 (Nm Ns / Ns) 또는 '…' 뒤 숫자(경과·토큰)면 작업 중으로 인정.
+      const t15 = p.buffer.slice(-1800);
+      if (t15.includes('esc to int') || t15.includes('still thinking')
+          || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)       // 스피너 경과시간
+          || /…\s*\(?[↓↑\s]*\d/.test(t15)) {           // 제라운드… 뒤 숫자(경과·토큰)
+        p.lastMarker = Date.now();
+      }
     } else {
       const wasIdle = !p.busy || p.done;
       p.busy = true;
