@@ -688,15 +688,18 @@ app.post('/api/settings', (req, res) => {
   res.json({ ok: true, intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes });
 });
 
-// ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영, 10분 캐시) ----------
+// ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영) ----------
+// 캐시 3분 + 매 요청 캐시버스터로 GitHub raw CDN(약 5분) 우회 → 새 버전을 내면 몇 분 내 '업데이트 배너'가 뜸.
+// (예전엔 10분 캐시라 릴리스 후 최대 10분+ 배너가 안 떠서 "새 버전인데 배너가 안 보임"의 원인이었음)
 const BANNER_URL = config.bannerUrl ||
   'https://raw.githubusercontent.com/1215kkm/PowerTerminal/main/banner.json';
 let bannerCache = { t: 0, data: null };
 app.get('/api/banner', async (req, res) => {
-  if (bannerCache.data && Date.now() - bannerCache.t < 10 * 60 * 1000) return res.json(bannerCache.data);
+  if (bannerCache.data && Date.now() - bannerCache.t < 3 * 60 * 1000) return res.json(bannerCache.data);
   let data = null;
   try {
-    const r = await fetch(BANNER_URL, { signal: AbortSignal.timeout(8000) });
+    const bust = (BANNER_URL.includes('?') ? '&' : '?') + '_=' + Date.now();   // CDN 캐시 우회
+    const r = await fetch(BANNER_URL + bust, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (r.ok) data = await r.json();
   } catch (e) {}
   // 폴백 체인: 원격(GitHub) → 로컬 파일 → 코드 내장 기본값 (로컬 파일을 지워도 배너는 유지됨)
