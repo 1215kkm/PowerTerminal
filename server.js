@@ -923,6 +923,43 @@ app.post('/api/sessions/:id/upload-text', (req, res) => {
   }
 });
 
+// 🌿 세션 폴더의 git 브랜치·리모트 — 입력창 위 얇은 줄에 표시. 클릭하면 그 브랜치의 PR 페이지로.
+const gitCache = new Map();   // sessionId -> { at, data }
+app.get('/api/git-info', (req, res) => {
+  const s = sessions.find(x => x.id === req.query.id);
+  if (!s) return res.status(404).json({});
+  const c = gitCache.get(s.id);
+  if (c && Date.now() - c.at < 8000) return res.json(c.data);   // 8초 캐시 — 폴링 부담 줄이기
+  const run = (args) => execFileSync('git', args, { cwd: s.path, encoding: 'utf8', timeout: 6000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  let data = { git: false };
+  try {
+    const branch = run(['rev-parse', '--abbrev-ref', 'HEAD']);
+    let remote = ''; try { remote = run(['config', '--get', 'remote.origin.url']); } catch (e) {}
+    let dirty = 0; try { dirty = run(['status', '--porcelain']).split('\n').filter(Boolean).length; } catch (e) {}
+    let ahead = 0, behind = 0;
+    try { const t = run(['rev-list', '--left-right', '--count', 'HEAD...@{upstream}']).split(/\s+/); ahead = +t[0] || 0; behind = +t[1] || 0; } catch (e) {}
+    // GitHub 리모트면 PR 페이지 주소 — 브랜치가 main/master면 PR 목록, 아니면 그 브랜치의 PR(없으면 새 PR 화면)
+    let prUrl = '', repo = '';
+    const m = remote.match(/github\.com[/:]([^/]+\/[^/.]+)(\.git)?$/i);
+    if (m) {
+      repo = m[1];
+      if (/^(main|master)$/i.test(branch)) prUrl = `https://github.com/${repo}/pulls`;
+      else {
+        // 이 브랜치로 열린 PR이 있으면 그 PR로, 없으면 새 PR 화면으로 (gh 없거나 실패해도 폴백)
+        try {
+          const j = JSON.parse(execFileSync(ghBin(), ['pr', 'list', '--repo', repo, '--head', branch, '--state', 'open', '--json', 'url', '--limit', '1'],
+            { encoding: 'utf8', timeout: 7000, stdio: ['ignore', 'pipe', 'ignore'] }));
+          if (Array.isArray(j) && j[0] && j[0].url) prUrl = j[0].url;
+        } catch (e) {}
+        if (!prUrl) prUrl = `https://github.com/${repo}/pull/new/${encodeURIComponent(branch)}`;
+      }
+    }
+    data = { git: true, branch, dirty, ahead, behind, repo, prUrl };
+  } catch (e) { data = { git: false }; }
+  gitCache.set(s.id, { at: Date.now(), data });
+  res.json(data);
+});
+
 // 🔗 터미널 속 파일 링크(Ctrl+클릭)로 파일/폴더 열기 — 절대경로 또는 세션 폴더 기준 상대 이름
 app.post('/api/open-path', (req, res) => {
   let p = String((req.body && req.body.path) || '').trim();

@@ -398,6 +398,15 @@
     .memo-col.mcollapsed .memo-list, .memo-col.mcollapsed #memoNew { display: none; }
     .memo-col.mcollapsed .memo-savebar { display: none !important; }   /* 인라인 display:flex보다 우선 */
   }
+  /* 🌿 브랜치 표시줄 — 입력창 바로 위 얇은 한 줄. 클릭하면 그 브랜치의 PR 페이지 */
+  .gitbar { display: flex; align-items: center; gap: 7px; padding: 2px 8px 3px; font-size: 11px; line-height: 1.5;
+            color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; overflow: hidden; }
+  .gitbar:hover { color: var(--fg); }
+  .gitbar .gb-br { color: #a78bfa; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+  .gitbar:hover .gb-br { text-decoration: underline; }
+  .gitbar .gb-dirty { color: #fbbf24; }
+  .gitbar .gb-sync { color: #38bdf8; }
+  .gitbar .gb-repo { margin-left: auto; opacity: .65; overflow: hidden; text-overflow: ellipsis; }
   /* 🎈 온보딩 말풍선 — 처음 사용자에게 기능을 하나씩 안내 (뾰족 화살표) · 유휴 5분 힌트에도 재사용 */
   .obub { position: absolute; z-index: 300; max-width: 250px; background: linear-gradient(135deg, var(--violet), var(--pink));
           color: #fff; border-radius: 11px; padding: 10px 26px 10px 13px; font-size: 12.5px; line-height: 1.55;
@@ -899,7 +908,9 @@ const I18N = {
     pvStarting:'Starting dev server…', pvFail:'Could not find the dev server address.',
     dropPick:'Same-named folders found — enter the number to open:', dropMiss:"Couldn't locate this folder's real path — use [+ Session] → 📂 Browse.",
     ghCopyOpen:'Copy code → open GitHub', ghCopyOpenT:'Copies the code and opens the GitHub approval page',
-    fileOpened:'Opened',
+    fileOpened:'Opened', modeSwitched:'mode switched (Shift+Tab)',
+    gbDirty:'uncommitted changes', gbAhead:'commits to push', gbBehind:'commits to pull',
+    gbPrT:'Open this branch on GitHub (its pull request, or a new one)',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
     setSummaryL:'Summary prompt',
@@ -968,7 +979,9 @@ const I18N = {
     pvStarting:'개발서버 시작 중…', pvFail:'개발서버 주소를 찾지 못했어요.',
     dropPick:'같은 이름의 폴더가 여러 개예요 — 열 번호를 입력하세요:', dropMiss:'이 폴더의 실제 경로를 찾지 못했어요 — [+세션] → 📂 찾아보기로 열어주세요.',
     ghCopyOpen:'코드 복사 → GitHub 열기', ghCopyOpenT:'코드를 복사하고 GitHub 승인 페이지를 엽니다',
-    fileOpened:'열었어요',
+    fileOpened:'열었어요', modeSwitched:'모드 전환 (Shift+Tab)',
+    gbDirty:'커밋 안 된 변경', gbAhead:'push할 커밋', gbBehind:'pull할 커밋',
+    gbPrT:'이 브랜치의 GitHub PR 페이지 열기 (열린 PR이 있으면 그것, 없으면 새 PR)',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
     setSummaryL:'요약 프롬프트',
@@ -1266,9 +1279,10 @@ function buildPane(sess, idx) {
       <iframe class="preview hidden"></iframe>
     </div>
     <div class="qThumbs"></div>
+    <div class="gitbar" style="display:none"></div>
     <div class="quick">
       <div class="qRow">
-        <textarea placeholder="${T.quickPh}" enterkeyhint="send" rows="1"></textarea>
+        <textarea placeholder="${escA(T.quickPh)}" enterkeyhint="send" rows="1"></textarea>
         <span class="qBtns">
           <button class="small qHist" title="${esc(T.reqHistT || '')}">📜 ${esc(T.reqHistBtn || 'Requests')}</button>
           <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
@@ -1665,6 +1679,7 @@ function buildPane(sess, idx) {
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 쓰다 만 글 임시저장도 정리
     await api('DELETE', '/api/sessions/' + sess.id);
     closedByUser = true;
+    el.dispatchEvent(new Event('ptclose'));   // 이 창의 주기 타이머(브랜치 갱신 등) 정리
     ws.close(); el.remove(); panes.delete(sess.id);
     renumber();
   };
@@ -1735,6 +1750,55 @@ function buildPane(sess, idx) {
     if (!ev.shiftKey) { ev.preventDefault(); send(); }   // 그냥 Enter = 전송 · Shift+Enter = 줄바꿈
   });
   el.querySelector('.qSend').onclick = send;   // 팡 효과는 send() 안에서 (클릭·엔터 공통)
+
+  // ⌨ 빠른입력줄·버튼 영역에서도 터미널 단축키가 통하게 — 키를 터미널로 그대로 흘려보냄.
+  // Shift+Tab(모드 전환 auto/편집승인/플랜)이 대표. Ctrl+C(중단)·Ctrl+L(화면 지우기) 등 PowerShell/Claude 공통 키도.
+  // 이 PC의 PSReadLine 기본 바인딩으로 실제 확인한 것만 (F7 등 미바인딩 키는 제외)
+  const TERMKEYS = {
+    'shift+Tab': '\x1b[Z',        // 모드 전환 auto/편집승인/플랜 (Claude)
+    'ctrl+c':    '\x03',          // 중단 (PSReadLine: CopyOrCancelLine)
+    'ctrl+l':    '\x0c',          // 화면 지우기 (ClearScreen)
+    'ctrl+r':    '\x12',          // 히스토리 역검색 (ReverseSearchHistory)
+    'ctrl+w':    '\x17',          // 앞 단어 지우기 (BackwardKillWord)
+    'ctrl+t':    '\x14',          // 작업목록 토글 (Claude)
+    'ctrl+d':    '\x04',          // EOF / 종료
+    'F8':        '\x1b[19~',      // 접두사 히스토리 검색 (HistorySearchBackward)
+  };
+  const relayKey = ev => {
+    if (ev.isComposing) return;
+    const isEditing = ev.target && (ev.target.matches('textarea, input') || ev.target.isContentEditable);
+    const mod = (ev.ctrlKey || ev.metaKey ? 'ctrl+' : '') + (ev.shiftKey && ev.key === 'Tab' ? 'shift+' : '');
+    const seq = TERMKEYS[mod + ev.key] || TERMKEYS[ev.key];
+    if (!seq) return;
+    // 입력 중일 땐 글 편집용 키(Ctrl+C 복사·Ctrl+U/W 편집·Ctrl+R 새로고침 등)를 뺏지 않음 — Shift+Tab만 항상 통과
+    if (isEditing && !(ev.shiftKey && ev.key === 'Tab')) {
+      if (ev.ctrlKey || ev.metaKey) return;
+    }
+    if (ws.readyState !== 1) return;
+    ev.preventDefault(); ev.stopPropagation();
+    ws.send(JSON.stringify({ type: 'in', data: seq }));
+    if (ev.key === 'Tab') flashToast('⇄ ' + (T.modeSwitched || 'mode'));   // Shift+Tab은 눈에 안 보여서 피드백
+  };
+  el.querySelector('.quick').addEventListener('keydown', relayKey);   // 입력줄 + 그 안의 버튼들 (전송·첨부·요청내역)
+
+  // 🌿 브랜치 표시줄 — git 레포면 입력창 위에 얇게 항상. 클릭 = 그 브랜치의 PR 페이지(열린 PR 있으면 그것, 없으면 새 PR).
+  const gitBar = el.querySelector('.gitbar');
+  const refreshGit = async () => {
+    const g = await api('GET', '/api/git-info?id=' + sess.id);
+    if (!g || !g.git) { gitBar.style.display = 'none'; return; }
+    const bits = [`<span>🌿</span><span class="gb-br">${esc(g.branch)}</span>`];
+    if (g.dirty) bits.push(`<span class="gb-dirty" title="${esc(T.gbDirty || 'uncommitted changes')}">●${g.dirty}</span>`);
+    if (g.ahead) bits.push(`<span class="gb-sync" title="${esc(T.gbAhead || 'commits to push')}">↑${g.ahead}</span>`);
+    if (g.behind) bits.push(`<span class="gb-sync" title="${esc(T.gbBehind || 'commits to pull')}">↓${g.behind}</span>`);
+    if (g.repo) bits.push(`<span class="gb-repo">${esc(g.repo)}</span>`);
+    gitBar.innerHTML = bits.join('');
+    gitBar.style.display = 'flex';
+    gitBar.title = g.prUrl ? (T.gbPrT || 'Open the pull request page for this branch') : '';
+    gitBar.onclick = ev => { ev.stopPropagation(); if (g.prUrl) window.open(g.prUrl, '_blank', 'noopener'); };
+  };
+  refreshGit();
+  const gitTimer = setInterval(refreshGit, 20000);   // 브랜치·변경사항 주기 갱신 (서버 8초 캐시)
+  el.addEventListener('ptclose', () => clearInterval(gitTimer));
 
   // 메모장 '📤 전송' 등 외부에서 이 세션 터미널로 보내기 — send()와 같은 경로 (요청내역 기록)
   const sendText = (text) => {
@@ -2154,6 +2218,8 @@ function orderRank(path) {
   catch (e) { return 999; }
 }
 function esc(s) { return (s || '').replace(/</g, '&lt;'); }
+// HTML 속성값용 — 큰따옴표까지 이스케이프. (placeholder="..." 안의 " 때문에 문구가 잘리던 버그)
+function escA(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 
 // 터미널 선택 텍스트 복사.
 // Clipboard API 우선 — 성공/실패를 정확히 알려줌 (localhost·https에선 항상 이 경로).
