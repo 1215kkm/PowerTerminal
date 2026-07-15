@@ -30,11 +30,13 @@
   button.small { padding: 4px 8px; font-size: 12px; }
 
   #grid { display: grid; gap: 10px; padding: 10px;
-          grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr));
-          transition: grid-template-columns .35s ease; }
+          grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); }
+  /* grid-template-columns 트랜지션은 제거 — fr 값 애니메이션이 xterm 고정폭과 얽혀 '크게보기'의 3fr 1fr가
+     945/945 균등폭으로 굳던 버그(폭이 안 커짐). 즉시 반영이 정확. */
   .pane { position: relative;   /* 세션 안 확인창(.pane-confirm) 오버레이가 이 창에만 갇히도록 */
           background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
           display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
+          min-width: 0;   /* 그리드 아이템이 터미널 내용폭(min-content) 아래로도 줄어들게 — 없으면 '크게보기'의 3fr 1fr가 균등폭으로 무시됨 */
           transition: border-color .3s; }
   .pane.busy { border-color: #7dd8ff;                         /* 작업 중 — 밝은 하늘색 + 은은한 빛 (더 눈에 띄게) */
                outline: 2px solid rgba(125,216,255,.55);
@@ -1650,11 +1652,8 @@ function buildPane(sess, idx) {
     maxedId = (maxedId === sess.id) ? null : sess.id;
     applyLayout();
     if (maxedId === sess.id && isMobile) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    // 레이아웃이 바뀌면 모든 터미널 크기 다시 맞추기 (ResizeObserver 보조)
-    setTimeout(() => panes.forEach(p => {
-      try { p.fit.fit(); } catch (e) {}
-      if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'resize', cols: p.term.cols, rows: p.term.rows }));
-    }), 80);
+    refitAll();                                  // 폭이 즉시 바뀌니 바로 재fit
+    setTimeout(refitAll, 60);                    // 레이아웃 정착 후 한 번 더 (보정)
   };
 
   // 🔍 전체화면 확대 토글 (폰) — 이 세션창 하나를 화면 전체로. 다시 누르거나 ✕로 닫음
