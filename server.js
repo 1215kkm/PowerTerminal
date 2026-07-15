@@ -1223,22 +1223,46 @@ app.post('/api/reboot', (req, res) => {
   setTimeout(() => process.exit(75), 300);   // 75 = "재시작" 신호 (런처가 감지해 루프)
 });
 
-// 👁 미리보기 계획 — 폴더를 살펴 dev 스크립트(npm run dev 등)와 열 수 있는 html 파일을 알려줌
+// 👁 미리보기 계획 — 폴더를 살펴 dev 스크립트(웹서버만)와 열 수 있는 html 파일을 알려줌
 const devProcs = new Map();   // sessionId -> { proc, url, dead, out, waiters }
+// 웹 개발서버로 인정할 명령 패턴 — 이게 아니면(예: node build/preview.js 같은 커스텀 CLI) dev 후보에서 제외
+const WEB_SERVER_RE = /\b(vite|next|nuxt|astro|remix|gatsby|docusaurus|react-scripts|webpack-dev-server|webpack\s+serve|http-server|live-server|\bserve\b|sirv|parcel|vue-cli-service|ng\s+serve|svelte-kit|solid-start|rsbuild|storybook|nodemon|eleventy|wrangler\s+(dev|pages)|netlify\s+dev|expo\s+start)\b/i;
+// dev 후보 고르기: 이름이 dev/develop/serve면 관용상 인정, start/preview는 명령이 웹서버 도구일 때만
+function pickDevScript(scripts) {
+  for (const k of ['dev', 'develop', 'serve', 'start', 'preview']) {
+    const cmd = scripts[k]; if (!cmd) continue;
+    if (k === 'dev' || k === 'develop' || k === 'serve' || WEB_SERVER_RE.test(cmd)) return { script: k, cmd: 'npm run ' + k };
+  }
+  return null;
+}
+// 폴더에서 미리볼 html 찾기: 루트 + 흔한 산출물/문서 폴더를 얕게(깊이 2) 스캔, index.html 우선
+function findHtmls(root) {
+  const SKIP = new Set(['node_modules', '.git', '.next', '.nuxt', '.cache', 'coverage']);
+  const out = [];
+  const scan = (dir, rel, depth) => {
+    let ents; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+    for (const e of ents) {
+      if (e.name.startsWith('.') && e.name !== '.') continue;
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isFile() && /\.html?$/i.test(e.name)) out.push(r);
+      else if (e.isDirectory() && depth > 0 && !SKIP.has(e.name)) scan(path.join(dir, e.name), r, depth - 1);
+      if (out.length > 40) return;
+    }
+  };
+  scan(root, '', 2);
+  const rank = r => { const b = r.split('/').pop().toLowerCase(), seg = r.split('/').length;
+    return (b === 'index.html' ? 0 : b === 'main.html' ? 1 : 2) * 100 + seg; };   // index/main 우선, 얕은 경로 우선
+  return out.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 15);
+}
 app.get('/api/preview-plan', (req, res) => {
   const s = sessions.find(x => x.id === req.query.id);
   if (!s) return res.status(404).json({});
   const plan = { dev: null, htmls: [], running: null };
   try {
     const pj = JSON.parse(fs.readFileSync(path.join(s.path, 'package.json'), 'utf8'));
-    const scripts = (pj && pj.scripts) || {};
-    for (const k of ['dev', 'start', 'serve', 'preview']) if (scripts[k]) { plan.dev = { script: k, cmd: 'npm run ' + k }; break; }
+    plan.dev = pickDevScript((pj && pj.scripts) || {});
   } catch (e) {}
-  try {
-    const order = f => f.toLowerCase() === 'index.html' ? 0 : f.toLowerCase() === 'main.html' ? 1 : 2;
-    plan.htmls = fs.readdirSync(s.path).filter(f => /\.html?$/i.test(f))
-      .sort((a, b) => order(a) - order(b) || a.localeCompare(b)).slice(0, 30);
-  } catch (e) {}
+  plan.htmls = findHtmls(s.path);
   const dp = devProcs.get(s.id);
   if (dp && dp.url && !dp.dead) plan.running = dp.url;
   res.json(plan);
@@ -1254,7 +1278,7 @@ app.post('/api/preview-dev', (req, res) => {
   }
   let script = 'dev';
   try { const sc = JSON.parse(fs.readFileSync(path.join(s.path, 'package.json'), 'utf8')).scripts || {};
-        for (const k of ['dev', 'start', 'serve', 'preview']) if (sc[k]) { script = k; break; } } catch (e) {}
+        const pick = pickDevScript(sc); if (pick) script = pick.script; } catch (e) {}
   const proc = spawn('npm', ['run', script], { cwd: s.path, shell: true, windowsHide: true,
     env: Object.assign({}, process.env, { BROWSER: 'none', FORCE_COLOR: '0' }) });   // CRA 등의 브라우저 자동열기 방지
   const st = { proc, url: '', dead: false, out: '', waiters: [res] };

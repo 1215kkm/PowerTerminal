@@ -905,7 +905,7 @@ const I18N = {
     obHist:'Request history', obHistD:'Your past requests — click one to jump to it in the terminal.',
     obInput:'Request input', obInputD:'Type here and press Enter. Start with "question…" to save the answer to the memo pad.',
     pvDev:'Run dev server & preview', pvRunning:'Open running dev server', pvFolder:'Open folder listing', pvUrl:'Enter an address manually',
-    pvStarting:'Starting dev server…', pvFail:'Could not find the dev server address.',
+    pvStarting:'Starting dev server…', pvFail:'That script is not a web dev server (no address found). Pick a page or open the folder instead:',
     dropPick:'Same-named folders found — enter the number to open:', dropMiss:"Couldn't locate this folder's real path — use [+ Session] → 📂 Browse.",
     ghCopyOpen:'Copy code → open GitHub', ghCopyOpenT:'Copies the code and opens the GitHub approval page',
     fileOpened:'Opened', modeSwitched:'mode switched (Shift+Tab)',
@@ -976,7 +976,7 @@ const I18N = {
     obHist:'요청 내역', obHistD:'보냈던 요청 목록 — 누르면 터미널 그 위치로 이동해요.',
     obInput:'요청 입력', obInputD:'여기에 쓰고 엔터. "질문~"으로 시작하면 답변이 메모장에 기록돼요.',
     pvDev:'개발서버 실행해 미리보기', pvRunning:'실행 중인 개발서버 열기', pvFolder:'폴더 목록 열기', pvUrl:'주소 직접 입력',
-    pvStarting:'개발서버 시작 중…', pvFail:'개발서버 주소를 찾지 못했어요.',
+    pvStarting:'개발서버 시작 중…', pvFail:'이 스크립트는 웹 개발서버가 아니에요(주소 없음). 대신 아래에서 페이지를 고르거나 폴더를 여세요:',
     dropPick:'같은 이름의 폴더가 여러 개예요 — 열 번호를 입력하세요:', dropMiss:'이 폴더의 실제 경로를 찾지 못했어요 — [+세션] → 📂 찾아보기로 열어주세요.',
     ghCopyOpen:'코드 복사 → GitHub 열기', ghCopyOpenT:'코드를 복사하고 GitHub 승인 페이지를 엽니다',
     fileOpened:'열었어요', modeSwitched:'모드 전환 (Shift+Tab)',
@@ -1545,8 +1545,11 @@ function buildPane(sess, idx) {
   const pvRunDev = async cmd => {
     flashToast('⏳ ' + (T.pvStarting || 'Starting dev server…') + (cmd ? ' (' + cmd + ')' : ''));
     const r = await api('POST', '/api/preview-dev', { id: sess.id });
-    if (r && r.url) pvOpenProxy(r.url);
-    else alert((T.pvFail || 'Could not find the dev server address.') + (r && r.log ? '\n\n' + r.log : ''));
+    if (r && r.url) { pvOpenProxy(r.url); return; }
+    // 실패(커스텀 CLI라 주소 없음 등) — 막다른 알림 대신 다른 방법 메뉴를 다시 띄움
+    const note = (T.pvFail || 'That script is not a web dev server (no address found).')
+               + (r && r.log ? '\n\n' + r.log.trim().split('\n').slice(-4).join('\n') : '');
+    pvBuildMenu({ skipDev: true, note });
   };
   const pvAskUrl = () => {
     let url = prompt(T.previewPrompt, sess.previewUrl || 'http://localhost:3000');
@@ -1556,10 +1559,13 @@ function buildPane(sess, idx) {
     else if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url)) pvOpenProxy(url);
     else { sess.previewUrl = url; api('PATCH', '/api/sessions/' + sess.id, { previewUrl: url }); window.open(url, '_blank'); }
   };
-  const pvMenu = items => {   // 세션 안에 겹쳐 뜨는 선택 메뉴 (pane-confirm과 같은 톤)
+  const pvMenu = (items, note) => {   // 세션 안에 겹쳐 뜨는 선택 메뉴 (pane-confirm과 같은 톤)
     el.querySelectorAll('.pane-confirm').forEach(n => n.remove());
     const ov = document.createElement('div'); ov.className = 'pane-confirm';
     const bx = document.createElement('div'); bx.className = 'pc-box'; bx.style.minWidth = '240px';
+    if (note) { const n = document.createElement('div');
+      n.style.cssText = 'font-size:11.5px;color:#fbbf24;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 9px;margin-bottom:6px;white-space:pre-wrap;max-height:120px;overflow:auto;line-height:1.5';
+      n.textContent = note; bx.appendChild(n); }
     items.forEach(it => {
       const b = document.createElement('button');
       b.textContent = it.label;
@@ -1575,20 +1581,23 @@ function buildPane(sess, idx) {
     ov.addEventListener('click', e2 => { if (e2.target === ov) ov.remove(); });
     ov.appendChild(bx); el.appendChild(ov);
   };
-  el.querySelector('.btnPrev').onclick = async (ev) => {
-    ev.stopPropagation();
+  // 미리보기 메뉴 구성 — skipDev면 개발서버 항목 제외(방금 실패해서 다시 뜬 경우), note면 상단에 노란 안내
+  const pvBuildMenu = async (opts) => {
+    opts = opts || {};
     const plan = await api('GET', '/api/preview-plan?id=' + sess.id) || {};
     const htmls = plan.htmls || [];
-    if (!plan.running && !plan.dev && !htmls.length) return pvAskUrl();          // 단서 없음 → 주소 입력
-    if (!plan.running && !plan.dev && htmls.length === 1) return pvOpenFile(htmls[0]);   // html 하나뿐 → 바로
+    const canDev = !opts.skipDev && (plan.running || plan.dev);
+    if (!canDev && !htmls.length && !opts.note) return pvAskUrl();          // 단서 없음 → 주소 입력
+    if (!canDev && htmls.length === 1 && !opts.note) return pvOpenFile(htmls[0]);   // html 하나뿐 → 바로
     const items = [];
-    if (plan.running) items.push({ label: '🌐 ' + (T.pvRunning || 'Open running dev server') + ' — ' + plan.running, act: () => pvOpenProxy(plan.running) });
-    else if (plan.dev) items.push({ label: '▶ ' + (T.pvDev || 'Run dev server & preview') + ' (' + plan.dev.cmd + ')', act: () => pvRunDev(plan.dev.cmd) });
-    htmls.slice(0, 8).forEach(f => items.push({ label: '📄 ' + f, act: () => pvOpenFile(f) }));
+    if (!opts.skipDev && plan.running) items.push({ label: '🌐 ' + (T.pvRunning || 'Open running dev server') + ' — ' + plan.running, act: () => pvOpenProxy(plan.running) });
+    else if (!opts.skipDev && plan.dev) items.push({ label: '▶ ' + (T.pvDev || 'Run dev server & preview') + ' (' + plan.dev.cmd + ')', act: () => pvRunDev(plan.dev.cmd) });
+    htmls.forEach(f => items.push({ label: '📄 ' + f, act: () => pvOpenFile(f) }));
     items.push({ label: '📂 ' + (T.pvFolder || 'Open folder listing'), act: () => window.open(location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || ''), '_blank') });
     items.push({ label: '✏ ' + (T.pvUrl || 'Enter an address manually'), act: pvAskUrl });
-    pvMenu(items);
+    pvMenu(items, opts.note);
   };
+  el.querySelector('.btnPrev').onclick = (ev) => { ev.stopPropagation(); pvBuildMenu(); };
 
   // 세션 AI(agent) 변경 — 다른 AI로 세션 재시작 (헤더가 바뀌므로 pane 재생성, 위치 유지)
   const aiDrop = el.querySelector('.aiSel');
