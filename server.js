@@ -229,10 +229,13 @@ function getPty(sess) {
     if (isClaude) {
       // Claude가 작업 중일 때 그리는 표시로 작업중/완료 판별 (사용량 정지 중 잔출력에 안 흔들리게).
       // 좁은 분할·폰 화면에선 하단 상태바가 잘려 'esc to interrupt'가 버퍼에 안 남음(v1.10.2까지 오완료의 원인).
-      // → 화면 폭과 무관하게 항상 남는 '스피너'로 판별: 제라운드… (4m 44s · ↓ 15.4k tokens) 형태.
-      //   괄호 경과시간 (Nm Ns / Ns) 또는 '…' 뒤 숫자(경과·토큰)면 작업 중으로 인정.
+      // → 화면 폭과 무관하게 항상 남는 '스피너'로 판별. 스피너는 단계마다 표시가 달라짐:
+      //     · 시작/확장사고:  ✳ Canoodling… (thinking more)   ← 타이머·토큰 없음
+      //     · 진행 중:         ✻ Tempering… (4m 44s · ↓ 15.4k tokens)
+      //   그래서 'thinking'·제라운드(-ing…)·괄호 경과시간·'…'뒤 숫자 중 하나라도 있으면 작업 중.
       const t15 = p.buffer.slice(-1800);
-      if (t15.includes('esc to int') || t15.includes('still thinking')
+      if (t15.includes('esc to int') || t15.includes('thinking')   // 'still thinking' + '(thinking more)'
+          || /ing…/.test(t15)                          // 제라운드 스피너 (Canoodling… 등) — 타이머 없어도
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)       // 스피너 경과시간
           || /…\s*\(?[↓↑\s]*\d/.test(t15)) {           // 제라운드… 뒤 숫자(경과·토큰)
         p.lastMarker = Date.now();
