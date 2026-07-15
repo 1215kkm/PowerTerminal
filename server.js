@@ -1045,13 +1045,14 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   const m = memoOf(req.body.path);
   const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
   if (!text) return res.json({ ok: false });
-  if (req.body.src === 'term') {   // ⌨ 터미널 회색 요청박스에서 읽어온 요청 — 이미 기록된 같은 글(말줄임·부분 포함)은 스킵
+  if (req.body.src === 'term') {   // ⌨ 터미널 회색 요청박스에서 읽어온 요청 — 이미 기록된 같은 글(말줄임·부분·시작일치)은 스킵
     const nrm = t => String(t || '').replace(/\s+/g, '');
     const nn = nrm(text);
     const dup = m.reqs.slice(0, 20).some(r => {
       const no = nrm(r.text);
       return no === nn || no.includes(nn.slice(0, 40)) || nn.includes(no.slice(0, 40))
-          || (nn.length >= 20 && no.includes(nn.slice(-40)));
+          || (nn.length >= 20 && no.includes(nn.slice(-40)))
+          || (nn.length >= 16 && no.slice(0, 16) === nn.slice(0, 16));   // 시작 16자 동일 = 같은 요청의 다른 캡처(터미널 UI 섞여 뒷부분만 다른 경우)
     });
     if (dup) return res.json({ ok: false, dup: true });
   }
