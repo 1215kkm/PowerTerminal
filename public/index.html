@@ -46,6 +46,11 @@
                box-shadow: 0 0 14px rgba(34,197,94,.55); }
   .pane.dragging { opacity: .4; }
   .pane.dragover { outline: 2px dashed var(--pink); }
+  /* 파일 여러 개를 창 아무 곳에나 끌어올 때 — 창 전체가 드롭존임을 보여줌 */
+  .pane.filedrop { outline: 3px dashed var(--violet); outline-offset: -3px; }
+  .pane.filedrop::after { content: '📎 ' attr(data-dropmsg); position: absolute; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center; pointer-events: none;
+    background: rgba(124,58,237,.16); color: #fff; font-size: 15px; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
   /* 새 세션창 등장 애니메이션 (드래그 이동은 JS FLIP으로 transform 처리) */
   @keyframes paneIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
   @keyframes sendPop { 0% { transform: scale(.9); } 55% { transform: scale(1.06); } 100% { transform: scale(1); } }
@@ -936,6 +941,7 @@ const I18N = {
     gbDirty:'uncommitted changes', gbAhead:'commits to push', gbBehind:'commits to pull',
     gbPrT:'Open this branch on GitHub (its pull request, or a new one)',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
+    fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
     setSummaryL:'Summary prompt',
@@ -1008,6 +1014,7 @@ const I18N = {
     gbDirty:'커밋 안 된 변경', gbAhead:'push할 커밋', gbBehind:'pull할 커밋',
     gbPrT:'이 브랜치의 GitHub PR 페이지 열기 (열린 PR이 있으면 그것, 없으면 새 PR)',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
+    fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
     setSummaryL:'요약 프롬프트',
@@ -2119,11 +2126,31 @@ function buildPane(sess, idx) {
   const head = el.querySelector('.pane-head');
   head.addEventListener('dragstart', ev => { el.classList.add('dragging'); ev.dataTransfer.setData('text/plain', sess.id); });
   head.addEventListener('dragend', () => el.classList.remove('dragging'));
-  el.addEventListener('dragover', ev => { ev.preventDefault(); el.classList.add('dragover'); });
-  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  const dragHasFiles = ev => [...((ev.dataTransfer && ev.dataTransfer.items) || [])].some(i => i.kind === 'file');
+  el.addEventListener('dragover', ev => {
+    ev.preventDefault();
+    if (dragHasFiles(ev)) { el.dataset.dropmsg = T.fileDropHint || 'Drop files to attach'; el.classList.add('filedrop'); el.classList.remove('dragover'); }
+    else { el.classList.add('dragover'); }   // 세션 창 순서 바꾸기
+  });
+  el.addEventListener('dragleave', ev => {
+    if (ev.relatedTarget && el.contains(ev.relatedTarget)) return;   // 내부 요소 간 이동은 무시
+    el.classList.remove('dragover', 'filedrop');
+  });
   el.addEventListener('drop', async ev => {
-    ev.preventDefault(); el.classList.remove('dragover');
-    const fromId = ev.dataTransfer.getData('text/plain');
+    el.classList.remove('dragover', 'filedrop');
+    // 폴더는 여기서 손대지 않고 전역 핸들러(폴더→세션 추가)에 넘김. (webkitGetAsEntry는 await 전에 동기 호출해야 유효)
+    const items = [...((ev.dataTransfer && ev.dataTransfer.items) || [])];
+    const hasDir = items.some(i => { try { const e = i.webkitGetAsEntry && i.webkitGetAsEntry(); return e && e.isDirectory; } catch (x) { return false; } });
+    if (hasDir) return;   // stopPropagation 안 함 → 전역 폴더 핸들러가 처리
+    const files = [...((ev.dataTransfer && ev.dataTransfer.files) || [])];
+    if (files.length) {   // 📎 창 아무 곳에나 떨어뜨린 파일 여러 개 → 이 세션에 전부 첨부 (입력줄뿐 아니라 창 전체가 드롭존)
+      ev.preventDefault(); ev.stopPropagation();
+      for (const f of files) await attachFile(f);
+      qInput.focus();
+      return;
+    }
+    ev.preventDefault();
+    const fromId = ev.dataTransfer.getData('text/plain');   // 세션 순서 바꾸기
     if (!fromId || fromId === sess.id) return;
     const fromEl = grid.querySelector(`[data-id="${fromId}"]`);
     if (fromEl) {
