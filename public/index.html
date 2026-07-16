@@ -31,8 +31,8 @@
 
   #grid { display: grid; gap: 10px; padding: 10px;
           grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); }
-  /* grid-template-columns 트랜지션은 제거 — fr 값 애니메이션이 xterm 고정폭과 얽혀 '크게보기'의 3fr 1fr가
-     945/945 균등폭으로 굳던 버그(폭이 안 커짐). 즉시 반영이 정확. */
+  /* grid-template-columns 트랜지션은 CSS로 안 검 — fr 값 애니메이션이 균등폭으로 굳는 버그가 있어서.
+     '크게보기' 부드러운 폭 변화는 확대 핸들러에서 px 트랜지션으로 처리하고 끝나면 fr로 복귀(반응형 유지). */
   .pane { position: relative;   /* 세션 안 확인창(.pane-confirm) 오버레이가 이 창에만 갇히도록 */
           background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
           display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
@@ -1678,11 +1678,8 @@ function buildPane(sess, idx) {
   // ⛶ 확대 토글 — 이 창을 크게, 나머지는 얇게. 다시 누르면 원래대로
   el.querySelector('.btnMax').onclick = ev => {
     ev.stopPropagation();
-    maxedId = (maxedId === sess.id) ? null : sess.id;
-    applyLayout();
+    animateMax(() => { maxedId = (maxedId === sess.id) ? null : sess.id; applyLayout(); });
     if (maxedId === sess.id && isMobile) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    refitAll();                                  // 폭이 즉시 바뀌니 바로 재fit
-    setTimeout(refitAll, 60);                    // 레이아웃 정착 후 한 번 더 (보정)
   };
 
   // 🔍 전체화면 확대 토글 (폰) — 이 세션창 하나를 화면 전체로. 다시 누르거나 ✕로 닫음
@@ -2406,6 +2403,37 @@ function mmSpy() {
 let mmSpyRaf = null;
 addEventListener('scroll', () => { if (!mmSpyRaf) mmSpyRaf = requestAnimationFrame(() => { mmSpyRaf = null; mmSpy(); }); }, { passive: true });
 addEventListener('resize', mmSpy);
+
+// 🔍 크게보기 폭 변화를 0.2초로 부드럽게 — fr 값 트랜지션은 굳는 버그가 있어, 각 칸 폭을 px로 잡아
+// 애니메이션한 뒤(px→px는 정상 동작) 끝나면 applyLayout이 만든 fr로 되돌려 반응형을 유지한다.
+let _maxAnimEnd = null;
+function animateMax(applyFn) {
+  const cells = [...grid.children];
+  if (isMobile || cells.length < 2) { applyFn(); refitAll(); return; }   // 폰·단일창은 애니메이션 없이
+  if (_maxAnimEnd) _maxAnimEnd();                                        // 진행 중이던 애니메이션 즉시 마무리
+  const startW = cells.map(c => c.getBoundingClientRect().width);
+  applyFn();                                                            // 레이아웃(fr) 적용 → 최종 폭 즉시 확정
+  const endW = cells.map(c => c.getBoundingClientRect().width);
+  const frCols = grid.style.gridTemplateColumns;                        // 복귀용 fr
+  const px = ws => ws.map(w => w + 'px').join(' ');
+  // fr→fr 트랜지션은 균등폭으로 굳으므로 px→px로 애니메이션. reflow로 시작폭을 확정한 뒤 끝폭으로 바꾸면 부드럽게 이어짐.
+  grid.style.transition = 'none';
+  grid.style.gridTemplateColumns = px(startW);
+  grid.getBoundingClientRect();                                        // 강제 reflow — 시작폭을 '현재값'으로 커밋
+  grid.style.transition = 'grid-template-columns .2s ease';
+  grid.style.gridTemplateColumns = px(endW);                           // px→px 애니메이션 시작
+  const finish = () => {                                               // 끝나면 fr로 복귀(반응형 유지) — 타이머라 항상 실행
+    if (!_maxAnimEnd) return; _maxAnimEnd = null;
+    grid.style.transition = 'none';
+    grid.style.gridTemplateColumns = frCols;
+    grid.getBoundingClientRect();
+    grid.style.transition = '';
+    refitAll();
+  };
+  _maxAnimEnd = finish;
+  setTimeout(refitAll, 120);                                           // 애니 중 글자 재fit 1회
+  setTimeout(finish, 240);                                             // 0.2초 애니 뒤 fr 복귀
+}
 
 // PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
 function applyLayout() {
