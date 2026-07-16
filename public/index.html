@@ -3580,14 +3580,25 @@ function mindRenderAdders() {
   const dotLayer = document.createElementNS(SVGNS, 'g'); dotLayer.id = 'mindColorLayer';
   dotLayer.addEventListener('pointerenter', () => { clearTimeout(MIND.adderTimer); });
   dotLayer.addEventListener('pointerleave', () => mindScheduleHideAdder(id));
+  const dcx = c.cx, dcy = c.cy - h / 2;                 // 중앙 상단(테두리)에 살짝 겹침
+  const open = ev => { ev.stopPropagation(); ev.preventDefault(); mindOpenColorPop(c.node, ev); };
+  // 넓은 투명 히트영역 — 점 근처만 눌러도 팔레트가 뜨게 (작은 점을 정확히 못 맞춰도 됨)
+  const hit = document.createElementNS(SVGNS, 'circle');
+  hit.setAttribute('cx', dcx); hit.setAttribute('cy', dcy); hit.setAttribute('r', 15);
+  hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
+  hit.addEventListener('pointerdown', open);
+  dotLayer.appendChild(hit);
   const dot = document.createElementNS(SVGNS, 'circle');
-  dot.setAttribute('cx', c.cx); dot.setAttribute('cy', c.cy - h / 2 + 1); dot.setAttribute('r', 8);   // 중앙 상단, 테두리에 살짝 겹침
+  dot.setAttribute('cx', dcx); dot.setAttribute('cy', dcy); dot.setAttribute('r', 9);
   dot.setAttribute('fill', c.node.color || (mindIsRoot(c.node) ? mindRootColor(c.node, '#7C3AED') : '#9ca3af'));
   dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 2.5);
-  dot.setAttribute('class', 'mcolordot'); dot.style.cursor = 'pointer';
-  const tip = document.createElementNS(SVGNS, 'title'); tip.textContent = T.mindColorT || '색상 바꾸기'; dot.appendChild(tip);
-  dot.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindOpenColorPop(c.node, ev); });
-  dotLayer.appendChild(dot);
+  dot.setAttribute('class', 'mcolordot'); dot.style.cursor = 'pointer'; dot.style.pointerEvents = 'none';   // 클릭은 hit이 받음
+  const tip = document.createElementNS(SVGNS, 'title'); tip.textContent = T.mindColorT || '색상 바꾸기'; hit.appendChild(tip);
+  // 팔레트 아이콘 힌트 (작게)
+  const ic = document.createElementNS(SVGNS, 'text');
+  ic.setAttribute('x', dcx); ic.setAttribute('y', dcy + 0.5); ic.setAttribute('text-anchor', 'middle');
+  ic.setAttribute('dominant-baseline', 'central'); ic.setAttribute('font-size', 9); ic.style.pointerEvents = 'none'; ic.textContent = '🎨';
+  dotLayer.appendChild(dot); dotLayer.appendChild(ic);
   content.appendChild(dotLayer);   // mindNodes 뒤 = 맨 앞
 }
 // 🎨 색상 팔레트 팝업 — 10색 + 기본(자동)으로 되돌리기. 고르면 그 노드에 색 지정하고 저장·다시그림.
