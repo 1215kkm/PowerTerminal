@@ -426,6 +426,7 @@
   .gitbar .gb-dirty { color: #fbbf24; }
   .gitbar .gb-sync { color: #38bdf8; }
   .gitbar .gb-repo { margin-left: auto; opacity: .65; overflow: hidden; text-overflow: ellipsis; }
+  .gitbar .gb-local { color: var(--muted); font-weight: 600; }   /* GitHub 미연결 = 로컬 표시 */
   /* 🎈 온보딩 말풍선 — 처음 사용자에게 기능을 하나씩 안내 (뾰족 화살표) · 유휴 5분 힌트에도 재사용 */
   .obub { position: absolute; z-index: 300; max-width: 250px; background: linear-gradient(135deg, var(--violet), var(--pink));
           color: #fff; border-radius: 11px; padding: 10px 26px 10px 13px; font-size: 12.5px; line-height: 1.55;
@@ -940,6 +941,7 @@ const I18N = {
     fileOpened:'Opened', modeSwitched:'mode switched (Shift+Tab)',
     gbDirty:'uncommitted changes', gbAhead:'commits to push', gbBehind:'commits to pull',
     gbPrT:'Open this branch on GitHub (its pull request, or a new one)',
+    gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
@@ -1013,6 +1015,7 @@ const I18N = {
     fileOpened:'열었어요', modeSwitched:'모드 전환 (Shift+Tab)',
     gbDirty:'커밋 안 된 변경', gbAhead:'push할 커밋', gbBehind:'pull할 커밋',
     gbPrT:'이 브랜치의 GitHub PR 페이지 열기 (열린 PR이 있으면 그것, 없으면 새 PR)',
+    gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
@@ -1825,16 +1828,22 @@ function buildPane(sess, idx) {
   // 🌿 브랜치 표시줄 — git 레포면 입력창 위에 얇게 항상. 클릭 = 그 브랜치의 PR 페이지(열린 PR 있으면 그것, 없으면 새 PR).
   const gitBar = el.querySelector('.gitbar');
   const refreshGit = async () => {
-    const g = await api('GET', '/api/git-info?id=' + sess.id);
-    if (!g || !g.git) { gitBar.style.display = 'none'; return; }
+    const g = await api('GET', '/api/git-info?id=' + sess.id) || {};
+    const localTag = `<span class="gb-repo gb-local">📁 ${esc(T.gbLocal || 'local')}</span>`;   // GitHub 미연결 표시
+    if (!g.git) {   // 깃 저장소가 아닌 폴더 — 숨기지 않고 '로컬'로 표시
+      gitBar.innerHTML = `<span style="opacity:.6">${localTag}</span>`;
+      gitBar.style.display = 'flex'; gitBar.title = T.gbLocalT || ''; gitBar.onclick = null; gitBar.style.cursor = 'default';
+      return;
+    }
     const bits = [`<span>🌿</span><span class="gb-br">${esc(g.branch)}</span>`];
     if (g.dirty) bits.push(`<span class="gb-dirty" title="${esc(T.gbDirty || 'uncommitted changes')}">●${g.dirty}</span>`);
     if (g.ahead) bits.push(`<span class="gb-sync" title="${esc(T.gbAhead || 'commits to push')}">↑${g.ahead}</span>`);
     if (g.behind) bits.push(`<span class="gb-sync" title="${esc(T.gbBehind || 'commits to pull')}">↓${g.behind}</span>`);
-    if (g.repo) bits.push(`<span class="gb-repo">${esc(g.repo)}</span>`);
+    bits.push(g.repo ? `<span class="gb-repo">${esc(g.repo)}</span>` : localTag);   // GitHub 리모트 있으면 레포명, 없으면 '로컬'
     gitBar.innerHTML = bits.join('');
     gitBar.style.display = 'flex';
     gitBar.title = g.prUrl ? (T.gbPrT || 'Open the pull request page for this branch') : '';
+    gitBar.style.cursor = g.prUrl ? 'pointer' : 'default';
     gitBar.onclick = ev => { ev.stopPropagation(); if (g.prUrl) window.open(g.prUrl, '_blank', 'noopener'); };
   };
   refreshGit();
