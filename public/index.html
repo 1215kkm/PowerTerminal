@@ -204,10 +204,32 @@
   .mind-sp { flex: 1 1 auto; }
   .mind-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
   .mind-close { font-size: 15px; }
-  .mind-canvas { position: absolute; inset: 49px 0 0 0; outline: none; overflow: hidden;
+  .mind-canvas { position: absolute; inset: 49px 0 0 200px; outline: none; overflow: hidden;   /* 좌측 200px는 할일 패널 */
                  background:
                    radial-gradient(circle, rgba(148,163,184,.13) 1px, transparent 1px) 0 0 / 22px 22px; cursor: default; }
   .mind-canvas.panning { cursor: grabbing; }
+  /* 📋 좌측 할일/한일 패널 */
+  .mind-todo { position: absolute; left: 0; top: 49px; bottom: 0; width: 200px; z-index: 4;
+               display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
+  .mind-todo .mt-sec { flex: 1 1 50%; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .mind-todo .mt-donesec { border-top: 1px solid var(--line); flex-basis: 42%; }
+  .mind-todo .mt-head { font-size: 12px; font-weight: 700; color: var(--muted); padding: 7px 10px 5px; flex: 0 0 auto; }
+  .mind-todo .mt-add { display: flex; gap: 4px; padding: 0 8px 6px; flex: 0 0 auto; }
+  .mind-todo .mt-add input { flex: 1; min-width: 0; font-size: 12px; padding: 5px 7px; border-radius: 6px;
+                             border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  .mind-todo .mt-add input:focus { outline: 1px solid var(--violet); }
+  .mind-todo .mt-add button { flex: 0 0 auto; width: 26px; border-radius: 6px; background: var(--violet); color: #fff; cursor: pointer; font-size: 15px; }
+  .mind-todo .mt-list { flex: 1 1 auto; overflow-y: auto; padding: 0 6px 8px; }
+  .mind-todo .mt-item { display: flex; align-items: flex-start; gap: 5px; padding: 5px 4px; font-size: 12.5px;
+                        line-height: 1.4; border-bottom: 1px dashed var(--line); color: var(--fg); }
+  .mind-todo .mt-item .mt-txt { flex: 1; min-width: 0; word-break: break-word; cursor: default; }
+  .mind-todo .mt-donesec .mt-txt { text-decoration: line-through; color: var(--muted); }
+  .mind-todo .mt-item button { flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border-radius: 5px; cursor: pointer;
+                               background: #374151; color: var(--fg); font-size: 12px; line-height: 20px; }
+  .mind-todo .mt-item .mt-check:hover { background: var(--green); color: #06230f; }
+  .mind-todo .mt-item .mt-restore:hover { background: var(--violet); color: #fff; }
+  .mind-todo .mt-item .mt-del:hover { background: #ef4444; color: #fff; }
+  .mind-todo .mt-empty { color: var(--muted); font-size: 11.5px; padding: 6px 4px; }
   #mindSvg { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; touch-action: none; }
   #mindSvg text { pointer-events: none; }
   .mnode-rect { cursor: grab; }
@@ -817,6 +839,18 @@
     <span class="mind-hint" id="mindHint"></span>
     <button class="small mind-close" id="mindClose">✕</button>
   </div>
+  <!-- 📋 좌측 할일/한일 목록 (위: 할 일 · 아래: 한 일 · 한 일은 복구 가능) -->
+  <div class="mind-todo" id="mindTodo">
+    <div class="mt-sec">
+      <div class="mt-head">📋 <span id="mtTodoH"></span></div>
+      <div class="mt-add"><input id="mtInput" maxlength="200"><button id="mtAdd" title="">＋</button></div>
+      <div class="mt-list" id="mtTodoList"></div>
+    </div>
+    <div class="mt-sec mt-donesec">
+      <div class="mt-head">✅ <span id="mtDoneH"></span></div>
+      <div class="mt-list" id="mtDoneList"></div>
+    </div>
+  </div>
   <div class="mind-canvas" id="mindCanvas" tabindex="0">
     <svg id="mindSvg" width="100%" height="100%">
       <defs>
@@ -964,6 +998,7 @@ const I18N = {
     mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2/Enter rename (Tab commits) · + adds a branch · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
     mindAddBranchT:'Add a branch under the selected node (+ key)',
     mindColorT:'Change color', mindColorReset:'Default',
+    mtTodo:'To-do', mtDone:'Done', mtPh:'Add a to-do, press Enter', mtAddT:'Add', mtDoneBtn:'Mark done', mtRestore:'Move back to to-do', mtEmpty:'Add a to-do',
     mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
     mindLinkPick1:'Click the first branch to connect', mindLinkPick2:'Click the second branch · click empty space to reset · Esc to cancel',
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
@@ -1039,6 +1074,7 @@ const I18N = {
     mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2·Enter 이름수정(Tab으로 확정) · + 키 가지추가 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
     mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
+    mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
@@ -3352,7 +3388,8 @@ const MIND = {
   adderId: null, adderTimer: null, saveTimer: null, userName: '', inited: false, editEl: null,
   linkFrom: null, linkPop: null, connectMode: false, undo: [], redo: [], _lastClick: null,
   selLink: null, linkEndPick: null,   // 선택된 연결화살표 id · 재연결하려고 집어든 끝점('from'|'to')
-  colorPop: null                       // 🎨 열려있는 색상 팔레트 팝업
+  colorPop: null,                      // 🎨 열려있는 색상 팔레트 팝업
+  todos: [], todoSaveTimer: null       // 📋 좌측 할일/한일
 };
 function mindUid() { try { return crypto.randomUUID(); } catch (e) { return 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 function mindWidth(n) { return Math.max(64, (n.title || '').length * 13 + 24); }
@@ -3883,14 +3920,58 @@ async function openMind() {
   document.getElementById('mindReset').title = T.mindReset || 'Reset view';
   document.getElementById('mindHint').textContent = T.mindHint || '';
   if (!MIND.userName) { try { const inf = await api('GET', '/api/info'); MIND.userName = (inf && inf.userName) || ''; } catch (e) {} }
-  try { const m = await api('GET', '/api/mindmap'); MIND.roots = (m && Array.isArray(m.roots) && m.roots.length) ? m.roots : (m && m.root ? [m.root] : [mindDefaultRoot()]); MIND.links = (m && Array.isArray(m.links)) ? m.links : []; } catch (e) { MIND.roots = [mindDefaultRoot()]; MIND.links = []; }
+  try { const m = await api('GET', '/api/mindmap'); MIND.roots = (m && Array.isArray(m.roots) && m.roots.length) ? m.roots : (m && m.root ? [m.root] : [mindDefaultRoot()]); MIND.links = (m && Array.isArray(m.links)) ? m.links : []; MIND.todos = (m && Array.isArray(m.todos)) ? m.todos : []; } catch (e) { MIND.roots = [mindDefaultRoot()]; MIND.links = []; MIND.todos = []; }
   MIND.sel = null; MIND.adderId = null; MIND.linkFrom = null; MIND.connectMode = false; MIND.selLink = null; MIND.linkEndPick = null; MIND.undo = []; MIND.redo = []; mindCloseLinkPop(); mindUpdateUndoBtns();
+  mindTodoInit();   // 📋 좌측 할일/한일 패널
   mindDlg.showModal();
   if (!MIND.inited) { mindInitCanvas(); MIND.inited = true; }
   // 초기 뷰: 루트(콘텐츠 0,0)가 왼쪽-가운데 즈음 오도록
   const cr = document.getElementById('mindCanvas').getBoundingClientRect();
   MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5;
   mindRender();
+}
+// ================= 📋 마인드맵 좌측 할일/한일 =================
+let mindTodoWired = false;
+function mindTodoSave() {   // 트리와 함께 서버에 (mindmap.json에 todos로 보관)
+  clearTimeout(MIND.todoSaveTimer);
+  MIND.todoSaveTimer = setTimeout(() => api('POST', '/api/mindmap', { roots: MIND.roots, root: MIND.roots[0], links: MIND.links, todos: MIND.todos }), 350);
+}
+function mindTodoRender() {
+  const todo = document.getElementById('mtTodoList'), done = document.getElementById('mtDoneList');
+  const items = MIND.todos || [];
+  const row = (it, isDone) => {
+    const r = document.createElement('div'); r.className = 'mt-item';
+    r.innerHTML = `<span class="mt-txt">${esc(it.text)}</span>`
+      + (isDone ? `<button class="mt-restore" title="${esc(T.mtRestore || '할 일로 되돌리기')}">↩</button>`
+                : `<button class="mt-check" title="${esc(T.mtDoneBtn || '완료')}">✓</button>`)
+      + `<button class="mt-del" title="${esc(T.memoDelT || '삭제')}">✕</button>`;
+    r.querySelector(isDone ? '.mt-restore' : '.mt-check').onclick = () => { it.done = !isDone; mindTodoRender(); mindTodoSave(); };
+    r.querySelector('.mt-del').onclick = () => { MIND.todos = MIND.todos.filter(x => x.id !== it.id); mindTodoRender(); mindTodoSave(); };
+    return r;
+  };
+  todo.innerHTML = ''; done.innerHTML = '';
+  const undone = items.filter(i => !i.done), fin = items.filter(i => i.done);
+  if (!undone.length) todo.innerHTML = `<div class="mt-empty">${esc(T.mtEmpty || '할 일을 추가해보세요')}</div>`;
+  undone.forEach(it => todo.appendChild(row(it, false)));
+  if (!fin.length) done.innerHTML = `<div class="mt-empty">—</div>`;
+  fin.forEach(it => done.appendChild(row(it, true)));
+}
+function mindTodoInit() {
+  document.getElementById('mtTodoH').textContent = T.mtTodo || '할 일';
+  document.getElementById('mtDoneH').textContent = T.mtDone || '한 일';
+  const inp = document.getElementById('mtInput'); inp.placeholder = T.mtPh || '할 일 입력 후 Enter';
+  document.getElementById('mtAdd').title = T.mtAddT || '추가';
+  if (!mindTodoWired) {
+    mindTodoWired = true;
+    const add = () => {
+      const v = inp.value.trim(); if (!v) return;
+      MIND.todos = MIND.todos || []; MIND.todos.unshift({ id: mindUid(), text: v.slice(0, 200), done: false });
+      inp.value = ''; mindTodoRender(); mindTodoSave(); inp.focus();
+    };
+    document.getElementById('mtAdd').onclick = add;
+    inp.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); add(); } ev.stopPropagation(); });
+  }
+  mindTodoRender();
 }
 function closeMind() {   // 메모장처럼 축소 애니 먼저, 끝나면 실제로 닫음
   if (!mindDlg.open || mindDlg.classList.contains('closing')) return;
@@ -3985,6 +4066,8 @@ function mindInitCanvas() {
   document.getElementById('mindReset').onclick = () => { const cr = canvas.getBoundingClientRect(); MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5; mindApplyTransform(); };
   document.getElementById('mindClose').onclick = closeMind;
   mindDlg.addEventListener('cancel', ev => { ev.preventDefault(); closeMind(); });
+  // 모달 바깥(반투명 백드롭 50px 여백) 클릭 = 닫기. dialog 자체가 타깃이면 백드롭 클릭.
+  mindDlg.addEventListener('pointerdown', ev => { if (ev.target === mindDlg) closeMind(); });
 }
 
 // 배너 관리자(🛠)·사용자요청 배지(✉) — 개발자 전용.
