@@ -4377,9 +4377,8 @@ function renderPicker() {
 function pickToggleAll(on) { pickList.forEach(s => s._sel = on); renderPicker(); }
 async function pickStart() {
   pickDlg.close();
-  // 종료 전 화면 배열 순서대로 세움 (기억된 순서에 없던 건 뒤로)
-  const ordered = [...pickList].sort((a, b) => orderRank(a.path) - orderRank(b.path));
-  for (const s of ordered) {
+  // 선택창에 보이던 순서(=서버 배열 순서) 그대로 세움. localStorage 재정렬 안 함 — 재실행 때 위치가 바뀌던 원인.
+  for (const s of pickList) {
     const isPane = panes.has(s.id);
     if (s._sel && !isPane) {
       if (s._new) {   // 최근 닫은 세션 → 서버에 새로 만들어 켜기
@@ -4396,6 +4395,8 @@ async function pickStart() {
     }
   }
   renumber();
+  // 복원한 화면 순서를 서버에 저장 → 다음 재실행 때도 이 순서 그대로 (단일 기준 유지)
+  try { await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) }); } catch (e) {}
 }
 
 // 언제든 세션 선택창 열기 (서버가 안 꺼져 세션이 살아있어도 다시 고를 수 있게)
@@ -4411,7 +4412,7 @@ async function openPicker() {
       pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, _sel: false, _new: true });
     });
   } catch (e) {}
-  pickList.sort((a, b) => orderRank(a.path) - orderRank(b.path));
+  // 서버 배열 순서 그대로 (localStorage 재정렬 안 함) — 최근닫은(_new)만 뒤에 붙음
   renderPicker();
   pickDlg.showModal();
 }
@@ -4495,7 +4496,7 @@ applyStatic();
       have.add(nrm(k.path));
     });
   } catch (e) {}
-  pickList.sort((a, b) => orderRank(a.path) - orderRank(b.path));   // 선택창도 기억된 배열 순서로
+  // idle은 서버 배열 순서(list 순서)를 그대로 유지 — localStorage 재정렬 안 함. 최근닫은(_new)만 뒤에.
   // 선택창은 '껐다 켜서 복원할 세션(idle)이 있을 때'만 자동으로 뜬다.
   // 서버가 계속 살아있어(alive) 이미 자동 복원됐고 남은 게 최근닫은(회색)뿐이면 팝업 안 띄움
   // — 그런 세션은 ＋ Session 에서 이전 폴더로 다시 열 수 있음.
