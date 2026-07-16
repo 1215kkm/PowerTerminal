@@ -3620,7 +3620,7 @@ function mindOpenColorPop(node, ev) {
   def.className = 'mc-def'; def.textContent = T.mindColorReset || '기본';
   def.onclick = e2 => { e2.stopPropagation(); mindMark(); delete node.color; mindSave(); mindRender(); mindCloseColorPop(); };
   pop.appendChild(def);
-  document.body.appendChild(pop);
+  mindDlg.appendChild(pop);   // 모달(top layer) 안에 붙여야 보임 — body에 붙이면 모달 뒤에 가려짐
   // 색상점 화면 좌표 근처에 배치
   const canvas = document.getElementById('mindCanvas'), cr = canvas.getBoundingClientRect();
   const c = MIND.cache.get(node.id);
