@@ -230,6 +230,9 @@
   .mind-todo .mt-item .mt-restore:hover { background: var(--violet); color: #fff; }
   .mind-todo .mt-item .mt-del:hover { background: #ef4444; color: #fff; }
   .mind-todo .mt-empty { color: var(--muted); font-size: 11.5px; padding: 6px 4px; }
+  .mind-todo .mt-edit { flex: 1; min-width: 0; font-size: 12.5px; padding: 3px 5px; border-radius: 5px;
+                        border: 1px solid var(--violet); background: var(--bg); color: var(--fg); font-family: inherit; }
+  .mind-todo .mt-edit:focus { outline: none; }
   #mindSvg { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; touch-action: none; }
   #mindSvg text { pointer-events: none; }
   .mnode-rect { cursor: grab; }
@@ -998,7 +1001,7 @@ const I18N = {
     mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2/Enter rename (Tab commits) · + adds a branch · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
     mindAddBranchT:'Add a branch under the selected node (+ key)',
     mindColorT:'Change color', mindColorReset:'Default',
-    mtTodo:'To-do', mtDone:'Done', mtPh:'Add a to-do, press Enter', mtAddT:'Add', mtDoneBtn:'Mark done', mtRestore:'Move back to to-do', mtEmpty:'Add a to-do',
+    mtTodo:'To-do', mtDone:'Done', mtPh:'Add a to-do, press Enter', mtAddT:'Add', mtDoneBtn:'Mark done', mtRestore:'Move back to to-do', mtEmpty:'Add a to-do', mtEditT:'Click to edit',
     mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
     mindLinkPick1:'Click the first branch to connect', mindLinkPick2:'Click the second branch · click empty space to reset · Esc to cancel',
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
@@ -1074,7 +1077,7 @@ const I18N = {
     mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2·Enter 이름수정(Tab으로 확정) · + 키 가지추가 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
     mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
-    mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요',
+    mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
@@ -3539,6 +3542,7 @@ function mindRenderArrows() {
 // 8방향 + 버튼 — hover 중이거나 선택된 노드 주변에 표시(터치는 선택으로 뜸)
 function mindRenderAdders() {
   const old = document.getElementById('mindAdders'); if (old) old.remove();
+  const oldDot = document.getElementById('mindColorLayer'); if (oldDot) oldDot.remove();   // 색상점 레이어도 갱신
   const id = MIND.adderId || MIND.sel;
   if (!id) return;
   const c = MIND.cache.get(id); if (!c) return;
@@ -3565,19 +3569,22 @@ function mindRenderAdders() {
     b.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindAddChild(c.node, d); });
     g.appendChild(b);
   });
-  // 🎨 색상점 — 노드 좌상단 모서리. 마우스 올리면 보이고, 클릭하면 10색 팔레트에서 고름
-  const dx = c.cx - w / 2 - 2, dy = c.cy - h / 2 - 2;
-  const dot = document.createElementNS(SVGNS, 'circle');
-  dot.setAttribute('cx', dx); dot.setAttribute('cy', dy); dot.setAttribute('r', 7);
-  dot.setAttribute('fill', c.node.color || (mindIsRoot(c.node) ? mindRootColor(c.node, '#7C3AED') : '#9ca3af'));
-  dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 2);
-  dot.setAttribute('class', 'mcolordot'); dot.style.cursor = 'pointer';
-  const tip = document.createElementNS(SVGNS, 'title'); tip.textContent = T.mindColorT || '색상 바꾸기'; dot.appendChild(tip);
-  dot.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindOpenColorPop(c.node, ev); });
-  g.appendChild(dot);
   // 노드보다 뒤(아래)에 삽입 — halo가 노드 클릭·드래그를 가리지 않도록
   const content = document.getElementById('mindContent');
   content.insertBefore(g, document.getElementById('mindNodes'));
+  // 🎨 색상점 — 노드 중앙 바로 위에 살짝 겹치게. 노드보다 앞(맨 위 레이어)에 그려 확실히 클릭됨.
+  const dotLayer = document.createElementNS(SVGNS, 'g'); dotLayer.id = 'mindColorLayer';
+  dotLayer.addEventListener('pointerenter', () => { clearTimeout(MIND.adderTimer); });
+  dotLayer.addEventListener('pointerleave', () => mindScheduleHideAdder(id));
+  const dot = document.createElementNS(SVGNS, 'circle');
+  dot.setAttribute('cx', c.cx); dot.setAttribute('cy', c.cy - h / 2 + 1); dot.setAttribute('r', 8);   // 중앙 상단, 테두리에 살짝 겹침
+  dot.setAttribute('fill', c.node.color || (mindIsRoot(c.node) ? mindRootColor(c.node, '#7C3AED') : '#9ca3af'));
+  dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 2.5);
+  dot.setAttribute('class', 'mcolordot'); dot.style.cursor = 'pointer';
+  const tip = document.createElementNS(SVGNS, 'title'); tip.textContent = T.mindColorT || '색상 바꾸기'; dot.appendChild(tip);
+  dot.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindOpenColorPop(c.node, ev); });
+  dotLayer.appendChild(dot);
+  content.appendChild(dotLayer);   // mindNodes 뒤 = 맨 앞
 }
 // 🎨 색상 팔레트 팝업 — 10색 + 기본(자동)으로 되돌리기. 고르면 그 노드에 색 지정하고 저장·다시그림.
 const MIND_NODE_COLORS = ['#7C3AED', '#2563EB', '#0891B2', '#059669', '#65A30D', '#CA8A04', '#EA580C', '#DC2626', '#DB2777', '#4B5563'];
@@ -3947,6 +3954,17 @@ function mindTodoRender() {
       + `<button class="mt-del" title="${esc(T.memoDelT || '삭제')}">✕</button>`;
     r.querySelector(isDone ? '.mt-restore' : '.mt-check').onclick = () => { it.done = !isDone; mindTodoRender(); mindTodoSave(); };
     r.querySelector('.mt-del').onclick = () => { MIND.todos = MIND.todos.filter(x => x.id !== it.id); mindTodoRender(); mindTodoSave(); };
+    // 제목 클릭 = 인라인 수정 (Enter·포커스아웃 저장 · Esc 취소)
+    const txt = r.querySelector('.mt-txt');
+    txt.style.cursor = 'text'; txt.title = T.mtEditT || '클릭해서 수정';
+    txt.onclick = () => {
+      const ed = document.createElement('input'); ed.className = 'mt-edit'; ed.value = it.text; ed.maxLength = 200;
+      txt.replaceWith(ed); ed.focus(); ed.select();
+      let saved = false;
+      const commit = () => { if (saved) return; saved = true; const v = ed.value.trim(); if (v && v !== it.text) { it.text = v.slice(0, 200); mindTodoSave(); } mindTodoRender(); };
+      ed.addEventListener('keydown', e2 => { if (e2.key === 'Enter' && !e2.isComposing) { e2.preventDefault(); commit(); } else if (e2.key === 'Escape') { saved = true; mindTodoRender(); } e2.stopPropagation(); });
+      ed.addEventListener('blur', commit);
+    };
     return r;
   };
   todo.innerHTML = ''; done.innerHTML = '';
