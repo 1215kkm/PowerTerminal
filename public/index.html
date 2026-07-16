@@ -2218,7 +2218,8 @@ function setState(el, done, busy) {
   const mm = document.querySelector(`#minimap [data-mm="${el.dataset.id}"]`);
   if (mm) { mm.classList.toggle('done', !!done); mm.classList.toggle('busy', nowBusy); }
   // 완료 소리: Claude는 한 요청 안에서도 작업표시가 껌뻑거려 busy↔done이 여러 번 뒤집힘.
-  // → 다시 작업 시작하면 대기 소리 취소하고, done 이 3초간 유지될 때(진짜 마무리)만 한 번 울림.
+  // → 다시 작업 시작하면 대기 소리 취소하고, done 이 6초간 유지될 때(진짜 마무리)만 한 번 울림.
+  //   (반복 재생 기능은 없음 — 완료당 1회. 여러 번 들렸다면 감지 깜빡임이 원인이라 유지시간을 넉넉히 둠.)
   if (nowBusy && el._doneTimer) { clearTimeout(el._doneTimer); el._doneTimer = null; }
   if (!!done && !wasDone && wasBusy) {
     if (el._doneTimer) clearTimeout(el._doneTimer);
@@ -2244,7 +2245,7 @@ function setState(el, done, busy) {
           })();
         }
       }
-    }, 3000);
+    }, 6000);
   }
 }
 function renumber() {
