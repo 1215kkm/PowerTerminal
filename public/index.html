@@ -212,6 +212,16 @@
   #mindSvg text { pointer-events: none; }
   .mnode-rect { cursor: grab; }
   .maddbtn { cursor: pointer; }
+  /* 🎨 노드 색상 팔레트 팝업 */
+  .mind-colorpop { position: fixed; z-index: 320; display: grid; grid-template-columns: repeat(5, 22px); gap: 5px;
+                   padding: 8px; background: var(--panel, #1f2937); border: 1px solid var(--line); border-radius: 10px;
+                   box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  .mind-colorpop .mc-sw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  .mind-colorpop .mc-sw:hover { transform: scale(1.15); }
+  .mind-colorpop .mc-sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--violet); }
+  .mind-colorpop .mc-def { grid-column: 1 / -1; margin-top: 3px; padding: 5px; font-size: 12px; border-radius: 7px;
+                           background: #374151; color: var(--fg); cursor: pointer; }
+  .mind-colorpop .mc-def:hover { filter: brightness(1.15); }
   .mind-edit { position: absolute; z-index: 5; box-sizing: border-box; border: 2px solid #f59e0b; border-radius: 6px;
                padding: 2px 6px; font-family: inherit; outline: none; background: var(--panel,#1f2937); color: var(--fg); }
   #mindLink.on, #mindDlg .mind-bar button.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
@@ -953,6 +963,7 @@ const I18N = {
     mindAdd:'Branch', mindDelBtn:'Delete', mindReset:'Reset view', mindDelConfirm:'This deletes the branch and everything under it. Continue?',
     mindHint:'Hover a node for + in 8 directions · drag to move · double-click/F2/Enter rename (Tab commits) · + adds a branch · Delete removes · right-click empty space adds a root · Ctrl+wheel zoom · Space/middle-drag pan',
     mindAddBranchT:'Add a branch under the selected node (+ key)',
+    mindColorT:'Change color', mindColorReset:'Default',
     mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
     mindLinkPick1:'Click the first branch to connect', mindLinkPick2:'Click the second branch · click empty space to reset · Esc to cancel',
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
@@ -1027,6 +1038,7 @@ const I18N = {
     mindAdd:'가지', mindDelBtn:'삭제', mindReset:'뷰 초기화', mindDelConfirm:'하위 가지까지 삭제됩니다. 계속?',
     mindHint:'노드에 마우스 올리면 8방향 + · 드래그로 이동 · 더블클릭·F2·Enter 이름수정(Tab으로 확정) · + 키 가지추가 · Delete 삭제 · 빈 곳 우클릭 뿌리추가 · Ctrl+휠 줌 · 스페이스/휠드래그 팬',
     mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
+    mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
@@ -3339,7 +3351,8 @@ const MIND = {
   roots: [], links: [], sel: null, zoom: 1, panX: 0, panY: 0, cache: new Map(), parent: new Map(),
   adderId: null, adderTimer: null, saveTimer: null, userName: '', inited: false, editEl: null,
   linkFrom: null, linkPop: null, connectMode: false, undo: [], redo: [], _lastClick: null,
-  selLink: null, linkEndPick: null   // 선택된 연결화살표 id · 재연결하려고 집어든 끝점('from'|'to')
+  selLink: null, linkEndPick: null,   // 선택된 연결화살표 id · 재연결하려고 집어든 끝점('from'|'to')
+  colorPop: null                       // 🎨 열려있는 색상 팔레트 팝업
 };
 function mindUid() { try { return crypto.randomUUID(); } catch (e) { return 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 function mindWidth(n) { return Math.max(64, (n.title || '').length * 13 + 24); }
@@ -3409,15 +3422,17 @@ function mindRender() {
     rect.setAttribute('x', cx - w / 2); rect.setAttribute('y', cy - h / 2);
     rect.setAttribute('width', w); rect.setAttribute('height', h);
     rect.setAttribute('rx', isRoot ? 17 : 8);
-    rect.setAttribute('fill', isRoot ? mindRootColor(node, cssVar('--violet') || '#7C3AED') : (cssVar('--panel') || '#1f2937'));
-    rect.setAttribute('stroke', (isSel || isLinkEnd) ? '#f59e0b' : (isRoot ? 'transparent' : (cssVar('--line') || '#374151')));
+    // 색: 직접 지정한 색(node.color)이 최우선 → 뿌리 자동색 → 가지 기본(패널)
+    const fill = node.color || (isRoot ? mindRootColor(node, cssVar('--violet') || '#7C3AED') : (cssVar('--panel') || '#1f2937'));
+    rect.setAttribute('fill', fill);
+    rect.setAttribute('stroke', (isSel || isLinkEnd) ? '#f59e0b' : (isRoot || node.color ? 'transparent' : (cssVar('--line') || '#374151')));
     rect.setAttribute('stroke-width', (isSel || isLinkEnd) ? 2.5 : 1.2);
     if (isLinkEnd && !isSel) rect.setAttribute('stroke-dasharray', '5 3');   // 화살표 양끝은 점선 주황(선택과 구분)
     g.appendChild(rect);
     const text = document.createElementNS(SVGNS, 'text');
     text.setAttribute('x', cx); text.setAttribute('y', cy);
     text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'central');
-    text.setAttribute('fill', isRoot ? '#fff' : (cssVar('--fg') || '#e5e7eb'));
+    text.setAttribute('fill', (isRoot || node.color) ? '#fff' : (cssVar('--fg') || '#e5e7eb'));
     text.setAttribute('font-size', 13); if (isRoot) text.setAttribute('font-weight', '700');
     text.setAttribute('font-family', 'inherit'); text.textContent = node.title;
     g.appendChild(text);
@@ -3513,9 +3528,52 @@ function mindRenderAdders() {
     b.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindAddChild(c.node, d); });
     g.appendChild(b);
   });
+  // 🎨 색상점 — 노드 좌상단 모서리. 마우스 올리면 보이고, 클릭하면 10색 팔레트에서 고름
+  const dx = c.cx - w / 2 - 2, dy = c.cy - h / 2 - 2;
+  const dot = document.createElementNS(SVGNS, 'circle');
+  dot.setAttribute('cx', dx); dot.setAttribute('cy', dy); dot.setAttribute('r', 7);
+  dot.setAttribute('fill', c.node.color || (mindIsRoot(c.node) ? mindRootColor(c.node, '#7C3AED') : '#9ca3af'));
+  dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 2);
+  dot.setAttribute('class', 'mcolordot'); dot.style.cursor = 'pointer';
+  const tip = document.createElementNS(SVGNS, 'title'); tip.textContent = T.mindColorT || '색상 바꾸기'; dot.appendChild(tip);
+  dot.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); mindOpenColorPop(c.node, ev); });
+  g.appendChild(dot);
   // 노드보다 뒤(아래)에 삽입 — halo가 노드 클릭·드래그를 가리지 않도록
   const content = document.getElementById('mindContent');
   content.insertBefore(g, document.getElementById('mindNodes'));
+}
+// 🎨 색상 팔레트 팝업 — 10색 + 기본(자동)으로 되돌리기. 고르면 그 노드에 색 지정하고 저장·다시그림.
+const MIND_NODE_COLORS = ['#7C3AED', '#2563EB', '#0891B2', '#059669', '#65A30D', '#CA8A04', '#EA580C', '#DC2626', '#DB2777', '#4B5563'];
+function mindCloseColorPop() { if (MIND.colorPop) { MIND.colorPop.remove(); MIND.colorPop = null; } }
+function mindOpenColorPop(node, ev) {
+  mindCloseColorPop();
+  const pop = document.createElement('div');
+  pop.className = 'mind-colorpop';
+  MIND_NODE_COLORS.forEach(col => {
+    const sw = document.createElement('button');
+    sw.className = 'mc-sw'; sw.style.background = col;
+    if (node.color === col) sw.classList.add('on');
+    sw.title = col;
+    sw.onclick = e2 => { e2.stopPropagation(); mindMark(); node.color = col; mindSave(); mindRender(); mindCloseColorPop(); };
+    pop.appendChild(sw);
+  });
+  const def = document.createElement('button');
+  def.className = 'mc-def'; def.textContent = T.mindColorReset || '기본';
+  def.onclick = e2 => { e2.stopPropagation(); mindMark(); delete node.color; mindSave(); mindRender(); mindCloseColorPop(); };
+  pop.appendChild(def);
+  document.body.appendChild(pop);
+  // 색상점 화면 좌표 근처에 배치
+  const canvas = document.getElementById('mindCanvas'), cr = canvas.getBoundingClientRect();
+  const c = MIND.cache.get(node.id);
+  const sx = cr.left + MIND.panX + (c.cx - c.w / 2) * MIND.zoom;
+  const sy = cr.top + MIND.panY + (c.cy - MIND.NODE_H / 2) * MIND.zoom;
+  pop.style.left = Math.max(6, Math.min(innerWidth - pop.offsetWidth - 6, sx - 4)) + 'px';
+  pop.style.top = Math.max(6, sy - pop.offsetHeight - 6) + 'px';   // 노드 위쪽
+  MIND.colorPop = pop;
+  setTimeout(() => document.addEventListener('pointerdown', mindColorPopOutside), 0);
+}
+function mindColorPopOutside(e) {
+  if (MIND.colorPop && !MIND.colorPop.contains(e.target)) { mindCloseColorPop(); document.removeEventListener('pointerdown', mindColorPopOutside); }
 }
 function mindScheduleHideAdder(id) {
   clearTimeout(MIND.adderTimer);
@@ -3732,8 +3790,10 @@ function mindDoExport(scopeRoots) {
   // 노드
   cells.forEach(c => {
     const isR = mindIsRoot(c.node), p = off(c.cx, c.cy), w = c.w;
-    svg += `<rect x="${p.x - w / 2}" y="${p.y - h / 2}" width="${w}" height="${h}" rx="${isR ? 17 : 8}" fill="${isR ? mindRootColor(c.node, violet) : panel}" stroke="${isR ? 'none' : lineC}" stroke-width="1.2"/>`;
-    svg += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central" fill="${isR ? '#fff' : fg}" font-size="13"${isR ? ' font-weight="700"' : ''}>${esc(c.node.title)}</text>`;
+    const nf = c.node.color || (isR ? mindRootColor(c.node, violet) : panel);   // 지정색 우선
+    const tf = (isR || c.node.color) ? '#fff' : fg;
+    svg += `<rect x="${p.x - w / 2}" y="${p.y - h / 2}" width="${w}" height="${h}" rx="${isR ? 17 : 8}" fill="${nf}" stroke="${(isR || c.node.color) ? 'none' : lineC}" stroke-width="1.2"/>`;
+    svg += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central" fill="${tf}" font-size="13"${isR ? ' font-weight="700"' : ''}>${esc(c.node.title)}</text>`;
   });
   const doc = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">`
     + `<defs><marker id="exArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker></defs>`
@@ -3834,7 +3894,7 @@ async function openMind() {
 }
 function closeMind() {   // 메모장처럼 축소 애니 먼저, 끝나면 실제로 닫음
   if (!mindDlg.open || mindDlg.classList.contains('closing')) return;
-  mindCommitEdit();
+  mindCommitEdit(); mindCloseColorPop();
   mindDlg.classList.add('closing');
   setTimeout(() => { mindDlg.classList.remove('closing'); try { mindDlg.close(); } catch (e) {} }, 150);
 }
