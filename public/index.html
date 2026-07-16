@@ -233,6 +233,10 @@
   .mind-todo .mt-edit { flex: 1; min-width: 0; font-size: 12.5px; padding: 3px 5px; border-radius: 5px;
                         border: 1px solid var(--violet); background: var(--bg); color: var(--fg); font-family: inherit; }
   .mind-todo .mt-edit:focus { outline: none; }
+  .mind-todo .mt-item { cursor: grab; }
+  .mind-todo .mt-item.mt-dragging { opacity: .4; }
+  .mind-todo .mt-item.mt-over { box-shadow: inset 0 2px 0 var(--violet); }        /* 위쪽에 삽입 표시 */
+  .mind-todo .mt-item.mt-over.mt-below { box-shadow: inset 0 -2px 0 var(--violet); } /* 아래쪽에 삽입 표시 */
   #mindSvg { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; touch-action: none; }
   #mindSvg text { pointer-events: none; }
   .mnode-rect { cursor: grab; }
@@ -3954,6 +3958,27 @@ function mindTodoRender() {
       + `<button class="mt-del" title="${esc(T.memoDelT || '삭제')}">✕</button>`;
     r.querySelector(isDone ? '.mt-restore' : '.mt-check').onclick = () => { it.done = !isDone; mindTodoRender(); mindTodoSave(); };
     r.querySelector('.mt-del').onclick = () => { MIND.todos = MIND.todos.filter(x => x.id !== it.id); mindTodoRender(); mindTodoSave(); };
+    // 드래그로 순서 변경 — 같은 그룹(할 일끼리/한 일끼리) 안에서만. 드롭 위치(위/아래 절반)로 앞·뒤 삽입
+    r.draggable = true; r.dataset.tid = it.id;
+    r.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', it.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => r.classList.add('mt-dragging'), 0); });
+    r.addEventListener('dragend', () => { r.classList.remove('mt-dragging'); document.querySelectorAll('.mt-item.mt-over').forEach(x => x.classList.remove('mt-over', 'mt-below')); });
+    r.addEventListener('dragover', e => {
+      e.preventDefault();
+      const rc = r.getBoundingClientRect(), below = e.clientY > rc.top + rc.height / 2;
+      r.classList.add('mt-over'); r.classList.toggle('mt-below', below);
+    });
+    r.addEventListener('dragleave', () => r.classList.remove('mt-over', 'mt-below'));
+    r.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      const below = r.classList.contains('mt-below'); r.classList.remove('mt-over', 'mt-below');
+      const fromId = e.dataTransfer.getData('text/plain');
+      const from = MIND.todos.find(x => x.id === fromId);
+      if (!from || fromId === it.id || from.done !== it.done) return;   // 다른 그룹으로는 이동 안 함
+      MIND.todos = MIND.todos.filter(x => x.id !== fromId);
+      let idx = MIND.todos.indexOf(it); if (below) idx += 1;
+      MIND.todos.splice(idx, 0, from);
+      mindTodoRender(); mindTodoSave();
+    });
     // 제목 클릭 = 인라인 수정 (Enter·포커스아웃 저장 · Esc 취소)
     const txt = r.querySelector('.mt-txt');
     txt.style.cursor = 'text'; txt.title = T.mtEditT || '클릭해서 수정';
