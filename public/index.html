@@ -199,8 +199,16 @@
   #mindDlg[open] { animation: memoIn .18s ease-out; }
   #mindDlg.closing { animation: memoOut .15s ease-in forwards; }
   .mind-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line);
-              background: #111827; }
+              background: #111827; position: relative; z-index: 5; min-height: 49px; box-sizing: border-box; flex-wrap: nowrap; }
+  .mind-bar button { white-space: nowrap; flex: 0 0 auto; }   /* 글자가 세로로 줄바꿈되지 않게 */
   .mind-title { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  /* 📱 모바일: 상단 바 버튼은 아이콘만 (글자 세로줄바꿈으로 바가 커지는 것 방지) */
+  @media (max-width: 768px), (pointer: coarse) {
+    #mindDlg .mind-bar .mlbl { display: none; }
+    #mindDlg .mind-bar { gap: 5px; padding: 6px 8px; overflow-x: auto; }
+    #mindDlg .mind-title .mlbl, #mindDlg .mind-hint { display: none; }   /* 제목글자·힌트도 숨겨 공간 확보 */
+    #mindDlg .mind-bar button { padding: 6px 8px; font-size: 14px; }
+  }
   .mind-sp { flex: 1 1 auto; }
   .mind-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
   .mind-close { font-size: 15px; }
@@ -3562,7 +3570,7 @@ function mindRender() {
 function mindUpdateAddBtn() {
   const b = document.getElementById('mindAdd'); if (!b) return;
   const hasSel = !!(MIND.sel && MIND.cache.get(MIND.sel));
-  b.textContent = hasSel ? '＋ ' + (T.mindAdd || 'Branch') : '🌱 ' + (T.mindAddRoot || 'Add root');
+  b.innerHTML = (hasSel ? '＋' : '🌱') + ' <span class="mlbl">' + esc(hasSel ? (T.mindAdd || 'Branch') : (T.mindAddRoot || 'Add root')) + '</span>';
   b.title = hasSel ? (T.mindAddBranchT || '') : (T.mindAddRootT || '');
 }
 // 📊 유효 진행률 — 잎 가지는 자기 값(prog), 자식이 있으면 자식들의 평균(뿌리는 자동으로 결정됨)
@@ -4112,12 +4120,14 @@ function mindUpdateHint() {
   document.getElementById('mindLink').classList.toggle('on', MIND.connectMode);
 }
 
+// 상단 바 버튼 라벨 — 아이콘 + 글자(모바일에선 CSS가 .mlbl 숨겨 아이콘만)
+function mindBtnLabel(id, icon, text) { const b = document.getElementById(id); if (b) b.innerHTML = icon + ' <span class="mlbl">' + esc(text) + '</span>'; }
 async function openMind() {
-  document.getElementById('mindTitleTxt').textContent = T.mindTitle || 'Mind map';
+  document.getElementById('mindTitleTxt').innerHTML = '<span class="mlbl">' + esc(T.mindTitle || 'Mind map') + '</span>';
   mindUpdateAddBtn();   // ＋가지/🌱뿌리 겸용 버튼 (mindRender에서도 갱신)
-  document.getElementById('mindLink').textContent = '🔗 ' + (T.mindLinkBtn || 'Connect');
-  { const b = document.getElementById('mindExport'); if (b) { b.textContent = '🖼 ' + (T.mindExport || 'Save image'); b.title = T.mindExportT || ''; } }
-  document.getElementById('mindDel').textContent = '－ ' + (T.mindDelBtn || 'Delete');
+  mindBtnLabel('mindLink', '🔗', T.mindLinkBtn || 'Connect');
+  { const b = document.getElementById('mindExport'); if (b) { mindBtnLabel('mindExport', '🖼', T.mindExport || 'Save image'); b.title = T.mindExportT || ''; } }
+  mindBtnLabel('mindDel', '－', T.mindDelBtn || 'Delete');
   document.getElementById('mindReset').textContent = '⊙';
   document.getElementById('mindReset').title = T.mindReset || 'Reset view';
   document.getElementById('mindHint').textContent = T.mindHint || '';
