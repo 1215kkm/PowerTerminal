@@ -204,6 +204,16 @@
   .mind-sp { flex: 1 1 auto; }
   .mind-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
   .mind-close { font-size: 15px; }
+  /* 📋 할일 패널 접기 토글 */
+  .mind-todo .mt-head { position: relative; }
+  #mindTodoCollapse { position: absolute; right: 6px; top: 4px; width: 22px; height: 20px; padding: 0; font-size: 12px;
+                      background: #374151; color: var(--fg); border-radius: 6px; cursor: pointer; }
+  #mindTodoReopen { display: none; position: absolute; left: 0; top: 55px; z-index: 6; padding: 7px 6px 7px 8px;
+                    font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-left: none;
+                    border-radius: 0 8px 8px 0; cursor: pointer; writing-mode: vertical-rl; }
+  #mindDlg.todo-collapsed .mind-todo { width: 0; border-right: none; overflow: hidden; }
+  #mindDlg.todo-collapsed .mind-canvas { left: 0; }
+  #mindDlg.todo-collapsed #mindTodoReopen { display: block; }
   .mind-canvas { position: absolute; inset: 49px 0 0 200px; outline: none; overflow: hidden;   /* 좌측 200px는 할일 패널 */
                  background:
                    radial-gradient(circle, rgba(148,163,184,.13) 1px, transparent 1px) 0 0 / 22px 22px; cursor: default; }
@@ -866,9 +876,10 @@
     <button class="small mind-close" id="mindClose">✕</button>
   </div>
   <!-- 📋 좌측 할일/한일 목록 (위: 할 일 · 아래: 한 일 · 한 일은 복구 가능) -->
+  <button id="mindTodoReopen" title="">📋 ▸</button>
   <div class="mind-todo" id="mindTodo">
     <div class="mt-sec">
-      <div class="mt-head">📋 <span id="mtTodoH"></span></div>
+      <div class="mt-head">📋 <span id="mtTodoH"></span><button id="mindTodoCollapse" title="">◂</button></div>
       <div class="mt-add"><input id="mtInput" maxlength="200"><button id="mtAdd" title="">＋</button></div>
       <div class="mt-list" id="mtTodoList"></div>
     </div>
@@ -1026,7 +1037,7 @@ const I18N = {
     mindColorT:'Change color', mindColorReset:'Default',
     mtTodo:'To-do', mtDone:'Done', mtPh:'Add a to-do, press Enter', mtAddT:'Add', mtDoneBtn:'Mark done', mtRestore:'Move back to to-do', mtEmpty:'Add a to-do', mtEditT:'Click to edit',
     mindMemoT:'Branch memo', mindMemoPh:'A note for whoever works on this branch…', mindProgT:'Drag to set progress',
-    mtLinkedT:'Click to locate this branch on the map', mtProgT:'Click/drag to set progress', mtProgLinkedT:'Branch progress (set it on the map)',
+    mtLinkedT:'Click to locate this branch on the map', mtProgT:'Click/drag to set progress', mtProgLinkedT:'Branch progress (set it on the map)', mtCollapse:'Collapse the to-do panel', mtExpand:'Show the to-do panel',
     mindLinkBtn:'Connect', mindLinkPick:'Click the target node to connect (Esc to cancel)', mindLinkNeedSel:'Select a node first, then Connect',
     mindLinkPick1:'Click the first branch to connect', mindLinkPick2:'Click the second branch · click empty space to reset · Esc to cancel',
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
@@ -1104,7 +1115,7 @@ const I18N = {
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
-    mtLinkedT:'클릭하면 지도에서 이 가지 위치로', mtProgT:'클릭·드래그로 진행률 설정', mtProgLinkedT:'가지 진행률 (지도에서 조절)',
+    mtLinkedT:'클릭하면 지도에서 이 가지 위치로', mtProgT:'클릭·드래그로 진행률 설정', mtProgLinkedT:'가지 진행률 (지도에서 조절)', mtCollapse:'할일 목록 접기', mtExpand:'할일 목록 펼치기',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
@@ -3465,10 +3476,14 @@ function mindApplyTransform() {
   document.getElementById('mindContent').setAttribute('transform',
     `translate(${MIND.panX},${MIND.panY}) scale(${MIND.zoom})`);
 }
+// 게이지는 모든 노드가 같은 폭 — 가장 좁은 노드 기준. 노드 안에서 우측 정렬(오른쪽 6px 여백).
+function mindMinWidth() { let mn = Infinity; const walk = n => { mn = Math.min(mn, mindWidth(n)); (n.children || []).forEach(walk); }; MIND.roots.forEach(walk); return isFinite(mn) ? mn : 64; }
+function mindGaugeGeom(cx, w) { const gw = MIND._gaugeW || 40; return { x: cx + w / 2 - 6 - gw, w: gw }; }
 function mindRender() {
   mindCommitEdit();
   if (!MIND.roots.length) MIND.roots = [mindDefaultRoot()];
   MIND.roots.forEach(mindEnsureOffsets);
+  MIND._gaugeW = Math.max(28, mindMinWidth() - 12);   // 통일 게이지 폭
   const gL = document.getElementById('mindLines'), gN = document.getElementById('mindNodes');
   gL.innerHTML = ''; gN.innerHTML = ''; MIND.cache.clear(); MIND.parent.clear();
   const cssVar = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || '';
@@ -3506,13 +3521,14 @@ function mindRender() {
     g.appendChild(text);
     // 📊 진행률 바 — 노드 하단 얇은 연두 게이지 + %(노드 우측). 자식 있으면 자동(자식 평균), 잎 가지는 hover 핸들로 드래그 설정
     const eff = mindEffProg(node);
+    const gg = mindGaugeGeom(cx, w);   // 통일 폭·우측 정렬
     const barBg = document.createElementNS(SVGNS, 'rect');
-    barBg.setAttribute('x', cx - w / 2 + 6); barBg.setAttribute('y', cy + h / 2 - 6);
-    barBg.setAttribute('width', w - 12); barBg.setAttribute('height', 3.5); barBg.setAttribute('rx', 1.75);
+    barBg.setAttribute('x', gg.x); barBg.setAttribute('y', cy + h / 2 - 6);
+    barBg.setAttribute('width', gg.w); barBg.setAttribute('height', 3.5); barBg.setAttribute('rx', 1.75);
     barBg.setAttribute('fill', 'rgba(148,163,184,.28)'); barBg.style.pointerEvents = 'none';
     const barFill = document.createElementNS(SVGNS, 'rect');
-    barFill.setAttribute('x', cx - w / 2 + 6); barFill.setAttribute('y', cy + h / 2 - 6);
-    barFill.setAttribute('width', Math.max(0, (w - 12) * eff / 100)); barFill.setAttribute('height', 3.5); barFill.setAttribute('rx', 1.75);
+    barFill.setAttribute('x', gg.x); barFill.setAttribute('y', cy + h / 2 - 6);
+    barFill.setAttribute('width', Math.max(0, gg.w * eff / 100)); barFill.setAttribute('height', 3.5); barFill.setAttribute('rx', 1.75);
     barFill.setAttribute('fill', '#a3e635'); barFill.style.pointerEvents = 'none';
     const pctT = document.createElementNS(SVGNS, 'text');
     pctT.setAttribute('x', cx + w / 2 + 4); pctT.setAttribute('y', cy + h / 2 - 4);
@@ -3561,7 +3577,7 @@ function mindEffProg(node) {
 function mindUpdateBars() {
   for (const [, c] of MIND.cache) {
     const eff = mindEffProg(c.node);
-    if (c.barFill) c.barFill.setAttribute('width', Math.max(0, (c.w - 12) * eff / 100));
+    if (c.barFill) c.barFill.setAttribute('width', Math.max(0, mindGaugeGeom(c.cx, c.w).w * eff / 100));
     if (c.pctT) c.pctT.textContent = eff + '%';
   }
 }
@@ -3667,7 +3683,7 @@ function mindRenderAdders() {
   dotLayer.appendChild(dot); dotLayer.appendChild(ic);
   // 📊 진행률 핸들 — 잎 가지만(자식 있으면 자동집계라 조절 불가). 게이지 끝 큰 동그라미, 드래그로 0~100%
   if (!(c.node.children && c.node.children.length)) {
-    const barX = c.cx - w / 2 + 6, barW = w - 12, hy = c.cy + h / 2 - 4.2;
+    const gg = mindGaugeGeom(c.cx, w); const barX = gg.x, barW = gg.w, hy = c.cy + h / 2 - 4.2;
     const hd = document.createElementNS(SVGNS, 'circle');
     hd.setAttribute('cx', barX + barW * mindEffProg(c.node) / 100); hd.setAttribute('cy', hy); hd.setAttribute('r', 8);
     hd.setAttribute('fill', '#a3e635'); hd.setAttribute('stroke', '#fff'); hd.setAttribute('stroke-width', 2);
@@ -3886,8 +3902,9 @@ function mindUpdateSubtree(node) {
     const w = c.w, h = MIND.NODE_H;
     c.rect.setAttribute('x', cx - w / 2); c.rect.setAttribute('y', cy - h / 2);
     c.text.setAttribute('x', cx); c.text.setAttribute('y', cy);
-    if (c.barBg) { c.barBg.setAttribute('x', cx - w / 2 + 6); c.barBg.setAttribute('y', cy + h / 2 - 6); }
-    if (c.barFill) { c.barFill.setAttribute('x', cx - w / 2 + 6); c.barFill.setAttribute('y', cy + h / 2 - 6); }
+    const gg = mindGaugeGeom(cx, w);
+    if (c.barBg) { c.barBg.setAttribute('x', gg.x); c.barBg.setAttribute('y', cy + h / 2 - 6); }
+    if (c.barFill) { c.barFill.setAttribute('x', gg.x); c.barFill.setAttribute('y', cy + h / 2 - 6); }
     if (c.pctT) { c.pctT.setAttribute('x', cx + w / 2 + 4); c.pctT.setAttribute('y', cy + h / 2 - 4); }
     if (c.memoIc) { c.memoIc.setAttribute('cx', cx + w / 2 - 3); c.memoIc.setAttribute('cy', cy - h / 2 + 2); }
     if (c.line && parentCenter) { c.line.setAttribute('x1', parentCenter.x); c.line.setAttribute('y1', parentCenter.y); c.line.setAttribute('x2', cx); c.line.setAttribute('y2', cy); }
@@ -4216,6 +4233,10 @@ function mindTodoInit() {
   document.getElementById('mtDoneH').textContent = T.mtDone || '한 일';
   const inp = document.getElementById('mtInput'); inp.placeholder = T.mtPh || '할 일 입력 후 Enter';
   document.getElementById('mtAdd').title = T.mtAddT || '추가';
+  document.getElementById('mindTodoCollapse').title = T.mtCollapse || '할일 목록 접기';
+  document.getElementById('mindTodoReopen').title = T.mtExpand || '할일 목록 펼치기';
+  // 접힘 상태 복원(이 기기 기억)
+  mindDlg.classList.toggle('todo-collapsed', localStorage.getItem('pt_mindtodo') === 'off');
   if (!mindTodoWired) {
     mindTodoWired = true;
     const add = () => {
@@ -4225,6 +4246,9 @@ function mindTodoInit() {
     };
     document.getElementById('mtAdd').onclick = add;
     inp.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); add(); } ev.stopPropagation(); });
+    const setCollapsed = on => { mindDlg.classList.toggle('todo-collapsed', on); localStorage.setItem('pt_mindtodo', on ? 'off' : 'on'); };
+    document.getElementById('mindTodoCollapse').onclick = () => setCollapsed(true);
+    document.getElementById('mindTodoReopen').onclick = () => setCollapsed(false);
   }
   mindTodoRender();
 }
@@ -4251,11 +4275,13 @@ function mindInitCanvas() {
     mindPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (mindPointers.size === 2) { const p = [...mindPointers.values()]; mindPinch = { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), z: MIND.zoom }; return; }
     if (ev.button === 1) ev.preventDefault();   // 가운데버튼 자동스크롤 아이콘 차단
-    if (mindSpace || ev.button === 1) {
-      mindPan = { x: ev.clientX, y: ev.clientY, panX: MIND.panX, panY: MIND.panY };
-      canvas.classList.add('panning');
+    const emptyCanvas = (ev.target === canvas || ['mindSvg', 'mindContent', 'mindLines', 'mindArrows', 'mindNodes'].includes(ev.target.id));
+    const touchPan = ev.pointerType === 'touch' && emptyCanvas;   // 📱 터치: 빈 캔버스 한 손가락 드래그 = 팬 (모바일에서 지도 이동)
+    if (mindSpace || ev.button === 1 || touchPan) {
+      mindPan = { x: ev.clientX, y: ev.clientY, panX: MIND.panX, panY: MIND.panY, moved: false, tap: touchPan };
+      if (!touchPan) canvas.classList.add('panning');
       try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
-    } else if (ev.target === canvas || ev.target.id === 'mindSvg' || ev.target.id === 'mindContent') {
+    } else if (emptyCanvas) {   // 마우스 빈 곳 클릭 = 선택 해제 (터치는 pointerup에서 탭 판정)
       mindCloseLinkPop();
       if (MIND.connectMode) { MIND.linkFrom = null; MIND.sel = null; mindUpdateHint(); mindRender(); }   // 빈 곳 = 선택 초기화(연결모드 유지, 두 가지 다시 선택)
       else if (MIND.selLink) { mindClearLinkSel(); mindRender(); }                                        // 빈 곳 클릭 = 화살표 선택 해제
@@ -4272,9 +4298,22 @@ function mindInitCanvas() {
       MIND.panX = mx - before.x * MIND.zoom; MIND.panY = my - before.y * MIND.zoom;
       mindApplyTransform(); return;
     }
-    if (mindPan) { MIND.panX = mindPan.panX + (ev.clientX - mindPan.x); MIND.panY = mindPan.panY + (ev.clientY - mindPan.y); mindApplyTransform(); }
+    if (mindPan) {
+      const dx = ev.clientX - mindPan.x, dy = ev.clientY - mindPan.y;
+      if (!mindPan.moved && Math.hypot(dx, dy) > 4) mindPan.moved = true;
+      MIND.panX = mindPan.panX + dx; MIND.panY = mindPan.panY + dy; mindApplyTransform();
+    }
   });
-  const endPtr = ev => { mindPointers.delete(ev.pointerId); if (mindPointers.size < 2) mindPinch = null; if (mindPan) { mindPan = null; canvas.classList.remove('panning'); } };
+  const endPtr = ev => {
+    // 터치로 빈 캔버스를 '탭'(안 움직임)한 경우 = 선택 해제 (드래그면 팬이었으니 그대로)
+    if (mindPan && mindPan.tap && !mindPan.moved) {
+      mindCloseLinkPop();
+      if (MIND.connectMode) { MIND.linkFrom = null; MIND.sel = null; mindUpdateHint(); mindRender(); }
+      else if (MIND.selLink) { mindClearLinkSel(); mindRender(); }
+      else if (MIND.sel) { MIND.sel = null; MIND.adderId = null; mindRender(); }
+    }
+    mindPointers.delete(ev.pointerId); if (mindPointers.size < 2) mindPinch = null; if (mindPan) { mindPan = null; canvas.classList.remove('panning'); }
+  };
   canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
   // 스페이스: 입력창(편집) 중이면 무시, 아니면 페이지 스크롤 차단하고 팬 모드
   canvas.addEventListener('keydown', ev => {
@@ -4321,8 +4360,9 @@ function mindInitCanvas() {
   document.getElementById('mindReset').onclick = () => { const cr = canvas.getBoundingClientRect(); MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5; mindApplyTransform(); };
   document.getElementById('mindClose').onclick = closeMind;
   mindDlg.addEventListener('cancel', ev => { ev.preventDefault(); closeMind(); });
-  // 모달 바깥(반투명 백드롭 50px 여백) 클릭 = 닫기. dialog 자체가 타깃이면 백드롭 클릭.
-  mindDlg.addEventListener('pointerdown', ev => { if (ev.target === mindDlg) closeMind(); });
+  // 모달 바깥(반투명 백드롭 50px 여백) '클릭'(탭)만 = 닫기. click은 down+up이 같은 곳일 때만 발생 →
+  // 드래그·스크롤로 백드롭에서 손을 떼도 안 닫힘(모바일에서 지도 밀다가 꺼지던 문제 방지).
+  mindDlg.addEventListener('click', ev => { if (ev.target === mindDlg) closeMind(); });
 }
 
 // 배너 관리자(🛠)·사용자요청 배지(✉) — 개발자 전용.
