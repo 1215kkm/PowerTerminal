@@ -1052,7 +1052,7 @@ const I18N = {
     mindUndoT:'Undo (Ctrl+Z)', mindRedoT:'Redo (Ctrl+Y)',
     mindAddRoot:'Add root', mindAddRootT:'Add another root map', mindAddRootHere:'Add a root here',
     mindExport:'Save image', mindExportT:'Save the map as a PNG image', mindExportOne:'Selected root only', mindExportAll:'Whole map', mindExportPick:'Save which as an image?',
-    mindOneWay:'One-way', mindTwoWay:'Two-way', mindNotePh:'Note about this connection…',
+    mindOneWay:'One-way', mindTwoWay:'Two-way', mindLeftWay:'Point left', mindRightWay:'Point right', mindNotePh:'Note about this connection…',
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
@@ -1130,7 +1130,7 @@ const I18N = {
     mindUndoT:'실행 취소 (Ctrl+Z)', mindRedoT:'다시 실행 (Ctrl+Y)',
     mindAddRoot:'뿌리추가', mindAddRootT:'다른 뿌리 지도 추가', mindAddRootHere:'여기에 뿌리 추가',
     mindExport:'이미지 저장', mindExportT:'마인드맵을 PNG 이미지로 저장', mindExportOne:'선택한 뿌리만', mindExportAll:'전체 지도', mindExportPick:'무엇을 이미지로 저장할까요?',
-    mindOneWay:'단방향', mindTwoWay:'양방향', mindNotePh:'이 연결에 대한 메모…',
+    mindOneWay:'단방향', mindTwoWay:'양방향', mindLeftWay:'왼쪽으로', mindRightWay:'오른쪽으로', mindNotePh:'이 연결에 대한 메모…',
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
@@ -4090,17 +4090,32 @@ function mindEditLink(link) {
   const mx = MIND.panX + ((a.cx + b.cx) / 2) * MIND.zoom, my = MIND.panY + ((a.cy + b.cy) / 2) * MIND.zoom;
   const pop = document.createElement('div'); pop.className = 'mind-linkpop';
   pop.style.left = mx + 'px'; pop.style.top = my + 'px';
-  pop.innerHTML = `<div class="mlp-dir"><button data-d="one">→ ${esc(T.mindOneWay || 'One-way')}</button>`
-                + `<button data-d="both">↔ ${esc(T.mindTwoWay || 'Two-way')}</button></div>`
+  // 좌·우 판별 — 두 가지 중 화면상 왼쪽/오른쪽 (단방향 화살표 방향 토글용)
+  const leftId = (a.cx <= b.cx) ? link.from : link.to;
+  const rightId = (a.cx <= b.cx) ? link.to : link.from;
+  pop.innerHTML = `<div class="mlp-dir"><button data-d="left" title="${esc(T.mindLeftWay || '왼쪽으로')}">←</button>`
+                + `<button data-d="both" title="${esc(T.mindTwoWay || 'Two-way')}">↔</button>`
+                + `<button data-d="right" title="${esc(T.mindRightWay || '오른쪽으로')}">→</button></div>`
                 + `<textarea class="mlp-note" rows="2" placeholder="${esc(T.mindNotePh || 'Note about this connection…')}"></textarea>`
                 + `<div class="mlp-btns"><button class="mlp-del">🗑 ${esc(T.mindDelBtn || 'Delete')}</button>`
                 + `<button class="mlp-close">✕</button></div>`;
   canvas.appendChild(pop); MIND.linkPop = pop;
   let popMarked = false;
   const markOnce = () => { if (!popMarked) { mindMark(); popMarked = true; } };   // 이 팝업 첫 변경 때만 undo 스냅샷
-  const syncDir = () => pop.querySelectorAll('.mlp-dir button').forEach(x => x.classList.toggle('on', x.dataset.d === link.dir));
+  // 현재 상태 → 어느 버튼이 on: 양방향이면 ↔, 아니면 화살촉이 오른쪽 가지(to==rightId)면 →, 왼쪽이면 ←
+  const curDir = () => link.dir === 'both' ? 'both' : (link.to === rightId ? 'right' : 'left');
+  const syncDir = () => { const c = curDir(); pop.querySelectorAll('.mlp-dir button').forEach(x => x.classList.toggle('on', x.dataset.d === c)); };
   syncDir();
-  pop.querySelectorAll('.mlp-dir button').forEach(x => x.onclick = () => { markOnce(); link.dir = x.dataset.d; syncDir(); mindSave(); mindRenderArrows(); });
+  pop.querySelectorAll('.mlp-dir button').forEach(x => x.onclick = () => {
+    markOnce();
+    if (x.dataset.d === 'both') link.dir = 'both';
+    else {   // 단방향: 화살촉이 오른쪽/왼쪽 가지를 향하도록 from/to 재배치
+      link.dir = 'one';
+      if (x.dataset.d === 'right') { link.from = leftId; link.to = rightId; }
+      else { link.from = rightId; link.to = leftId; }
+    }
+    syncDir(); mindSave(); mindRenderArrows();
+  });
   const ta = pop.querySelector('.mlp-note'); ta.value = link.note || '';
   ta.oninput = () => { markOnce(); link.note = ta.value; mindSave(); };
   ta.onblur = () => mindRenderArrows();
