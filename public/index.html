@@ -1064,7 +1064,7 @@ const I18N = {
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
     mindUndoT:'Undo (Ctrl+Z)', mindRedoT:'Redo (Ctrl+Y)',
     mindCopyBtn:'Copy', mindPasteBtn:'Paste', mindCopyBtnT:'Copy the selection (Ctrl+C) — drag empty space to box-select branches & arrows', mindPasteBtnT:'Paste at the cursor (Ctrl+V)',
-    mindCopied:'Copied', mindPasted:'Pasted', mindCopyEmpty:'Nothing selected — drag a box over branches first', mindPasteEmpty:'Clipboard is empty', mindUnitNode:'', mindUnitLink:' links',
+    mindCopied:'Copied', mindPasted:'Pasted', mindDelMultiConfirm:'Delete the {n} selected branches (including their sub-branches)? ', mindCopyEmpty:'Nothing selected — drag a box over branches first', mindPasteEmpty:'Clipboard is empty', mindUnitNode:'', mindUnitLink:' links',
     mindAddRoot:'Add root', mindAddRootT:'Add another root map', mindAddRootHere:'Add a root here',
     mindExport:'Save image', mindExportT:'Save the map as a PNG image', mindExportOne:'Selected root only', mindExportAll:'Whole map', mindExportPick:'Save which as an image?',
     mindOneWay:'One-way', mindTwoWay:'Two-way', mindLeftWay:'Point left', mindRightWay:'Point right', mindNotePh:'Note about this connection…',
@@ -1144,7 +1144,7 @@ const I18N = {
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
     mindUndoT:'실행 취소 (Ctrl+Z)', mindRedoT:'다시 실행 (Ctrl+Y)',
     mindCopyBtn:'복사', mindPasteBtn:'붙여넣기', mindCopyBtnT:'선택 복사 (Ctrl+C) — 빈 곳을 드래그하면 가지·화살표를 박스로 선택', mindPasteBtnT:'커서 위치에 붙여넣기 (Ctrl+V)',
-    mindCopied:'복사됨', mindPasted:'붙여넣음', mindCopyEmpty:'선택된 게 없어요 — 빈 곳을 드래그해 가지를 감싸세요', mindPasteEmpty:'복사한 게 없어요', mindUnitNode:'개', mindUnitLink:'개 연결',
+    mindCopied:'복사됨', mindPasted:'붙여넣음', mindDelMultiConfirm:'선택한 {n}개 가지(하위 포함)를 삭제합니다. 계속?', mindCopyEmpty:'선택된 게 없어요 — 빈 곳을 드래그해 가지를 감싸세요', mindPasteEmpty:'복사한 게 없어요', mindUnitNode:'개', mindUnitLink:'개 연결',
     mindAddRoot:'뿌리추가', mindAddRootT:'다른 뿌리 지도 추가', mindAddRootHere:'여기에 뿌리 추가',
     mindExport:'이미지 저장', mindExportT:'마인드맵을 PNG 이미지로 저장', mindExportOne:'선택한 뿌리만', mindExportAll:'전체 지도', mindExportPick:'무엇을 이미지로 저장할까요?',
     mindOneWay:'단방향', mindTwoWay:'양방향', mindLeftWay:'왼쪽으로', mindRightWay:'오른쪽으로', mindNotePh:'이 연결에 대한 메모…',
@@ -3998,7 +3998,34 @@ function mindCommitEdit() {
   if (v && v !== node.title) { mindHistPush(snap); node.title = v; mindSave(); }   // 빈 값·무변경 무시
   inp.remove();
 }
+// ▭ 마퀴(박스)로 여러 개 선택된 상태의 삭제 — 선택 가지들(하위 포함) + 선택 화살표 한꺼번에
+function mindDeleteMarq() {
+  const first = MIND.roots[0] && MIND.roots[0].id;
+  const ids = new Set([...MIND.marq].filter(id => id !== first));   // 첫 뿌리는 보호
+  const linkIds = new Set(MIND.marqL);
+  if (!ids.size && !linkIds.size) { mindClearMarq(); mindRender(); return; }
+  // 부모가 같이 선택된 가지는 부모 서브트리 삭제로 함께 사라짐 — 최상위 선택만 추림
+  const parentOf = new Map();
+  const walk = (n, par) => { parentOf.set(n.id, par); (n.children || []).forEach(c => walk(c, n.id)); };
+  MIND.roots.forEach(r => walk(r, null));
+  const tops = [...ids].filter(id => { let p = parentOf.get(id); while (p) { if (ids.has(p)) return false; p = parentOf.get(p); } return true; });
+  const gone = new Set();
+  const collect = id => { gone.add(id); const n = mindFindNode(id); ((n && n.children) || []).forEach(c => collect(c.id)); };
+  tops.forEach(collect);
+  const hasKids = tops.some(id => { const n = mindFindNode(id); return n && n.children && n.children.length; });
+  if ((tops.length > 1 || hasKids)
+      && !confirm((T.mindDelMultiConfirm || '선택한 {n}개 가지(하위 포함)를 삭제합니다. 계속?').replace('{n}', tops.length))) return;
+  mindMark();
+  MIND.roots = MIND.roots.filter(r => !gone.has(r.id));
+  const prune = n => { n.children = (n.children || []).filter(c => !gone.has(c.id)); n.children.forEach(prune); };
+  MIND.roots.forEach(prune);
+  MIND.links = MIND.links.filter(l => !gone.has(l.from) && !gone.has(l.to) && !linkIds.has(l.id));   // 걸린 화살표 + 선택 화살표 제거
+  mindClearMarq(); MIND.sel = null; MIND.adderId = null;
+  if (MIND.selLink && !MIND.links.find(l => l.id === MIND.selLink)) mindClearLinkSel();
+  mindSave(); mindRender();
+}
 function mindDeleteSelected() {
+  if (MIND.marq.size || MIND.marqL.size) { mindDeleteMarq(); return; }   // 박스 선택 중이면 다중 삭제
   if (!MIND.sel) return;
   if (MIND.roots[0] && MIND.sel === MIND.roots[0].id) return;   // 첫 뿌리는 보호
   const node = MIND.cache.get(MIND.sel) && MIND.cache.get(MIND.sel).node;
@@ -4515,7 +4542,7 @@ function mindInitCanvas() {
     if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'c' || ev.key === 'C') && !editing && (MIND.marq.size || MIND.sel)) { ev.preventDefault(); mindCopy(); return; }   // Ctrl+C = 선택 복사
     if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'v' || ev.key === 'V') && !editing) { ev.preventDefault(); mindPaste(); return; }                              // Ctrl+V = 붙여넣기
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && MIND.selLink) { ev.preventDefault(); mindDeleteLink(MIND.selLink); return; }   // Delete = 선택된 화살표 삭제
-    if (ev.key === 'Delete' && MIND.sel) { ev.preventDefault(); mindDeleteSelected(); return; }   // Delete = 선택된 가지/뿌리 삭제 (첫 뿌리 보호·하위 확인 그대로)
+    if (ev.key === 'Delete' && (MIND.sel || MIND.marq.size || MIND.marqL.size)) { ev.preventDefault(); mindDeleteSelected(); return; }   // Delete = 선택된 가지/뿌리·박스선택 전체 삭제 (첫 뿌리 보호·하위 확인 그대로)
     if ((ev.key === 'F2' || ev.key === 'Enter') && MIND.sel) { ev.preventDefault(); const c = MIND.cache.get(MIND.sel); if (c) mindStartEdit(c.node, true); return; }   // F2·Enter = 선택 노드 이름수정
     if (ev.key === '+' && MIND.sel) { ev.preventDefault(); const c = MIND.cache.get(MIND.sel); if (c) mindAddChild(c.node, 4); return; }   // + = 선택 노드에 가지 추가
     if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (ev.key === 'z' || ev.key === 'Z')) { ev.preventDefault(); mindUndo(); }
