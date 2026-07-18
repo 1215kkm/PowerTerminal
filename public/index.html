@@ -1516,7 +1516,14 @@ function buildPane(sess, idx) {
   // 드래그로 글자 선택 후 놓으면 자동 복사 (터미널은 Ctrl+C가 '중단'이라 복사가 안 됨)
   el.querySelector('.term').addEventListener('mouseup', () => {
     const s = term.getSelection();
-    if (s && s.trim()) copySel(s);
+    if (!s || !s.trim()) return;
+    // 복사 과정(포커스 이동 등)이 스크롤을 맨 아래로 튕기지 않게 — 위(스크롤백)를 보던 중이면 그 위치 복원
+    const buf = term.buffer.active, vy = buf.viewportY, wasUp = vy < buf.baseY;
+    copySel(s);
+    if (wasUp) setTimeout(() => {
+      const b = term.buffer.active;
+      if (b.viewportY >= b.baseY) { try { term.scrollToLine(vy); } catch (e) {} }   // 맨 아래로 튕겼을 때만 되돌림
+    }, 60);
   });
   // 🖱 드래그 선택 중엔 수신 출력을 잠시 보류 — Claude가 화면을 계속 다시 그려서
   // 선택 표시가 그리는 순간마다 지워지던 문제 (선택이 아예 안 되는 것처럼 보임)
@@ -1525,7 +1532,18 @@ function buildPane(sess, idx) {
     clearTimeout(el._selHoldTo);
     el._selHoldTo = setTimeout(() => {
       selHold = false;
-      if (holdBuf.length) { const d = holdBuf.join(''); holdBuf = []; try { term.write(d); } catch (e) {} }
+      if (holdBuf.length) {
+        const d = holdBuf.join(''); holdBuf = [];
+        // 보류됐던 출력 몰아쓰기가 보던 위치를 맨 아래로 끌고 가지 않게 — 위를 보던 중이면 복원
+        const buf = term.buffer.active, vy = buf.viewportY, wasUp = vy < buf.baseY;
+        try {
+          term.write(d, () => {
+            if (!wasUp) return;
+            const b = term.buffer.active;
+            if (b.viewportY >= b.baseY) { try { term.scrollToLine(vy); } catch (e) {} }   // 맨 아래로 튕겼을 때만 되돌림
+          });
+        } catch (e) {}
+      }
     }, delay || 0);
   };
   el.querySelector('.term').addEventListener('mousedown', ev => {
