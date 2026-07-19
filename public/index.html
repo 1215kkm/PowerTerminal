@@ -3559,7 +3559,15 @@ const MIND = {
   events: [], calYM: null, view: 'map', calSaveTimer: null   // 📅 일정(달력): 항목·보고있는 연월·현재 탭
 };
 function mindUid() { try { return crypto.randomUUID(); } catch (e) { return 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
-function mindWidth(n) { return Math.max(64, (n.title || '').length * 13 + 24); }
+// 가지 폭 — 글자수 추정 대신 실제 렌더 폭(measureText)으로 계산해 좌우 여백이 항상 정확히 30px씩
+const MIND_PAD_X = 30;   // 노드 좌우 여백 (텍스트 ↔ 테두리)
+let _mindMeasureCtx;
+function mindTextW(t, bold) {
+  if (!_mindMeasureCtx) _mindMeasureCtx = document.createElement('canvas').getContext('2d');
+  _mindMeasureCtx.font = (bold ? '700 ' : '400 ') + '13px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+  return _mindMeasureCtx.measureText(t || '').width;
+}
+function mindWidth(n) { return Math.ceil(mindTextW(n.title, mindIsRoot(n))) + MIND_PAD_X * 2; }
 function mindDefaultRoot() {
   const nm = MIND.userName || '';
   const title = nm ? (T.mindRootTitle || '{u}의 지도').replace('{u}', nm) : (T.mindRootNoUser || '내 지도');
