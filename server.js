@@ -421,19 +421,21 @@ app.post('/api/mkdir', (req, res) => {
 });
 
 // 내 GitHub 저장소 목록 (clone 대상 선택용)
+// ⚠ gh/git 실행은 전부 비동기 — 동기로 돌리면 그 동안 서버 전체(모든 세션 터미널·API)가 멈춘다
+const execFileA = (bin, args, opts) => new Promise((resolve, reject) =>
+  execFile(bin, args, opts, (err, so, se) => err ? reject(Object.assign(err, { stderr: se })) : resolve(String(so || ''))));
 function ghInstalled() {
-  try { execFileSync(ghBin(), ['--version'], { timeout: 6000, stdio: 'ignore' }); return true; }
-  catch (e) { return false; }
+  return execFileA(ghBin(), ['--version'], { timeout: 6000, windowsHide: true }).then(() => true, () => false);
 }
 
-app.get('/api/my-repos', (req, res) => {
+app.get('/api/my-repos', async (req, res) => {
   try {
-    const out = execFileSync(ghBin(), ['repo', 'list', '--limit', '100', '--json', 'name,url,isPrivate,updatedAt'],
-      { encoding: 'utf8', timeout: 20000 });
+    const out = await execFileA(ghBin(), ['repo', 'list', '--limit', '100', '--json', 'name,url,isPrivate,updatedAt'],
+      { encoding: 'utf8', timeout: 20000, windowsHide: true });
     res.json(JSON.parse(out));
   } catch (e) {
     // 설치는 됐는데 로그인만 안 됐는지, 아예 미설치인지 구분해서 클라가 알맞은 UI를 띄우게 함
-    const installed = ghInstalled();
+    const installed = await ghInstalled();
     res.status(400).json({
       code: installed ? 'not_authed' : 'not_installed',
       error: installed ? 'GitHub에 로그인되어 있지 않습니다.' : 'GitHub CLI(gh)가 설치되어 있지 않습니다.'
@@ -442,9 +444,9 @@ app.get('/api/my-repos', (req, res) => {
 });
 
 // 현재 로그인된 GitHub 아이디 (gh api user 의 .login). 미로그인/미설치면 null.
-app.get('/api/gh-user', (req, res) => {
+app.get('/api/gh-user', async (req, res) => {
   try {
-    const out = execFileSync(ghBin(), ['api', 'user', '-q', '.login'], { encoding: 'utf8', timeout: 8000 }).trim();
+    const out = (await execFileA(ghBin(), ['api', 'user', '-q', '.login'], { encoding: 'utf8', timeout: 8000, windowsHide: true })).trim();
     res.json({ login: out || null });
   } catch (e) { res.json({ login: null }); }
 });
@@ -463,7 +465,7 @@ function ghOAuthPost(pathName, params) {
   });
 }
 app.post('/api/gh-login/start', async (req, res) => {
-  if (!ghInstalled()) return res.status(400).json({ code: 'not_installed', error: 'GitHub CLI(gh)가 설치되어 있지 않습니다.' });
+  if (!(await ghInstalled())) return res.status(400).json({ code: 'not_installed', error: 'GitHub CLI(gh)가 설치되어 있지 않습니다.' });
   try {
     const j = await ghOAuthPost('/login/device/code', { client_id: GH_CLIENT_ID, scope: 'repo read:org gist workflow' });
     if (!j.device_code) return res.status(500).json({ error: '로그인 시작 실패' });
@@ -479,8 +481,18 @@ app.post('/api/gh-login/poll', async (req, res) => {
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
     });
     if (j.access_token) {
-      try { execFileSync(ghBin(), ['auth', 'login', '--hostname', 'github.com', '--with-token'], { input: j.access_token, timeout: 15000 }); }
-      catch (e) { return res.json({ status: 'error', detail: (e.stderr || e.message || '').toString().slice(0, 200) }); }
+      // gh auth login은 stdin으로 토큰을 받음 — 비동기 spawn (동기 실행 금지)
+      try {
+        await new Promise((resolve, reject) => {
+          const p = spawn(ghBin(), ['auth', 'login', '--hostname', 'github.com', '--with-token'], { windowsHide: true });
+          let se = '';
+          p.stderr.on('data', d => se += d);
+          p.on('error', reject);
+          p.on('close', code => code === 0 ? resolve() : reject(new Error(se.slice(0, 200) || ('exit ' + code))));
+          p.stdin.write(j.access_token); p.stdin.end();
+          setTimeout(() => { try { p.kill(); } catch (e2) {} }, 15000);
+        });
+      } catch (e) { return res.json({ status: 'error', detail: (e.message || '').toString().slice(0, 200) }); }
       ghDeviceCode = null;
       return res.json({ status: 'authed' });
     }
@@ -499,20 +511,19 @@ app.post('/api/clone', (req, res) => {
   if (!base) base = process.env.USERPROFILE || 'D:\\';
   const name = url.replace(/\.git$/, '').split('/').pop();
   const dir = path.join(base, name);
-  try {
-    if (fs.existsSync(dir)) {
-      // 이미 있으면 clone 생략하고 그 폴더로 세션
-    } else {
-      execFileSync('git', ['clone', url, dir], { timeout: 120000 });
-    }
-  } catch (e) {
-    return res.status(500).json({ error: 'clone 실패: ' + (e.stderr || e.message || '').toString().slice(0, 300) });
-  }
-  const id = crypto.randomBytes(4).toString('hex');
-  const sess = { id, title: name, path: dir, previewUrl: '',
-                 agent: req.body.agent || 'claude', model: (req.body.model && String(req.body.model)) || 'default', cmd: '' };
-  sessions.push(sess); saveSessions(); addRecent(sess); getPty(sess);
-  res.json(sess);
+  // clone은 몇 분까지 걸릴 수 있음 — 비동기 실행 (동기면 그동안 서버 전체·모든 세션이 얼어붙음)
+  const proceed = () => {
+    const id = crypto.randomBytes(4).toString('hex');
+    const sess = { id, title: name, path: dir, previewUrl: '',
+                   agent: req.body.agent || 'claude', model: (req.body.model && String(req.body.model)) || 'default', cmd: '' };
+    sessions.push(sess); saveSessions(); addRecent(sess); getPty(sess);
+    res.json(sess);
+  };
+  if (fs.existsSync(dir)) return proceed();   // 이미 있으면 clone 생략하고 그 폴더로 세션
+  execFile('git', ['clone', url, dir], { timeout: 120000, windowsHide: true }, (err, so, se) => {
+    if (err) return res.status(500).json({ error: 'clone 실패: ' + String(se || err.message || '').slice(0, 300) });
+    proceed();
+  });
 });
 
 app.get('/api/known-projects', (req, res) => {
@@ -618,7 +629,7 @@ app.get('/api/usage', async (req, res) => {
 });
 
 // 새 프로젝트: 폴더 + git init + GitHub 비공개 저장소 + 세션 시작 (런처와 동일 기능)
-app.post('/api/new-project', (req, res) => {
+app.post('/api/new-project', async (req, res) => {
   const name = (req.body.name || '').trim();
   if (!/^[\w.-]+$/.test(name)) return res.status(400).json({ error: '이름은 영문/숫자/-/_ 만 가능합니다 (GitHub 저장소명으로 쓰임)' });
   let base = (req.body.base || '').trim();
@@ -630,14 +641,15 @@ app.post('/api/new-project', (req, res) => {
   if (fs.existsSync(dir)) return res.status(400).json({ error: '이미 존재하는 폴더: ' + dir });
   let repoUrl = '', ghError = '';
   try {
+    // git/gh 전부 비동기 — repo create --push는 네트워크로 수 초 걸릴 수 있어 동기면 서버 전체가 멈춤
     fs.mkdirSync(dir, { recursive: true });
-    execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
+    await execFileA('git', ['init', '-b', 'main'], { cwd: dir, windowsHide: true });
     fs.writeFileSync(path.join(dir, 'README.md'), '# ' + name + '\n');
-    execFileSync('git', ['add', '-A'], { cwd: dir });
-    execFileSync('git', ['commit', '-m', 'init: ' + name], { cwd: dir });
+    await execFileA('git', ['add', '-A'], { cwd: dir, windowsHide: true });
+    await execFileA('git', ['commit', '-m', 'init: ' + name], { cwd: dir, windowsHide: true });
     try {
-      const out = execFileSync(ghBin(), ['repo', 'create', name, '--private', '--source', '.', '--remote', 'origin', '--push'],
-        { cwd: dir, encoding: 'utf8' });
+      const out = await execFileA(ghBin(), ['repo', 'create', name, '--private', '--source', '.', '--remote', 'origin', '--push'],
+        { cwd: dir, encoding: 'utf8', timeout: 60000, windowsHide: true });
       repoUrl = (out.match(/https:\/\/github\.com\/\S+/) || [''])[0];
     } catch (e) {
       ghError = 'GitHub 저장소 생성 실패 (gh 로그인 확인): ' + (e.stderr || e.message || '').toString().slice(0, 300);
@@ -940,20 +952,20 @@ app.post('/api/sessions/:id/upload-text', (req, res) => {
 });
 
 // 🌿 세션 폴더의 git 브랜치·리모트 — 입력창 위 얇은 줄에 표시. 클릭하면 그 브랜치의 PR 페이지로.
-const gitCache = new Map();   // sessionId -> { at, data }
-app.get('/api/git-info', (req, res) => {
-  const s = sessions.find(x => x.id === req.query.id);
-  if (!s) return res.status(404).json({});
-  const c = gitCache.get(s.id);
-  if (c && Date.now() - c.at < 8000) return res.json(c.data);   // 8초 캐시 — 폴링 부담 줄이기
-  const run = (args) => execFileSync('git', args, { cwd: s.path, encoding: 'utf8', timeout: 6000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+// ⚠ 전부 비동기 — 이전엔 execFileSync(git 4회 + gh pr list 네트워크 7초)라 세션 4개×20초 폴링마다
+//   서버 전체가 수 초씩 멈췄다(터미널 출력·QR·마인드맵까지 전부 무반응으로 보임). v1.10.34에서 수정.
+const gitCache = new Map();   // sessionId -> { at, data, busy }
+const execFileP = (bin, args, opts) => new Promise((resolve, reject) =>
+  execFile(bin, args, opts, (err, so) => err ? reject(err) : resolve(String(so || '').trim())));
+async function gitInfoOf(s) {
+  const run = (args) => execFileP('git', args, { cwd: s.path, encoding: 'utf8', timeout: 6000, windowsHide: true });
   let data = { git: false };
   try {
-    const branch = run(['rev-parse', '--abbrev-ref', 'HEAD']);
-    let remote = ''; try { remote = run(['config', '--get', 'remote.origin.url']); } catch (e) {}
-    let dirty = 0; try { dirty = run(['status', '--porcelain']).split('\n').filter(Boolean).length; } catch (e) {}
+    const branch = await run(['rev-parse', '--abbrev-ref', 'HEAD']);
+    let remote = ''; try { remote = await run(['config', '--get', 'remote.origin.url']); } catch (e) {}
+    let dirty = 0; try { dirty = (await run(['status', '--porcelain'])).split('\n').filter(Boolean).length; } catch (e) {}
     let ahead = 0, behind = 0;
-    try { const t = run(['rev-list', '--left-right', '--count', 'HEAD...@{upstream}']).split(/\s+/); ahead = +t[0] || 0; behind = +t[1] || 0; } catch (e) {}
+    try { const t = (await run(['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'])).split(/\s+/); ahead = +t[0] || 0; behind = +t[1] || 0; } catch (e) {}
     // GitHub 리모트면 PR 페이지 주소 — 브랜치가 main/master면 PR 목록, 아니면 그 브랜치의 PR(없으면 새 PR 화면)
     let prUrl = '', repo = '';
     const m = remote.match(/github\.com[/:]([^/]+\/[^/.]+)(\.git)?$/i);
@@ -963,8 +975,8 @@ app.get('/api/git-info', (req, res) => {
       else {
         // 이 브랜치로 열린 PR이 있으면 그 PR로, 없으면 새 PR 화면으로 (gh 없거나 실패해도 폴백)
         try {
-          const j = JSON.parse(execFileSync(ghBin(), ['pr', 'list', '--repo', repo, '--head', branch, '--state', 'open', '--json', 'url', '--limit', '1'],
-            { encoding: 'utf8', timeout: 7000, stdio: ['ignore', 'pipe', 'ignore'] }));
+          const j = JSON.parse(await execFileP(ghBin(), ['pr', 'list', '--repo', repo, '--head', branch, '--state', 'open', '--json', 'url', '--limit', '1'],
+            { encoding: 'utf8', timeout: 7000, windowsHide: true }));
           if (Array.isArray(j) && j[0] && j[0].url) prUrl = j[0].url;
         } catch (e) {}
         if (!prUrl) prUrl = `https://github.com/${repo}/pull/new/${encodeURIComponent(branch)}`;
@@ -972,8 +984,20 @@ app.get('/api/git-info', (req, res) => {
     }
     data = { git: true, branch, dirty, ahead, behind, repo, prUrl };
   } catch (e) { data = { git: false }; }
-  gitCache.set(s.id, { at: Date.now(), data });
-  res.json(data);
+  return data;
+}
+app.get('/api/git-info', (req, res) => {
+  const s = sessions.find(x => x.id === req.query.id);
+  if (!s) return res.status(404).json({});
+  const c = gitCache.get(s.id);
+  if (c && Date.now() - c.at < 8000) return res.json(c.data);   // 8초 캐시 — 폴링 부담 줄이기
+  if (c && c.data) {   // 오래된 캐시라도 즉시 응답하고 뒤에서 갱신 (클라이언트가 20초마다 다시 물어봄)
+    res.json(c.data);
+    if (!c.busy) { c.busy = true; gitInfoOf(s).then(d => gitCache.set(s.id, { at: Date.now(), data: d })).catch(() => { c.busy = false; }); }
+    return;
+  }
+  gitInfoOf(s).then(data => { gitCache.set(s.id, { at: Date.now(), data }); res.json(data); })
+              .catch(() => res.json({ git: false }));
 });
 
 // 🔗 터미널 속 파일 링크(Ctrl+클릭)로 파일/폴더 열기 — 절대경로 또는 세션 폴더 기준 상대 이름
