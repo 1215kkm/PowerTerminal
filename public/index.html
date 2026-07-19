@@ -331,7 +331,12 @@
   .mind-todo .mt-item { display: block; }
   .mind-todo .mt-main { display: flex; align-items: flex-start; gap: 5px; }
   .mind-todo .mt-chip { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; border: 1.5px solid rgba(255,255,255,.55); }
-  .mind-todo .mt-prog { position: relative; height: 9px; margin: 4px 2px 1px; background: rgba(148,163,184,.22); border-radius: 5px; overflow: hidden; }
+  .mind-todo .mt-prog { position: relative; height: 9px; margin: 4px 2px 1px; background: rgba(148,163,184,.22); border-radius: 5px; }
+  /* ⬤ 진행률 조절 동그라미 — 마우스 올리면 게이지 끝에 표시, 드래그로 조절 (지도 게이지와 같은 모양) */
+  .mind-todo .mt-prog .mt-knob { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 13px; height: 13px;
+      border-radius: 50%; background: #a3e635; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+      opacity: 0; pointer-events: none; transition: opacity .12s; box-sizing: border-box; }
+  .mind-todo .mt-prog:hover .mt-knob, .mind-todo .mt-prog.mt-dragging .mt-knob { opacity: 1; }
   .mind-todo .mt-prog-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #a3e635; border-radius: 5px; }
   .mind-todo .mt-pct { position: absolute; right: 4px; top: -1px; font-size: 8.5px; font-weight: 700; color: #365314; mix-blend-mode: normal; }
   html:not(.light) .mind-todo .mt-pct { color: #d9f99d; text-shadow: 0 0 3px rgba(0,0,0,.7); }
@@ -1186,7 +1191,7 @@ const I18N = {
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
-    mtLinkedT:'클릭하면 지도에서 이 가지 위치로', mtProgT:'클릭·드래그로 진행률 설정', mtProgLinkedT:'가지 진행률 (지도에서 조절)', mtCollapse:'할일 목록 접기', mtExpand:'할일 목록 펼치기',
+    mtLinkedT:'클릭하면 지도에서 이 가지 위치로', mtProgT:'클릭·드래그로 진행률 설정', mtProgLinkedT:'가지 진행률 (하위 가지 평균 — 지도에서 조절)', mtCollapse:'할일 목록 접기', mtExpand:'할일 목록 펼치기',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
     mindLinkPick1:'연결할 첫 번째 가지를 클릭하세요', mindLinkPick2:'연결할 두 번째 가지 클릭 · 빈 곳 클릭 시 초기화 · Esc로 취소',
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
@@ -4504,24 +4509,37 @@ function mindTodoRender() {
       + (isDone ? `<button class="mt-restore" title="${esc(T.mtRestore || '할 일로 되돌리기')}">↩</button>`
                 : `<button class="mt-check" title="${esc(T.mtDoneBtn || '완료')}">✓</button>`)
       + `<button class="mt-del" title="${esc(T.memoDelT || '삭제')}">✕</button></div>`
-      + `<div class="mt-prog" title="${escA(linked ? (T.mtProgLinkedT || '가지 진행률 (지도에서 조절)') : (T.mtProgT || '클릭·드래그로 진행률 설정'))}">`
-      + `<div class="mt-prog-fill" style="width:${eff}%"></div><span class="mt-pct">${eff}%</span></div>`;
-    // 진행률 바 — 일반 항목은 클릭·드래그로 설정, 가지 연동 항목은 지도 진행률을 그대로 보여줌(읽기전용)
+      + `<div class="mt-prog" title="${escA((!linked || !(linked.children || []).length) ? (T.mtProgT || '클릭·드래그로 진행률 설정') : (T.mtProgLinkedT || '가지 진행률 (하위 가지 평균 — 지도에서 조절)'))}">`
+      + `<div class="mt-prog-fill" style="width:${eff}%"></div><span class="mt-pct">${eff}%</span>`
+      + ((!linked || !(linked.children || []).length) ? `<span class="mt-knob" style="left:${eff}%"></span>` : '') + `</div>`;
+    // 진행률 바 — 일반 항목·가지 연동 잎(leaf) 항목은 드래그로 조절(동그라미 핸들), 잎 조절은 지도 게이지와 실시간 연동.
+    // 하위 가지가 있는 연동 항목만 읽기전용(자식 평균 자동 계산이라 직접 설정 불가).
+    const linkedLeaf = linked && !(linked.children || []).length;
+    const adjustable = !linked || linkedLeaf;
     const prog = r.querySelector('.mt-prog');
-    if (!linked) {
+    if (adjustable) {
       prog.style.cursor = 'ew-resize';
       prog.addEventListener('pointerdown', pe => {
         pe.stopPropagation(); pe.preventDefault(); r.draggable = false;
+        prog.classList.add('mt-dragging');
         const set = e2 => {
           const pr = prog.getBoundingClientRect();
-          it.prog = Math.max(0, Math.min(100, Math.round((e2.clientX - pr.left) / pr.width * 100)));
-          prog.querySelector('.mt-prog-fill').style.width = it.prog + '%';
-          prog.querySelector('.mt-pct').textContent = it.prog + '%';
+          const v = Math.max(0, Math.min(100, Math.round((e2.clientX - pr.left) / pr.width * 100)));
+          if (linkedLeaf) linked.prog = v; else it.prog = v;
+          prog.querySelector('.mt-prog-fill').style.width = v + '%';
+          prog.querySelector('.mt-pct').textContent = v + '%';
+          const kb = prog.querySelector('.mt-knob'); if (kb) kb.style.left = v + '%';
+          if (linkedLeaf) mindUpdateBars();   // 🧠 지도 게이지(그 가지 + 뿌리 평균)도 실시간으로 함께 움직임
         };
         set(pe);
         try { prog.setPointerCapture(pe.pointerId); } catch (e) {}
         const mv = e2 => set(e2);
-        const up = () => { prog.removeEventListener('pointermove', mv); prog.removeEventListener('pointerup', up); r.draggable = true; mindTodoSave(); };
+        const up = () => {
+          prog.removeEventListener('pointermove', mv); prog.removeEventListener('pointerup', up);
+          prog.classList.remove('mt-dragging'); r.draggable = true;
+          if (linkedLeaf) mindSave();   // 가지 진행률은 트리에 저장
+          mindTodoSave();
+        };
         prog.addEventListener('pointermove', mv);
         prog.addEventListener('pointerup', up);
       });
