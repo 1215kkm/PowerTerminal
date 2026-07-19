@@ -237,6 +237,42 @@
   /* ▭ 드래그 박스(마퀴) 선택 — 빈 곳을 마우스로 끌면 그 안의 가지·화살표가 선택됨 */
   .mind-marquee { position: absolute; z-index: 6; pointer-events: none; border: 1.5px solid var(--violet);
                   background: rgba(124,58,237,.14); border-radius: 3px; }
+  /* 📅 지도/일정 탭 + 달력 */
+  .mind-tabs { display: flex; gap: 4px; margin-left: 10px; flex: 0 0 auto; }
+  #mindCal { display: none; position: absolute; inset: 49px 0 0 200px; flex-direction: column; padding: 10px 12px; overflow: hidden; }
+  #mindDlg.todo-collapsed #mindCal { left: 0; }
+  #mindDlg.cal-mode .mind-canvas { display: none; }
+  #mindDlg.cal-mode #mindCal { display: flex; }
+  #mindDlg.cal-mode #mindUndo, #mindDlg.cal-mode #mindRedo, #mindDlg.cal-mode #mindAdd, #mindDlg.cal-mode #mindLink,
+  #mindDlg.cal-mode #mindCopy, #mindDlg.cal-mode #mindPaste, #mindDlg.cal-mode #mindDel, #mindDlg.cal-mode #mindExport,
+  #mindDlg.cal-mode #mindReset, #mindDlg.cal-mode #mindHint { display: none; }
+  .mc-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; flex: 0 0 auto; }
+  .mc-head #mcTitle { font-weight: 700; font-size: 15px; min-width: 110px; text-align: center; }
+  .mc-week { display: grid; grid-template-columns: repeat(7, 1fr); flex: 0 0 auto; }
+  .mc-week span { text-align: center; font-size: 11px; color: var(--muted); padding: 3px 0; font-weight: 700; }
+  .mc-week span:first-child { color: #f87171; }
+  .mc-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 3px; flex: 1 1 auto; min-height: 0; }
+  .mc-day { border: 1px solid var(--line); border-radius: 7px; padding: 3px 4px; overflow-y: auto; min-height: 0;
+            display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+  .mc-day:hover { border-color: var(--violet); }
+  .mc-day.mc-out { opacity: .38; }
+  .mc-day .mc-n { font-size: 11px; font-weight: 700; color: var(--muted); flex: 0 0 auto; }
+  .mc-day.mc-sun .mc-n { color: #f87171; }
+  .mc-day.mc-today .mc-n { color: #fff; background: var(--violet); border-radius: 999px; width: 18px; height: 18px;
+            display: inline-flex; align-items: center; justify-content: center; }
+  .mc-ev { font-size: 11px; line-height: 1.3; padding: 1px 5px; border-radius: 5px; background: rgba(124,58,237,.25);
+            border-left: 3px solid var(--violet); cursor: pointer; word-break: break-all; flex: 0 0 auto; }
+  .mc-ev:hover { filter: brightness(1.25); }
+  .mc-ev.mc-todo { background: rgba(163,230,53,.16); border-left-color: #a3e635; }
+  .mc-ev.mc-done { text-decoration: line-through; opacity: .55; }
+  .mc-add { border: 1px dashed var(--line); background: transparent; color: var(--fg); border-radius: 5px;
+            font-size: 11px; padding: 1px 4px; width: 100%; box-sizing: border-box; }
+  /* 📋 todo 날짜 배지 + 📅 버튼 */
+  .mind-todo .mt-date { font-size: 9.5px; color: #38bdf8; border: 1px solid rgba(56,189,248,.45); border-radius: 4px;
+            padding: 0 4px; margin-left: 4px; cursor: pointer; flex: 0 0 auto; }
+  .mind-todo .mt-cal { flex: 0 0 auto; width: 20px; border-radius: 5px; background: transparent; border: 0;
+            cursor: pointer; font-size: 11px; opacity: .45; padding: 0; }
+  .mind-todo .mt-item:hover .mt-cal { opacity: 1; }
   /* 📋 좌측 할일/한일 패널 */
   .mind-todo { position: absolute; left: 0; top: 49px; bottom: 0; width: 200px; z-index: 4;
                display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
@@ -883,6 +919,7 @@
 <dialog id="mindDlg">
   <div class="mind-bar">
     <span class="mind-title"><svg class="mindic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><line x1="6" y1="7" x2="17" y2="6"></line><line x1="6" y1="7" x2="11" y2="17"></line><line x1="17" y1="6" x2="11" y2="17"></line><circle cx="6" cy="7" r="2.5" fill="currentColor" stroke="none"></circle><circle cx="17" cy="6" r="2.5" fill="currentColor" stroke="none"></circle><circle cx="11" cy="17" r="2.5" fill="currentColor" stroke="none"></circle></svg> <span id="mindTitleTxt"></span></span>
+    <span class="mind-tabs"><button class="small on" id="mindTabMap"></button><button class="small" id="mindTabCal"></button></span>
     <span class="mind-sp"></span>
     <button class="small" id="mindUndo" title="">↶</button>
     <button class="small" id="mindRedo" title="">↷</button>
@@ -922,6 +959,17 @@
         <g id="mindNodes"></g>
       </g>
     </svg>
+  </div>
+  <!-- 📅 일정(달력) 탭 — 월 달력 + 일정 항목, 날짜 지정된 todo도 함께 표시 -->
+  <div id="mindCal">
+    <div class="mc-head">
+      <button class="small" id="mcPrev">◀</button>
+      <span id="mcTitle"></span>
+      <button class="small" id="mcNext">▶</button>
+      <button class="small" id="mcToday"></button>
+    </div>
+    <div class="mc-week" id="mcWeek"></div>
+    <div class="mc-grid" id="mcGrid"></div>
   </div>
 </dialog>
 <!-- ⚙ 설정 — 모든 사용자용 (요청 이유 파악·내용 요약 기록) -->
@@ -1064,7 +1112,7 @@ const I18N = {
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
     mindUndoT:'Undo (Ctrl+Z)', mindRedoT:'Redo (Ctrl+Y)',
     mindCopyBtn:'Copy', mindPasteBtn:'Paste', mindCopyBtnT:'Copy the selection (Ctrl+C) — drag empty space to box-select branches & arrows', mindPasteBtnT:'Paste at the cursor (Ctrl+V)',
-    mindCopied:'Copied', mindPasted:'Pasted', mindDelMultiConfirm:'Delete the {n} selected branches (including their sub-branches)? ', mindCopyEmpty:'Nothing selected — drag a box over branches first', mindPasteEmpty:'Clipboard is empty', mindUnitNode:'', mindUnitLink:' links',
+    mindCopied:'Copied', mindPasted:'Pasted', mindTabMap:'Map', mindTabCal:'Schedule', mcToday:'Today', mcTitleFmt:'{m}/{y}', mcWeekdays:'Sun,Mon,Tue,Wed,Thu,Fri,Sat', mcAddPh:'Add event, then Enter', mcEditPrompt:'Edit event (empty = delete)', mcEvT:'Click: toggle done · double-click: edit (empty deletes)', mcTodoT:'To-do (click toggles done — synced with the left list)', mtDateT:'Date — shows on the Schedule calendar (click to change)', mindDelMultiConfirm:'Delete the {n} selected branches (including their sub-branches)? ', mindCopyEmpty:'Nothing selected — drag a box over branches first', mindPasteEmpty:'Clipboard is empty', mindUnitNode:'', mindUnitLink:' links',
     mindAddRoot:'Add root', mindAddRootT:'Add another root map', mindAddRootHere:'Add a root here',
     mindExport:'Save image', mindExportT:'Save the map as a PNG image', mindExportOne:'Selected root only', mindExportAll:'Whole map', mindExportPick:'Save which as an image?',
     mindOneWay:'One-way', mindTwoWay:'Two-way', mindLeftWay:'Point left', mindRightWay:'Point right', mindNotePh:'Note about this connection…',
@@ -1144,7 +1192,7 @@ const I18N = {
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
     mindUndoT:'실행 취소 (Ctrl+Z)', mindRedoT:'다시 실행 (Ctrl+Y)',
     mindCopyBtn:'복사', mindPasteBtn:'붙여넣기', mindCopyBtnT:'선택 복사 (Ctrl+C) — 빈 곳을 드래그하면 가지·화살표를 박스로 선택', mindPasteBtnT:'커서 위치에 붙여넣기 (Ctrl+V)',
-    mindCopied:'복사됨', mindPasted:'붙여넣음', mindDelMultiConfirm:'선택한 {n}개 가지(하위 포함)를 삭제합니다. 계속?', mindCopyEmpty:'선택된 게 없어요 — 빈 곳을 드래그해 가지를 감싸세요', mindPasteEmpty:'복사한 게 없어요', mindUnitNode:'개', mindUnitLink:'개 연결',
+    mindCopied:'복사됨', mindPasted:'붙여넣음', mindTabMap:'지도', mindTabCal:'일정', mcToday:'오늘', mcTitleFmt:'{y}년 {m}월', mcWeekdays:'일,월,화,수,목,금,토', mcAddPh:'일정 입력 후 Enter', mcEditPrompt:'일정 수정 (비우면 삭제)', mcEvT:'클릭: 완료 토글 · 더블클릭: 수정(비우면 삭제)', mcTodoT:'할 일 (클릭: 완료 토글 — 좌측 목록과 연동)', mtDateT:'날짜 — 일정 달력에 표시 (클릭해서 변경)', mindDelMultiConfirm:'선택한 {n}개 가지(하위 포함)를 삭제합니다. 계속?', mindCopyEmpty:'선택된 게 없어요 — 빈 곳을 드래그해 가지를 감싸세요', mindPasteEmpty:'복사한 게 없어요', mindUnitNode:'개', mindUnitLink:'개 연결',
     mindAddRoot:'뿌리추가', mindAddRootT:'다른 뿌리 지도 추가', mindAddRootHere:'여기에 뿌리 추가',
     mindExport:'이미지 저장', mindExportT:'마인드맵을 PNG 이미지로 저장', mindExportOne:'선택한 뿌리만', mindExportAll:'전체 지도', mindExportPick:'무엇을 이미지로 저장할까요?',
     mindOneWay:'단방향', mindTwoWay:'양방향', mindLeftWay:'왼쪽으로', mindRightWay:'오른쪽으로', mindNotePh:'이 연결에 대한 메모…',
@@ -3478,7 +3526,8 @@ const MIND = {
   memoPop: null,                       // 📝 열려있는 가지 메모 팝업
   todos: [], todoSaveTimer: null,      // 📋 좌측 할일/한일
   marq: new Set(), marqL: new Set(),   // ▭ 마퀴(드래그 박스) 다중 선택: 가지 id들 · 연결화살표 id들
-  _clip: null, _lastMouse: null        // 📋 복사 클립보드(폴백) · 최근 커서 콘텐츠 좌표(붙여넣기 위치)
+  _clip: null, _lastMouse: null,       // 📋 복사 클립보드(폴백) · 최근 커서 콘텐츠 좌표(붙여넣기 위치)
+  events: [], calYM: null, view: 'map', calSaveTimer: null   // 📅 일정(달력): 항목·보고있는 연월·현재 탭
 };
 function mindUid() { try { return crypto.randomUUID(); } catch (e) { return 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36); } }
 function mindWidth(n) { return Math.max(64, (n.title || '').length * 13 + 24); }
@@ -4293,15 +4342,19 @@ async function openMind() {
   { const b = document.getElementById('mindPaste'); if (b) { mindBtnLabel('mindPaste', '📌', T.mindPasteBtn || 'Paste'); b.title = T.mindPasteBtnT || ''; } }
   { const b = document.getElementById('mindExport'); if (b) { mindBtnLabel('mindExport', '🖼', T.mindExport || 'Save image'); b.title = T.mindExportT || ''; } }
   mindBtnLabel('mindDel', '－', T.mindDelBtn || 'Delete');
+  mindBtnLabel('mindTabMap', '🧠', T.mindTabMap || '지도');
+  mindBtnLabel('mindTabCal', '📅', T.mindTabCal || '일정');
+  mindBtnLabel('mcToday', '⊙', T.mcToday || '오늘');
   document.getElementById('mindReset').textContent = '⊙';
   document.getElementById('mindReset').title = T.mindReset || 'Reset view';
   document.getElementById('mindHint').textContent = T.mindHint || '';
   if (!MIND.userName) { try { const inf = await api('GET', '/api/info'); MIND.userName = (inf && inf.userName) || ''; } catch (e) {} }
-  try { const m = await api('GET', '/api/mindmap'); MIND.roots = (m && Array.isArray(m.roots) && m.roots.length) ? m.roots : (m && m.root ? [m.root] : [mindDefaultRoot()]); MIND.links = (m && Array.isArray(m.links)) ? m.links : []; MIND.todos = (m && Array.isArray(m.todos)) ? m.todos : []; } catch (e) { MIND.roots = [mindDefaultRoot()]; MIND.links = []; MIND.todos = []; }
+  try { const m = await api('GET', '/api/mindmap'); MIND.roots = (m && Array.isArray(m.roots) && m.roots.length) ? m.roots : (m && m.root ? [m.root] : [mindDefaultRoot()]); MIND.links = (m && Array.isArray(m.links)) ? m.links : []; MIND.todos = (m && Array.isArray(m.todos)) ? m.todos : []; MIND.events = (m && Array.isArray(m.events)) ? m.events : []; } catch (e) { MIND.roots = [mindDefaultRoot()]; MIND.links = []; MIND.todos = []; MIND.events = []; }
   MIND.sel = null; MIND.adderId = null; MIND.linkFrom = null; MIND.connectMode = false; MIND.selLink = null; MIND.linkEndPick = null; MIND.undo = []; MIND.redo = []; mindCloseLinkPop(); mindUpdateUndoBtns();
   mindTodoInit();   // 📋 좌측 할일/한일 패널
   mindDlg.showModal();
-  if (!MIND.inited) { mindInitCanvas(); MIND.inited = true; }
+  if (!MIND.inited) { mindInitCanvas(); mindCalInit(); MIND.inited = true; }
+  if (MIND.view === 'cal') mindCalRender();   // 일정 탭 보던 중이었으면 최신 데이터로 다시
   // 초기 뷰: 루트(콘텐츠 0,0)가 왼쪽-가운데 즈음 오도록
   const cr = document.getElementById('mindCanvas').getBoundingClientRect();
   MIND.zoom = 1; MIND.panX = Math.max(120, cr.width * 0.22); MIND.panY = cr.height * 0.5;
@@ -4311,7 +4364,93 @@ async function openMind() {
 let mindTodoWired = false;
 function mindTodoSave() {   // 트리와 함께 서버에 (mindmap.json에 todos로 보관)
   clearTimeout(MIND.todoSaveTimer);
-  MIND.todoSaveTimer = setTimeout(() => api('POST', '/api/mindmap', { roots: MIND.roots, root: MIND.roots[0], links: MIND.links, todos: MIND.todos }), 350);
+  MIND.todoSaveTimer = setTimeout(() => api('POST', '/api/mindmap', { roots: MIND.roots, root: MIND.roots[0], links: MIND.links, todos: MIND.todos, events: MIND.events }), 350);
+}
+function mindCalSave() {   // 📅 일정만 저장 (트리 안 건드림)
+  clearTimeout(MIND.calSaveTimer);
+  MIND.calSaveTimer = setTimeout(() => api('POST', '/api/mindmap', { todos: MIND.todos, events: MIND.events }), 350);
+}
+// ================= 📅 일정(달력) 탭 =================
+function mindSetView(v) {
+  MIND.view = v;
+  mindDlg.classList.toggle('cal-mode', v === 'cal');
+  const tm = document.getElementById('mindTabMap'), tc = document.getElementById('mindTabCal');
+  if (tm) tm.classList.toggle('on', v === 'map');
+  if (tc) tc.classList.toggle('on', v === 'cal');
+  if (v === 'cal') mindCalRender();
+}
+function mindDateKey(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+function mindCalRender() {
+  const grid = document.getElementById('mcGrid'); if (!grid) return;
+  if (!MIND.calYM) { const n = new Date(); MIND.calYM = { y: n.getFullYear(), m: n.getMonth() }; }
+  const { y, m } = MIND.calYM;
+  document.getElementById('mcTitle').textContent = (T.mcTitleFmt || '{y}년 {m}월').replace('{y}', y).replace('{m}', m + 1);
+  const wk = document.getElementById('mcWeek');
+  wk.innerHTML = (T.mcWeekdays || '일,월,화,수,목,금,토').split(',').map(d => '<span>' + esc(d) + '</span>').join('');
+  grid.innerHTML = '';
+  const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
+  const today = new Date(); const todayKey = mindDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const weeks = Math.ceil((first.getDay() + new Date(y, m + 1, 0).getDate()) / 7);
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = mindDateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const cell = document.createElement('div');
+    cell.className = 'mc-day' + (d.getMonth() !== m ? ' mc-out' : '') + (d.getDay() === 0 ? ' mc-sun' : '') + (key === todayKey ? ' mc-today' : '');
+    const n = document.createElement('span'); n.className = 'mc-n'; n.textContent = d.getDate(); cell.appendChild(n);
+    // 일정 항목
+    MIND.events.filter(e => e.date === key).forEach(evt => {
+      const el = document.createElement('div'); el.className = 'mc-ev' + (evt.done ? ' mc-done' : '');
+      el.textContent = evt.text; el.title = (T.mcEvT || '클릭: 완료 토글 · 더블클릭: 수정(비우면 삭제)');
+      el.onclick = e2 => { e2.stopPropagation(); evt.done = !evt.done; mindCalSave(); mindCalRender(); };
+      el.ondblclick = e2 => {
+        e2.stopPropagation();
+        const v = prompt(T.mcEditPrompt || '일정 수정 (비우면 삭제)', evt.text);
+        if (v === null) return;
+        if (!v.trim()) MIND.events = MIND.events.filter(x => x.id !== evt.id);
+        else evt.text = v.trim().slice(0, 200);
+        mindCalSave(); mindCalRender();
+      };
+      cell.appendChild(el);
+    });
+    // 날짜 지정된 todo — 같은 항목을 달력에도 (클릭=완료 토글, todo 패널과 동기화)
+    MIND.todos.filter(t => t.date === key).forEach(t => {
+      const el = document.createElement('div'); el.className = 'mc-ev mc-todo' + (t.done ? ' mc-done' : '');
+      if (t.color) el.style.borderLeftColor = t.color;
+      el.textContent = '📋 ' + t.text; el.title = (T.mcTodoT || '할 일 (클릭: 완료 토글 — 좌측 목록과 연동)');
+      el.onclick = e2 => { e2.stopPropagation(); t.done = !t.done; mindTodoSave(); mindTodoRender(); mindCalRender(); };
+      cell.appendChild(el);
+    });
+    // 빈 곳 클릭 = 인라인 일정 추가
+    cell.onclick = () => {
+      if (cell.querySelector('.mc-add')) return;
+      const inp = document.createElement('input'); inp.className = 'mc-add'; inp.maxLength = 200;
+      inp.placeholder = T.mcAddPh || '일정 입력 후 Enter';
+      cell.appendChild(inp); inp.focus();
+      let fin = false;
+      const commit = () => {
+        if (fin) return; fin = true;
+        const v = inp.value.trim();
+        if (v) { MIND.events.push({ id: mindUid(), date: key, text: v.slice(0, 200) }); mindCalSave(); }
+        mindCalRender();
+      };
+      inp.addEventListener('keydown', e2 => {
+        e2.stopPropagation();
+        if (e2.key === 'Enter' && !e2.isComposing) { e2.preventDefault(); commit(); }
+        else if (e2.key === 'Escape') { fin = true; mindCalRender(); }
+      });
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('click', e2 => e2.stopPropagation());
+    };
+    grid.appendChild(cell);
+  }
+}
+function mindCalInit() {
+  const mv = d => { const c = MIND.calYM; let m = c.m + d, y = c.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } MIND.calYM = { y, m }; mindCalRender(); };
+  document.getElementById('mcPrev').onclick = () => mv(-1);
+  document.getElementById('mcNext').onclick = () => mv(1);
+  document.getElementById('mcToday').onclick = () => { const n = new Date(); MIND.calYM = { y: n.getFullYear(), m: n.getMonth() }; mindCalRender(); };
+  document.getElementById('mindTabMap').onclick = () => mindSetView('map');
+  document.getElementById('mindTabCal').onclick = () => mindSetView('cal');
 }
 function mindTodoRender() {
   const todo = document.getElementById('mtTodoList'), done = document.getElementById('mtDoneList');
@@ -4323,6 +4462,8 @@ function mindTodoRender() {
     r.innerHTML = `<div class="mt-main">`
       + (it.color ? `<span class="mt-chip" style="background:${escA(it.color)}" title="${escA(linked ? linked.title : '')}"></span>` : '')
       + `<span class="mt-txt">${esc(it.text)}</span>`
+      + (it.date ? `<span class="mt-date" title="${esc(T.mtDateT || '날짜 — 일정 달력에 표시 (클릭해서 변경)')}">${esc(it.date.slice(5).replace('-', '/'))}</span>` : '')
+      + `<button class="mt-cal" title="${esc(T.mtDateT || '날짜 — 일정 달력에 표시 (클릭해서 변경)')}">📅</button>`
       + (isDone ? `<button class="mt-restore" title="${esc(T.mtRestore || '할 일로 되돌리기')}">↩</button>`
                 : `<button class="mt-check" title="${esc(T.mtDoneBtn || '완료')}">✓</button>`)
       + `<button class="mt-del" title="${esc(T.memoDelT || '삭제')}">✕</button></div>`
@@ -4348,7 +4489,25 @@ function mindTodoRender() {
         prog.addEventListener('pointerup', up);
       });
     }
-    r.querySelector(isDone ? '.mt-restore' : '.mt-check').onclick = () => { it.done = !isDone; mindTodoRender(); mindTodoSave(); };
+    r.querySelector(isDone ? '.mt-restore' : '.mt-check').onclick = () => { it.done = !isDone; mindTodoRender(); mindTodoSave(); if (MIND.view === 'cal') mindCalRender(); };
+    // 📅 날짜 지정 — 브라우저 날짜 선택기. 지정하면 일정 달력에도 표시(완료 토글 연동), 지우면 달력에서 빠짐
+    const openDate = ev => {
+      ev.stopPropagation();
+      const di = document.createElement('input'); di.type = 'date'; di.value = it.date || '';
+      di.style.cssText = 'position:fixed;left:' + ev.clientX + 'px;top:' + ev.clientY + 'px;width:1px;height:1px;opacity:0;border:0;padding:0;z-index:400';
+      mindDlg.appendChild(di);
+      let fin = false;
+      const close = () => { if (fin) return; fin = true; setTimeout(() => di.remove(), 120); };
+      di.onchange = () => {
+        if (di.value) it.date = di.value; else delete it.date;
+        mindTodoSave(); mindTodoRender(); if (MIND.view === 'cal') mindCalRender();
+        close();
+      };
+      di.addEventListener('blur', close);
+      try { di.showPicker(); } catch (e) { di.focus(); }
+    };
+    r.querySelector('.mt-cal').onclick = openDate;
+    { const dc = r.querySelector('.mt-date'); if (dc) dc.onclick = openDate; }
     r.querySelector('.mt-del').onclick = () => {
       MIND.todos = MIND.todos.filter(x => x.id !== it.id);
       if (linked && linked.memo) { delete linked.memo; mindRender(); }   // 연동 항목 삭제 = 가지 메모도 제거 (동기화)

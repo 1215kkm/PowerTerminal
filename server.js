@@ -675,11 +675,13 @@ app.post('/api/mindmap', (req, res) => {
   const b = req.body || {};
   const roots = Array.isArray(b.roots) && b.roots.length ? b.roots : (b.root ? [b.root] : null);
   const todos = Array.isArray(b.todos) ? b.todos.slice(0, 500) : (mindData && mindData.todos) || [];   // 📋 좌측 할일/한일
+  const events = Array.isArray(b.events) ? b.events.slice(0, 1000) : (mindData && mindData.events) || [];   // 📅 일정(달력)
   if (roots) {
-    mindData = { roots, root: roots[0], links: Array.isArray(b.links) ? b.links : [], todos, updated: Date.now() };
+    mindData = { roots, root: roots[0], links: Array.isArray(b.links) ? b.links : [], todos, events, updated: Date.now() };
     try { fs.writeFileSync(MIND_FILE, JSON.stringify(mindData)); } catch (e) {}
-  } else if (mindData && Array.isArray(b.todos)) {   // 트리 없이 할일만 갱신
-    mindData.todos = todos; mindData.updated = Date.now();
+  } else if (Array.isArray(b.todos) || Array.isArray(b.events)) {   // 트리 없이 할일/일정만 갱신
+    mindData = mindData || {};
+    mindData.todos = todos; mindData.events = events; mindData.updated = Date.now();
     try { fs.writeFileSync(MIND_FILE, JSON.stringify(mindData)); } catch (e) {}
   }
   res.json({ ok: true });
