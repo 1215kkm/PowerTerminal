@@ -1514,24 +1514,47 @@ function printQR(label, url) {
 //   완전 종료(/api/shutdown)일 때만 터널도 함께 끈다.
 const TUN_FILE = path.join(DATA_DIR, 'tunnel.json');
 const TUN_LOG = path.join(DATA_DIR, 'tunnel.log');
+// ⚠ 반드시 비동기(exec)로 — execSync는 tasklist가 느린(바쁜) PC에서 서버 이벤트 루프를 수 초씩 멈춰
+//   QR 타임아웃·마인드맵 무반응·입력 무반응처럼 앱 전체가 얼어 보이는 증상을 만든다. (v1.10.33에서 수정)
 function tunnelPidAlive(pid) {
-  if (!pid) return false;
-  try { process.kill(pid, 0); } catch (e) { if (e.code === 'ESRCH') return false; }
-  // PID 재사용 오탐 방지 — 그 PID가 진짜 cloudflared인지 확인
-  try {
-    const out = require('child_process').execSync('tasklist /FI "PID eq ' + Number(pid) + '" /FO CSV /NH', { timeout: 4000 }).toString();
-    return /cloudflared/i.test(out);
-  } catch (e) { return false; }
+  return new Promise(resolve => {
+    if (!pid) return resolve(false);
+    try { process.kill(pid, 0); } catch (e) { if (e.code === 'ESRCH') return resolve(false); }
+    // PID 재사용 오탐 방지 — 그 PID가 진짜 cloudflared인지 확인 (비동기)
+    require('child_process').exec('tasklist /FI "PID eq ' + Number(pid) + '" /FO CSV /NH',
+      { timeout: 8000, windowsHide: true },
+      (err, so) => resolve(!err && /cloudflared/i.test(String(so || ''))));
+  });
 }
 function killTunnel() {
   try {
     const info = JSON.parse(fs.readFileSync(TUN_FILE, 'utf8'));
-    if (info && info.pid && tunnelPidAlive(info.pid)) require('child_process').execSync('taskkill /F /PID ' + Number(info.pid), { timeout: 4000 });
+    if (info && info.pid) require('child_process').exec('taskkill /F /PID ' + Number(info.pid), { windowsHide: true }, () => {});
   } catch (e) {}
   try { fs.unlinkSync(TUN_FILE); } catch (e) {}
   global.__tunnelUrl = '';
 }
-function startTunnel(wifiUrl) {
+// 이 포트를 겨냥한 떠돌이(고아) cloudflared 정리 — 재시작 반복·오탐 재스폰으로 쌓인 중복 터널 제거.
+// keepPid는 남길 PID(재사용 중인 터널). 완료 후 cb() 호출. 전 과정 비동기.
+function killStrayTunnels(keepPid, cb) {
+  const done = () => { try { cb && cb(); } catch (e) {} };
+  try {
+    const ps = require('child_process').spawn('powershell', ['-NoProfile', '-Command',
+      "Get-CimInstance Win32_Process -Filter \"Name='cloudflared.exe'\" | Where-Object { $_.CommandLine -match 'localhost:" + PORT + "' } | Select-Object -ExpandProperty ProcessId"],
+      { windowsHide: true });
+    let out = '';
+    ps.stdout.on('data', d => out += d);
+    const to = setTimeout(() => { try { ps.kill(); } catch (e) {} done(); }, 8000);
+    ps.on('close', () => {
+      clearTimeout(to);
+      out.split(/\s+/).map(s => Number(s)).filter(n => n && n !== Number(keepPid))
+        .forEach(pid => require('child_process').exec('taskkill /F /PID ' + pid, { windowsHide: true }, () => {}));
+      setTimeout(done, 400);   // taskkill이 돌 시간
+    });
+    ps.on('error', () => { clearTimeout(to); done(); });
+  } catch (e) { done(); }
+}
+async function startTunnel(wifiUrl) {
   let wifiShown = false;
   const showWifiOnce = () => { if (!wifiShown && wifiUrl) { wifiShown = true; printQR('같은 와이파이 접속용', wifiUrl); } };
   const announce = url => {
@@ -1541,57 +1564,67 @@ function startTunnel(wifiUrl) {
     console.log('     (업데이트 재시작에도 이 주소는 유지됩니다 — 터널이 완전히 끊긴 경우에만 새 주소)');
     printQR('외부 어디서든(LTE) 접속용', full);
   };
-  const watch = pid => {   // 터널 생존 감시 — 죽으면 새로 연다 (이때만 주소 변경)
-    const t = setInterval(() => {
-      if (tunnelPidAlive(pid)) return;
-      clearInterval(t);
-      console.log('  ⚠ 외부 접속 터널이 끊겼습니다 — 새 주소로 다시 엽니다. (QR 버튼에서 새 주소 확인)');
-      global.__tunnelUrl = '';
-      spawnDetached();
-    }, 15000);
+  const watch = pid => {   // 터널 생존 감시(비동기) — 두 번 연속 죽음 확인 후에만 재스폰 (오탐 → 중복 터널 방지)
+    let checking = false;
+    const t = setInterval(async () => {
+      if (checking) return; checking = true;
+      try {
+        if (await tunnelPidAlive(pid)) return;
+        await new Promise(r => setTimeout(r, 3000));       // 일시 오탐(시스템 바쁨) 대비 재확인
+        if (await tunnelPidAlive(pid)) return;
+        clearInterval(t);
+        console.log('  ⚠ 외부 접속 터널이 끊겼습니다 — 새 주소로 다시 엽니다. (QR 버튼에서 새 주소 확인)');
+        global.__tunnelUrl = '';
+        spawnDetached();
+      } finally { checking = false; }
+    }, 30000);
   };
   const spawnDetached = () => {
-    let fd = 'ignore';
-    try { fs.writeFileSync(TUN_LOG, ''); fd = fs.openSync(TUN_LOG, 'a'); } catch (e) {}
-    let proc;
-    try {
-      // --protocol http2: 기본 QUIC(UDP)이 불안정한 회선에서 중간 끊김을 줄임
-      proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate', '--protocol', 'http2'],
-                   { windowsHide: true, detached: true, stdio: ['ignore', fd, fd] });
-      proc.unref();   // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
-    } catch (e) {
-      console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도');
-      showWifiOnce();
-      setTimeout(spawnDetached, 20000);
-      return;
-    }
-    // detached라 파이프 대신 로그 파일에서 주소를 추출
-    let tries = 0;
-    const poll = setInterval(() => {
-      tries++;
-      let m = null;
-      try { m = fs.readFileSync(TUN_LOG, 'utf8').match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/); } catch (e) {}
-      if (m) {
-        clearInterval(poll);
-        try { fs.writeFileSync(TUN_FILE, JSON.stringify({ pid: proc.pid, url: m[0], port: PORT, at: Date.now() })); } catch (e) {}
-        announce(m[0]);
-        watch(proc.pid);
-      } else if (tries > 60) {   // 30초 넘게 주소가 안 나옴 — 실패로 보고 재시도
-        clearInterval(poll);
-        try { process.kill(proc.pid); } catch (e) {}
+    // 같은 포트를 겨냥한 기존(고아) 터널부터 정리 — 재스폰 반복으로 터널이 쌓이는 것 방지
+    killStrayTunnels(null, () => {
+      let fd = 'ignore';
+      try { fs.writeFileSync(TUN_LOG, ''); fd = fs.openSync(TUN_LOG, 'a'); } catch (e) {}
+      let proc;
+      try {
+        // --protocol http2: 기본 QUIC(UDP)이 불안정한 회선에서 중간 끊김을 줄임
+        proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate', '--protocol', 'http2'],
+                     { windowsHide: true, detached: true, stdio: ['ignore', fd, fd] });
+        proc.unref();   // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
+      } catch (e) {
+        console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도');
         showWifiOnce();
         setTimeout(spawnDetached, 20000);
-      } else if (tries === 20) showWifiOnce();   // 10초 넘게 걸리면 와이파이 QR 먼저 안내
-    }, 500);
+        return;
+      }
+      // detached라 파이프 대신 로그 파일에서 주소를 추출
+      let tries = 0;
+      const poll = setInterval(() => {
+        tries++;
+        let m = null;
+        try { m = fs.readFileSync(TUN_LOG, 'utf8').match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/); } catch (e) {}
+        if (m) {
+          clearInterval(poll);
+          try { fs.writeFileSync(TUN_FILE, JSON.stringify({ pid: proc.pid, url: m[0], port: PORT, at: Date.now() })); } catch (e) {}
+          announce(m[0]);
+          watch(proc.pid);
+        } else if (tries > 60) {   // 30초 넘게 주소가 안 나옴 — 실패로 보고 재시도
+          clearInterval(poll);
+          try { process.kill(proc.pid); } catch (e) {}
+          showWifiOnce();
+          setTimeout(spawnDetached, 20000);
+        } else if (tries === 20) showWifiOnce();   // 10초 넘게 걸리면 와이파이 QR 먼저 안내
+      }, 500);
+    });
   };
-  // 이전 실행이 남긴 터널이 살아있으면 그대로 재사용 — 주소 유지의 핵심
+  // 이전 실행이 남긴 터널이 살아있으면 그대로 재사용 — 주소 유지의 핵심 (검사는 전부 비동기)
   let reused = false;
   try {
     const info = JSON.parse(fs.readFileSync(TUN_FILE, 'utf8'));
-    if (info && info.url && info.port === PORT && tunnelPidAlive(info.pid)) {
+    if (info && info.url && info.port === PORT && await tunnelPidAlive(info.pid)) {
       reused = true;
       console.log('  ♻ 이전 외부 접속 터널 재사용 (주소 유지)');
       announce(info.url);
+      killStrayTunnels(info.pid, null);   // 재사용 터널만 남기고 이 포트의 고아 터널 정리
       watch(info.pid);
     }
   } catch (e) {}
