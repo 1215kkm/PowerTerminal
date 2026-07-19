@@ -1215,6 +1215,7 @@ app.post('/api/shutdown', (req, res) => {
   res.json({ ok: true });
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
   killAllDev();
+  killTunnel();                              // 완전 종료 = 외부 접속 터널도 끔 (재시작(reboot)은 터널 유지 → 주소 보존)
   setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료 (exit 0 = 완전 종료, 런처가 다시 안 켬)
 });
 
@@ -1507,42 +1508,92 @@ function printQR(label, url) {
   } catch (e) {}
 }
 
-// 외부(LTE) 접속: cloudflared 무료 터널 — 실패/종료되면 자동 재시도(자가 치유)
+// 외부(LTE) 접속: cloudflared 무료 터널.
+// ★ 터널을 PT 프로세스와 분리(detached)해서 띄우고 PID·주소를 파일에 기록 —
+//   업데이트 재시작(exit 75)에도 터널이 살아남아 폰에 저장된 주소가 그대로 유지된다.
+//   완전 종료(/api/shutdown)일 때만 터널도 함께 끈다.
+const TUN_FILE = path.join(DATA_DIR, 'tunnel.json');
+const TUN_LOG = path.join(DATA_DIR, 'tunnel.log');
+function tunnelPidAlive(pid) {
+  if (!pid) return false;
+  try { process.kill(pid, 0); } catch (e) { if (e.code === 'ESRCH') return false; }
+  // PID 재사용 오탐 방지 — 그 PID가 진짜 cloudflared인지 확인
+  try {
+    const out = require('child_process').execSync('tasklist /FI "PID eq ' + Number(pid) + '" /FO CSV /NH', { timeout: 4000 }).toString();
+    return /cloudflared/i.test(out);
+  } catch (e) { return false; }
+}
+function killTunnel() {
+  try {
+    const info = JSON.parse(fs.readFileSync(TUN_FILE, 'utf8'));
+    if (info && info.pid && tunnelPidAlive(info.pid)) require('child_process').execSync('taskkill /F /PID ' + Number(info.pid), { timeout: 4000 });
+  } catch (e) {}
+  try { fs.unlinkSync(TUN_FILE); } catch (e) {}
+  global.__tunnelUrl = '';
+}
 function startTunnel(wifiUrl) {
-  let gotFirst = false;
   let wifiShown = false;
   const showWifiOnce = () => { if (!wifiShown && wifiUrl) { wifiShown = true; printQR('같은 와이파이 접속용', wifiUrl); } };
-  setTimeout(() => { if (!gotFirst) showWifiOnce(); }, 10000);   // 10초 안에 못 뜨면 와이파이 QR 안내
-
-  const spawnOnce = () => {
+  const announce = url => {
+    global.__tunnelUrl = url;
+    const full = url + '/?token=' + config.token;
+    console.log('  ③ 폰 — 외부 어디서든(LTE): ' + full);
+    console.log('     (업데이트 재시작에도 이 주소는 유지됩니다 — 터널이 완전히 끊긴 경우에만 새 주소)');
+    printQR('외부 어디서든(LTE) 접속용', full);
+  };
+  const watch = pid => {   // 터널 생존 감시 — 죽으면 새로 연다 (이때만 주소 변경)
+    const t = setInterval(() => {
+      if (tunnelPidAlive(pid)) return;
+      clearInterval(t);
+      console.log('  ⚠ 외부 접속 터널이 끊겼습니다 — 새 주소로 다시 엽니다. (QR 버튼에서 새 주소 확인)');
+      global.__tunnelUrl = '';
+      spawnDetached();
+    }, 15000);
+  };
+  const spawnDetached = () => {
+    let fd = 'ignore';
+    try { fs.writeFileSync(TUN_LOG, ''); fd = fs.openSync(TUN_LOG, 'a'); } catch (e) {}
     let proc;
     try {
-      proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate'], { windowsHide: true });
+      // --protocol http2: 기본 QUIC(UDP)이 불안정한 회선에서 중간 끊김을 줄임
+      proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate', '--protocol', 'http2'],
+                   { windowsHide: true, detached: true, stdio: ['ignore', fd, fd] });
+      proc.unref();   // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
     } catch (e) {
       console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도');
-      setTimeout(spawnOnce, 20000);
+      showWifiOnce();
+      setTimeout(spawnDetached, 20000);
       return;
     }
-    let urlThisRun = false;
-    const onData = d => {
-      const m = d.toString().match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-      if (m && !urlThisRun) {
-        urlThisRun = true; gotFirst = true;
-        global.__tunnelUrl = m[0];
-        const full = m[0] + '/?token=' + config.token;
-        console.log('  ③ 폰 — 외부 어디서든(LTE): ' + full);
-        console.log('     (서버 켤 때마다 주소가 바뀝니다 — 화면의 QR 버튼으로 언제든 확인)');
-        printQR('외부 어디서든(LTE) 접속용', full);
-      }
-    };
-    proc.stdout.on('data', onData);
-    proc.stderr.on('data', onData);
-    proc.on('error', () => { setTimeout(spawnOnce, 20000); });
-    proc.on('exit', () => {
-      global.__tunnelUrl = '';        // 끊기면 주소 무효화 (QR에 '준비 중' 표시)
-      setTimeout(spawnOnce, urlThisRun ? 3000 : 20000);   // 잘 되다 끊긴 건 빨리, 처음부터 실패는 느긋하게 재시도
-      showWifiOnce();
-    });
+    // detached라 파이프 대신 로그 파일에서 주소를 추출
+    let tries = 0;
+    const poll = setInterval(() => {
+      tries++;
+      let m = null;
+      try { m = fs.readFileSync(TUN_LOG, 'utf8').match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/); } catch (e) {}
+      if (m) {
+        clearInterval(poll);
+        try { fs.writeFileSync(TUN_FILE, JSON.stringify({ pid: proc.pid, url: m[0], port: PORT, at: Date.now() })); } catch (e) {}
+        announce(m[0]);
+        watch(proc.pid);
+      } else if (tries > 60) {   // 30초 넘게 주소가 안 나옴 — 실패로 보고 재시도
+        clearInterval(poll);
+        try { process.kill(proc.pid); } catch (e) {}
+        showWifiOnce();
+        setTimeout(spawnDetached, 20000);
+      } else if (tries === 20) showWifiOnce();   // 10초 넘게 걸리면 와이파이 QR 먼저 안내
+    }, 500);
   };
-  spawnOnce();
+  // 이전 실행이 남긴 터널이 살아있으면 그대로 재사용 — 주소 유지의 핵심
+  let reused = false;
+  try {
+    const info = JSON.parse(fs.readFileSync(TUN_FILE, 'utf8'));
+    if (info && info.url && info.port === PORT && tunnelPidAlive(info.pid)) {
+      reused = true;
+      console.log('  ♻ 이전 외부 접속 터널 재사용 (주소 유지)');
+      announce(info.url);
+      watch(info.pid);
+    }
+  } catch (e) {}
+  if (!reused) spawnDetached();
 }
