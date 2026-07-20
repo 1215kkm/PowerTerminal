@@ -1700,10 +1700,34 @@ function buildPane(sess, idx) {
         }
       }
       else if (m.type === 'status') {
-        const wasBusy = el.classList.contains('busy');
-        setState(el, m.done, m.busy);
-        // 작업 시작 순간(유휴→busy) — 터미널에 직접 타이핑한 요청이면 회색 박스를 읽어 기록
-        if (!wasBusy && m.busy && !m.done) setTimeout(scanTermReq, 1200);
+        // 🛡 오완료(done 소리 중간중간) 방지 — 서버는 "출력이 4초 조용하면 완료"로 보는데, 긴 도구 실행·API 대기처럼
+        // 작업 중인데 출력만 없는 구간도 있다. 그때 실제 화면 하단엔 스피너가 그대로 떠 있으므로,
+        // 화면에 스피너가 보이는 동안엔 완료 적용을 보류하고 2초마다 재확인 (사라지는 순간 완료 확정).
+        clearInterval(el._doneGuardT);
+        const applyStatus = (done, busy) => {
+          const wasBusy = el.classList.contains('busy');
+          setState(el, done, busy);
+          // 작업 시작 순간(유휴→busy) — 터미널에 직접 타이핑한 요청이면 회색 박스를 읽어 기록
+          if (!wasBusy && busy && !done) setTimeout(scanTermReq, 1200);
+        };
+        const spinnerOnScreen = () => {   // 화면 하단 12줄에 스피너·작업표시가 실제로 보이는가 (버퍼가 아닌 렌더된 화면 기준)
+          try {
+            const buf = term.buffer.active;
+            const end = Math.min(buf.length, buf.baseY + term.rows);
+            for (let i = Math.max(0, end - 12); i < end; i++) {
+              const l = buf.getLine(i); if (!l) continue;
+              const t = l.translateToString(true);
+              if (t.includes('esc to interrupt') || /\(thinking/.test(t) || /[✳✻✽✢✶✦✧·+*]\s?[A-Za-z]+ing…/.test(t)) return true;
+            }
+          } catch (e) {}
+          return false;
+        };
+        if (m.done && !m.busy && spinnerOnScreen()) {
+          const cap = Date.now() + 10 * 60 * 1000;   // 안전장치 — 10분 넘게 스피너가 안 사라지면 그때는 완료 적용
+          el._doneGuardT = setInterval(() => {
+            if (!spinnerOnScreen() || Date.now() > cap) { clearInterval(el._doneGuardT); applyStatus(true, false); }
+          }, 2000);
+        } else applyStatus(m.done, m.busy);
       }
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
     };
