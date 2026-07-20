@@ -974,6 +974,8 @@
       <span id="mcTitle"></span>
       <button class="small" id="mcNext">▶</button>
       <button class="small" id="mcToday"></button>
+      <span style="flex:1"></span>
+      <button class="small" id="mcIcs" title=""></button>
     </div>
     <div class="mc-week" id="mcWeek"></div>
     <div class="mc-grid" id="mcGrid"></div>
@@ -1119,7 +1121,7 @@ const I18N = {
     mindLinkSelHint:'Arrow selected — Delete to remove · click an endpoint branch, then another branch to reconnect', mindLinkRepick:'Now click the branch to reconnect this end to',
     mindUndoT:'Undo (Ctrl+Z)', mindRedoT:'Redo (Ctrl+Y)',
     mindCopyBtn:'Copy', mindPasteBtn:'Paste', mindCopyBtnT:'Copy the selection (Ctrl+C) — drag empty space to box-select branches & arrows', mindPasteBtnT:'Paste at the cursor (Ctrl+V)',
-    mindCopied:'Copied', mindPasted:'Pasted', mindTabMap:'Map', mindTabCal:'Schedule', mcToday:'Today', mcTitleFmt:'{m}/{y}', mcWeekdays:'Sun,Mon,Tue,Wed,Thu,Fri,Sat', mcAddPh:'Add event, then Enter', mcEditPrompt:'Edit event (empty = delete)', mcEvT:'Click: toggle done · double-click: edit (empty deletes)', mcTodoT:'To-do (click toggles done — synced with the left list)', mtDateT:'Date — shows on the Schedule calendar (click to change)', mindDelMultiConfirm:'Delete the {n} selected branches (including their sub-branches)? ', mindCopyEmpty:'Nothing selected — drag a box over branches first', mindPasteEmpty:'Clipboard is empty', mindUnitNode:'', mindUnitLink:' links',
+    mindCopied:'Copied', mindPasted:'Pasted', mindTabMap:'Map', mindTabCal:'Schedule', mcToday:'Today', mcTitleFmt:'{m}/{y}', mcWeekdays:'Sun,Mon,Tue,Wed,Thu,Fri,Sat', mcAddPh:'Add event, then Enter', mcEditPrompt:'Edit event (empty = delete)', mcEvT:'Click: toggle done · double-click: edit (empty deletes)', mcTodoT:'To-do (click toggles done — synced with the left list)', mcIcsBtn:'Calendar sync', mcIcsT:'Copy the subscribe (ICS) URL — add it to Google Calendar via "From URL" to see these on your phone', mcIcsHow:'URL copied.\n\nGoogle Calendar (calendar.google.com) › Settings › Add calendar › From URL — paste it there,\nand PT events + dated todos appear in your phone calendar app.\n\n· One-way (PT→calendar), refresh every few hours (Google)\n· Re-add if PT external address changes', mtDateT:'Date — shows on the Schedule calendar (click to change)', mindDelMultiConfirm:'Delete the {n} selected branches (including their sub-branches)? ', mindCopyEmpty:'Nothing selected — drag a box over branches first', mindPasteEmpty:'Clipboard is empty', mindUnitNode:'', mindUnitLink:' links',
     mindAddRoot:'Add root', mindAddRootT:'Add another root map', mindAddRootHere:'Add a root here',
     mindExport:'Save image', mindExportT:'Save the map as a PNG image', mindExportOne:'Selected root only', mindExportAll:'Whole map', mindExportPick:'Save which as an image?',
     mindOneWay:'One-way', mindTwoWay:'Two-way', mindLeftWay:'Point left', mindRightWay:'Point right', mindNotePh:'Note about this connection…',
@@ -1199,7 +1201,7 @@ const I18N = {
     mindLinkSelHint:'화살표 선택됨 — Delete로 삭제 · 끝점 가지 클릭 후 다른 가지 클릭으로 재연결', mindLinkRepick:'재연결할 가지를 클릭하세요',
     mindUndoT:'실행 취소 (Ctrl+Z)', mindRedoT:'다시 실행 (Ctrl+Y)',
     mindCopyBtn:'복사', mindPasteBtn:'붙여넣기', mindCopyBtnT:'선택 복사 (Ctrl+C) — 빈 곳을 드래그하면 가지·화살표를 박스로 선택', mindPasteBtnT:'커서 위치에 붙여넣기 (Ctrl+V)',
-    mindCopied:'복사됨', mindPasted:'붙여넣음', mindTabMap:'지도', mindTabCal:'일정', mcToday:'오늘', mcTitleFmt:'{y}년 {m}월', mcWeekdays:'일,월,화,수,목,금,토', mcAddPh:'일정 입력 후 Enter', mcEditPrompt:'일정 수정 (비우면 삭제)', mcEvT:'클릭: 완료 토글 · 더블클릭: 수정(비우면 삭제)', mcTodoT:'할 일 (클릭: 완료 토글 — 좌측 목록과 연동)', mtDateT:'날짜 — 일정 달력에 표시 (클릭해서 변경)', mindDelMultiConfirm:'선택한 {n}개 가지(하위 포함)를 삭제합니다. 계속?', mindCopyEmpty:'선택된 게 없어요 — 빈 곳을 드래그해 가지를 감싸세요', mindPasteEmpty:'복사한 게 없어요', mindUnitNode:'개', mindUnitLink:'개 연결',
+    mindCopied:'복사됨', mindPasted:'붙여넣음', mindTabMap:'지도', mindTabCal:'일정', mcToday:'오늘', mcTitleFmt:'{y}년 {m}월', mcWeekdays:'일,월,화,수,목,금,토', mcAddPh:'일정 입력 후 Enter', mcEditPrompt:'일정 수정 (비우면 삭제)', mcEvT:'클릭: 완료 토글 · 더블클릭: 수정(비우면 삭제)', mcTodoT:'할 일 (클릭: 완료 토글 — 좌측 목록과 연동)', mcIcsBtn:'캘린더 연동', mcIcsT:'구독 주소(ICS) 복사 — 구글 캘린더에 URL로 추가하면 폰 캘린더에도 표시', mcIcsHow:'주소가 복사됐습니다.\n\n구글 캘린더(웹 calendar.google.com) › 설정 ⚙ › 캘린더 추가 › URL로 추가에 붙여넣으면\n폰 캘린더 앱에도 PT 일정·날짜 지정 할일이 표시됩니다.\n\n· 단방향(PT→캘린더), 갱신은 구글 주기(수 시간)\n· PT 외부 주소가 바뀌면 다시 등록해야 합니다', mtDateT:'날짜 — 일정 달력에 표시 (클릭해서 변경)', mindDelMultiConfirm:'선택한 {n}개 가지(하위 포함)를 삭제합니다. 계속?', mindCopyEmpty:'선택된 게 없어요 — 빈 곳을 드래그해 가지를 감싸세요', mindPasteEmpty:'복사한 게 없어요', mindUnitNode:'개', mindUnitLink:'개 연결',
     mindAddRoot:'뿌리추가', mindAddRootT:'다른 뿌리 지도 추가', mindAddRootHere:'여기에 뿌리 추가',
     mindExport:'이미지 저장', mindExportT:'마인드맵을 PNG 이미지로 저장', mindExportOne:'선택한 뿌리만', mindExportAll:'전체 지도', mindExportPick:'무엇을 이미지로 저장할까요?',
     mindOneWay:'단방향', mindTwoWay:'양방향', mindLeftWay:'왼쪽으로', mindRightWay:'오른쪽으로', mindNotePh:'이 연결에 대한 메모…',
@@ -4452,6 +4454,7 @@ async function openMind() {
   mindBtnLabel('mindTabMap', '🧠', T.mindTabMap || '지도');
   mindBtnLabel('mindTabCal', '📅', T.mindTabCal || '일정');
   mindBtnLabel('mcToday', '⊙', T.mcToday || '오늘');
+  { const b = document.getElementById('mcIcs'); if (b) { mindBtnLabel('mcIcs', '📲', T.mcIcsBtn || '캘린더 연동'); b.title = T.mcIcsT || '구독 주소(ICS) 복사 — 구글 캘린더에 URL로 추가하면 폰 캘린더에도 표시'; } }
   document.getElementById('mindReset').textContent = '⊙';
   document.getElementById('mindReset').title = T.mindReset || 'Reset view';
   document.getElementById('mindHint').textContent = T.mindHint || '';
@@ -4558,6 +4561,18 @@ function mindCalInit() {
   document.getElementById('mcToday').onclick = () => { const n = new Date(); MIND.calYM = { y: n.getFullYear(), m: n.getMonth() }; mindCalRender(); };
   document.getElementById('mindTabMap').onclick = () => mindSetView('map');
   document.getElementById('mindTabCal').onclick = () => mindSetView('cal');
+  // 📲 구글 캘린더 연동 — ICS 구독 주소 복사 (외부 터널 주소 우선, 없으면 와이파이 주소)
+  const icsBtn = document.getElementById('mcIcs');
+  if (icsBtn) icsBtn.onclick = async () => {
+    const i = await api('GET', '/api/info', null, 6000);
+    if (!i || i.error) { flashToast(T.qrFail || '주소를 불러오지 못했습니다'); return; }
+    const tok = i.token || TOKEN;
+    const base = i.tunnelUrl || (i.ips && i.ips[0] ? `http://${i.ips[0]}:${i.port}` : '');
+    if (!base) { flashToast(T.noTunnel || '외부 접속 준비 중'); return; }
+    const url = `${base}/calendar.ics?token=${tok}`;
+    copySel(url);   // 클립보드 복사 (+'복사됨' 토스트)
+    setTimeout(() => alert((T.mcIcsHow || '주소가 복사됐습니다.\n\n구글 캘린더(웹 calendar.google.com) › 설정 ⚙ › 캘린더 추가 › URL로 추가에 붙여넣으면\n폰 캘린더 앱에도 PT 일정·날짜 지정 할일이 표시됩니다.\n\n· 단방향(PT→캘린더), 갱신은 구글 주기(수 시간)\n· PT 외부 주소가 바뀌면 다시 등록해야 합니다') + '\n\n' + url), 150);
+  };
 }
 function mindTodoRender() {
   const todo = document.getElementById('mtTodoList'), done = document.getElementById('mtDoneList');

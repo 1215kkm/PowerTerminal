@@ -683,6 +683,27 @@ const MIND_FILE = dataFile('mindmap.json');
 let mindData = null;
 try { mindData = readJson(MIND_FILE); } catch (e) {}
 app.get('/api/mindmap', (req, res) => res.json(mindData || {}));
+// 📅 일정 ICS 피드 — 구글 캘린더 '설정 › 캘린더 추가 › URL로 추가'에 이 주소를 등록하면
+// 폰 기본 캘린더 앱에 PT 일정 + 날짜 지정된 할일이 표시됨 (단방향: PT → 캘린더, 갱신은 구글 주기에 따름)
+app.get('/calendar.ics', (req, res) => {
+  const esc = t => String(t || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n').slice(0, 300);
+  const dt = d => String(d).replace(/-/g, '');
+  const nextDay = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10).replace(/-/g, ''); };
+  const now = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PowerTerminal//Mindmap Schedule//KO',
+                 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:PowerTerminal', 'X-WR-TIMEZONE:Asia/Seoul'];
+  const push = (id, date, title, done) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return;
+    lines.push('BEGIN:VEVENT', 'UID:' + id + '@powerterminal', 'DTSTAMP:' + now,
+               'DTSTART;VALUE=DATE:' + dt(date), 'DTEND;VALUE=DATE:' + nextDay(date),
+               'SUMMARY:' + esc((done ? '✅ ' : '') + title), 'END:VEVENT');
+  };
+  ((mindData && mindData.events) || []).forEach(e => push(e.id, e.date, e.text, e.done));
+  ((mindData && mindData.todos) || []).forEach(t => { if (t.date) push(t.id, t.date, '📋 ' + t.text, t.done); });
+  lines.push('END:VCALENDAR');
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.send(lines.join('\r\n'));
+});
 app.post('/api/mindmap', (req, res) => {
   const b = req.body || {};
   const roots = Array.isArray(b.roots) && b.roots.length ? b.roots : (b.root ? [b.root] : null);
