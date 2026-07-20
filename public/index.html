@@ -1956,6 +1956,9 @@ function buildPane(sess, idx) {
     if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
+    // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
+    if (qHist) { let ht = val; for (const [tk] of attachMap) ht = ht.split(tk).join(' '); ht = ht.replace(/\s+/g, ' ').trim(); if (ht) qHist.unshift(ht); }
+    qHistIdx = -1; qDraft = '';
     for (const [token, att] of attachMap) {   // 칩 → 실제 내용
       if (!val.includes(token)) continue;
       // 이미지·여러줄텍스트(파일) = 경로만 / 한 줄 긴 글 = 인라인 (개행 없으니 조기 제출 없음)
@@ -1970,7 +1973,42 @@ function buildPane(sess, idx) {
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
   };
+  // ⬆⬇ 이전 요청 다시 불러오기 — 터미널 히스토리처럼. 커서가 첫 줄이면 ↑=과거로, 마지막 줄이면 ↓=최신으로.
+  // 히스토리는 이 폴더의 요청내역(서버, 최신이 앞) + 이번에 보낸 요청. 탐색 시작 때 쓰던 글은 보관했다가 ↓ 끝에서 복원.
+  let qHist = null, qHistIdx = -1, qDraft = '';
+  const qHistSeed = () => {
+    if (qHist) return;
+    qHist = (reqsCache || []).map(r => r.text).filter(Boolean);
+    if (!reqsCache) {   // 요청내역 미로드면 뒤에서 채워둠 (첫 ↑는 빈 히스토리일 수 있음 — 다음 ↑부터 동작)
+      api('GET', '/api/memos?path=' + encodeURIComponent(sess.path))
+        .then(m => { reqsCache = (m && m.reqs) || []; qHist = reqsCache.map(r => r.text).filter(Boolean).concat(qHist || []); })
+        .catch(() => {});
+    }
+  };
+  const qHistShow = idx => {
+    qHistIdx = idx;
+    qInput.value = idx === -1 ? qDraft : qHist[idx];
+    qInput.setSelectionRange(qInput.value.length, qInput.value.length);
+    autoGrow(); syncThumbs();
+  };
+  qInput.addEventListener('input', () => { qHistIdx = -1; });   // 직접 수정하면 탐색 상태 해제 (프로그램 설정은 input 미발생)
   qInput.addEventListener('keydown', ev => {
+    if ((ev.key === 'ArrowUp' || ev.key === 'ArrowDown') && !ev.isComposing && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      const s = qInput.selectionStart, e = qInput.selectionEnd;
+      if (ev.key === 'ArrowUp' && !qInput.value.slice(0, s).includes('\n')) {   // 커서가 첫 줄일 때만 히스토리로
+        qHistSeed();
+        if (!qHist || !qHist.length) return;
+        ev.preventDefault();
+        if (qHistIdx === -1) qDraft = qInput.value;
+        if (qHistIdx < qHist.length - 1) qHistShow(qHistIdx + 1);
+        return;
+      }
+      if (ev.key === 'ArrowDown' && qHistIdx !== -1 && !qInput.value.slice(e).includes('\n')) {   // 탐색 중 + 마지막 줄
+        ev.preventDefault();
+        qHistShow(qHistIdx - 1);   // -1이 되면 쓰던 글 복원
+        return;
+      }
+    }
     if (ev.key !== 'Enter') return;
     if (ev.ctrlKey || ev.metaKey) {   // Ctrl/⌘+Enter = 줄바꿈 (PowerShell처럼) — 커서 위치에 개행 삽입
       ev.preventDefault();
