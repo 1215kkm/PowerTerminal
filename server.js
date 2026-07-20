@@ -817,6 +817,42 @@ app.post('/api/admin/banner', (req, res) => {
   }
 });
 
+// 📊 사용자·다운로드 통계 (관리자만) — GitHub 트래픽(클론=활성기기)·릴리스 다운로드 수를 gh로 조회.
+// gh는 개발자 PC에만 로그인돼 있어 다른 사용자 PC에선 자연히 빈 값. 무거운 네트워크라 10분 캐시.
+const GH_REPO = '1215kkm/PowerTerminal';
+let statsCache = { t: 0, data: null };
+app.get('/api/admin/stats', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+  if (statsCache.data && Date.now() - statsCache.t < 10 * 60 * 1000) return res.json(statsCache.data);
+  const ghJson = async (args) => {
+    try { return JSON.parse(await execFileA(ghBin(), args, { encoding: 'utf8', timeout: 15000, windowsHide: true })); }
+    catch (e) { return null; }
+  };
+  const out = { repo: GH_REPO, ok: false };
+  try {
+    const clones = await ghJson(['api', 'repos/' + GH_REPO + '/traffic/clones']);
+    const views = await ghJson(['api', 'repos/' + GH_REPO + '/traffic/views']);
+    const rels = await ghJson(['api', 'repos/' + GH_REPO + '/releases?per_page=100']);
+    if (clones) out.clones14 = { count: clones.count, uniques: clones.uniques,
+      daily: (clones.clones || []).map(d => ({ date: (d.timestamp || '').slice(0, 10), count: d.count, uniques: d.uniques })) };
+    if (views) out.views14 = { count: views.count, uniques: views.uniques };
+    if (Array.isArray(rels)) {
+      let total = 0;
+      out.releases = rels.map(r => {
+        const dl = (r.assets || []).reduce((a, x) => a + (x.download_count || 0), 0);
+        total += dl;
+        return { tag: r.tag_name, dl, date: (r.published_at || '').slice(0, 10) };
+      });
+      out.downloadsTotal = total;
+    }
+    out.ok = !!(clones || views || rels);
+    if (!out.ok) out.error = 'gh 조회 실패 — 이 PC에서 GitHub CLI 로그인이 필요합니다 (개발자 전용).';
+  } catch (e) { out.error = (e.message || '').toString().slice(0, 200); }
+  out.at = Date.now();
+  statsCache = { t: Date.now(), data: out };
+  res.json(out);
+});
+
 // 관리자 자동 번역 (관리자만) — 한글 문구를 여러 언어로. 무료 공개 번역 엔드포인트 사용
 app.get('/api/admin/translate', async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: '관리자 권한이 필요합니다.' });

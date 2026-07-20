@@ -71,6 +71,11 @@
     <input id="feedbackUrl" placeholder="https://github.com/1215kkm/PowerTerminal/issues/new">
   </div>
 
+  <h2>📊 사용자 · 다운로드 통계 <button onclick="loadStats()" style="font-size:12px;padding:5px 10px;margin-left:6px">↻ 새로고침</button></h2>
+  <div class="card" id="statsCard">
+    <div id="statsBody" style="font-size:13px;color:var(--muted)">불러오는 중…</div>
+  </div>
+
   <h2>미리보기 — 사용자 화면 상단에 이렇게 보입니다</h2>
   <label>PC</label>
   <div class="pv-head"><span class="logo">🚀 PowerTerminal</span><a class="pv-banner" id="pvPC" target="_blank"></a><span style="flex:1"></span><span style="font-size:12px;color:var(--muted)">📱 QR · 🔗 · 🌐 · ＋</span></div>
@@ -219,6 +224,50 @@ async function load() {
     const r = await api('GET', '/api/admin/password');
     if (r && r.password) { document.getElementById('pwField').value = r.password; document.getElementById('pwCard').style.display = ''; }
   } catch (e) {}
+  loadStats();
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+async function loadStats() {
+  const box = document.getElementById('statsBody');
+  box.textContent = '불러오는 중… (GitHub 조회, 최대 15초)';
+  let s; try { s = await api('GET', '/api/admin/stats'); } catch (e) { s = null; }
+  if (!s || (!s.ok && !s.releases)) {
+    box.innerHTML = '<span style="color:#f87171">' + esc((s && s.error) || 'GitHub 조회 실패 — 개발자 PC(gh 로그인)에서만 통계가 보입니다.') + '</span>';
+    return;
+  }
+  const c = s.clones14 || {}, v = s.views14 || {};
+  const big = (n, lab, sub) => `<div style="flex:1;min-width:120px;background:#111827;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+      <div style="font-size:22px;font-weight:800;color:var(--fg)">${n==null?'—':n}</div>
+      <div style="font-size:12px;color:var(--fg);margin-top:2px">${lab}</div>
+      <div style="font-size:11px;color:var(--muted)">${sub||''}</div></div>`;
+  let html = '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + big(c.uniques, '활성 기기 (14일)', '순 클론 — 실사용 기기에 가장 근접')
+    + big(c.count, '설치·업데이트 (14일)', '총 클론 횟수')
+    + big(v.uniques, '사이트 방문자 (14일)', '순 방문 ' + (v.count!=null?('· '+v.count+'회'):''))
+    + big(s.downloadsTotal, 'ZIP 누적 다운로드', 'git 사용자는 미포함(하한선)')
+    + '</div>';
+  // 일자별 클론 미니 막대
+  if (c.daily && c.daily.length) {
+    const mx = Math.max(1, ...c.daily.map(d => d.count));
+    html += '<div style="margin-top:12px"><div style="font-size:12px;color:var(--muted);margin-bottom:5px">일자별 설치·업데이트 (순 사용자)</div>'
+      + '<div style="display:flex;align-items:flex-end;gap:3px;height:64px">'
+      + c.daily.map(d => `<div title="${esc(d.date)} · ${d.count}회 · 순 ${d.uniques}명" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px">
+          <div style="width:100%;background:linear-gradient(180deg,var(--violet),var(--pink));border-radius:3px 3px 0 0;height:${Math.round(d.count/mx*46)}px"></div>
+          <div style="font-size:8.5px;color:var(--muted)">${esc((d.date||'').slice(5))}</div></div>`).join('')
+      + '</div></div>';
+  }
+  // 릴리스별 다운로드 (0 아닌 것 우선, 상위 8개)
+  if (s.releases && s.releases.length) {
+    const rel = s.releases.slice(0, 12);
+    html += '<div style="margin-top:12px"><div style="font-size:12px;color:var(--muted);margin-bottom:5px">릴리스별 ZIP 다운로드 (최근)</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:5px">'
+      + rel.map(r => `<span style="font-size:11px;background:#111827;border:1px solid var(--line);border-radius:7px;padding:3px 8px">${esc(r.tag)} <b style="color:${r.dl?'#a3e635':'var(--muted)'}">${r.dl}</b></span>`).join('')
+      + '</div></div>';
+  }
+  html += `<div style="font-size:11px;color:var(--muted);margin-top:12px">
+      · GitHub 트래픽은 최근 14일만 제공 · 10분 캐시 · 본인(개발자) 접속은 GitHub이 자동 제외<br>
+      · 정확한 누적 순사용자 수는 추적 기능이 없어(사생활 존중) 셀 수 없습니다 — 활성 기기 수가 실사용 지표에 가장 가깝습니다.</div>`;
+  box.innerHTML = html;
 }
 function copyPw() {
   const f = document.getElementById('pwField');
