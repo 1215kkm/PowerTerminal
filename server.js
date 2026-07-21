@@ -717,6 +717,7 @@ app.post('/api/mindmap', (req, res) => {
     mindData.todos = todos; mindData.events = events; mindData.updated = Date.now();
     try { fs.writeFileSync(MIND_FILE, JSON.stringify(mindData)); } catch (e) {}
   }
+  gcalScheduleSync();   // 📆 구글 캘린더 연동돼 있으면 일정 변경을 반영 (연동 안 됐으면 no-op)
   res.json({ ok: true });
 });
 
@@ -728,6 +729,144 @@ app.post('/api/settings', (req, res) => {
   if (req.body && typeof req.body.summaryNotes === 'boolean') { config.summaryNotes = req.body.summaryNotes; dirty = true; }
   if (dirty) saveConfig();
   res.json({ ok: true, intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes });
+});
+
+// ============ 📆 구글 캘린더 직접 연동 (OAuth) — PT 일정을 사용자 구글 캘린더에 실제로 씀 ============
+// 사용자가 자기 Google Cloud OAuth 클라이언트(데스크톱 앱 유형)를 1회 만들어 client_id/secret을 넣으면,
+// PT가 전용 'PowerTerminal' 캘린더를 만들어 일정·날짜 지정 할일을 거기에 create/patch/delete로 동기화한다.
+// (오픈소스라 공용 시크릿을 넣을 수 없어 사용자별 자체 클라이언트가 필수 — 각자 자기 데이터에 접근)
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar';
+let gcalTok = { access: '', exp: 0 };
+const gcalRedirect = req => `${req.protocol}://${req.get('host')}/api/gcal/callback`;
+async function gcalPost(url, body, headers) {
+  const r = await fetch(url, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/x-www-form-urlencoded' }, headers || {}),
+    body: typeof body === 'string' ? body : new URLSearchParams(body).toString(), signal: AbortSignal.timeout(15000) });
+  const t = await r.text(); let j = {}; try { j = JSON.parse(t); } catch (e) {}
+  return { ok: r.ok, status: r.status, j, raw: t };
+}
+async function gcalAccessToken() {   // refresh_token → access_token (5분 여유 캐시)
+  const g = config.gcal || {};
+  if (!g.refreshToken || !g.clientId || !g.clientSecret) return null;
+  if (gcalTok.access && Date.now() < gcalTok.exp - 300000) return gcalTok.access;
+  const r = await gcalPost('https://oauth2.googleapis.com/token', {
+    client_id: g.clientId, client_secret: g.clientSecret, refresh_token: g.refreshToken, grant_type: 'refresh_token' });
+  if (!r.ok || !r.j.access_token) { if (r.status === 400 || r.status === 401) { config.gcal.refreshToken = ''; saveConfig(); } return null; }
+  gcalTok = { access: r.j.access_token, exp: Date.now() + (r.j.expires_in || 3600) * 1000 };
+  return gcalTok.access;
+}
+async function gcalApi(method, path, body, tokenArg) {   // Calendar API v3 헬퍼
+  const tok = tokenArg || await gcalAccessToken(); if (!tok) return { ok: false, status: 401 };
+  const r = await fetch('https://www.googleapis.com/calendar/v3' + path, {
+    method, headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, status: r.status, j };
+}
+async function gcalEnsureCalendar(tok) {   // 전용 'PowerTerminal' 캘린더 확보 (없으면 생성) → calendarId 저장
+  if (config.gcal && config.gcal.calendarId) return config.gcal.calendarId;
+  const list = await gcalApi('GET', '/users/me/calendarList?maxResults=250&fields=items(id,summary)', null, tok);
+  let cal = list.ok && (list.j.items || []).find(c => c.summary === 'PowerTerminal');
+  let id = cal && cal.id;
+  if (!id) { const c = await gcalApi('POST', '/calendars', { summary: 'PowerTerminal', timeZone: 'Asia/Seoul' }, tok); if (c.ok) id = c.j.id; }
+  if (id) { config.gcal = Object.assign(config.gcal || {}, { calendarId: id }); saveConfig(); }
+  return id;
+}
+// PT 항목 id → 구글 이벤트 id (허용문자 a-v0-9 · 결정적) : hex(sha1)은 0-9a-f ⊂ 규칙 안, 앞에 'pt'
+const gcalGid = ptId => 'pt' + crypto.createHash('sha1').update(String(ptId)).digest('hex');
+function gcalDesiredEvents() {   // 현재 PT 일정 + 날짜 지정 할일 → {gid, summary, date}
+  const out = [];
+  const add = (id, date, title, done, isTodo) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return;
+    out.push({ gid: gcalGid(id), summary: (done ? '✅ ' : '') + (isTodo ? '📋 ' : '') + String(title || '').slice(0, 300), date });
+  };
+  ((mindData && mindData.events) || []).forEach(e => add(e.id, e.date, e.text, e.done, false));
+  ((mindData && mindData.todos) || []).forEach(t => { if (t.date) add(t.id, t.date, t.text, t.done, true); });
+  return out;
+}
+const nextDay = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+let gcalSyncTimer = null, gcalSyncing = false, gcalLast = { at: 0, ok: null, msg: '' };
+function gcalScheduleSync(delay) {   // mindmap 저장 등에서 호출 — 디바운스
+  if (!config.gcal || !config.gcal.refreshToken) return;
+  clearTimeout(gcalSyncTimer); gcalSyncTimer = setTimeout(() => gcalSync().catch(() => {}), delay || 2500);
+}
+async function gcalSync() {   // 전용 캘린더를 PT 상태와 완전 일치시킴 (누락 생성·변경 수정·삭제)
+  if (gcalSyncing) return; gcalSyncing = true;
+  try {
+    const tok = await gcalAccessToken(); if (!tok) { gcalLast = { at: Date.now(), ok: false, msg: '연결 안 됨' }; return; }
+    const calId = await gcalEnsureCalendar(tok); if (!calId) { gcalLast = { at: Date.now(), ok: false, msg: '캘린더 생성 실패' }; return; }
+    const enc = encodeURIComponent(calId);
+    // 현재 캘린더의 PT 이벤트 수집 (id가 'pt'로 시작)
+    const existing = new Map();
+    let pageTok = '';
+    for (let guard = 0; guard < 20; guard++) {
+      const q = '/calendars/' + enc + '/events?maxResults=2500&showDeleted=false&singleEvents=true&fields=nextPageToken,items(id,summary,start)'
+        + (pageTok ? '&pageToken=' + pageTok : '');
+      const r = await gcalApi('GET', q, null, tok); if (!r.ok) break;
+      (r.j.items || []).forEach(ev => { if (ev.id && ev.id.startsWith('pt')) existing.set(ev.id, ev); });
+      if (!r.j.nextPageToken) break; pageTok = r.j.nextPageToken;
+    }
+    const desired = gcalDesiredEvents(); const want = new Set(desired.map(d => d.gid));
+    let created = 0, updated = 0, deleted = 0;
+    for (const d of desired) {
+      const ev = existing.get(d.gid);
+      const bodyBase = { summary: d.summary, start: { date: d.date }, end: { date: nextDay(d.date) } };
+      if (!ev) { const r = await gcalApi('POST', '/calendars/' + enc + '/events', Object.assign({ id: d.gid }, bodyBase), tok);
+        if (r.ok) created++; else if (r.status === 409) { await gcalApi('PATCH', '/calendars/' + enc + '/events/' + d.gid, bodyBase, tok); updated++; } }
+      else {
+        const cur = ev.start && ev.start.date;
+        if (ev.summary !== d.summary || cur !== d.date) { await gcalApi('PATCH', '/calendars/' + enc + '/events/' + d.gid, bodyBase, tok); updated++; }
+      }
+    }
+    for (const [gid] of existing) if (!want.has(gid)) { await gcalApi('DELETE', '/calendars/' + enc + '/events/' + gid, null, tok); deleted++; }
+    gcalLast = { at: Date.now(), ok: true, msg: `동기화 ${desired.length}건 (신규 ${created}·수정 ${updated}·삭제 ${deleted})` };
+  } catch (e) { gcalLast = { at: Date.now(), ok: false, msg: (e.message || '오류').slice(0, 120) }; }
+  finally { gcalSyncing = false; }
+}
+// --- 연동 상태/자격증명/연결/해제 라우트 (전부 로컬 또는 관리자만) ---
+function gcalGate(req, res) { if (!isLocal(req.socket) && !isAdmin(req)) { res.status(403).json({ error: 'localhost/admin only' }); return false; } return true; }
+app.get('/api/gcal/status', (req, res) => {
+  const g = config.gcal || {};
+  res.json({ hasCreds: !!(g.clientId && g.clientSecret), connected: !!g.refreshToken, calendarId: g.calendarId || '',
+             email: g.email || '', last: gcalLast, dated: gcalDesiredEvents().length });
+});
+app.post('/api/gcal/creds', (req, res) => {
+  if (!gcalGate(req, res)) return;
+  const b = req.body || {};
+  config.gcal = Object.assign(config.gcal || {}, {
+    clientId: String(b.clientId || '').trim(), clientSecret: String(b.clientSecret || '').trim() });
+  saveConfig(); res.json({ ok: true });
+});
+app.get('/api/gcal/auth', (req, res) => {
+  const g = config.gcal || {};
+  if (!g.clientId || !g.clientSecret) return res.status(400).send('먼저 client_id/secret을 저장하세요.');
+  const p = new URLSearchParams({ client_id: g.clientId, redirect_uri: gcalRedirect(req), response_type: 'code',
+    scope: GCAL_SCOPE + ' https://www.googleapis.com/auth/userinfo.email', access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true' });
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + p.toString());
+});
+app.get('/api/gcal/callback', async (req, res) => {
+  const done = (title, sub, ok) => res.send(`<!doctype html><meta charset=utf-8><body style="font-family:sans-serif;background:#111827;color:#e5e7eb;text-align:center;padding:60px 20px">
+    <div style="font-size:44px">${ok ? '✅' : '⚠️'}</div><h2>${title}</h2><p style="color:#9ca3af">${sub}</p>
+    <p style="color:#9ca3af;font-size:13px">이 창을 닫고 PowerTerminal로 돌아가세요.</p><script>setTimeout(()=>window.close(),4000)</script></body>`);
+  const code = req.query.code; const g = config.gcal || {};
+  if (req.query.error) return done('연결 취소됨', String(req.query.error), false);
+  if (!code || !g.clientId) return done('연결 실패', '잘못된 요청입니다.', false);
+  const r = await gcalPost('https://oauth2.googleapis.com/token', {
+    code, client_id: g.clientId, client_secret: g.clientSecret, redirect_uri: gcalRedirect(req), grant_type: 'authorization_code' });
+  if (!r.ok || !r.j.refresh_token) return done('연결 실패', (r.j.error_description || r.j.error || 'refresh_token 없음') + ' — OAuth 동의화면에서 액세스 유형이 오프라인인지, 앱 유형이 데스크톱인지 확인하세요.', false);
+  config.gcal = Object.assign(config.gcal || {}, { refreshToken: r.j.refresh_token }); saveConfig();
+  gcalTok = { access: r.j.access_token || '', exp: Date.now() + (r.j.expires_in || 3600) * 1000 };
+  try { const who = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + gcalTok.access } }); const wj = await who.json(); if (wj.email) { config.gcal.email = wj.email; saveConfig(); } } catch (e) {}
+  gcalScheduleSync(500);
+  done('구글 캘린더 연결 완료', '전용 "PowerTerminal" 캘린더에 일정을 동기화합니다. 폰 구글 캘린더 앱에서 이 캘린더를 켜세요.', true);
+});
+app.post('/api/gcal/disconnect', (req, res) => {
+  if (!gcalGate(req, res)) return;
+  if (config.gcal) { config.gcal.refreshToken = ''; config.gcal.calendarId = ''; config.gcal.email = ''; saveConfig(); }
+  gcalTok = { access: '', exp: 0 }; res.json({ ok: true });
+});
+app.post('/api/gcal/sync', async (req, res) => {   // 수동 동기화 버튼
+  if (!gcalGate(req, res)) return;
+  await gcalSync(); res.json({ ok: gcalLast.ok, msg: gcalLast.msg });
 });
 
 // ---------- 배너 (개발자가 GitHub의 banner.json 수정 → 모든 사용자에게 반영) ----------

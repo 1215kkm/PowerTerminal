@@ -1006,6 +1006,38 @@
       <small id="setHintsHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
     </span>
   </label>
+  <!-- 📆 구글 캘린더 연동 -->
+  <div id="gcalBox" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">📆 <span id="gcalTitle">구글 캘린더 연동</span></div>
+    <div id="gcalStatus" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
+    <div id="gcalConnected" style="display:none">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="small" id="gcalSyncBtn">↻ 지금 동기화</button>
+        <button class="small" id="gcalDisc" style="color:#f87171">연결 해제</button>
+      </div>
+    </div>
+    <div id="gcalSetup" style="display:none">
+      <details style="font-size:12px;color:var(--muted);line-height:1.7">
+        <summary style="cursor:pointer;color:var(--fg)">최초 1회 설정 방법 (구글 클라우드 · 3분)</summary>
+        <ol style="padding-left:18px;margin:8px 0">
+          <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" style="color:#60a5fa">클라우드 콘솔</a>에서 프로젝트 생성</li>
+          <li><a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" style="color:#60a5fa">Google Calendar API</a> 사용 설정</li>
+          <li>OAuth 동의 화면 → 외부 → 테스트 사용자에 <b>내 Gmail 추가</b></li>
+          <li>사용자 인증 정보 → OAuth 클라이언트 ID → 앱 유형 <b>데스크톱 앱</b> → 생성</li>
+          <li>나온 <b>클라이언트 ID·비밀번호</b>를 아래에 붙여넣기 → 저장 → 연결</li>
+        </ol>
+      </details>
+      <label style="font-size:12px;color:var(--muted);margin-top:6px">클라이언트 ID</label>
+      <input id="gcalCid" placeholder="…apps.googleusercontent.com" style="width:100%;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 10px;font-size:12px;font-family:monospace">
+      <label style="font-size:12px;color:var(--muted);margin-top:6px">클라이언트 비밀번호</label>
+      <input id="gcalSecret" placeholder="GOCSPX-…" style="width:100%;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 10px;font-size:12px;font-family:monospace">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="small" id="gcalSaveBtn">💾 저장</button>
+        <button class="small primary" id="gcalConnectBtn" style="background:linear-gradient(90deg,var(--violet),var(--pink));color:#fff;font-weight:700">🔗 구글 계정 연결</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
+    </div>
+  </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">
     <button class="small" id="setOnboard"></button>
     <button class="small" id="setClose" onclick="setDlg.close()"></button>
@@ -3499,7 +3531,36 @@ async function openSettings() {
   const ob = document.getElementById('setOnboard');
   ob.textContent = T.setOnboard || '🎈';
   ob.onclick = () => { localStorage.setItem(OB_KEY, 'seen'); setDlg.close(); showOnboarding(); };
+  gcalRefresh();   // 📆 구글 캘린더 연동 상태 표시
   setDlg.showModal();
+}
+async function gcalRefresh() {
+  const box = document.getElementById('gcalBox'); if (!box) return;
+  let s; try { s = await api('GET', '/api/gcal/status'); } catch (e) { s = null; }
+  if (!s || s.error) { box.style.display = 'none'; return; }   // 원격(비관리자)에선 숨김
+  box.style.display = '';
+  const st = document.getElementById('gcalStatus');
+  const conn = document.getElementById('gcalConnected'), setup = document.getElementById('gcalSetup');
+  if (s.connected) {
+    conn.style.display = ''; setup.style.display = 'none';
+    const last = s.last && s.last.at ? (s.last.ok ? '✓ ' : '⚠ ') + esc(s.last.msg || '') : '';
+    st.innerHTML = `연결됨 <b>${esc(s.email || '')}</b> · 동기화 대상 ${s.dated}건<br><span style="opacity:.8">${last}</span>`;
+  } else {
+    conn.style.display = 'none'; setup.style.display = '';
+    st.textContent = s.hasCreds ? '자격증명은 저장됨 — [구글 계정 연결]을 누르세요.' : 'PT 일정을 내 구글 캘린더에 직접 올립니다 (즉시 반영·양방향 아님). 최초 1회 설정이 필요합니다.';
+    const cid = document.getElementById('gcalCid'), sec = document.getElementById('gcalSecret');
+    document.getElementById('gcalSaveBtn').onclick = async () => {
+      await api('POST', '/api/gcal/creds', { clientId: cid.value.trim(), clientSecret: sec.value.trim() });
+      flashToast(T.copied || '저장됨'); gcalRefresh();
+    };
+    document.getElementById('gcalConnectBtn').onclick = async () => {
+      if (cid.value.trim() && sec.value.trim()) await api('POST', '/api/gcal/creds', { clientId: cid.value.trim(), clientSecret: sec.value.trim() });
+      window.open('/api/gcal/auth?token=' + (TOKEN || ''), '_blank');   // 구글 동의화면 → 콜백에서 자동 저장
+      setTimeout(gcalRefresh, 8000);
+    };
+  }
+  document.getElementById('gcalSyncBtn').onclick = async () => { const r = await api('POST', '/api/gcal/sync'); flashToast((r && r.ok ? '✓ ' : '⚠ ') + ((r && r.msg) || '')); gcalRefresh(); };
+  document.getElementById('gcalDisc').onclick = async () => { if (confirm('구글 캘린더 연결을 해제할까요? (구글 쪽 PowerTerminal 캘린더와 일정은 남습니다)')) { await api('POST', '/api/gcal/disconnect'); gcalRefresh(); } };
 }
 
 // ================= 🎈 온보딩 말풍선 =================
