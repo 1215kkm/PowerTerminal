@@ -110,9 +110,12 @@ call :OPENCHROME
 exit /b
 
 :OPENCHROME
-rem Chrome in its own new window (a normal tab you can drag into another Chrome window), else default browser.
+rem Chrome as a standalone app window (no tab bar) so PowerTerminal looks and behaves like its own
+rem program - and every "open in a new window" from inside it becomes a separate window too.
+rem Set PT_TAB=1 before running to get a normal browser tab instead.
 set "PF86=%ProgramFiles(x86)%"
 set "CHROME="
 for %%p in ("%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%PF86%\Google\Chrome\Application\chrome.exe" "%LocalAppData%\Google\Chrome\Application\chrome.exe") do @if not defined CHROME @if exist "%%~p" set "CHROME=%%~p"
-if defined CHROME ( start "" "%CHROME%" --new-window http://localhost:7777/ ) else ( start "" "http://localhost:7777/" )
+if not defined CHROME ( start "" "http://localhost:7777/" & exit /b )
+if "%PT_TAB%"=="1" ( start "" "%CHROME%" --new-window http://localhost:7777/ ) else ( start "" "%CHROME%" --app=http://localhost:7777/ )
 exit /b
