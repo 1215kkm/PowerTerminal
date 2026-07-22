@@ -423,8 +423,13 @@
   html.light .mini-pane.on { background: #f5f3ff; }
   html.light .mini-pane.on .mp-head { background: #ede9fe; }
   html.light .mini-pane.on .mp-title { color: #111827; }
-  html.light .atab { background: #e5e7eb; }
+  /* 비활성 탭만 밝은 회색 — :not(.on)이 없으면 이 규칙이 .atab.on의 그라데이션까지 덮어써서
+     활성 탭이 '밝은 회색 배경 + 흰 글자'가 되어 글씨가 안 보였다 (v1.10.42에서 수정) */
+  html.light .atab:not(.on) { background: #e5e7eb; }
   html.light .atab.on, html.light .quick .qSend { color: #fff; }    /* 그라데이션 배경 버튼(활성 탭·전송)은 흰 글자 */
+  /* 인라인으로 어두운 배경이 박힌 폼요소 — 라이트에선 배경도 글자도 어두워져 안 보였다 (인라인보다 우선하려면 !important) */
+  html.light #addAgent, html.light #addModel, html.light #gcalCid, html.light #gcalSecret {
+    background: #fff !important; color: #111827 !important; border-color: var(--line) !important; }
   html.light .ub-track { background: #e5e7eb; }
   html.light #zoomModal { background: rgba(229,231,235,.95); }
   html.light .card-icons button { background: #000; color: #fff; }   /* 카드 아이콘은 라이트에서도 검정 배경 유지 */
