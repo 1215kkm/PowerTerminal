@@ -211,17 +211,38 @@ function getPty(sess) {
   const resume = isClaudeAgent && !!sess.resumeOnStart && !dupAlive;
   if (sess.resumeOnStart) { sess.resumeOnStart = false; try { saveSessions(); } catch (e) {} }
   const cmd = agentCommand(sess, dupAlive, resume);
-  const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd: sess.path, env: process.env };
-  let proc;
-  if (IS_WIN) {
-    proc = pty.spawn('powershell.exe',
-      ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd], opts);
-  } else {
-    // Mac/Linux: 로그인 셸을 대화형으로 띄우고 명령을 흘려보냄 (명령 끝나도 셸은 유지)
-    proc = pty.spawn(pickShell(), ['-l'], opts);
-    if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
+  // 폴더가 사라졌거나(다른 PC로 옮김·삭제·이름변경) 경로가 잘못되면 그대로 spawn 시 Windows 오류 267
+  // (ERROR_DIRECTORY)로 예외가 터져 서버 전체가 종료됐다. → 홈 폴더로 대체하고 안내만 띄운다.
+  let cwd = sess.path, pathWarn = '';
+  try { if (!cwd || !fs.statSync(cwd).isDirectory()) throw 0; }
+  catch (e) {
+    pathWarn = '\r\n\x1b[33m[!] 폴더를 찾을 수 없어 홈 폴더에서 시작합니다: ' + (cwd || '(없음)') +
+               '\r\n    이 세션을 닫고 올바른 폴더로 다시 추가하세요.\x1b[0m\r\n';
+    cwd = os.homedir();
   }
-  p = { proc, buffer: '', sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
+  const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd, env: process.env };
+  let proc;
+  try {
+    if (IS_WIN) {
+      proc = pty.spawn('powershell.exe',
+        ['-NoExit', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', cmd], opts);
+    } else {
+      // Mac/Linux: 로그인 셸을 대화형으로 띄우고 명령을 흘려보냄 (명령 끝나도 셸은 유지)
+      proc = pty.spawn(pickShell(), ['-l'], opts);
+      if (cmd) setTimeout(() => { try { proc.write(cmd + '\n'); } catch (e) {} }, 400);
+    }
+  } catch (e) {
+    // 터미널을 못 띄워도 이 세션만 죽고 서버·다른 세션은 살아있게 (예외가 위로 새면 프로세스 종료)
+    const msg = '\r\n\x1b[31m[X] 터미널을 시작하지 못했습니다: ' + String(e && e.message || e).slice(0, 200) +
+                '\r\n    이 세션을 닫고 다시 추가해 보세요.\x1b[0m\r\n';
+    console.log('  ⚠ 세션 "' + (sess.title || sess.id) + '" 터미널 시작 실패 — ' + (e && e.message));
+    const dummy = { onData: () => {}, onExit: () => {}, write: () => {}, resize: () => {}, kill: () => {} };
+    p = { proc: dummy, buffer: msg, sockets: new Set(), busy: false, done: false, lastOut: Date.now(),
+          dead: true, cols: 0, rows: 0, spawnAt: Date.now(), startError: true };
+    ptys.set(sess.id, p);
+    return p;
+  }
+  p = { proc, buffer: pathWarn, sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
   const isClaude = isClaudeAgent;
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
@@ -1647,7 +1668,13 @@ wss.on('connection', (ws, req) => {
   const id = url.searchParams.get('id');
   const sess = sessions.find(x => x.id === id);
   if (!sess) { ws.close(); return; }
-  const p = getPty(sess);
+  let p;
+  try { p = getPty(sess); }
+  catch (e) {   // 최후 방어 — 어떤 이유로든 PTY를 못 만들면 이 소켓만 닫고 서버는 유지
+    console.log('  ⚠ getPty 실패 (' + (sess.title || id) + '): ' + (e && e.message));
+    try { ws.send(JSON.stringify({ type: 'out', data: '\r\n\x1b[31m[X] 터미널 시작 실패: ' + String(e && e.message || e).slice(0, 200) + '\x1b[0m\r\n' })); } catch (e2) {}
+    ws.close(); return;
+  }
   p.sockets.add(ws);
   // 접속 시 지금까지 화면 재생 + 상태
   ws.send(JSON.stringify({ type: 'out', data: p.buffer }));
