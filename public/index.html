@@ -1349,10 +1349,14 @@ const QRGATE = {
   hi: { qrGateWarn:'यह QR या पता पाने वाला इस कंप्यूटर पर कमांड चला सकता है।', qrGateResp:'केवल भरोसेमंद लोगों से साझा करें। लीक होने पर ज़िम्मेदारी आपकी है।', qrGateRevoke:'लीक हो जाए तो: PowerTerminal बंद करें — बाहरी एक्सेस तुरंत रुक जाता है और पता हट जाता है (अगली बार नया, पुराना लिंक बेकार)।', qrGateOk:'समझ गया — QR दिखाएँ' }
 };
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
-let LANG = localStorage.getItem('pt_lang') || 'en';
+// 저장된 언어가 있으면 그걸, 없으면 브라우저 언어(navigator.language, 예: "ko-KR"→"ko")로 시작.
+// 한국어 기기는 첫 접속·새 기기·시크릿에서도 한국어로 뜨게. 지원 안 하는 언어면 영어.
+let LANG = localStorage.getItem('pt_lang')
+        || ((navigator.language || navigator.languages && navigator.languages[0] || 'en').slice(0, 2).toLowerCase());
 if (!I18N[LANG]) LANG = 'en';
 let T = Object.assign({}, I18N.en, I18N[LANG]);   // 빠진 키는 영어로 폴백
-function setLang(l) { localStorage.setItem('pt_lang', l); location.reload(); }
+// setItem이 실패해도(시크릿·저장소 차단·용량초과) 새로고침은 반드시 실행 — 언어 전환이 멈추지 않게.
+function setLang(l) { try { localStorage.setItem('pt_lang', l); } catch (e) {} location.reload(); }
 function applyStatic() {
   const sel = document.getElementById('langSel');
   sel.value = LANG;
