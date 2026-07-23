@@ -1168,6 +1168,70 @@ app.post('/api/sessions/:id/upload-text', (req, res) => {
   }
 });
 
+// ---------- 📝 코드 편집 모드: 세션 폴더 안의 파일 트리·읽기·저장 ----------
+// 보안: 전역 토큰 미들웨어가 이미 보호. 경로는 반드시 세션 폴더 안이어야 함(../ 탈출 차단).
+// 저장 기능은 새 권한 확대가 아님 — 같은 토큰으로 이미 터미널에서 임의 명령을 실행할 수 있으므로.
+const CODE_SKIP_DIRS = new Set(['node_modules', '.git', '.hg', '.svn', 'dist', 'build', '.next',
+  '.nuxt', '.cache', '.parcel-cache', 'out', 'coverage', '.venv', 'venv', '__pycache__', '.pytest_cache',
+  '.idea', '.vscode', 'vendor', '.turbo', 'target']);
+const CODE_MAX_BYTES = 2 * 1024 * 1024;   // 2MB 넘는 파일은 편집기에서 안 엶(대용량·바이너리 방어)
+// rel을 세션 폴더(root) 기준으로 안전하게 절대경로화. 폴더 밖이면 null.
+function underRoot(root, rel) {
+  const rp = path.resolve(root);
+  const full = path.resolve(rp, rel || '.');
+  if (full !== rp && !full.startsWith(rp + path.sep)) return null;
+  return full;
+}
+function codeSession(req, res) {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) { res.status(404).json({ error: 'no session' }); return null; }
+  return s;
+}
+// 한 폴더 나열 (재귀 X — 클릭할 때만 펼쳐 대형 레포도 가볍게). dirs 먼저, 이름 정렬.
+app.get('/api/sessions/:id/ls', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const full = underRoot(s.path, (req.query.dir || '').toString());
+  if (!full) return res.status(400).json({ error: 'bad path' });
+  try {
+    const ents = fs.readdirSync(full, { withFileTypes: true });
+    const dirs = [], files = [];
+    for (const e of ents) {
+      if (e.isDirectory()) dirs.push({ name: e.name, skip: CODE_SKIP_DIRS.has(e.name) });
+      else if (e.isFile()) files.push({ name: e.name });
+    }
+    const byName = (a, b) => a.name.localeCompare(b.name, 'ko');
+    dirs.sort(byName); files.sort(byName);
+    res.json({ dir: (req.query.dir || '').toString(), dirs, files });
+  } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
+});
+// 파일 읽기 (텍스트). 2MB 초과·바이너리는 거절.
+app.get('/api/sessions/:id/file', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const full = underRoot(s.path, (req.query.path || '').toString());
+  if (!full) return res.status(400).json({ error: 'bad path' });
+  try {
+    const st = fs.statSync(full);
+    if (!st.isFile()) return res.status(400).json({ error: 'not a file' });
+    if (st.size > CODE_MAX_BYTES) return res.json({ tooBig: true, size: st.size });
+    const buf = fs.readFileSync(full);
+    if (buf.includes(0)) return res.json({ binary: true, size: st.size });   // NUL 있으면 바이너리로 간주
+    res.json({ path: (req.query.path || '').toString(), content: buf.toString('utf8'), size: st.size });
+  } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
+});
+// 파일 저장 (덮어쓰기 또는 새로 만들기). 부모 폴더 없으면 생성 (역시 root 안쪽만).
+app.post('/api/sessions/:id/file', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const rel = (req.body && req.body.path || '').toString();
+  const full = underRoot(s.path, rel);
+  if (!full || !rel) return res.status(400).json({ error: 'bad path' });
+  if (typeof (req.body && req.body.content) !== 'string') return res.status(400).json({ error: 'no content' });
+  try {
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, req.body.content, 'utf8');
+    res.json({ ok: true, path: rel, bytes: Buffer.byteLength(req.body.content, 'utf8') });
+  } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
+});
+
 // 🌿 세션 폴더의 git 브랜치·리모트 — 입력창 위 얇은 줄에 표시. 클릭하면 그 브랜치의 PR 페이지로.
 // ⚠ 전부 비동기 — 이전엔 execFileSync(git 4회 + gh pr list 네트워크 7초)라 세션 4개×20초 폴링마다
 //   서버 전체가 수 초씩 멈췄다(터미널 출력·QR·마인드맵까지 전부 무반응으로 보임). v1.10.34에서 수정.

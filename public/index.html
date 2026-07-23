@@ -176,6 +176,52 @@
                   /* 키보드 높이(--kb-gap) 위로 + 아이폰 하단 홈인디케이터(safe-area)만큼 + 최소 여유 → 전송버튼이 안 가리게 */
                   bottom: calc(var(--kb-gap, 0px) + max(env(safe-area-inset-bottom, 0px), 10px));
                   box-shadow: 0 -6px 20px rgba(0,0,0,.4); transition: bottom .16s ease; }
+  /* ---------- 📝 코드 편집 모드 (4분할 전체화면) ---------- */
+  #codeModal { display: none; position: fixed; inset: 0; z-index: 210; background: var(--bg);
+               flex-direction: column; }
+  #codeModal.on { display: flex; }
+  #cmBar { display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+           border-bottom: 1px solid var(--line); background: #111827; flex: 0 0 auto; }
+  html.light #cmBar { background: #eef0f4; }
+  #cmBar .sp { flex: 1 1 auto; }
+  #cmTitle { font-weight: 700; font-size: 13px; }
+  #cmFile { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; max-width: 46vw; }
+  #cmDirty { color: var(--pink); font-size: 15px; line-height: 1; display: none; }
+  #cmDirty.on { display: inline; }
+  /* 4분할: 세션목록 · 터미널 · 에디터(제일 크게) · 트리 */
+  #cmBody { flex: 1 1 auto; min-height: 0; display: grid;
+            grid-template-columns: 190px minmax(240px, 1fr) minmax(360px, 2.2fr) 240px; }
+  #cmBody .cmcol { min-width: 0; min-height: 0; overflow: auto; border-right: 1px solid var(--line); }
+  #cmBody .cmcol:last-child { border-right: 0; }
+  #cmTermCol { overflow: hidden; display: flex; }
+  #cmTerm { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; }
+  #cmEditor { overflow: hidden; display: flex; }
+  #cmEditor .cm-editor { flex: 1 1 auto; min-width: 0; height: 100%; }
+  /* 좌측 세션 목록 — 비활성 세션은 회색 */
+  .cm-sess { display: flex; align-items: center; gap: 6px; padding: 7px 9px; cursor: pointer;
+             font-size: 12px; font-weight: 700; border-bottom: 1px solid var(--line);
+             overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .cm-sess:hover { background: #374151; }
+  html.light .cm-sess:hover { background: #e5e7eb; }
+  .cm-sess.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; }
+  .cm-sess.idle { color: var(--muted); }
+  .cm-sess .dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+  .cm-sess.idle .dot { background: #6b7280; }
+  /* 우측 파일 트리 */
+  .cm-node { display: flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer;
+             font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cm-node:hover { background: #374151; }
+  html.light .cm-node:hover { background: #e5e7eb; }
+  .cm-node.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; }
+  .cm-node.dim { color: var(--muted); }        /* node_modules 등 무거운 폴더 */
+  .cm-node .tw { flex: 0 0 auto; width: 12px; text-align: center; color: var(--muted); }
+  .cm-empty { padding: 10px; font-size: 12px; color: var(--muted); }
+  /* 폰: 4분할은 안 맞으니 에디터+트리만 (세션·터미널은 숨김) */
+  @media (max-width: 900px) {
+    #cmBody { grid-template-columns: 1fr 150px; }
+    #cmSessions, #cmTermCol { display: none; }
+  }
   /* 📜 요청내역 토글 버튼 (이미지첨부 옆) */
   .quick .qHist { flex: 0 0 auto; white-space: nowrap; }
   .quick .qHist.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
@@ -824,6 +870,24 @@
   <div id="zoomBar"><button id="zoomClose" onclick="closeZoom()" data-i18n="zoomExit">✕ Exit full screen</button></div>
 </div>
 
+<!-- 📝 코드 편집 모드: [세션목록 | 라이브 터미널 | CM6 에디터 | 파일트리] 4분할 전체화면 -->
+<div id="codeModal">
+  <div id="cmBar">
+    <span id="cmTitle">📝 Code</span>
+    <span id="cmFile" title=""></span>
+    <span id="cmDirty" title="Unsaved changes">●</span>
+    <span class="sp"></span>
+    <button id="cmSave" title="Ctrl+S">💾 <span data-i18n="cmSave">Save</span></button>
+    <button id="cmClose">✕ <span data-i18n="cmExit">Close</span></button>
+  </div>
+  <div id="cmBody">
+    <div id="cmSessions" class="cmcol"></div>
+    <div id="cmTermCol" class="cmcol"><div id="cmTerm"></div></div>
+    <div id="cmEditor" class="cmcol"></div>
+    <div id="cmTree" class="cmcol"></div>
+  </div>
+</div>
+
 <dialog id="pickDlg" style="width:640px">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
     <h3 data-i18n="pickTitle" style="margin:0;flex:1">▶ Resume sessions</h3>
@@ -1118,6 +1182,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
 <script src="/vendor/qrcode.js"></script>
+<!-- 📝 코드 편집기(CodeMirror 6) — 코어+언어팩을 한 번들로 묶어 로컬 서빙 (오프라인·터널 모두 동작) -->
+<script src="/vendor/cm6.min.js"></script>
 <script>
 const TOKEN = new URLSearchParams(location.search).get('token') ||
               (document.cookie.split('cc_token=')[1] || '').split(';')[0];
@@ -1168,6 +1234,7 @@ const I18N = {
     gbPrT:'Open this branch on GitHub (its pull request, or a new one)',
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
+    codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
@@ -1248,6 +1315,7 @@ const I18N = {
     gbPrT:'이 브랜치의 GitHub PR 페이지 열기 (열린 PR이 있으면 그것, 없으면 새 PR)',
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
+    codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
@@ -1542,6 +1610,7 @@ function buildPane(sess, idx) {
         <button class="small btnZoom" title="${T.zoomT}">⛶</button>
         <button class="small btnPrev hv" title="${T.previewT}">👁</button>
         <button class="small btnRead hv" title="${esc(T.readT || '')}">📖</button>
+        <button class="small btnCode hv" title="${esc(T.codeT || 'Code editor — see and edit all the files')}">📝</button>
         <select class="small fontSel hv" title="${T.fontSel}">
           ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
@@ -1928,6 +1997,7 @@ function buildPane(sess, idx) {
   // 📖 넓게 읽기 — 터미널 스크롤백(위로 올려야 보이는 옛 작업 포함)을 문단 복원해 화면 전체폭 리더로.
   // 좁은 폭에서 소프트랩된 줄을 isWrapped로 다시 이어붙여, 넓은 창에서 자연스럽게 다시 흘러가게 함.
   el.querySelector('.btnRead').onclick = (ev) => { ev.stopPropagation(); openReader(sess, term); };
+  el.querySelector('.btnCode').onclick = (ev) => { ev.stopPropagation(); openCodeMode(sess); };   // 📝 코드 편집 모드
 
   // 세션 AI(agent) 변경 — 다른 AI로 세션 재시작 (헤더가 바뀌므로 pane 재생성, 위치 유지)
   const aiDrop = el.querySelector('.aiSel');
@@ -5153,6 +5223,171 @@ function scheduleRefit() { clearTimeout(_refitTimer); _refitTimer = setTimeout(r
 addEventListener('resize', () => setTimeout(refitAll, 60));
 addEventListener('orientationchange', () => setTimeout(() => { applyLayout(); refitAll(); }, 200));
 addEventListener('load', () => setTimeout(refitAll, 120));
+// ---------- 📝 코드 편집 모드 (4분할: 세션목록 | 라이브터미널 | CM6 에디터 | 파일트리) ----------
+// 세션 폴더의 파일을 트리로 훑어 열고, CodeMirror 6으로 편집해 저장한다.
+// 터미널은 같은 세션의 /term 소켓에 하나 더 붙는 방식 — 서버가 접속 시 버퍼를 재생해줘 그대로 이어 보인다.
+const codeModal = document.getElementById('codeModal');
+let cmView = null;          // CodeMirror EditorView
+let cmSess = null;          // 지금 보고 있는 세션
+let cmPath = null;          // 열린 파일의 상대경로
+let cmDirty = false;        // 저장 안 된 변경 있음
+let cmTermObj = null;       // {term, fit, ws}
+const cmOpenDirs = new Set();   // 펼쳐진 폴더(상대경로)
+
+function cmSetDirty(v) {
+  cmDirty = v;
+  document.getElementById('cmDirty').classList.toggle('on', !!v);
+}
+function cmApi(path, opts) { return api(opts && opts.method || 'GET', '/api/sessions/' + cmSess.id + path, opts && opts.body); }
+
+// 에디터 생성/교체 — 파일 확장자에 맞는 언어로
+function cmMountEditor(text, fileName) {
+  const host = document.getElementById('cmEditor');
+  if (cmView) { cmView.destroy(); cmView = null; }
+  host.innerHTML = '';
+  if (!window.CM6) { host.innerHTML = '<div class="cm-empty">코드 편집기를 불러오지 못했습니다 (vendor/cm6.min.js).</div>'; return; }
+  const { EditorView, basicSetup, keymap, indentWithTab, oneDark, langFor } = window.CM6;
+  const exts = [basicSetup, keymap.of([indentWithTab]), langFor(fileName || ''),
+    EditorView.updateListener.of(u => { if (u.docChanged) cmSetDirty(true); })];
+  if (!themeLight) exts.push(oneDark);
+  cmView = new EditorView({ doc: text, extensions: exts, parent: host });
+}
+
+// 파일 열기
+async function cmOpenFile(rel) {
+  const r = await cmApi('/file?path=' + encodeURIComponent(rel));
+  const fileEl = document.getElementById('cmFile');
+  if (!r || r.error) { flashToast('⚠ ' + ((r && r.error) || 'open failed')); return; }
+  if (r.tooBig) { flashToast('⚠ ' + Math.round(r.size / 1024) + 'KB — 너무 커서 안 엽니다'); return; }
+  if (r.binary) { flashToast('⚠ 바이너리 파일이라 편집기에서 못 엽니다'); return; }
+  cmPath = rel;
+  fileEl.textContent = rel; fileEl.title = rel;
+  cmMountEditor(r.content, rel);
+  cmSetDirty(false);
+  document.querySelectorAll('#cmTree .cm-node').forEach(n => n.classList.toggle('on', n.dataset.file === rel));
+}
+
+// 저장
+async function cmSave() {
+  if (!cmSess || !cmPath || !cmView) return;
+  const r = await cmApi('/file', { method: 'POST', body: { path: cmPath, content: cmView.state.doc.toString() } });
+  if (r && r.ok) { cmSetDirty(false); flashToast('💾 ' + cmPath); }
+  else flashToast('⚠ ' + ((r && r.error) || 'save failed'));
+}
+
+// 파일 트리 — 폴더는 클릭할 때만 펼쳐서(lazy) 큰 레포도 가볍게
+async function cmRenderTree() {
+  const box = document.getElementById('cmTree');
+  box.innerHTML = '<div class="cm-empty">…</div>';
+  const rows = [];
+  async function walk(dir, depth) {
+    const r = await cmApi('/ls' + (dir ? '?dir=' + encodeURIComponent(dir) : ''));
+    if (!r || r.error) return;
+    for (const d of r.dirs) {
+      const rel = dir ? dir + '/' + d.name : d.name;
+      const open = cmOpenDirs.has(rel);
+      rows.push({ type: 'dir', rel, name: d.name, depth, open, dim: d.skip });
+      if (open) await walk(rel, depth + 1);
+    }
+    for (const f of r.files) rows.push({ type: 'file', rel: dir ? dir + '/' + f.name : f.name, name: f.name, depth });
+  }
+  await walk('', 0);
+  box.innerHTML = '';
+  if (!rows.length) { box.innerHTML = '<div class="cm-empty">(빈 폴더)</div>'; return; }
+  for (const row of rows) {
+    const el = document.createElement('div');
+    el.className = 'cm-node' + (row.dim ? ' dim' : '') + (row.type === 'file' && row.rel === cmPath ? ' on' : '');
+    el.style.paddingLeft = (8 + row.depth * 12) + 'px';
+    el.innerHTML = '<span class="tw">' + (row.type === 'dir' ? (row.open ? '▾' : '▸') : '') + '</span>'
+                 + '<span>' + (row.type === 'dir' ? '📁 ' : '📄 ') + esc(row.name) + '</span>';
+    if (row.type === 'file') el.dataset.file = row.rel;
+    el.onclick = () => {
+      if (row.type === 'dir') { cmOpenDirs.has(row.rel) ? cmOpenDirs.delete(row.rel) : cmOpenDirs.add(row.rel); cmRenderTree(); }
+      else cmOpenFile(row.rel);
+    };
+    box.appendChild(el);
+  }
+}
+
+// 좌측 세션 목록 (비활성 포함) — 클릭하면 그 세션으로 통째로 전환
+async function cmRenderSessions() {
+  const box = document.getElementById('cmSessions');
+  let list = [];
+  try { list = await api('GET', '/api/sessions'); } catch (e) {}
+  if (!Array.isArray(list)) list = [];
+  box.innerHTML = '';
+  for (const s of list) {
+    const el = document.createElement('div');
+    el.className = 'cm-sess' + (cmSess && s.id === cmSess.id ? ' on' : '') + (s.alive ? '' : ' idle');
+    el.innerHTML = '<span class="dot"></span><span>' + esc(s.title || '') + '</span>';
+    el.title = s.path || '';
+    el.onclick = () => { if (!cmSess || s.id !== cmSess.id) cmSwitch(s); };
+    box.appendChild(el);
+  }
+}
+
+// 라이브 터미널 — 같은 세션 소켓에 하나 더 붙음 (서버가 버퍼 재생)
+function cmMountTerm() {
+  cmUnmountTerm();
+  const host = document.getElementById('cmTerm');
+  host.innerHTML = '';
+  const term = new Terminal({
+    fontSize: 13, fontFamily: 'Consolas, D2Coding, monospace',
+    theme: themeLight ? TERM_THEME_LIGHT : TERM_THEME_DARK, convertEol: false, scrollback: 5000
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(host);
+  setTimeout(() => { try { fit.fit(); } catch (e) {} }, 60);
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/term?id=${cmSess.id}&token=${TOKEN}`);
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type === 'out') term.write(m.data);
+  };
+  term.onData(d => { try { ws.send(JSON.stringify({ type: 'in', data: d })); } catch (e) {} });
+  cmTermObj = { term, fit, ws };
+}
+function cmUnmountTerm() {
+  if (!cmTermObj) return;
+  try { cmTermObj.ws.close(); } catch (e) {}
+  try { cmTermObj.term.dispose(); } catch (e) {}
+  cmTermObj = null;
+}
+
+// 세션 전환 (트리·에디터·터미널 전부 그 세션 것으로)
+async function cmSwitch(s) {
+  if (cmDirty && !confirm('저장하지 않은 변경이 있습니다. 그래도 이동할까요?')) return;
+  cmSess = s; cmPath = null; cmOpenDirs.clear(); cmSetDirty(false);
+  document.getElementById('cmTitle').textContent = '📝 ' + (s.title || '');
+  document.getElementById('cmFile').textContent = '';
+  document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">← 오른쪽 파일 트리에서 파일을 고르세요</div>';
+  if (cmView) { cmView.destroy(); cmView = null; }
+  await cmRenderSessions();
+  await cmRenderTree();
+  cmMountTerm();
+}
+
+async function openCodeMode(sess) {
+  codeModal.classList.add('on');
+  await cmSwitch(sess);
+}
+function closeCodeMode() {
+  if (cmDirty && !confirm('저장하지 않은 변경이 있습니다. 그래도 닫을까요?')) return;
+  codeModal.classList.remove('on');
+  cmUnmountTerm();
+  if (cmView) { cmView.destroy(); cmView = null; }
+  cmSess = null; cmPath = null; cmSetDirty(false);
+}
+document.getElementById('cmSave').onclick = cmSave;
+document.getElementById('cmClose').onclick = closeCodeMode;
+// Ctrl+S 저장 · ESC 닫기 (편집 모드가 열려 있을 때만)
+document.addEventListener('keydown', e => {
+  if (!codeModal.classList.contains('on')) return;
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); cmSave(); }
+  else if (e.key === 'Escape' && !cmDirty) closeCodeMode();
+}, true);
+addEventListener('resize', () => { if (cmTermObj) { try { cmTermObj.fit.fit(); } catch (e) {} } });
+
 // 📱 폰: 입력 중인 세션의 입력줄(.quick)을 키보드 바로 위에 고정. 키보드 높이 = 레이아웃뷰포트 하단과
 // 보이는(visual) 뷰포트 하단의 차. 키보드가 오르내릴 때마다 bottom을 갱신해 항상 키보드 위에 딱 붙게.
 let _pinnedQuick = null;
