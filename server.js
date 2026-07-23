@@ -1427,7 +1427,14 @@ app.post('/api/sessions/:id/clear-done', (req, res) => {
 
 app.post('/api/reorder', (req, res) => {
   const order = req.body.ids || [];
-  sessions.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  const rank = new Map(order.map((id, i) => [id, i]));
+  // 제출된 목록(order)에 있는 세션만, 그들이 지금 차지한 자리들 안에서 새 순서대로 다시 채운다.
+  // 목록에 없는 세션(다른 창이 가져간 세션·폴더가 잠깐 없는 세션 등)은 원래 자리에 그대로 둔다.
+  // 예전엔 sort + indexOf(-1) 이라 목록에 없는 세션이 전부 배열 맨 앞으로 끌려가, 다음 재실행 때 순서가 뒤바뀌었음.
+  const slots = [];
+  sessions.forEach((s, i) => { if (rank.has(s.id)) slots.push(i); });
+  const listed = sessions.filter(s => rank.has(s.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  slots.forEach((slotIdx, k) => { sessions[slotIdx] = listed[k]; });
   saveSessions();
   res.json({ ok: true });
 });
