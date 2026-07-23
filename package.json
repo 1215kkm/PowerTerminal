@@ -1,6 +1,6 @@
 {
   "name": "powerterminal",
-  "version": "1.10.46",
+  "version": "1.10.47",
   "description": "Run Claude Code (or any CLI AI) in your browser — multi-session, mobile, QR, usage bars",
   "main": "index.js",
   "scripts": {

@@ -170,6 +170,10 @@
                   transition: transform .08s ease, filter .08s ease; }
   .quick .qSend:active { transform: scale(.985); filter: brightness(.82); }  /* 누르면 살짝 어둡게 + 눌림 */
   .quick .qSend.pop { animation: sendPop .3s cubic-bezier(.34,1.56,.64,1); }  /* 전송 순간 톡 튀어오름 (클릭·엔터 공통) */
+  /* 📱 폰: 입력하는 동안 그 세션의 입력줄+전송버튼을 화면 맨 아래(키보드 바로 위)에 고정.
+     bottom(=키보드가 가린 높이)은 JS가 visualViewport로 실시간 갱신 → 부드럽게 자리잡음. */
+  .quick.kb-pin { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+                  box-shadow: 0 -6px 20px rgba(0,0,0,.4); transition: bottom .16s ease; }
   /* 📜 요청내역 토글 버튼 (이미지첨부 옆) */
   .quick .qHist { flex: 0 0 auto; white-space: nowrap; }
   .quick .qHist.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
@@ -2030,8 +2034,12 @@ function buildPane(sess, idx) {
       who.title = t.trim();
       quick.classList.add('typing');
     };
-    qInput.addEventListener('focus', showWho);
-    qInput.addEventListener('blur', () => quick.classList.remove('typing'));
+    qInput.addEventListener('focus', () => { showWho(); pinQuick(quick); });   // 폰: 입력 시작 → 입력줄을 화면 하단 고정
+    qInput.addEventListener('blur', () => {
+      quick.classList.remove('typing');
+      // 전송버튼 탭 등으로 잠깐 포커스가 옮겨간 것뿐이면 고정 유지, 진짜 입력줄을 떠났을 때만 해제
+      setTimeout(() => { if (!quick.contains(document.activeElement)) unpinQuick(quick); }, 150);
+    });
   }
   // 입력창 기본 높이 = 우측 [요청내역]+[파일] 버튼 두 개(간격 포함) 높이와 동일 — PC·모바일 공통
   // (rAF는 백그라운드 탭에서 안 돌아서 setTimeout 사용)
@@ -5143,10 +5151,35 @@ function scheduleRefit() { clearTimeout(_refitTimer); _refitTimer = setTimeout(r
 addEventListener('resize', () => setTimeout(refitAll, 60));
 addEventListener('orientationchange', () => setTimeout(() => { applyLayout(); refitAll(); }, 200));
 addEventListener('load', () => setTimeout(refitAll, 120));
+// 📱 폰: 입력 중인 세션의 입력줄(.quick)을 키보드 바로 위에 고정. 키보드 높이 = 레이아웃뷰포트 하단과
+// 보이는(visual) 뷰포트 하단의 차. 키보드가 오르내릴 때마다 bottom을 갱신해 항상 키보드 위에 딱 붙게.
+let _pinnedQuick = null;
+function positionPinnedQuick() {
+  if (!_pinnedQuick) return;
+  const vv = window.visualViewport;
+  const gap = vv ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)) : 0;
+  _pinnedQuick.style.bottom = gap + 'px';
+}
+function pinQuick(quick) {
+  if (!isMobileNow()) return;                        // 폰 레이아웃일 때만 (PC·태블릿 가로는 원래대로)
+  if (_pinnedQuick && _pinnedQuick !== quick) unpinQuick(_pinnedQuick);
+  _pinnedQuick = quick;
+  quick.classList.add('kb-pin');
+  positionPinnedQuick();
+  setTimeout(positionPinnedQuick, 120);              // 키보드가 뜨는 데 시간이 걸려 몇 번 더 보정
+  setTimeout(positionPinnedQuick, 320);
+}
+function unpinQuick(quick) {
+  quick.classList.remove('kb-pin');
+  quick.style.bottom = '';
+  if (_pinnedQuick === quick) _pinnedQuick = null;
+}
 // 모바일: 주소창 접힘/펼침은 window resize가 아니라 visualViewport 이벤트로만 옴 → 여기서 재fit (반쪽 높이 핵심 원인)
 if (window.visualViewport) {
   visualViewport.addEventListener('resize', scheduleRefit);
   visualViewport.addEventListener('scroll', scheduleRefit);
+  visualViewport.addEventListener('resize', positionPinnedQuick);   // 키보드 오르내림에 맞춰 입력줄 위치 갱신
+  visualViewport.addEventListener('scroll', positionPinnedQuick);
 }
 // 탭으로 돌아왔을 때(폰 잠금 해제 등)도 한 번 더 맞춤
 document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(refitAll, 150); });
