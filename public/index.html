@@ -2550,7 +2550,17 @@ function buildPane(sess, idx) {
   // 드래그로 순서 바꾸기
   const head = el.querySelector('.pane-head');
   head.addEventListener('dragstart', ev => { el.classList.add('dragging'); ev.dataTransfer.setData('text/plain', sess.id); });
-  head.addEventListener('dragend', () => el.classList.remove('dragging'));
+  // 🪟 세션창을 브라우저 창 "밖"으로 끌어다 놓으면 그 세션만 새 창으로 분리 (탭 뜯어내기처럼).
+  // 창 안에서 끝난 드래그는 기존대로 순서 바꾸기. 화면 밖 판정은 screenX/Y(창 밖에서도 보고됨) 기준.
+  head.addEventListener('dragend', ev => {
+    el.classList.remove('dragging');
+    if (isMobile) return;                          // 폰은 창 분리 개념이 없음
+    const outside = ev.screenX < window.screenX || ev.screenX > window.screenX + window.outerWidth ||
+                    ev.screenY < window.screenY || ev.screenY > window.screenY + window.outerHeight;
+    if (!outside) return;
+    if (ev.dataTransfer && ev.dataTransfer.dropEffect === 'move') return;   // 다른 곳이 받아갔으면 두기
+    openInNewWindow(sess);
+  });
   const dragHasFiles = ev => [...((ev.dataTransfer && ev.dataTransfer.items) || [])].some(i => i.kind === 'file');
   el.addEventListener('dragover', ev => {
     ev.preventDefault();
@@ -5840,40 +5850,35 @@ if (bc && !IS_MAIN) {
 
 // 🔢 창 번호 — localStorage 레지스트리로 창끼리 번호를 나눠 가진다 (메인=1, 팝업=빈 번호 중 가장 작은 수).
 // 하트비트를 남겨, 닫히거나 죽은 창의 번호는 20초 뒤 회수돼 다음 창이 재사용한다.
-const WINREG = 'pt_winreg';
+// 번호는 서버가 나눠준다 — 접속 주소가 달라도(localhost · 127.0.0.1 · 폰 터널) 같은 서버에 붙은
+// 창끼리는 서로를 인식한다. 예전엔 localStorage라 origin이 다르면 각자 "나 혼자"로 보여 번호가 안 떴음.
 const WIN_KEY = (() => {
   try { let k = sessionStorage.getItem('pt_winkey'); if (!k) { k = Math.random().toString(36).slice(2); sessionStorage.setItem('pt_winkey', k); } return k; }
   catch (e) { return 'w' + Math.random().toString(36).slice(2); }
 })();
 let _winNo = 0;
-function winRegRead() { try { return JSON.parse(localStorage.getItem(WINREG) || '{}') || {}; } catch (e) { return {}; } }
-function claimWinNo() {
-  const now = Date.now(), reg = winRegRead();
-  for (const k of Object.keys(reg)) if (!reg[k] || now - (reg[k].t || 0) > 20000) delete reg[k];   // 죽은 창 정리
-  const mine = reg[WIN_KEY];
-  let n = mine && mine.n;
-  const taken = k2 => Object.entries(reg).some(([k, v]) => k !== WIN_KEY && v.n === k2);
-  if (IS_MAIN && (!n || n !== 1) && !taken(1)) n = 1;              // 메인 창은 가능하면 1번
-  if (!n || taken(n)) { n = IS_MAIN ? 1 : 2; while (taken(n)) n++; }
-  reg[WIN_KEY] = { n, t: now, main: IS_MAIN };
-  try { localStorage.setItem(WINREG, JSON.stringify(reg)); } catch (e) {}
-  if (n !== _winNo) {
-    _winNo = n;
-    const el = document.getElementById('winNo');
-    const many = Object.keys(reg).length > 1;
-    if (el) { el.textContent = many ? String(n) : ''; el.title = (T.winNoT || '창 번호') + ' ' + n; }
-    document.title = many ? (n + ' · PowerTerminal') : 'PowerTerminal';   // 작업표시줄에서도 구분되게
-  } else {
-    const el = document.getElementById('winNo'), many = Object.keys(reg).length > 1;
-    if (el && !many && el.textContent) { el.textContent = ''; document.title = 'PowerTerminal'; }
-    else if (el && many && !el.textContent) { el.textContent = String(n); document.title = n + ' · PowerTerminal'; }
-  }
+async function claimWinNo() {
+  let r;
+  try { r = await api('POST', '/api/win', { key: WIN_KEY }); } catch (e) { return; }
+  if (!r || r.error || !r.n) return;
+  _winNo = r.n;
+  const many = r.total > 1;                       // 창이 둘 이상일 때만 번호를 보여줌 (혼자면 방해 안 되게)
+  const el = document.getElementById('winNo');
+  if (el) { el.textContent = many ? String(r.n) : ''; el.title = (T.winNoT || '창 번호') + ' ' + r.n; }
+  document.title = many ? (r.n + ' · PowerTerminal') : 'PowerTerminal';   // 작업표시줄에서도 번호로 구분
 }
 claimWinNo();
 setInterval(claimWinNo, 5000);
-window.addEventListener('storage', e => { if (e.key === WINREG) setTimeout(claimWinNo, 60); });
+// 창을 다시 앞으로 가져오거나 탭을 되돌아왔을 때 즉시 갱신 — 백그라운드 스로틀로 늦어진 하트비트를 만회
+addEventListener('focus', claimWinNo);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) claimWinNo(); });
+// 창을 닫으면 번호를 즉시 반납 (20초 기다리지 않게) — beforeunload에선 fetch가 잘리므로 sendBeacon
 window.addEventListener('beforeunload', () => {
-  try { const reg = winRegRead(); delete reg[WIN_KEY]; localStorage.setItem(WINREG, JSON.stringify(reg)); } catch (e) {}
+  try {
+    const url = '/api/win-bye?token=' + (TOKEN || '');
+    const body = new Blob([JSON.stringify({ key: WIN_KEY })], { type: 'application/json' });
+    navigator.sendBeacon(url, body);
+  } catch (e) {}
 });
 
 // 이 창 소속으로 아직 안 그려진 세션은 그리고, 소속 아닌 세션은 제거 (서버 세션은 유지)

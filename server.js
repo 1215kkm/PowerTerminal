@@ -1168,6 +1168,37 @@ app.post('/api/sessions/:id/upload-text', (req, res) => {
   }
 });
 
+// ---------- 🪟 창 번호 ----------
+// 같은 서버에 붙은 창끼리 1,2,3… 을 나눠 갖는다. 서버가 기준이라 접속 주소가 달라도(localhost ·
+// 127.0.0.1 · 폰 터널) 서로를 인식한다 — 예전 localStorage 방식은 origin이 다르면 못 봐서 번호가 안 떴음.
+// 창은 5초마다 하트비트를 보내고, 20초 넘게 조용하면 번호를 회수해 다음 창이 재사용한다.
+const winReg = new Map();          // key -> { n, t }
+// TTL은 넉넉히 90초 — 브라우저가 가려진(백그라운드) 창의 setInterval을 1분에 1회로 스로틀하기 때문.
+// 20초로 잡으면 뒤에 가려진 창의 등록이 하트비트 사이에 만료돼 서로를 못 보고 번호가 사라진다.
+// 창을 닫을 때는 /api/win-bye 로 즉시 반납하므로 번호가 오래 묶이지 않는다.
+const WIN_TTL = 90000;
+app.post('/api/win', (req, res) => {
+  const key = String((req.body && req.body.key) || '');
+  if (!key) return res.status(400).json({ error: 'no key' });
+  const now = Date.now();
+  for (const [k, v] of winReg) if (now - v.t > WIN_TTL) winReg.delete(k);   // 죽은 창 정리
+  let cur = winReg.get(key);
+  if (!cur) {
+    const taken = new Set([...winReg.values()].map(v => v.n));
+    let n = 1; while (taken.has(n)) n++;                                     // 비어있는 가장 작은 번호
+    cur = { n, t: now };
+    winReg.set(key, cur);
+  }
+  cur.t = now;
+  res.json({ n: cur.n, total: winReg.size });
+});
+// 창이 닫힐 때 즉시 반납 (sendBeacon) — 20초 기다리지 않고 번호가 바로 비게
+app.post('/api/win-bye', (req, res) => {
+  const key = String((req.body && req.body.key) || '');
+  if (key) winReg.delete(key);
+  res.json({ ok: true });
+});
+
 // ---------- 📝 코드 편집 모드: 세션 폴더 안의 파일 트리·읽기·저장 ----------
 // 보안: 전역 토큰 미들웨어가 이미 보호. 경로는 반드시 세션 폴더 안이어야 함(../ 탈출 차단).
 // 저장 기능은 새 권한 확대가 아님 — 같은 토큰으로 이미 터미널에서 임의 명령을 실행할 수 있으므로.
