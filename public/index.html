@@ -172,7 +172,9 @@
   .quick .qSend.pop { animation: sendPop .3s cubic-bezier(.34,1.56,.64,1); }  /* 전송 순간 톡 튀어오름 (클릭·엔터 공통) */
   /* 📱 폰: 입력하는 동안 그 세션의 입력줄+전송버튼을 화면 맨 아래(키보드 바로 위)에 고정.
      bottom(=키보드가 가린 높이)은 JS가 visualViewport로 실시간 갱신 → 부드럽게 자리잡음. */
-  .quick.kb-pin { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  .quick.kb-pin { position: fixed; left: 0; right: 0; z-index: 60;
+                  /* 키보드 높이(--kb-gap) 위로 + 아이폰 하단 홈인디케이터(safe-area)만큼 + 최소 여유 → 전송버튼이 안 가리게 */
+                  bottom: calc(var(--kb-gap, 0px) + max(env(safe-area-inset-bottom, 0px), 10px));
                   box-shadow: 0 -6px 20px rgba(0,0,0,.4); transition: bottom .16s ease; }
   /* 📜 요청내역 토글 버튼 (이미지첨부 옆) */
   .quick .qHist { flex: 0 0 auto; white-space: nowrap; }
@@ -5158,7 +5160,8 @@ function positionPinnedQuick() {
   if (!_pinnedQuick) return;
   const vv = window.visualViewport;
   const gap = vv ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)) : 0;
-  _pinnedQuick.style.bottom = gap + 'px';
+  // bottom 자체는 CSS calc(--kb-gap + safe-area 여유)가 계산 — 여기선 키보드 높이만 변수로 넘김
+  _pinnedQuick.style.setProperty('--kb-gap', gap + 'px');
 }
 function pinQuick(quick) {
   if (!isMobileNow()) return;                        // 폰 레이아웃일 때만 (PC·태블릿 가로는 원래대로)
@@ -5171,7 +5174,7 @@ function pinQuick(quick) {
 }
 function unpinQuick(quick) {
   quick.classList.remove('kb-pin');
-  quick.style.bottom = '';
+  quick.style.removeProperty('--kb-gap');
   if (_pinnedQuick === quick) _pinnedQuick = null;
 }
 // 모바일: 주소창 접힘/펼침은 window resize가 아니라 visualViewport 이벤트로만 옴 → 여기서 재fit (반쪽 높이 핵심 원인)
