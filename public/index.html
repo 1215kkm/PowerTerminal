@@ -187,8 +187,11 @@
   #cmTitle { font-weight: 700; font-size: 13px; }
   #cmFile { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis;
             white-space: nowrap; max-width: 46vw; }
-  #cmDirty { color: var(--pink); font-size: 15px; line-height: 1; display: none; }
-  #cmDirty.on { display: inline; }
+  /* 저장 상태등: 저장 전(고친 상태)=회색 · 저장됨=초록. 파일을 열었을 때만 보임. */
+  #cmDirty { font-size: 15px; line-height: 1; display: none; }
+  #cmDirty.shown { display: inline; }
+  #cmDirty.dirty { color: #9ca3af; }
+  #cmDirty.saved { color: var(--green); text-shadow: 0 0 6px rgba(34,197,94,.7); }
   /* 4분할: 세션목록 · 터미널 · 에디터(제일 크게) · 트리. 폭은 JS가 grid-template-columns로 관리(드래그 저장). */
   #cmBody { flex: 1 1 auto; min-height: 0; position: relative; display: grid;
             grid-template-columns: 190px 6px minmax(160px, 1fr) 6px minmax(360px, 2.2fr) 6px 240px; }
@@ -216,11 +219,23 @@
   #cmImgs { flex: 0 0 auto; display: none; border-top: 1px solid var(--line); background: #0f172a; }
   #cmImgs.on { display: block; }
   html.light #cmImgs { background: #f3f4f6; }
-  #cmImgs .cmi-head { padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--muted); }
-  #cmImgs .cmi-head small { font-weight: 400; }
+  #cmImgs { --thumb: 150px; }   /* 썸네일 한 변 — 슬라이더/프리셋이 바꾼다 */
+  #cmImgs .cmi-head { display: flex; align-items: center; gap: 6px;
+                      padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--muted); }
+  #cmImgs .cmi-head small { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #cmImgs .cmi-head .cmi-sp { flex: 1 1 auto; min-width: 6px; }
+  #cmImgs #cmImgSize { flex: 0 0 auto; width: 120px; }
+  #cmImgs #cmImgSizeV { flex: 0 0 auto; width: 34px; text-align: right; color: var(--fg); }
+  #cmImgs .cmi-presets { flex: 0 0 auto; display: flex; gap: 3px; }
+  #cmImgs .cmi-presets button { padding: 1px 6px; font-size: 10.5px; font-weight: 700; }
+  #cmImgs .cmi-presets button.on { background: linear-gradient(90deg, var(--violet), var(--pink));
+                                   color: #fff; border-color: transparent; }
   #cmImgs .cmi-strip { display: flex; gap: 8px; overflow-x: auto; padding: 0 8px 8px; }
-  #cmImgs .cmi { flex: 0 0 auto; width: 150px; height: 150px; border-radius: 8px; overflow: hidden;
+  #cmImgs .cmi { flex: 0 0 auto; width: var(--thumb); height: var(--thumb); border-radius: 8px; overflow: hidden;
                  border: 1px solid var(--line); background: #fff; cursor: pointer; position: relative; }
+  /* 작게 볼 땐 파일명 라벨이 그림을 다 덮으니 숨김 (많이 늘어놓고 훑어보는 용도) */
+  #cmImgs.tiny .cmi .cmi-name { display: none; }
+  #cmImgs.tiny .cmi { border-radius: 5px; }
   #cmImgs .cmi img { width: 100%; height: 100%; object-fit: contain; display: block; }
   #cmImgs .cmi:hover { border-color: var(--pink); }
   #cmImgs .cmi .cmi-name { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 5px;
@@ -930,7 +945,7 @@
   <div id="cmBar">
     <span id="cmTitle">📝 Code</span>
     <span id="cmFile" title=""></span>
-    <span id="cmDirty" title="Unsaved changes">●</span>
+    <span id="cmDirty">●</span>
     <span id="cmWrap" title="Alt+Z — 자동 줄바꿈">↩ off</span>
     <span id="cmUsage" title="Claude usage"></span>
     <span class="sp"></span>
@@ -947,7 +962,19 @@
     <div class="cm-resize" data-h="1"></div>
     <div id="cmEditorCol" class="cmcol">
       <div id="cmEditor"></div>
-      <div id="cmImgs"><div class="cmi-head">🖼 <span data-i18n="cmImgs">Images</span> <small data-i18n="cmImgsHint">— click to enlarge · drag into the code</small></div><div class="cmi-strip"></div></div>
+      <div id="cmImgs">
+        <div class="cmi-head">
+          🖼 <span data-i18n="cmImgs">Images</span>
+          <small data-i18n="cmImgsHint">— click to enlarge · drag into the code</small>
+          <span class="cmi-sp"></span>
+          <input type="range" id="cmImgSize" min="24" max="240" step="2" title="썸네일 크기">
+          <output id="cmImgSizeV"></output>
+          <span class="cmi-presets">
+            <button data-sz="30">30</button><button data-sz="50">50</button><button data-sz="100">100</button><button data-sz="150">150</button>
+          </span>
+        </div>
+        <div class="cmi-strip"></div>
+      </div>
     </div>
     <div class="cm-resize" data-h="2"></div>
     <div id="cmTree" class="cmcol"></div>
@@ -5338,9 +5365,14 @@ let cmDirty = false;        // 저장 안 된 변경 있음
 let cmTermObj = null;       // {term, fit, ws}
 const cmOpenDirs = new Set();   // 펼쳐진 폴더(상대경로)
 
+// 저장 상태등 — 고쳤는데 아직 저장 전이면 회색, 저장된 상태면 초록.
 function cmSetDirty(v) {
   cmDirty = v;
-  document.getElementById('cmDirty').classList.toggle('on', !!v);
+  const el = document.getElementById('cmDirty');
+  el.classList.toggle('shown', !!cmPath);          // 파일을 열었을 때만 표시
+  el.classList.toggle('dirty', !!v);
+  el.classList.toggle('saved', !v);
+  el.title = v ? '저장 안 됨 — Ctrl+S' : '저장됨';
 }
 function cmApi(path, opts) { return api(opts && opts.method || 'GET', '/api/sessions/' + cmSess.id + path, opts && opts.body); }
 
@@ -5563,6 +5595,19 @@ function cmPopOutPreview() {
 }
 
 // ---------- 🖼 만든 이미지 줄 (편집기 하단) ----------
+// 썸네일 한 변 크기 — 슬라이더로 무단계, 30/50/100/150 버튼으로 한 번에. 크기는 기억한다.
+// 작게 하면 한 화면에 많이 늘어놓고 훑어볼 수 있다.
+let cmThumb = (() => { try { return Math.min(240, Math.max(24, +localStorage.getItem('pt_cm_thumb') || 150)); } catch (e) { return 150; } })();
+function cmApplyThumb(save) {
+  const box = document.getElementById('cmImgs'); if (!box) return;
+  box.style.setProperty('--thumb', cmThumb + 'px');
+  box.classList.toggle('tiny', cmThumb < 70);            // 작으면 파일명 라벨 숨김
+  const sl = document.getElementById('cmImgSize'); if (sl) sl.value = cmThumb;
+  const out = document.getElementById('cmImgSizeV'); if (out) out.textContent = cmThumb + 'px';
+  box.querySelectorAll('.cmi-presets button').forEach(b => b.classList.toggle('on', +b.dataset.sz === cmThumb));
+  if (save) { try { localStorage.setItem('pt_cm_thumb', String(cmThumb)); } catch (e) {} }
+}
+function cmSetThumb(px, save) { cmThumb = Math.min(240, Math.max(24, px | 0)); cmApplyThumb(save); }
 // 세션 폴더의 이미지를 새것부터 150x150으로 늘어놓는다. 클릭하면 확대, 코드창으로 끌어다 놓으면 경로가 들어간다.
 function cmImgSrc(rel) {
   return '/preview/' + cmSess.id + '/' + rel.split('/').map(encodeURIComponent).join('/')
@@ -5803,6 +5848,7 @@ async function cmSwitch(s) {
 async function openCodeMode(sess) {
   codeModal.classList.add('on');
   cmApplyCols();                 // 저장된 열 폭 복원
+  cmApplyThumb(false);           // 저장된 썸네일 크기 복원
   cmUpdateWrapBadge();
   cmUpdateUsage();
   await cmSwitch(sess);
@@ -5819,6 +5865,11 @@ document.getElementById('cmClose').onclick = closeCodeMode;
 document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);      // 현재창 미리보기 토글
 document.getElementById('cmPopBtn').onclick = cmPopOutPreview;                        // 새 창 전체보기
 document.getElementById('cmWrap').onclick = cmToggleWrap;                             // ↩ 자동 줄바꿈 배지 클릭
+// 🖼 썸네일 크기: 슬라이더(무단계) + 30/50/100/150 바로가기
+document.getElementById('cmImgSize').oninput = e => cmSetThumb(+e.target.value, true);
+document.querySelectorAll('#cmImgs .cmi-presets button').forEach(b => {
+  b.onclick = () => cmSetThumb(+b.dataset.sz, true);
+});
 cmWireImageDrop();   // 코드창에 이미지 드롭 받기 (에디터는 파일마다 새로 만들어지므로 컨테이너에 건다)
 // ✏️ 비주얼 편집 = 체크박스. 켜면 미리보기(현재창)가 자동으로 켜짐.
 CI('cmVisChk').onchange = e => cmSetVisual(e.target.checked);
@@ -5833,7 +5884,11 @@ document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
   if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); cmSave(); }
   else if (e.altKey && (e.key === 'z' || e.key === 'Z' || e.code === 'KeyZ')) { e.preventDefault(); cmToggleWrap(); }   // Alt+Z 자동 줄바꿈
-  else if (e.key === 'Escape' && !cmDirty && !cmVisOn) closeCodeMode();
+  else if (e.key === 'Escape' && !cmDirty && !cmVisOn) {
+    // 편집기 안에서의 ESC는 CM6 것(검색창 닫기·다중선택 해제)이라 가로채면 안 된다 — 편집기 밖에서만 모드 닫기
+    const inEditor = document.getElementById('cmBody').contains(document.activeElement);
+    if (!inEditor) closeCodeMode();
+  }
 }, true);
 
 // ↔ 4분할 열 폭 드래그 조절 + 기억 (localStorage). 폭은 [세션, 터미널, 트리] 3열의 px, 에디터(3번째)는 나머지 채움.
