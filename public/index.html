@@ -210,9 +210,27 @@
   #cmVisWrap.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
   #cmVisWrap input { margin: 0; }
   #cmTermCol { overflow: hidden; display: flex; }
-  #cmTerm { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; }
+  #cmTerm { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
+  /* 옮겨온 진짜 세션창이 이 칸을 꽉 채우게 (그리드에 있을 때의 최소높이 규칙은 무시) */
+  #cmTerm .pane { flex: 1 1 auto; width: 100%; margin: 0; min-height: 0 !important; height: auto; }
   /* 에디터 칸 = 위 코드 + 아래 이미지 썸네일 줄 */
   #cmEditorCol { overflow: hidden; display: flex; flex-direction: column; }
+  /* 📑 열어놓은 파일 탭 — 클릭/Ctrl+Tab 으로 전환, ✕ 로 닫기 */
+  #cmTabs { flex: 0 0 auto; display: none; gap: 2px; overflow-x: auto; padding: 3px 4px 0;
+            border-bottom: 1px solid var(--line); background: #0f172a; }
+  #cmTabs.on { display: flex; }
+  html.light #cmTabs { background: #f3f4f6; }
+  .cm-tab { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; max-width: 190px;
+            padding: 4px 7px; border: 1px solid var(--line); border-bottom: 0;
+            border-radius: 6px 6px 0 0; font-size: 11.5px; cursor: pointer; color: var(--muted); }
+  .cm-tab:hover { background: #374151; }
+  html.light .cm-tab:hover { background: #e5e7eb; }
+  .cm-tab.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  .cm-tab .tb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cm-tab .tb-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; visibility: hidden; }
+  .cm-tab.dirty .tb-dot { visibility: visible; }        /* 저장 안 된 탭 표시 */
+  .cm-tab .tb-x { flex: 0 0 auto; opacity: .6; font-weight: 700; padding: 0 1px; }
+  .cm-tab .tb-x:hover { opacity: 1; color: #f87171; }
   #cmEditor { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; }
   #cmEditor .cm-editor { flex: 1 1 auto; min-width: 0; height: 100%; }
   /* 🖼 만든 이미지 줄 — 150x150 썸네일. 클릭=확대, 코드로 드래그=경로 삽입 */
@@ -961,6 +979,7 @@
     <div id="cmTermCol" class="cmcol"><div id="cmTerm"></div></div>
     <div class="cm-resize" data-h="1"></div>
     <div id="cmEditorCol" class="cmcol">
+      <div id="cmTabs"></div>
       <div id="cmEditor"></div>
       <div id="cmImgs">
         <div class="cmi-head">
@@ -5373,6 +5392,8 @@ function cmSetDirty(v) {
   el.classList.toggle('dirty', !!v);
   el.classList.toggle('saved', !v);
   el.title = v ? '저장 안 됨 — Ctrl+S' : '저장됨';
+  const t = cmActiveTab();                       // 탭에도 저장여부 점 표시
+  if (t && t.dirty !== !!v) { t.dirty = !!v; cmRenderTabs(); }
 }
 function cmApi(path, opts) { return api(opts && opts.method || 'GET', '/api/sessions/' + cmSess.id + path, opts && opts.body); }
 
@@ -5405,25 +5426,86 @@ function cmMountEditor(text, fileName) {
   cmUpdateWrapBadge();
 }
 
-// 파일 열기
-async function cmOpenFile(rel) {
-  const r = await cmApi('/file?path=' + encodeURIComponent(rel));
+// ---------- 📑 파일 탭 ----------
+// 여러 파일을 열어두고 클릭·Ctrl+Tab 으로 오간다. 탭마다 내용과 저장여부를 들고 있어
+// 다른 탭으로 갔다 와도 편집하던 내용이 그대로 남는다.
+let cmTabs = [];            // [{path, text, dirty}]
+function cmActiveTab() { return cmTabs.find(t => t.path === cmPath) || null; }
+function cmStashCurrent() {  // 지금 편집기 내용을 현재 탭에 보관
+  const t = cmActiveTab();
+  if (t && cmView) { t.text = cmView.state.doc.toString(); t.dirty = cmDirty; }
+}
+function cmRenderTabs() {
+  const bar = document.getElementById('cmTabs');
+  bar.classList.toggle('on', cmTabs.length > 0);
+  bar.innerHTML = '';
+  cmTabs.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'cm-tab' + (t.path === cmPath ? ' on' : '') + (t.dirty ? ' dirty' : '');
+    el.title = t.path;
+    el.innerHTML = '<span class="tb-dot"></span><span class="tb-name">' + esc(t.path.split('/').pop()) + '</span><span class="tb-x">✕</span>';
+    el.onclick = ev => {
+      if (ev.target.classList.contains('tb-x')) { ev.stopPropagation(); cmCloseTab(t.path); return; }
+      cmShowTab(t.path);
+    };
+    bar.appendChild(el);
+  });
+}
+function cmShowTab(rel) {
+  if (rel === cmPath) return;
+  cmStashCurrent();
+  const t = cmTabs.find(x => x.path === rel);
+  if (!t) return;
+  cmPath = rel;
   const fileEl = document.getElementById('cmFile');
+  fileEl.textContent = rel; fileEl.title = rel;
+  cmMountEditor(t.text, rel);
+  cmSetDirty(t.dirty);
+  cmRenderTabs();
+  document.querySelectorAll('#cmTree .cm-node').forEach(n => n.classList.toggle('on', n.dataset.file === rel));
+}
+function cmCloseTab(rel) {
+  const i = cmTabs.findIndex(t => t.path === rel);
+  if (i < 0) return;
+  if (cmTabs[i].dirty && !confirm(rel + ' — 저장하지 않은 변경이 있습니다. 그래도 닫을까요?')) return;
+  const wasActive = cmTabs[i].path === cmPath;
+  cmTabs.splice(i, 1);
+  if (!wasActive) { cmRenderTabs(); return; }
+  cmPath = null;
+  if (cmTabs.length) { const next = cmTabs[Math.min(i, cmTabs.length - 1)]; cmShowTab(next.path); }
+  else {   // 마지막 탭까지 닫음 — 빈 화면으로
+    if (cmView) { cmView.destroy(); cmView = null; }
+    document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">← 오른쪽 파일 트리에서 파일을 고르세요</div>';
+    document.getElementById('cmFile').textContent = '';
+    cmSetDirty(false);
+    cmRenderTabs();
+    document.querySelectorAll('#cmTree .cm-node').forEach(n => n.classList.remove('on'));
+  }
+}
+function cmCycleTab(back) {
+  if (cmTabs.length < 2) return;
+  const i = cmTabs.findIndex(t => t.path === cmPath);
+  const n = (i + (back ? -1 : 1) + cmTabs.length) % cmTabs.length;
+  cmShowTab(cmTabs[n].path);
+}
+// 파일 열기 — 이미 열려 있으면 그 탭으로, 아니면 새 탭
+async function cmOpenFile(rel) {
+  if (cmTabs.some(t => t.path === rel)) { cmShowTab(rel); return; }
+  const r = await cmApi('/file?path=' + encodeURIComponent(rel));
   if (!r || r.error) { flashToast('⚠ ' + ((r && r.error) || 'open failed')); return; }
   if (r.tooBig) { flashToast('⚠ ' + Math.round(r.size / 1024) + 'KB — 너무 커서 안 엽니다'); return; }
   if (r.binary) { flashToast('⚠ 바이너리 파일이라 편집기에서 못 엽니다'); return; }
-  cmPath = rel;
-  fileEl.textContent = rel; fileEl.title = rel;
-  cmMountEditor(r.content, rel);
-  cmSetDirty(false);
-  document.querySelectorAll('#cmTree .cm-node').forEach(n => n.classList.toggle('on', n.dataset.file === rel));
+  cmStashCurrent();
+  cmTabs.push({ path: rel, text: r.content, dirty: false });
+  cmPath = null;              // cmShowTab이 전환을 처리하게
+  cmShowTab(rel);
 }
 
 // 저장 — 미리보기가 켜져 있으면 저장 직후 자동 새로고침 (go live)
 async function cmSave() {
   if (!cmSess || !cmPath || !cmView) return;
   const r = await cmApi('/file', { method: 'POST', body: { path: cmPath, content: cmView.state.doc.toString() } });
-  if (r && r.ok) { cmSetDirty(false); flashToast('💾 ' + cmPath); if (cmPreviewOn) cmReloadPreview(); }
+  if (r && r.ok) { const t = cmActiveTab(); if (t) t.text = cmView.state.doc.toString(); cmSetDirty(false); flashToast('💾 ' + cmPath); if (cmPreviewOn) cmReloadPreview(); }
   else flashToast('⚠ ' + ((r && r.error) || 'save failed'));
 }
 
@@ -5803,37 +5885,38 @@ async function cmRenderSessions() {
 }
 
 // 라이브 터미널 — 같은 세션 소켓에 하나 더 붙음 (서버가 버퍼 재생)
+// 세션창을 통째로 이 칸으로 옮겨온다 (전체화면 확대와 같은 방식). 새로 흉내내지 않고 진짜 창을 옮기므로
+// 요청 입력줄·이미지 첨부·요청내역·전송·git 줄 등 세션의 모든 기능이 그대로 따라온다.
+let _cmPaneSlot = null, _cmPaneId = null;
 function cmMountTerm() {
   cmUnmountTerm();
+  const p = panes.get(cmSess.id);
   const host = document.getElementById('cmTerm');
   host.innerHTML = '';
-  const term = new Terminal({
-    fontSize: 13, fontFamily: 'Consolas, D2Coding, monospace',
-    theme: themeLight ? TERM_THEME_LIGHT : TERM_THEME_DARK, convertEol: false, scrollback: 5000
-  });
-  const fit = new FitAddon.FitAddon();
-  term.loadAddon(fit);
-  term.open(host);
-  setTimeout(() => { try { fit.fit(); } catch (e) {} }, 60);
-  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/term?id=${cmSess.id}&token=${TOKEN}`);
-  ws.onmessage = ev => {
-    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.type === 'out') term.write(m.data);
-  };
-  term.onData(d => { try { ws.send(JSON.stringify({ type: 'in', data: d })); } catch (e) {} });
-  cmTermObj = { term, fit, ws };
+  if (!p) { host.innerHTML = '<div class="cm-empty">이 세션은 이 창에 열려 있지 않습니다 (다른 창에서 보고 있는 세션)</div>'; return; }
+  _cmPaneSlot = document.createElement('span');       // 원래 자리 표시자 — 닫을 때 그 자리로 되돌림
+  _cmPaneSlot.style.display = 'none';
+  p.el.parentNode.insertBefore(_cmPaneSlot, p.el);
+  host.appendChild(p.el);
+  _cmPaneId = cmSess.id;
+  [60, 260, 700].forEach(t => setTimeout(() => fitPane(p), t));
+  cmTermObj = { pane: p, fit: { fit: () => fitPane(p) } };   // 폭 드래그 시 재fit 하는 쪽과 인터페이스 맞춤
 }
 function cmUnmountTerm() {
-  if (!cmTermObj) return;
-  try { cmTermObj.ws.close(); } catch (e) {}
-  try { cmTermObj.term.dispose(); } catch (e) {}
+  if (_cmPaneId) {
+    const p = panes.get(_cmPaneId);
+    if (p && _cmPaneSlot && _cmPaneSlot.parentNode) _cmPaneSlot.parentNode.insertBefore(p.el, _cmPaneSlot);
+    if (_cmPaneSlot) _cmPaneSlot.remove();
+    _cmPaneSlot = null; _cmPaneId = null;
+    setTimeout(refitAll, 80);
+  }
   cmTermObj = null;
 }
 
 // 세션 전환 (트리·에디터·터미널 전부 그 세션 것으로)
 async function cmSwitch(s) {
   if (cmDirty && !confirm('저장하지 않은 변경이 있습니다. 그래도 이동할까요?')) return;
-  cmSess = s; cmPath = null; cmOpenDirs.clear(); cmSetDirty(false);
+  cmSess = s; cmPath = null; cmOpenDirs.clear(); cmTabs = []; cmRenderTabs(); cmSetDirty(false);   // 탭은 세션(폴더)마다 새로
   document.getElementById('cmTitle').textContent = '📝 ' + (s.title || '');
   document.getElementById('cmFile').textContent = '';
   document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">← 오른쪽 파일 트리에서 파일을 고르세요</div>';
@@ -5854,11 +5937,12 @@ async function openCodeMode(sess) {
   await cmSwitch(sess);
 }
 function closeCodeMode() {
-  if (cmDirty && !confirm('저장하지 않은 변경이 있습니다. 그래도 닫을까요?')) return;
+  cmStashCurrent();
+  if (cmTabs.some(t => t.dirty) && !confirm('저장하지 않은 변경이 있습니다. 그래도 닫을까요?')) return;
   codeModal.classList.remove('on');
-  cmUnmountTerm();
+  cmUnmountTerm();                                  // 옮겨왔던 세션창을 원래 자리로 되돌림
   if (cmView) { cmView.destroy(); cmView = null; }
-  cmSess = null; cmPath = null; cmSetDirty(false);
+  cmSess = null; cmPath = null; cmTabs = []; cmRenderTabs(); cmSetDirty(false);
 }
 document.getElementById('cmSave').onclick = cmSave;
 document.getElementById('cmClose').onclick = closeCodeMode;
@@ -5884,6 +5968,7 @@ document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
   if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); cmSave(); }
   else if (e.altKey && (e.key === 'z' || e.key === 'Z' || e.code === 'KeyZ')) { e.preventDefault(); cmToggleWrap(); }   // Alt+Z 자동 줄바꿈
+  else if (e.ctrlKey && e.key === 'Tab') { e.preventDefault(); cmCycleTab(e.shiftKey); }                                // Ctrl+Tab 탭 전환
   else if (e.key === 'Escape' && !cmDirty && !cmVisOn) {
     // 편집기 안에서의 ESC는 CM6 것(검색창 닫기·다중선택 해제)이라 가로채면 안 된다 — 편집기 밖에서만 모드 닫기
     const inEditor = document.getElementById('cmBody').contains(document.activeElement);
