@@ -1690,7 +1690,7 @@ function buildPane(sess, idx) {
         <button class="small btnMax hv" title="${T.maxT}">⛶</button>
         <button class="small btnZoom" title="${T.zoomT}">⛶</button>
         <button class="small btnPrev hv" title="${T.previewT}">👁</button>
-        <button class="small btnRead hv" title="${esc(T.readT || '')}">📖</button>
+        <button class="small btnRead hv" title="${esc(T.readT || '')}" style="display:none">📖</button><!-- 넓게 읽기 — 사용자 요청으로 숨김(openReader 배선은 유지) -->
         <button class="small btnCode hv" title="${esc(T.codeT || 'Code editor — see and edit all the files')}">📝</button>
         <select class="small fontSel hv" title="${T.fontSel}">
           ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>${s}</option>`).join('')}
