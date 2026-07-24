@@ -938,7 +938,10 @@
       <label>배경색 <input type="color" id="ciBg"></label>
       <label>안쪽여백 <input type="range" id="ciPad" min="0" max="80" step="1"><output id="ciPadV"></output></label>
       <label>바깥여백 <input type="range" id="ciMar" min="0" max="80" step="1"><output id="ciMarV"></output></label>
-      <div class="ci-foot"><small id="ciWhere"></small></div>
+      <div class="ci-foot">
+        <label id="ciOverrideRow" style="display:none"><input type="checkbox" id="ciOverride"><span>이 요소만 바꾸기 (공용 변수 무시)</span></label>
+        <small id="ciWhere"></small>
+      </div>
     </div>
   </div>
 </div>
@@ -5386,9 +5389,50 @@ function cmApplyInline(text, range, prop, value) {
   }
   return text.slice(0, range.end) + ' style="' + decl + '"' + text.slice(range.end);
 }
+// 이 요소의 이 속성이 "공용 CSS 변수"에서 오는지 — 온다면 그 선언(예: "var(--brand)")을 돌려준다.
+// 변수는 보통 사이트 전체에 쓰이는 디자인 토큰이라, 여기서 인라인으로 덮으면 이 요소만 토큰에서 이탈한다.
+// 그래서 기본적으로 막고, 사용자가 명시적으로 "이 요소만" 을 켰을 때만 진행한다.
+function cmVarBacked(el, prop) {
+  const d = el.ownerDocument;
+  const longhands = { padding: ['padding', 'padding-top'], margin: ['margin', 'margin-top'] };
+  const props = longhands[prop] || [prop];
+  let found = null;
+  const scan = rules => {
+    for (const r of rules) {
+      // @media 등 안쪽까지 훑는다. 단 CSS 중첩을 지원하는 브라우저에선 평범한 스타일 규칙도
+      // 빈 cssRules(=truthy)를 가지므로, 있다고 건너뛰면 선언 검사를 통째로 놓친다 → 길이로 판단.
+      if (r.cssRules && r.cssRules.length) scan(r.cssRules);
+      if (!r.selectorText || !r.style) continue;
+      let hit = false; try { hit = el.matches(r.selectorText); } catch (e) { continue; }
+      if (!hit) continue;
+      for (const p of props) {
+        const v = r.style.getPropertyValue(p);
+        if (v && v.includes('var(')) found = v.trim();
+      }
+    }
+  };
+  for (const sheet of d.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }   // 외부 도메인 CSS는 접근 불가 — 건너뜀
+    scan(rules);
+  }
+  return found;
+}
+
 // 인스펙터에서 값이 바뀔 때: 미리보기 즉시 반영 + 소스에 기록
 function cmVisChange(prop, value) {
   if (!cmVisEl || !cmVisLoc) return;
+  // 🛡 공용 변수(디자인 토큰)에서 오는 값이면 기본적으로 손대지 않는다
+  const varDecl = cmVarBacked(cmVisEl, prop);
+  const row = CI('ciOverrideRow');
+  if (varDecl) {
+    row.style.display = 'flex';
+    if (!CI('ciOverride').checked) {
+      CI('ciWhere').textContent = '🛡 이 값은 공용 변수 ' + varDecl + ' — 모든 페이지에 쓰이는 값이라 건드리지 않았습니다. '
+                                + '전체를 바꾸려면 CSS에서 그 변수를, 이 요소만 바꾸려면 위 체크박스를 켜세요.';
+      cmVisSync();                                        // 슬라이더를 원래 값으로 되돌림
+      return;
+    }
+  } else row.style.display = 'none';
   cmVisEl.style.setProperty(prop, value);                 // ① 미리보기 즉시
   if (!cmView || !cmPath || !/\.html?$/i.test(cmPath)) { CI('ciWhere').textContent = '⚠ HTML 파일을 열어야 코드에 기록됩니다'; return; }
   const text = cmView.state.doc.toString();
@@ -5426,16 +5470,23 @@ function cmVisSelect(el, d) {
   const tag = el.tagName.toLowerCase();
   const same = [...d.querySelectorAll(tag)];
   cmVisLoc = { tag, index: same.indexOf(el), id: el.id || '' };
-  const cs = d.defaultView.getComputedStyle(el);
   CI('ciTag').textContent = '<' + tag + (el.id ? '#' + el.id : '') + '>';
+  CI('ciOverride').checked = false;                       // 요소를 새로 고르면 보호 다시 켬
+  CI('ciOverrideRow').style.display = 'none';
+  cmVisSync();
+  CI('ciWhere').textContent = '이 요소를 마우스로 바꾸세요';
+  CI('cmInsp').classList.add('on');
+}
+// 슬라이더·색상칸을 지금 요소의 실제 계산값으로 맞춤 (막았을 때 되돌리는 데도 씀)
+function cmVisSync() {
+  if (!cmVisEl) return;
+  const cs = cmVisEl.ownerDocument.defaultView.getComputedStyle(cmVisEl);
   const px = v => Math.round(parseFloat(v) || 0);
   CI('ciFont').value = px(cs.fontSize); CI('ciFontV').textContent = px(cs.fontSize) + 'px';
   CI('ciPad').value = px(cs.paddingTop); CI('ciPadV').textContent = px(cs.paddingTop) + 'px';
   CI('ciMar').value = px(cs.marginTop);  CI('ciMarV').textContent = px(cs.marginTop) + 'px';
   CI('ciColor').value = cmRgbHex(cs.color);
   CI('ciBg').value = cmRgbHex(cs.backgroundColor);
-  CI('ciWhere').textContent = '이 요소를 마우스로 바꾸세요';
-  CI('cmInsp').classList.add('on');
 }
 function cmRgbHex(v) {
   const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(v || '');
