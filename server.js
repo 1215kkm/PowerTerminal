@@ -1249,6 +1249,33 @@ app.get('/api/sessions/:id/file', (req, res) => {
     res.json({ path: (req.query.path || '').toString(), content: buf.toString('utf8'), size: st.size });
   } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
 });
+// 🖼 세션 폴더 안의 이미지 목록 — 편집기 하단 썸네일 줄에 쓴다.
+// AI로 만든 이미지가 프로젝트 어디에 떨어지든 잡히도록 훑되, 무거운 폴더는 건너뛰고 개수도 제한.
+// 새로 만든 게 먼저 보이도록 수정시각 내림차순.
+const IMG_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i;
+app.get('/api/sessions/:id/images', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const root = path.resolve(s.path);
+  const out = [];
+  const walk = (dir, rel, depth) => {
+    if (out.length >= 300 || depth < 0) return;
+    let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+    for (const e of ents) {
+      if (out.length >= 300) return;
+      if (e.name.startsWith('.') && e.name !== '.pt-images') continue;      // 숨김폴더는 건너뛰되 첨부폴더는 포함
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { if (!CODE_SKIP_DIRS.has(e.name)) walk(path.join(dir, e.name), r, depth - 1); }
+      else if (e.isFile() && IMG_RE.test(e.name)) {
+        let t = 0; try { t = fs.statSync(path.join(dir, e.name)).mtimeMs; } catch (x) {}
+        out.push({ path: r, mtime: t });
+      }
+    }
+  };
+  walk(root, '', 4);
+  out.sort((a, b) => b.mtime - a.mtime);
+  res.json({ images: out });
+});
+
 // 파일 저장 (덮어쓰기 또는 새로 만들기). 부모 폴더 없으면 생성 (역시 root 안쪽만).
 app.post('/api/sessions/:id/file', (req, res) => {
   const s = codeSession(req, res); if (!s) return;

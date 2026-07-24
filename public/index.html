@@ -196,8 +196,26 @@
   #cmBody .cmcol:last-child { border-right: 0; }
   #cmTermCol { overflow: hidden; display: flex; }
   #cmTerm { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; }
-  #cmEditor { overflow: hidden; display: flex; }
+  /* 에디터 칸 = 위 코드 + 아래 이미지 썸네일 줄 */
+  #cmEditorCol { overflow: hidden; display: flex; flex-direction: column; }
+  #cmEditor { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; }
   #cmEditor .cm-editor { flex: 1 1 auto; min-width: 0; height: 100%; }
+  /* 🖼 만든 이미지 줄 — 150x150 썸네일. 클릭=확대, 코드로 드래그=경로 삽입 */
+  #cmImgs { flex: 0 0 auto; display: none; border-top: 1px solid var(--line); background: #0f172a; }
+  #cmImgs.on { display: block; }
+  html.light #cmImgs { background: #f3f4f6; }
+  #cmImgs .cmi-head { padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--muted); }
+  #cmImgs .cmi-head small { font-weight: 400; }
+  #cmImgs .cmi-strip { display: flex; gap: 8px; overflow-x: auto; padding: 0 8px 8px; }
+  #cmImgs .cmi { flex: 0 0 auto; width: 150px; height: 150px; border-radius: 8px; overflow: hidden;
+                 border: 1px solid var(--line); background: #fff; cursor: pointer; position: relative; }
+  #cmImgs .cmi img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #cmImgs .cmi:hover { border-color: var(--pink); }
+  #cmImgs .cmi .cmi-name { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 5px;
+                           background: rgba(0,0,0,.62); color: #fff; font-size: 10px;
+                           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 코드창에 이미지를 끌어오는 중 표시 */
+  #cmEditor.imgdrop { outline: 2px dashed var(--pink); outline-offset: -3px; }
   /* 👁 미리보기를 켜면 우측 칸이 트리 대신 미리보기 — 볼 만하게 폭을 넉넉히 준다 */
   #cmBody.preview { grid-template-columns: 170px minmax(190px, .75fr) minmax(300px, 1.3fr) minmax(320px, 1.25fr); }
   #cmTree.previewing { overflow: hidden; display: flex; }
@@ -889,7 +907,10 @@
   <div id="cmBody">
     <div id="cmSessions" class="cmcol"></div>
     <div id="cmTermCol" class="cmcol"><div id="cmTerm"></div></div>
-    <div id="cmEditor" class="cmcol"></div>
+    <div id="cmEditorCol" class="cmcol">
+      <div id="cmEditor"></div>
+      <div id="cmImgs"><div class="cmi-head">🖼 <span data-i18n="cmImgs">Images</span> <small data-i18n="cmImgsHint">— click to enlarge · drag into the code</small></div><div class="cmi-strip"></div></div>
+    </div>
     <div id="cmTree" class="cmcol"></div>
   </div>
 </div>
@@ -1241,6 +1262,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
+    cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
@@ -1322,6 +1344,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
+    cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
@@ -5291,6 +5314,74 @@ async function cmSave() {
   else flashToast('⚠ ' + ((r && r.error) || 'save failed'));
 }
 
+// ---------- 🖼 만든 이미지 줄 (편집기 하단) ----------
+// 세션 폴더의 이미지를 새것부터 150x150으로 늘어놓는다. 클릭하면 확대, 코드창으로 끌어다 놓으면 경로가 들어간다.
+function cmImgSrc(rel) {
+  return '/preview/' + cmSess.id + '/' + rel.split('/').map(encodeURIComponent).join('/')
+       + '?token=' + encodeURIComponent(TOKEN || '');
+}
+async function cmRenderImages() {
+  const box = document.getElementById('cmImgs'), strip = box.querySelector('.cmi-strip');
+  strip.innerHTML = '';
+  let r; try { r = await cmApi('/images'); } catch (e) { r = null; }
+  const list = (r && r.images) || [];
+  box.classList.toggle('on', list.length > 0);
+  for (const im of list) {
+    const c = document.createElement('div');
+    c.className = 'cmi';
+    c.draggable = true;
+    c.title = im.path;
+    c.innerHTML = '<img alt="" src="' + escA(cmImgSrc(im.path)) + '"><span class="cmi-name">' + esc(im.path.split('/').pop()) + '</span>';
+    c.onclick = () => openImgLightbox(cmImgSrc(im.path));
+    c.addEventListener('dragstart', ev => {
+      ev.dataTransfer.setData('application/x-pt-image', im.path);
+      ev.dataTransfer.setData('text/plain', im.path);      // 다른 곳에 떨어뜨려도 경로는 남게
+      ev.dataTransfer.effectAllowed = 'copy';
+    });
+    strip.appendChild(c);
+  }
+}
+// 코드창에 이미지를 떨어뜨리면: 그 자리가 따옴표 안(src="…") 이면 그 안을 경로로 갈아끼우고,
+// 아니면 커서 자리에 경로를 그대로 넣는다. ("이미지 코드 자리에 적용")
+function cmWireImageDrop() {
+  const host = document.getElementById('cmEditor');
+  host.addEventListener('dragover', ev => {
+    if (![...ev.dataTransfer.types].includes('application/x-pt-image')) return;
+    ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; host.classList.add('imgdrop');
+  });
+  host.addEventListener('dragleave', () => host.classList.remove('imgdrop'));
+  host.addEventListener('drop', ev => {
+    host.classList.remove('imgdrop');
+    const rel = ev.dataTransfer.getData('application/x-pt-image');
+    if (!rel || !cmView) return;
+    ev.preventDefault();
+    const pos = cmView.posAtCoords({ x: ev.clientX, y: ev.clientY });
+    if (pos == null) return;
+    const line = cmView.state.doc.lineAt(pos);
+    const text = line.text, col = pos - line.from;
+    // 커서를 감싸는 따옴표 쌍 찾기 (같은 줄 안에서만)
+    let from = -1, to = -1, q = '';
+    for (const ch of ['"', "'", '`']) {
+      const l = text.lastIndexOf(ch, col - 1), rIdx = text.indexOf(ch, col);
+      if (l !== -1 && rIdx !== -1 && l < rIdx) { from = l + 1; to = rIdx; q = ch; break; }
+    }
+    const insert = cmRelFrom(rel);
+    if (from !== -1) cmView.dispatch({ changes: { from: line.from + from, to: line.from + to, insert } });
+    else cmView.dispatch({ changes: { from: pos, insert } });
+    cmSetDirty(true);
+    flashToast('🖼 ' + insert);
+  });
+}
+// 지금 열린 파일 기준 상대경로로 (예: src/index.html 에서 assets/a.png → ../assets/a.png)
+function cmRelFrom(imgRel) {
+  if (!cmPath) return imgRel;
+  const dir = cmPath.split('/').slice(0, -1);
+  if (!dir.length) return imgRel;
+  const img = imgRel.split('/');
+  let i = 0; while (i < dir.length && i < img.length - 1 && dir[i] === img[i]) i++;
+  return '../'.repeat(dir.length - i) + img.slice(i).join('/');
+}
+
 // ---------- 👁 라이브 미리보기 (우측 파일트리 자리를 교체) ----------
 // 세션 폴더를 그대로 서빙하는 /preview/<id>/ 를 iframe으로 띄운다. 저장할 때마다 새로고침돼
 // "go live"처럼 결과가 바로 보인다. dev 서버(previewUrl)가 설정돼 있으면 그쪽을 우선 사용.
@@ -5409,6 +5500,7 @@ async function cmSwitch(s) {
   await cmRenderSessions();
   if (cmPreviewOn) cmSetPreview(true);   // 미리보기 모드면 새 세션 것으로 다시 띄움
   else await cmRenderTree();
+  cmRenderImages();
   cmMountTerm();
 }
 
@@ -5426,6 +5518,7 @@ function closeCodeMode() {
 document.getElementById('cmSave').onclick = cmSave;
 document.getElementById('cmClose').onclick = closeCodeMode;
 document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);
+cmWireImageDrop();   // 코드창에 이미지 드롭 받기 (에디터는 파일마다 새로 만들어지므로 컨테이너에 건다)
 // Ctrl+S 저장 · ESC 닫기 (편집 모드가 열려 있을 때만)
 document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
