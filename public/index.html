@@ -190,7 +190,7 @@
   #cmDirty { color: var(--pink); font-size: 15px; line-height: 1; display: none; }
   #cmDirty.on { display: inline; }
   /* 4분할: 세션목록 · 터미널 · 에디터(제일 크게) · 트리 */
-  #cmBody { flex: 1 1 auto; min-height: 0; display: grid;
+  #cmBody { flex: 1 1 auto; min-height: 0; position: relative; display: grid;
             grid-template-columns: 190px minmax(240px, 1fr) minmax(360px, 2.2fr) 240px; }
   #cmBody .cmcol { min-width: 0; min-height: 0; overflow: auto; border-right: 1px solid var(--line); }
   #cmBody .cmcol:last-child { border-right: 0; }
@@ -220,7 +220,24 @@
   #cmBody.preview { grid-template-columns: 170px minmax(190px, .75fr) minmax(300px, 1.3fr) minmax(320px, 1.25fr); }
   #cmTree.previewing { overflow: hidden; display: flex; }
   #cmPreview { flex: 1 1 auto; width: 100%; height: 100%; border: 0; background: #fff; }
-  #cmPrevBtn.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  #cmPrevBtn.on, #cmVisBtn.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  /* ✏️ 비주얼 편집 인스펙터 — 미리보기 위에 떠 있는 작은 조절판 */
+  #cmInsp { display: none; position: absolute; right: 14px; bottom: 14px; z-index: 40; width: 262px;
+            background: #111827; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
+            box-shadow: 0 8px 26px rgba(0,0,0,.5); font-size: 12px; }
+  #cmInsp.on { display: block; }
+  html.light #cmInsp { background: #fff; }
+  #cmInsp .ci-head { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  #cmInsp .ci-head .sp { flex: 1 1 auto; }
+  #cmInsp .ci-head b { color: var(--pink); font-family: Consolas, monospace; }
+  #cmInsp .ci-head button { padding: 1px 7px; }
+  #cmInsp label { display: flex; align-items: center; gap: 6px; margin: 5px 0; color: var(--muted);
+                  white-space: nowrap; }   /* 라벨이 "글자크/기"로 쪼개지지 않게 */
+  #cmInsp input[type=range] { flex: 1 1 auto; min-width: 0; }
+  #cmInsp input[type=color] { width: 34px; height: 22px; padding: 0; border: 1px solid var(--line); background: none; }
+  #cmInsp output { flex: 0 0 auto; width: 34px; text-align: right; color: var(--fg); font-weight: 700; }
+  #cmInsp .ci-foot { margin-top: 7px; border-top: 1px solid var(--line); padding-top: 6px; }
+  #cmInsp .ci-foot small { color: var(--muted); font-size: 10.5px; line-height: 1.3; display: block; }
   /* 좌측 세션 목록 — 비활성 세션은 회색 */
   .cm-sess { display: flex; align-items: center; gap: 6px; padding: 7px 9px; cursor: pointer;
              font-size: 12px; font-weight: 700; border-bottom: 1px solid var(--line);
@@ -901,6 +918,7 @@
     <span id="cmDirty" title="Unsaved changes">●</span>
     <span class="sp"></span>
     <button id="cmPrevBtn" title="Live preview — reloads itself every time you save">👁 <span data-i18n="cmPreview">Preview</span></button>
+    <button id="cmVisBtn" title="Visual edit — click something in the preview and change it with the mouse">✏️ <span data-i18n="cmVisual">Visual</span></button>
     <button id="cmSave" title="Ctrl+S">💾 <span data-i18n="cmSave">Save</span></button>
     <button id="cmClose">✕ <span data-i18n="cmExit">Close</span></button>
   </div>
@@ -912,6 +930,16 @@
       <div id="cmImgs"><div class="cmi-head">🖼 <span data-i18n="cmImgs">Images</span> <small data-i18n="cmImgsHint">— click to enlarge · drag into the code</small></div><div class="cmi-strip"></div></div>
     </div>
     <div id="cmTree" class="cmcol"></div>
+    <!-- ✏️ 비주얼 편집 인스펙터 — 미리보기에서 고른 요소를 마우스로 고치는 패널 -->
+    <div id="cmInsp">
+      <div class="ci-head"><b id="ciTag">—</b><span class="sp"></span><button id="ciClose" title="Close">✕</button></div>
+      <label>글자크기 <input type="range" id="ciFont" min="8" max="80" step="1"><output id="ciFontV"></output></label>
+      <label>글자색 <input type="color" id="ciColor"></label>
+      <label>배경색 <input type="color" id="ciBg"></label>
+      <label>안쪽여백 <input type="range" id="ciPad" min="0" max="80" step="1"><output id="ciPadV"></output></label>
+      <label>바깥여백 <input type="range" id="ciMar" min="0" max="80" step="1"><output id="ciMarV"></output></label>
+      <div class="ci-foot"><small id="ciWhere"></small></div>
+    </div>
   </div>
 </div>
 
@@ -1262,7 +1290,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
-    cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code',
+    cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
@@ -1344,7 +1372,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
-    cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용',
+    cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
@@ -5314,6 +5342,119 @@ async function cmSave() {
   else flashToast('⚠ ' + ((r && r.error) || 'save failed'));
 }
 
+// ---------- ✏️ 비주얼 편집 (미리보기에서 마우스로 고치기) ----------
+// 미리보기는 우리 서버가 서빙하므로 same-origin — iframe 안 DOM에 직접 접근해 고른 요소를 바꾼다.
+// 바꾼 값은 (1) 미리보기에 즉시 반영되고 (2) 편집기에 열린 HTML 소스의 그 태그에 inline style로 기록된다.
+// 소스에서 태그를 찾는 기준: id가 있으면 id, 없으면 "같은 태그 중 몇 번째"(문서 순서).
+let cmVisOn = false, cmVisEl = null, cmVisLoc = null;
+const CI = id => document.getElementById(id);
+
+// 소스 텍스트에서 여는 태그의 범위 [start, end] 를 찾는다 (end = '>' 위치). 못 찾으면 null.
+function cmFindOpenTag(text, loc) {
+  if (loc.id) {                                   // id가 있으면 그걸로 정확히
+    const m = new RegExp('<([a-zA-Z][\\w-]*)\\b[^>]*\\bid\\s*=\\s*["\']' + loc.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']', 'i').exec(text);
+    if (m) return { start: m.index, end: cmTagEnd(text, m.index) };
+  }
+  const re = new RegExp('<' + loc.tag + '\\b', 'gi');
+  let m, i = 0;
+  while ((m = re.exec(text))) { if (i === loc.index) return { start: m.index, end: cmTagEnd(text, m.index) }; i++; }
+  return null;
+}
+// 여는 태그의 '>' 위치 (따옴표 안의 > 는 건너뜀)
+function cmTagEnd(text, start) {
+  let q = '';
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === q) q = ''; }
+    else if (c === '"' || c === "'") q = c;
+    else if (c === '>') return i;
+  }
+  return -1;
+}
+// 그 태그의 style="..." 에 prop:value 를 넣거나 갱신한 새 텍스트를 돌려준다
+function cmApplyInline(text, range, prop, value) {
+  const tag = text.slice(range.start, range.end);
+  const sm = /\sstyle\s*=\s*(["'])([\s\S]*?)\1/i.exec(tag);
+  const decl = prop + ': ' + value;
+  if (sm) {
+    const body = sm[2];
+    const parts = body.split(';').map(s => s.trim()).filter(Boolean)
+      .filter(p => p.split(':')[0].trim().toLowerCase() !== prop);
+    parts.push(decl);
+    const newTag = tag.slice(0, sm.index) + ' style=' + sm[1] + parts.join('; ') + sm[1] + tag.slice(sm.index + sm[0].length);
+    return text.slice(0, range.start) + newTag + text.slice(range.end);
+  }
+  return text.slice(0, range.end) + ' style="' + decl + '"' + text.slice(range.end);
+}
+// 인스펙터에서 값이 바뀔 때: 미리보기 즉시 반영 + 소스에 기록
+function cmVisChange(prop, value) {
+  if (!cmVisEl || !cmVisLoc) return;
+  cmVisEl.style.setProperty(prop, value);                 // ① 미리보기 즉시
+  if (!cmView || !cmPath || !/\.html?$/i.test(cmPath)) { CI('ciWhere').textContent = '⚠ HTML 파일을 열어야 코드에 기록됩니다'; return; }
+  const text = cmView.state.doc.toString();
+  const range = cmFindOpenTag(text, cmVisLoc);
+  if (!range || range.end < 0) { CI('ciWhere').textContent = '⚠ 이 요소를 소스에서 못 찾았습니다'; return; }
+  const next = cmApplyInline(text, range, prop, value);   // ② 소스에 inline style
+  cmView.dispatch({ changes: { from: 0, to: text.length, insert: next } });
+  cmSetDirty(true);
+  CI('ciWhere').textContent = '✓ ' + cmPath + ' 의 <' + cmVisLoc.tag + '> 에 기록됨 — Ctrl+S 로 저장';
+}
+// 미리보기 iframe에 편집용 훅을 심는다 (같은 출처라 직접 접근)
+function cmVisAttach() {
+  const f = CI('cmPreview'); if (!f) return;
+  let d; try { d = f.contentDocument; } catch (e) { return; }
+  if (!d || !d.body) return;
+  if (!d.getElementById('__ptvis')) {                     // 하이라이트용 스타일 1회 주입
+    const st = d.createElement('style'); st.id = '__ptvis';
+    st.textContent = '.__pthover{outline:2px dashed #EC4899!important;outline-offset:1px}' +
+                     '.__ptsel{outline:2px solid #7C3AED!important;outline-offset:1px}';
+    d.head && d.head.appendChild(st);
+  }
+  d.addEventListener('mouseover', e => { if (cmVisOn && e.target !== d.body) e.target.classList.add('__pthover'); }, true);
+  d.addEventListener('mouseout', e => { e.target.classList && e.target.classList.remove('__pthover'); }, true);
+  d.addEventListener('click', e => {
+    if (!cmVisOn) return;
+    e.preventDefault(); e.stopPropagation();              // 링크 이동·폼 제출 막기
+    cmVisSelect(e.target, d);
+  }, true);
+}
+function cmVisSelect(el, d) {
+  if (!el || el === d.body || el === d.documentElement) return;
+  d.querySelectorAll('.__ptsel').forEach(x => x.classList.remove('__ptsel'));
+  el.classList.add('__ptsel');
+  cmVisEl = el;
+  const tag = el.tagName.toLowerCase();
+  const same = [...d.querySelectorAll(tag)];
+  cmVisLoc = { tag, index: same.indexOf(el), id: el.id || '' };
+  const cs = d.defaultView.getComputedStyle(el);
+  CI('ciTag').textContent = '<' + tag + (el.id ? '#' + el.id : '') + '>';
+  const px = v => Math.round(parseFloat(v) || 0);
+  CI('ciFont').value = px(cs.fontSize); CI('ciFontV').textContent = px(cs.fontSize) + 'px';
+  CI('ciPad').value = px(cs.paddingTop); CI('ciPadV').textContent = px(cs.paddingTop) + 'px';
+  CI('ciMar').value = px(cs.marginTop);  CI('ciMarV').textContent = px(cs.marginTop) + 'px';
+  CI('ciColor').value = cmRgbHex(cs.color);
+  CI('ciBg').value = cmRgbHex(cs.backgroundColor);
+  CI('ciWhere').textContent = '이 요소를 마우스로 바꾸세요';
+  CI('cmInsp').classList.add('on');
+}
+function cmRgbHex(v) {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(v || '');
+  if (!m) return '#000000';
+  return '#' + [1, 2, 3].map(i => (+m[i]).toString(16).padStart(2, '0')).join('');
+}
+function cmSetVisual(on) {
+  cmVisOn = on;
+  CI('cmVisBtn').classList.toggle('on', on);
+  if (on && !cmPreviewOn) cmSetPreview(true);             // 편집하려면 미리보기가 켜져 있어야 함
+  if (on) setTimeout(cmVisAttach, 400);
+  else {
+    CI('cmInsp').classList.remove('on');
+    cmVisEl = null; cmVisLoc = null;
+    const f = CI('cmPreview');
+    try { f && f.contentDocument.querySelectorAll('.__ptsel,.__pthover').forEach(x => x.classList.remove('__ptsel', '__pthover')); } catch (e) {}
+  }
+}
+
 // ---------- 🖼 만든 이미지 줄 (편집기 하단) ----------
 // 세션 폴더의 이미지를 새것부터 150x150으로 늘어놓는다. 클릭하면 확대, 코드창으로 끌어다 놓으면 경로가 들어간다.
 function cmImgSrc(rel) {
@@ -5357,20 +5498,31 @@ function cmWireImageDrop() {
     ev.preventDefault();
     const pos = cmView.posAtCoords({ x: ev.clientX, y: ev.clientY });
     if (pos == null) return;
-    const line = cmView.state.doc.lineAt(pos);
-    const text = line.text, col = pos - line.from;
-    // 커서를 감싸는 따옴표 쌍 찾기 (같은 줄 안에서만)
-    let from = -1, to = -1, q = '';
-    for (const ch of ['"', "'", '`']) {
-      const l = text.lastIndexOf(ch, col - 1), rIdx = text.indexOf(ch, col);
-      if (l !== -1 && rIdx !== -1 && l < rIdx) { from = l + 1; to = rIdx; q = ch; break; }
-    }
-    const insert = cmRelFrom(rel);
-    if (from !== -1) cmView.dispatch({ changes: { from: line.from + from, to: line.from + to, insert } });
-    else cmView.dispatch({ changes: { from: pos, insert } });
+    const src = cmRelFrom(rel);                       // 편집 중인 파일 기준 상대경로
+    const md = /\.(md|markdown)$/i.test(cmPath || '');
+    const snippet = md ? '![](' + src + ')' : '<img src="' + src + '">';
+    const text = cmView.state.doc.toString();
+    const hit = cmImgTagAt(text, pos);                // 드롭 지점이 기존 이미지 태그 안인가?
+    if (hit) cmView.dispatch({ changes: { from: hit.start, to: hit.end, insert: snippet } });   // 태그 통째로 교체
+    else cmView.dispatch({ changes: { from: pos, insert: snippet } });                          // 빈 곳이면 태그째 삽입
     cmSetDirty(true);
-    flashToast('🖼 ' + insert);
+    flashToast('🖼 ' + src);
   });
+}
+// 그 위치가 이미지 표기 안이면 그 전체 범위를 돌려준다 — <img ...> 또는 마크다운 ![alt](path)
+function cmImgTagAt(text, pos) {
+  const low = text.toLowerCase();
+  const s = low.lastIndexOf('<img', pos);
+  if (s !== -1) {
+    const e = cmTagEnd(text, s);
+    if (e !== -1 && pos <= e + 1) return { start: s, end: e + 1 };
+  }
+  const ms = text.lastIndexOf('![', pos);
+  if (ms !== -1) {
+    const close = text.indexOf(')', ms);
+    if (close !== -1 && pos <= close + 1 && text.slice(ms, close).includes('](')) return { start: ms, end: close + 1 };
+  }
+  return null;
 }
 // 지금 열린 파일 기준 상대경로로 (예: src/index.html 에서 assets/a.png → ../assets/a.png)
 function cmRelFrom(imgRel) {
@@ -5519,6 +5671,14 @@ document.getElementById('cmSave').onclick = cmSave;
 document.getElementById('cmClose').onclick = closeCodeMode;
 document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);
 cmWireImageDrop();   // 코드창에 이미지 드롭 받기 (에디터는 파일마다 새로 만들어지므로 컨테이너에 건다)
+// ✏️ 비주얼 편집 인스펙터 배선 — 슬라이더/색상은 움직이는 즉시 미리보기와 소스에 반영
+CI('cmVisBtn').onclick = () => cmSetVisual(!cmVisOn);
+CI('ciClose').onclick = () => cmSetVisual(false);
+CI('ciFont').oninput = e => { CI('ciFontV').textContent = e.target.value + 'px'; cmVisChange('font-size', e.target.value + 'px'); };
+CI('ciPad').oninput  = e => { CI('ciPadV').textContent  = e.target.value + 'px'; cmVisChange('padding',   e.target.value + 'px'); };
+CI('ciMar').oninput  = e => { CI('ciMarV').textContent  = e.target.value + 'px'; cmVisChange('margin',    e.target.value + 'px'); };
+CI('ciColor').oninput = e => cmVisChange('color', e.target.value);
+CI('ciBg').oninput    = e => cmVisChange('background-color', e.target.value);
 // Ctrl+S 저장 · ESC 닫기 (편집 모드가 열려 있을 때만)
 document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
