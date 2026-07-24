@@ -841,6 +841,11 @@
   @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
     /* 헤더 3줄 구성: ①로고+QR+언어  ②배너  ③세션%+추가버튼  ④주간%+주간Fable% */
     header { flex-wrap: wrap; row-gap: 7px; }
+    /* 폰: 아래 order 규칙들은 전부 '헤더의 직계 자식'을 전제로 함.
+       PC용 묶음(#hdrBtns/#usageCol)은 폰에선 자리를 없애서 그 안의 버튼·막대가
+       다시 헤더의 직계 flex 항목처럼 줄배치에 참여하게 한다. */
+    #hdrBtns, #usageCol { display: contents; }
+    #usageGpt { order: 10; flex: 1 1 100%; }   /* GPT 줄은 맨 아랫줄 하나를 차지 */
     .logo-wrap { order: 0; display: inline-block; }   /* 폭=로고 글자 폭 → 배지 오른쪽 끝 기준 */
     #hverBadge { position: absolute; right: 0; bottom: 100%; margin-bottom: 1px; }   /* 로고 우측 끝 바로 위 */
     header .sp { order: 2; }
@@ -1586,6 +1591,14 @@ if (!I18N[LANG]) LANG = 'en';
 let T = Object.assign({}, I18N.en, I18N[LANG]);   // 빠진 키는 영어로 폴백
 // setItem이 실패해도(시크릿·저장소 차단·용량초과) 새로고침은 반드시 실행 — 언어 전환이 멈추지 않게.
 function setLang(l) { try { localStorage.setItem('pt_lang', l); } catch (e) {} location.reload(); }
+// 나중에 만들어 붙이는 헤더 버튼(⚙ 설정, 🛠 배너관리 등)을 언어 셀렉터 바로 앞에 끼워넣는다.
+// 헤더 구조가 바뀌어도(예: 버튼들이 #hdrBtns 안으로 들어감) 안 깨지도록 langSel 의 '실제 부모'에 넣는다.
+function hdrInsert(el) {
+  const anchor = document.getElementById('langSel');
+  const parent = (anchor && anchor.parentNode) || document.getElementById('hdrBtns') || document.querySelector('header');
+  if (!parent) return;
+  parent.insertBefore(el, anchor && anchor.parentNode === parent ? anchor : null);
+}
 function applyStatic() {
   const sel = document.getElementById('langSel');
   sel.value = LANG;
@@ -3836,7 +3849,7 @@ setInterval(refreshBanner, 10 * 60 * 1000);
   sb.textContent = '⚙';
   sb.title = T.setBtnT || 'Settings';
   sb.onclick = openSettings;
-  document.querySelector('header').insertBefore(sb, document.getElementById('langSel'));
+  hdrInsert(sb);
 }
 async function openSettings() {
   document.getElementById('setTitle').textContent = T.setTitle || '⚙ Settings';
@@ -5334,7 +5347,7 @@ function mindInitCanvas() {
   b.title = 'Banner admin (dev)';
   // 새 탭으로 열기 — 같은 탭으로 이동하면 메인이 리로드돼 입력 중이던 요청글이 날아감
   b.onclick = () => { window.open('/admin.html?token=' + TOKEN, '_blank'); };
-  document.querySelector('header').insertBefore(b, document.getElementById('langSel'));
+  hdrInsert(b);
 
   // 사용자 요청(GitHub Issues) 개수 배지 — 새 요청이 있으면 ✉N 표시
   const iss = document.createElement('button');
@@ -5342,7 +5355,7 @@ function mindInitCanvas() {
   iss.style.background = '#166534';
   iss.title = 'Open user requests (GitHub Issues)';
   iss.onclick = () => window.open('https://github.com/1215kkm/PowerTerminal/issues', '_blank');
-  document.querySelector('header').insertBefore(iss, document.getElementById('langSel'));
+  hdrInsert(iss);
   async function checkIssues() {
     try {
       const r = await fetch('https://api.github.com/repos/1215kkm/PowerTerminal/issues?state=open&per_page=30');
