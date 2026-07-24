@@ -6585,10 +6585,23 @@ const WIN_KEY = (() => {
   catch (e) { return 'w' + Math.random().toString(36).slice(2); }
 })();
 let _winNo = 0;
+// 서버 버전이 바뀌면(=업데이트되어 재시작) 이 창도 스스로 새로고침한다. 하트비트에 실려오는 값이라
+// 추가 요청이 없고, 업데이트를 누른 창뿐 아니라 열려 있는 모든 창이 최신 화면으로 따라온다.
+let _srvVer = null;
+function checkServerVersion(v) {
+  if (!v) return;
+  if (_srvVer === null) { _srvVer = v; return; }      // 첫 응답 = 기준값
+  if (v === _srvVer) return;
+  // 코드 편집기에 저장 안 한 내용이 있으면 새로고침으로 날리지 않는다 — 저장하면 다음 하트비트에 반영됨
+  const dirtyEditor = (typeof cmTabs !== 'undefined' && cmTabs.some(t => t.dirty)) || (typeof cmDirty !== 'undefined' && cmDirty);
+  if (dirtyEditor) { flashToast('🔄 업데이트됨 (v' + v + ') — 편집 내용을 저장하면 새로고침합니다'); return; }
+  location.reload();
+}
 async function claimWinNo() {
   let r;
   try { r = await api('POST', '/api/win', { key: WIN_KEY }); } catch (e) { return; }
   if (!r || r.error || !r.n) return;
+  checkServerVersion(r.v);
   _winNo = r.n;
   const many = r.total > 1;                       // 창이 둘 이상일 때만 번호를 보여줌 (혼자면 방해 안 되게)
   const el = document.getElementById('winNo');
