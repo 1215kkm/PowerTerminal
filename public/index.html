@@ -2481,11 +2481,12 @@ function buildPane(sess, idx) {
   el.querySelector('.pane-body').appendChild(botBtn);
   const isReqRow = (buf, y) => {
     const l = buf.getLine(y); if (!l) return false;
+    // Claude: 내 메시지를 회색(#373737) 배경 상자로 그림
     for (let x = 0; x < Math.min(l.length, 8); x++) {
       const c = l.getCell(x);
       if (c && c.isBgRGB() && c.getBgColor() === 0x373737) return true;
     }
-    return false;
+    return isCodexReqRow(l);   // GPT(codex): 배경색을 안 써서 색으로는 못 찾음 → 마커+굵기/흐림으로
   };
   // ⌨ 터미널에 직접 타이핑한 요청도 요청내역에 — 작업이 시작되는(busy) 순간 회색 요청박스를 읽어 기록.
   // 빠른입력줄로 보낸 요청은 이미 기록돼 있어 서버가 같은 글(잘림·부분일치 포함)을 걸러줌.
@@ -5320,9 +5321,10 @@ async function openReader(sess, term) {
   document.getElementById('readClose').textContent = isMobile ? '✕' : (T.close || 'Close');
   const body = document.getElementById('readBody');
   const lines = reconstructBuffer(term);
-  // 내가 보낸 요청줄(회색 #373737 박스) 강조 — 터미널과 같은 판정
+  // 내가 보낸 요청줄 강조 — 터미널과 같은 판정 (Claude=회색 박스 · GPT=marker+굵기/흐림)
   const isReq = y => { const l = term.buffer.active.getLine(y); if (!l) return false;
-    for (let x = 0; x < Math.min(l.length, 8); x++) { const c = l.getCell(x); if (c && c.isBgRGB() && c.getBgColor() === 0x373737) return true; } return false; };
+    for (let x = 0; x < Math.min(l.length, 8); x++) { const c = l.getCell(x); if (c && c.isBgRGB() && c.getBgColor() === 0x373737) return true; }
+    return isCodexReqRow(l); };
   const fullText = lines.map(l => l.text).join('\n');
   body.dataset.plain = fullText;
   // 렌더 — 요청줄은 노란 강조, 구분선(────)은 흐리게
@@ -5344,6 +5346,21 @@ function closeReader() {
 document.getElementById('readClose').onclick = closeReader;
 readDlg.addEventListener('cancel', ev => { ev.preventDefault(); closeReader(); });
 readDlg.addEventListener('click', ev => { if (ev.target === readDlg) closeReader(); });   // 바깥 클릭 닫기
+
+// 🤖 GPT(codex)의 "내가 보낸 요청" 줄 판정.
+// codex TUI는 배경색을 전혀 쓰지 않아 Claude처럼 색(#373737)으로는 못 찾는다. 대신 마커로 구분되는데,
+// 입력창 placeholder 도 같은 '›' 를 쓰므로 굵기·흐림까지 봐야 한다 (실측):
+//   보낸 요청 '› …' = bold + dim   ·   입력창 '› Write tests…' = bold, dim 아님   ·   응답 '• …' = dim만
+function isCodexReqRow(line) {
+  if (!line) return false;
+  const c0 = line.getCell(0);
+  if (!c0) return false;
+  const ch = c0.getChars();
+  if (ch !== '›') return false;                 // '›'
+  if (!c0.isBold() || !c0.isDim()) return false;     // 입력창(굵기만)·응답(흐림만) 제외
+  const c1 = line.getCell(1);
+  return !!c1 && (c1.getChars() === ' ' || c1.getChars() === '');
+}
 
 // 🔍 첨부 이미지 라이트박스 — 썸네일 클릭 시 원본을 화면 전체로. 오버레이 1개를 재사용.
 let _imgLbox;

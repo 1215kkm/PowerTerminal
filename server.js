@@ -244,6 +244,7 @@ function getPty(sess) {
   }
   p = { proc, buffer: pathWarn, sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
   const isClaude = isClaudeAgent;
+  const isCodex = sess.agent === 'codex';
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
@@ -259,6 +260,14 @@ function getPty(sess) {
           || /ing…/.test(t15)                          // 제라운드 스피너 (Canoodling… 등) — 타이머 없어도
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)       // 스피너 경과시간
           || /…\s*\(?[↓↑\s]*\d/.test(t15)) {           // 제라운드… 뒤 숫자(경과·토큰)
+        p.lastMarker = Date.now();
+      }
+    } else if (isCodex) {
+      // GPT(codex)도 마커로 판별. 예전엔 '출력이 있으면 무조건 busy'였는데, codex는 전체화면 TUI라
+      // 상태줄·시계가 계속 다시 그려져 출력이 끊기지 않는다 → 영원히 '작업 중'이 되고 완료(초록)가 안 떴다.
+      const t15 = p.buffer.slice(-1800);
+      if (t15.includes('to interrupt') || /\bWorking\b/.test(t15) || /\bThinking\b/.test(t15)
+          || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
       }
     } else {
@@ -301,10 +310,12 @@ setInterval(() => {
     if (p.dead) continue;
     const sess = sessions.find(s => s.id === id);
     const isClaude = !sess || !sess.agent || sess.agent === 'claude';
-    if (isClaude) {
+    const markerBased = isClaude || (sess && sess.agent === 'codex');   // GPT도 마커 기반 (항상 busy 방지)
+    if (markerBased) {
       const working = p.lastMarker && Date.now() - p.lastMarker < 4000;
-      if (working) { setResume(sess, true); if (!p.busy || p.done) { p.busy = true; p.done = false; broadcastStatus(id, p); } }
-      else { if (p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p); } setResume(sess, false); }
+      // 재시작 이어하기 플래그는 Claude 전용(getPty가 Claude일 때만 씀) — codex엔 안 걸어 불필요한 저장을 막는다
+      if (working) { if (isClaude) setResume(sess, true); if (!p.busy || p.done) { p.busy = true; p.done = false; broadcastStatus(id, p); } }
+      else { if (p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p); } if (isClaude) setResume(sess, false); }
     } else if (p.busy && Date.now() - p.lastOut > 8000) {
       p.busy = false; p.done = true;
       broadcastStatus(id, p);
@@ -1874,8 +1885,9 @@ wss.on('connection', (ws, req) => {
     if (m.type === 'in') {
       p.proc.write(m.data);
       if (p.done) { p.done = false; broadcastStatus(id, p); }   // 입력하면 초록 해제
-      const isClaude = !sess.agent || sess.agent === 'claude';
-      if (!isClaude) p.busy = true;   // Claude는 'esc to interrupt' 마커가 busy를 결정
+      // Claude·codex 는 화면 마커가 busy를 결정 — 여기서 켜면 타이핑만 해도 '작업 중'이 돼 버린다
+      const markerBased = !sess.agent || sess.agent === 'claude' || sess.agent === 'codex';
+      if (!markerBased) p.busy = true;
       p.lastOut = Date.now();
     } else if (m.type === 'resize' && m.cols > 10 && m.rows > 5) {
       ws._size = { cols: m.cols, rows: m.rows };
