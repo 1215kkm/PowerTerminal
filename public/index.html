@@ -189,11 +189,23 @@
             white-space: nowrap; max-width: 46vw; }
   #cmDirty { color: var(--pink); font-size: 15px; line-height: 1; display: none; }
   #cmDirty.on { display: inline; }
-  /* 4분할: 세션목록 · 터미널 · 에디터(제일 크게) · 트리 */
+  /* 4분할: 세션목록 · 터미널 · 에디터(제일 크게) · 트리. 폭은 JS가 grid-template-columns로 관리(드래그 저장). */
   #cmBody { flex: 1 1 auto; min-height: 0; position: relative; display: grid;
-            grid-template-columns: 190px minmax(240px, 1fr) minmax(360px, 2.2fr) 240px; }
-  #cmBody .cmcol { min-width: 0; min-height: 0; overflow: auto; border-right: 1px solid var(--line); }
-  #cmBody .cmcol:last-child { border-right: 0; }
+            grid-template-columns: 190px 6px minmax(160px, 1fr) 6px minmax(360px, 2.2fr) 6px 240px; }
+  #cmBody .cmcol { min-width: 0; min-height: 0; overflow: auto; }
+  /* 열 사이 드래그 손잡이 */
+  #cmBody .cm-resize { cursor: col-resize; background: var(--line); }
+  #cmBody .cm-resize:hover, #cmBody .cm-resize.drag { background: var(--pink); }
+  /* 상단 바 새 요소들 */
+  #cmWrap { font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--line);
+            border-radius: 5px; padding: 1px 6px; cursor: pointer; }
+  #cmWrap.on { color: #fff; background: linear-gradient(90deg, var(--violet), var(--pink)); border-color: transparent; }
+  #cmUsage { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  #cmUsage b { color: var(--fg); font-weight: 700; }
+  #cmVisWrap { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;
+               border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; }
+  #cmVisWrap.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  #cmVisWrap input { margin: 0; }
   #cmTermCol { overflow: hidden; display: flex; }
   #cmTerm { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; }
   /* 에디터 칸 = 위 코드 + 아래 이미지 썸네일 줄 */
@@ -216,11 +228,14 @@
                            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 코드창에 이미지를 끌어오는 중 표시 */
   #cmEditor.imgdrop { outline: 2px dashed var(--pink); outline-offset: -3px; }
-  /* 👁 미리보기를 켜면 우측 칸이 트리 대신 미리보기 — 볼 만하게 폭을 넉넉히 준다 */
-  #cmBody.preview { grid-template-columns: 170px minmax(190px, .75fr) minmax(300px, 1.3fr) minmax(320px, 1.25fr); }
-  #cmTree.previewing { overflow: hidden; display: flex; }
+  #cmTree.previewing { overflow: hidden; display: flex; flex-direction: column; }
+  #cmPrevBar:not(:empty) { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+                           border-bottom: 1px solid var(--line); background: #111827; font-size: 11px; }
+  html.light #cmPrevBar:not(:empty) { background: #eef0f4; }
+  #cmPrevBar small { color: var(--muted); }
+  #cmPrevBar button { flex: 0 0 auto; }
   #cmPreview { flex: 1 1 auto; width: 100%; height: 100%; border: 0; background: #fff; }
-  #cmPrevBtn.on, #cmVisBtn.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  #cmPrevBtn.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
   /* ✏️ 비주얼 편집 인스펙터 — 미리보기 위에 떠 있는 작은 조절판 */
   #cmInsp { display: none; position: absolute; right: 14px; bottom: 14px; z-index: 40; width: 262px;
             background: #111827; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
@@ -257,10 +272,10 @@
   .cm-node.dim { color: var(--muted); }        /* node_modules 등 무거운 폴더 */
   .cm-node .tw { flex: 0 0 auto; width: 12px; text-align: center; color: var(--muted); }
   .cm-empty { padding: 10px; font-size: 12px; color: var(--muted); }
-  /* 폰: 4분할은 안 맞으니 에디터+트리만 (세션·터미널은 숨김) */
+  /* 폰: 4분할은 안 맞으니 에디터+트리만 (세션·터미널·리사이저는 숨김) */
   @media (max-width: 900px) {
-    #cmBody { grid-template-columns: 1fr 150px; }
-    #cmSessions, #cmTermCol { display: none; }
+    #cmBody { grid-template-columns: 1fr 150px !important; }
+    #cmSessions, #cmTermCol, #cmBody .cm-resize { display: none; }
   }
   /* 📜 요청내역 토글 버튼 (이미지첨부 옆) */
   .quick .qHist { flex: 0 0 auto; white-space: nowrap; }
@@ -916,19 +931,25 @@
     <span id="cmTitle">📝 Code</span>
     <span id="cmFile" title=""></span>
     <span id="cmDirty" title="Unsaved changes">●</span>
+    <span id="cmWrap" title="Alt+Z — 자동 줄바꿈">↩ off</span>
+    <span id="cmUsage" title="Claude usage"></span>
     <span class="sp"></span>
-    <button id="cmPrevBtn" title="Live preview — reloads itself every time you save">👁 <span data-i18n="cmPreview">Preview</span></button>
-    <button id="cmVisBtn" title="Visual edit — click something in the preview and change it with the mouse">✏️ <span data-i18n="cmVisual">Visual</span></button>
+    <button id="cmPrevBtn" title="Show the running page in this column (toggle)">👁 <span data-i18n="cmPreview">Preview</span></button>
+    <button id="cmPopBtn" title="Open the running page full-size in a new window">⛶ <span data-i18n="cmPopOut">New window</span></button>
+    <label id="cmVisWrap" title="Click something in the preview and change it with the mouse"><input type="checkbox" id="cmVisChk"> ✏️ <span data-i18n="cmVisual">Visual edit</span></label>
     <button id="cmSave" title="Ctrl+S">💾 <span data-i18n="cmSave">Save</span></button>
     <button id="cmClose">✕ <span data-i18n="cmExit">Close</span></button>
   </div>
   <div id="cmBody">
     <div id="cmSessions" class="cmcol"></div>
+    <div class="cm-resize" data-h="0"></div>
     <div id="cmTermCol" class="cmcol"><div id="cmTerm"></div></div>
+    <div class="cm-resize" data-h="1"></div>
     <div id="cmEditorCol" class="cmcol">
       <div id="cmEditor"></div>
       <div id="cmImgs"><div class="cmi-head">🖼 <span data-i18n="cmImgs">Images</span> <small data-i18n="cmImgsHint">— click to enlarge · drag into the code</small></div><div class="cmi-strip"></div></div>
     </div>
+    <div class="cm-resize" data-h="2"></div>
     <div id="cmTree" class="cmcol"></div>
     <!-- ✏️ 비주얼 편집 인스펙터 — 미리보기에서 고른 요소를 마우스로 고치는 패널 -->
     <div id="cmInsp">
@@ -1293,7 +1314,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
-    cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual',
+    cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
@@ -1375,7 +1396,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
-    cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집',
+    cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
@@ -3589,7 +3610,20 @@ async function refreshUsage() {
     } else if (costHtml) {
       el.innerHTML = costHtml;
     } else { el.textContent = ''; }
+    _lastUsageBars = u.bars || [];
+    cmUpdateUsage();                              // 코드 편집 모드 상단 바에도 반영
   } catch (e) {}
+}
+// 코드 편집 모드 상단 바의 간단 사용량 (막대 대신 % 텍스트) — 메인 사용량과 같은 데이터
+let _lastUsageBars = [];
+function cmUpdateUsage() {
+  const el = document.getElementById('cmUsage');
+  if (!el) return;
+  const pick = k => (_lastUsageBars.find(b => b.kind === k) || {}).percent;
+  const s = pick('session'), w = pick('weekly_all');
+  const col = p => p >= 90 ? '#ef4444' : p >= 70 ? '#f59e0b' : '';
+  const seg = (lab, p) => p == null ? '' : lab + ' <b style="color:' + (col(p) || 'var(--fg)') + '">' + p + '%</b>';
+  el.innerHTML = [seg(T.curSession || '세션', s), seg(T.weeklyAll || '주간', w)].filter(Boolean).join(' · ');
 }
 refreshUsage();
 setInterval(refreshUsage, 60 * 1000);
@@ -5310,17 +5344,33 @@ function cmSetDirty(v) {
 }
 function cmApi(path, opts) { return api(opts && opts.method || 'GET', '/api/sessions/' + cmSess.id + path, opts && opts.body); }
 
+// 자동 줄바꿈(Alt+Z)은 Compartment로 켜고 끈다 — 파일을 새로 열어도 상태 유지.
+let cmWrapOn = (() => { try { return localStorage.getItem('pt_cm_wrap') === '1'; } catch (e) { return false; } })();
+let cmWrapComp = null;
+function cmUpdateWrapBadge() {
+  const b = document.getElementById('cmWrap');
+  if (b) { b.classList.toggle('on', cmWrapOn); b.textContent = '↩ ' + (cmWrapOn ? 'on' : 'off'); }
+}
+function cmToggleWrap() {
+  cmWrapOn = !cmWrapOn;
+  try { localStorage.setItem('pt_cm_wrap', cmWrapOn ? '1' : '0'); } catch (e) {}
+  if (cmView && cmWrapComp) cmView.dispatch({ effects: cmWrapComp.reconfigure(cmWrapOn ? window.CM6.EditorView.lineWrapping : []) });
+  cmUpdateWrapBadge();
+}
 // 에디터 생성/교체 — 파일 확장자에 맞는 언어로
 function cmMountEditor(text, fileName) {
   const host = document.getElementById('cmEditor');
   if (cmView) { cmView.destroy(); cmView = null; }
   host.innerHTML = '';
   if (!window.CM6) { host.innerHTML = '<div class="cm-empty">코드 편집기를 불러오지 못했습니다 (vendor/cm6.min.js).</div>'; return; }
-  const { EditorView, basicSetup, keymap, indentWithTab, oneDark, langFor } = window.CM6;
+  const { EditorView, EditorState, basicSetup, keymap, indentWithTab, oneDark, langFor, Compartment } = window.CM6;
+  cmWrapComp = new Compartment();
   const exts = [basicSetup, keymap.of([indentWithTab]), langFor(fileName || ''),
+    cmWrapComp.of(cmWrapOn ? EditorView.lineWrapping : []),
     EditorView.updateListener.of(u => { if (u.docChanged) cmSetDirty(true); })];
   if (!themeLight) exts.push(oneDark);
   cmView = new EditorView({ doc: text, extensions: exts, parent: host });
+  cmUpdateWrapBadge();
 }
 
 // 파일 열기
@@ -5495,8 +5545,9 @@ function cmRgbHex(v) {
 }
 function cmSetVisual(on) {
   cmVisOn = on;
-  CI('cmVisBtn').classList.toggle('on', on);
-  if (on && !cmPreviewOn) cmSetPreview(true);             // 편집하려면 미리보기가 켜져 있어야 함
+  CI('cmVisChk').checked = on;
+  CI('cmVisWrap').classList.toggle('on', on);
+  if (on && !cmPreviewOn) cmSetPreview(true);             // 편집하려면 미리보기(현재창)가 켜져 있어야 함
   if (on) setTimeout(cmVisAttach, 400);
   else {
     CI('cmInsp').classList.remove('on');
@@ -5504,6 +5555,11 @@ function cmSetVisual(on) {
     const f = CI('cmPreview');
     try { f && f.contentDocument.querySelectorAll('.__ptsel,.__pthover').forEach(x => x.classList.remove('__ptsel', '__pthover')); } catch (e) {}
   }
+}
+// ⛶ 미리보기를 새 창에서 전체로 보기 (편집 말고 크게 보고 싶을 때)
+function cmPopOutPreview() {
+  if (!cmSess) return;
+  window.open(cmPreviewUrl(), 'ptpreview_' + cmSess.id, 'width=1200,height=860');
 }
 
 // ---------- 🖼 만든 이미지 줄 (편집기 하단) ----------
@@ -5598,17 +5654,36 @@ function cmReloadPreview() {
   const f = document.getElementById('cmPreview');
   if (f) f.src = cmPreviewUrl();
 }
+// 리액트 등은 정적 파일이 아니라 dev 서버가 있어야 실제 화면이 보인다(없으면 폴더 목록만 나옴).
+// package.json에 dev 스크립트가 있으면 실행 버튼을 띄우고, 누르면 그 서버를 켜서 미리보기를 연결한다.
+async function cmPreviewCheckDev() {
+  const bar = document.getElementById('cmPrevBar'); if (!bar || !cmSess) return;
+  let plan; try { plan = await api('GET', '/api/preview-plan?id=' + cmSess.id); } catch (e) { return; }
+  if (!plan) return;
+  if (plan.running) { cmSess.previewUrl = plan.running; cmReloadPreview(); bar.innerHTML = '<small>▶ ' + esc(plan.running) + '</small>'; return; }
+  if (plan.dev && !(plan.htmls && plan.htmls.length)) {   // dev 스크립트는 있는데 열 정적 html이 없다 = 리액트류
+    bar.innerHTML = '<button id="cmDevBtn">▶ dev 서버 실행 (' + esc(plan.dev.script || 'dev') + ')</button>'
+                  + '<small>리액트 등은 dev 서버가 있어야 실제 화면이 보여요</small>';
+    document.getElementById('cmDevBtn').onclick = async () => {
+      bar.innerHTML = '<small>⏳ dev 서버 시작 중… (최대 1~2분)</small>';
+      const r = await api('POST', '/api/preview-dev', { id: cmSess.id });
+      if (r && r.url) { cmSess.previewUrl = r.url; cmReloadPreview(); bar.innerHTML = '<small>▶ ' + esc(r.url) + '</small>'; }
+      else bar.innerHTML = '<small>⚠ dev 서버를 못 켰습니다 — 터미널에서 직접 실행해 보세요</small>';
+    };
+  } else { bar.innerHTML = ''; }
+}
 function cmSetPreview(on) {
   cmPreviewOn = on;
   document.getElementById('cmPrevBtn').classList.toggle('on', on);
-  document.getElementById('cmBody').classList.toggle('preview', on);
   const box = document.getElementById('cmTree');
   box.classList.toggle('previewing', on);
   if (on) {
-    box.innerHTML = '<iframe id="cmPreview"></iframe>';
+    box.innerHTML = '<div id="cmPrevBar"></div><iframe id="cmPreview"></iframe>';
     cmReloadPreview();
+    cmPreviewCheckDev();
   } else {
     box.innerHTML = '';
+    if (cmVisOn) cmSetVisual(false);   // 미리보기를 끄면 비주얼 편집도 같이 꺼짐 (편집 대상이 사라지므로)
     cmRenderTree();
   }
 }
@@ -5654,6 +5729,9 @@ async function cmRenderSessions() {
   try { list = await api('GET', '/api/sessions'); } catch (e) {}
   if (!Array.isArray(list)) list = [];
   box.innerHTML = '';
+  const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+  const have = new Set(list.map(s => nrm(s.path)));
+  // 열려있는(활성/비활성) 세션들
   for (const s of list) {
     const el = document.createElement('div');
     el.className = 'cm-sess' + (cmSess && s.id === cmSess.id ? ' on' : '') + (s.alive ? '' : ' idle');
@@ -5662,6 +5740,21 @@ async function cmRenderSessions() {
     el.onclick = () => { if (!cmSess || s.id !== cmSess.id) cmSwitch(s); };
     box.appendChild(el);
   }
+  // 닫힌(비활성) 프로젝트들도 회색으로 — 클릭하면 그 세션을 열어 전환
+  let known = [];
+  try { known = await api('GET', '/api/known-projects'); } catch (e) {}
+  (Array.isArray(known) ? known : []).filter(k => k.path && !k.active && !have.has(nrm(k.path))).forEach(k => {
+    have.add(nrm(k.path));
+    const el = document.createElement('div');
+    el.className = 'cm-sess idle';
+    el.innerHTML = '<span class="dot"></span><span>' + esc(k.title || k.name || '') + '</span>';
+    el.title = (k.path || '') + ' — 닫힘 (클릭하면 열림)';
+    el.onclick = async () => {
+      const ns = await api('POST', '/api/sessions', { path: k.path, title: k.title || k.name, agent: k.agent || 'claude' });
+      if (ns && !ns.error) cmSwitch(ns);
+    };
+    box.appendChild(el);
+  });
 }
 
 // 라이브 터미널 — 같은 세션 소켓에 하나 더 붙음 (서버가 버퍼 재생)
@@ -5709,6 +5802,9 @@ async function cmSwitch(s) {
 
 async function openCodeMode(sess) {
   codeModal.classList.add('on');
+  cmApplyCols();                 // 저장된 열 폭 복원
+  cmUpdateWrapBadge();
+  cmUpdateUsage();
   await cmSwitch(sess);
 }
 function closeCodeMode() {
@@ -5720,10 +5816,12 @@ function closeCodeMode() {
 }
 document.getElementById('cmSave').onclick = cmSave;
 document.getElementById('cmClose').onclick = closeCodeMode;
-document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);
+document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);      // 현재창 미리보기 토글
+document.getElementById('cmPopBtn').onclick = cmPopOutPreview;                        // 새 창 전체보기
+document.getElementById('cmWrap').onclick = cmToggleWrap;                             // ↩ 자동 줄바꿈 배지 클릭
 cmWireImageDrop();   // 코드창에 이미지 드롭 받기 (에디터는 파일마다 새로 만들어지므로 컨테이너에 건다)
-// ✏️ 비주얼 편집 인스펙터 배선 — 슬라이더/색상은 움직이는 즉시 미리보기와 소스에 반영
-CI('cmVisBtn').onclick = () => cmSetVisual(!cmVisOn);
+// ✏️ 비주얼 편집 = 체크박스. 켜면 미리보기(현재창)가 자동으로 켜짐.
+CI('cmVisChk').onchange = e => cmSetVisual(e.target.checked);
 CI('ciClose').onclick = () => cmSetVisual(false);
 CI('ciFont').oninput = e => { CI('ciFontV').textContent = e.target.value + 'px'; cmVisChange('font-size', e.target.value + 'px'); };
 CI('ciPad').oninput  = e => { CI('ciPadV').textContent  = e.target.value + 'px'; cmVisChange('padding',   e.target.value + 'px'); };
@@ -5734,8 +5832,44 @@ CI('ciBg').oninput    = e => cmVisChange('background-color', e.target.value);
 document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
   if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); cmSave(); }
-  else if (e.key === 'Escape' && !cmDirty) closeCodeMode();
+  else if (e.altKey && (e.key === 'z' || e.key === 'Z' || e.code === 'KeyZ')) { e.preventDefault(); cmToggleWrap(); }   // Alt+Z 자동 줄바꿈
+  else if (e.key === 'Escape' && !cmDirty && !cmVisOn) closeCodeMode();
 }, true);
+
+// ↔ 4분할 열 폭 드래그 조절 + 기억 (localStorage). 폭은 [세션, 터미널, 트리] 3열의 px, 에디터(3번째)는 나머지 채움.
+let cmColW = (() => { try { return JSON.parse(localStorage.getItem('pt_cm_cols')) || [190, 300, 240]; } catch (e) { return [190, 300, 240]; } })();
+function cmApplyCols() {
+  const [a, b, d] = cmColW;
+  document.getElementById('cmBody').style.gridTemplateColumns =
+    a + 'px 6px ' + b + 'px 6px minmax(160px,1fr) 6px ' + d + 'px';
+}
+(function cmWireResizers() {
+  const body = document.getElementById('cmBody');
+  body.querySelectorAll('.cm-resize').forEach(h => {
+    h.addEventListener('mousedown', ev => {
+      ev.preventDefault();
+      const which = +h.dataset.h;                 // 0: 세션|터미널, 1: 터미널|에디터, 2: 에디터|트리
+      const startX = ev.clientX, start = cmColW.slice();
+      h.classList.add('drag');
+      const move = e => {
+        const dx = e.clientX - startX;
+        if (which === 0) cmColW[0] = Math.max(90, start[0] + dx);        // 세션목록 폭
+        else if (which === 1) cmColW[1] = Math.max(120, start[1] + dx);  // 터미널 폭
+        else cmColW[2] = Math.max(140, start[2] - dx);                   // 트리/미리보기 폭 (오른쪽에서 잡음)
+        cmApplyCols();
+        if (cmTermObj) { try { cmTermObj.fit.fit(); } catch (e) {} }
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        h.classList.remove('drag');
+        try { localStorage.setItem('pt_cm_cols', JSON.stringify(cmColW)); } catch (e) {}
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  });
+})();
 addEventListener('resize', () => { if (cmTermObj) { try { cmTermObj.fit.fit(); } catch (e) {} } });
 
 // 📱 폰: 입력 중인 세션의 입력줄(.quick)을 키보드 바로 위에 고정. 키보드 높이 = 레이아웃뷰포트 하단과
