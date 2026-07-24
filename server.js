@@ -784,13 +784,33 @@ app.get('/calendar.ics', (req, res) => {
   const now = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PowerTerminal//Mindmap Schedule//KO',
                  'CALSCALE:GREGORIAN', 'X-WR-CALNAME:PowerTerminal', 'X-WR-TIMEZONE:Asia/Seoul'];
-  const push = (id, date, title, done) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return;
-    lines.push('BEGIN:VEVENT', 'UID:' + id + '@powerterminal', 'DTSTAMP:' + now,
-               'DTSTART;VALUE=DATE:' + dt(date), 'DTEND;VALUE=DATE:' + nextDay(date),
-               'SUMMARY:' + esc((done ? '✅ ' : '') + title), 'END:VEVENT');
+  // 시간(HH:MM)이 있으면 그 시각 1시간 일정으로, 없으면 종일 일정으로 내보낸다.
+  // 알람이 켜진 일정엔 VALARM을 붙여 폰 캘린더가 알림을 울리게 한다.
+  const hhmm = t => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t || '')) ? String(t) : null;
+  const plusHour = (date, t) => {
+    const [h, mi] = t.split(':').map(Number);
+    const x = new Date(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10), h, mi));
+    x.setUTCHours(x.getUTCHours() + 1);
+    return x.toISOString().replace(/[-:]/g, '').slice(0, 13) + '00';
   };
-  ((mindData && mindData.events) || []).forEach(e => push(e.id, e.date, e.text, e.done));
+  const push = (id, date, title, done, time, alarm) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return;
+    const t = hhmm(time);
+    const ev = ['BEGIN:VEVENT', 'UID:' + id + '@powerterminal', 'DTSTAMP:' + now];
+    if (t) {
+      // 로컬 시각으로 표기 (TZID) — 폰 캘린더가 사용자의 시간대로 그대로 보여줌
+      ev.push('DTSTART;TZID=Asia/Seoul:' + dt(date) + 'T' + t.replace(':', '') + '00',
+              'DTEND;TZID=Asia/Seoul:' + plusHour(date, t));
+    } else {
+      ev.push('DTSTART;VALUE=DATE:' + dt(date), 'DTEND;VALUE=DATE:' + nextDay(date));
+    }
+    ev.push('SUMMARY:' + esc((done ? '✅ ' : '') + title));
+    if (alarm) ev.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + esc(title),
+                       'TRIGGER:-PT10M', 'END:VALARM');     // 10분 전 알림
+    ev.push('END:VEVENT');
+    lines.push(...ev);
+  };
+  ((mindData && mindData.events) || []).forEach(e => push(e.id, e.date, e.text, e.done, e.time, e.alarm));
   ((mindData && mindData.todos) || []).forEach(t => { if (t.date) push(t.id, t.date, '📋 ' + t.text, t.done); });
   lines.push('END:VCALENDAR');
   res.set('Content-Type', 'text/calendar; charset=utf-8');

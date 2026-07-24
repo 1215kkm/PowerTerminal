@@ -421,6 +421,18 @@
   .mc-ev:hover { filter: brightness(1.25); }
   .mc-ev.mc-todo { background: rgba(163,230,53,.16); border-left-color: #a3e635; }
   .mc-ev.mc-done { text-decoration: line-through; opacity: .55; }
+  /* ⏰ 시간칩 — 좌우 드래그로 조절 (커서로 끌 수 있음을 알림) */
+  .mc-time { display: inline-block; margin-right: 3px; padding: 0 3px; border-radius: 3px;
+             font-variant-numeric: tabular-nums; font-weight: 700; color: #c4b5fd;
+             background: rgba(0,0,0,.25); cursor: ew-resize; touch-action: none; user-select: none; }
+  .mc-time.drag { background: var(--violet); color: #fff; }
+  html.light .mc-time { color: #6d28d9; background: rgba(255,255,255,.6); }
+  /* 🔔 알람 종 — 꺼짐=회색, 켜짐=빨강 */
+  .mc-bell { display: inline-block; margin-right: 3px; cursor: pointer; user-select: none;
+             filter: grayscale(1) brightness(1.7); opacity: .55; }
+  .mc-bell.on { filter: none; opacity: 1; text-shadow: 0 0 5px rgba(239,68,68,.9); color: #ef4444; }
+  .mc-bell:hover { opacity: 1; }
+  .mc-ev .mc-txt { word-break: break-all; }
   .mc-add { border: 1px dashed var(--line); background: transparent; color: var(--fg); border-radius: 5px;
             font-size: 11px; padding: 1px 4px; width: 100%; box-sizing: border-box; }
   /* 📋 todo 날짜 배지 + 📅 버튼 */
@@ -4858,6 +4870,44 @@ function mindSetView(v) {
   if (v === 'cal') mindCalRender();
 }
 function mindDateKey(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+// ⏰ 시간칩을 좌우로 끌어 시각 조절 — 오른쪽으로 끌면 늦게, 왼쪽이면 이르게. 6px 당 5분.
+// 드래그하는 동안엔 화면만 갱신하고, 손을 떼야 저장한다 (드래그 중 저장 폭주 방지).
+function mindWireTimeDrag(chip, evt) {
+  const toMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? (+m[1]) * 60 + (+m[2]) : 9 * 60; };
+  const toStr = v => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
+  chip.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault();
+    const startX = e.clientX, base = toMin(evt.time);
+    let moved = false, cur = base;
+    chip.setPointerCapture(e.pointerId);
+    chip.classList.add('drag');
+    const move = e2 => {
+      const dx = e2.clientX - startX;
+      if (Math.abs(dx) > 2) moved = true;
+      cur = Math.max(0, Math.min(23 * 60 + 55, base + Math.round(dx / 6) * 5));   // 0:00~23:55, 5분 단위
+      chip.textContent = toStr(cur);
+    };
+    const up = () => {
+      chip.removeEventListener('pointermove', move);
+      chip.removeEventListener('pointerup', up);
+      chip.classList.remove('drag');
+      if (moved) { evt.time = toStr(cur); mindCalSave(); mindCalRender(); }
+    };
+    chip.addEventListener('pointermove', move);
+    chip.addEventListener('pointerup', up);
+  });
+  // 더블클릭 = 직접 입력 (드래그가 번거로울 때)
+  chip.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    const v = prompt('시간 (HH:MM · 비우면 시간 없음)', evt.time || '');
+    if (v === null) return;
+    const s = v.trim();
+    if (!s) { delete evt.time; }
+    else if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(s)) { evt.time = s.padStart(5, '0'); }
+    else { flashToast('⚠ HH:MM 형식으로'); return; }
+    mindCalSave(); mindCalRender();
+  });
+}
 function mindCalRender() {
   const grid = document.getElementById('mcGrid'); if (!grid) return;
   if (!MIND.calYM) { const n = new Date(); MIND.calYM = { y: n.getFullYear(), m: n.getMonth() }; }
@@ -4875,10 +4925,26 @@ function mindCalRender() {
     const cell = document.createElement('div');
     cell.className = 'mc-day' + (d.getMonth() !== m ? ' mc-out' : '') + (d.getDay() === 0 ? ' mc-sun' : '') + (key === todayKey ? ' mc-today' : '');
     const n = document.createElement('span'); n.className = 'mc-n'; n.textContent = d.getDate(); cell.appendChild(n);
-    // 일정 항목
-    MIND.events.filter(e => e.date === key).forEach(evt => {
+    // 일정 항목 — 시간 순으로 (시간 없는 건 뒤로)
+    MIND.events.filter(e => e.date === key)
+      .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+      .forEach(evt => {
       const el = document.createElement('div'); el.className = 'mc-ev' + (evt.done ? ' mc-done' : '');
-      el.textContent = evt.text; el.title = (T.mcEvT || '클릭: 완료 토글 · 더블클릭: 수정(비우면 삭제)');
+      // ⏰ 시간 — 좌우로 끌어서 조절 · 🔔 알람 — 클릭으로 켜고 끄기 (꺼짐=회색, 켜짐=빨강)
+      const tchip = document.createElement('span');
+      tchip.className = 'mc-time';
+      tchip.textContent = evt.time || '--:--';
+      tchip.title = '시간 — 좌우로 끌어서 조절 (더블클릭: 직접 입력)';
+      mindWireTimeDrag(tchip, evt);
+      const bell = document.createElement('span');
+      bell.className = 'mc-bell' + (evt.alarm ? ' on' : '');
+      bell.textContent = '🔔';
+      bell.title = evt.alarm ? '알람 켜짐 — 누르면 끔' : '알람 꺼짐 — 누르면 켬';
+      bell.onclick = e2 => { e2.stopPropagation(); evt.alarm = !evt.alarm; mindCalSave(); mindCalRender(); };
+      const txt = document.createElement('span');
+      txt.className = 'mc-txt'; txt.textContent = evt.text;
+      el.append(tchip, bell, txt);
+      el.title = (T.mcEvT || '클릭: 완료 토글 · 더블클릭: 수정(비우면 삭제)');
       el.onclick = e2 => { e2.stopPropagation(); evt.done = !evt.done; mindCalSave(); mindCalRender(); };
       el.ondblclick = e2 => {
         e2.stopPropagation();
@@ -4908,7 +4974,8 @@ function mindCalRender() {
       const commit = () => {
         if (fin) return; fin = true;
         const v = inp.value.trim();
-        if (v) { MIND.events.push({ id: mindUid(), date: key, text: v.slice(0, 200) }); mindCalSave(); }
+        // 새 일정은 시간 09:00 + 알람 꺼짐(회색)으로 시작 — 시간칩을 끌어 조절하고 종을 눌러 켠다
+        if (v) { MIND.events.push({ id: mindUid(), date: key, text: v.slice(0, 200), time: '09:00', alarm: false }); mindCalSave(); }
         mindCalRender();
       };
       inp.addEventListener('keydown', e2 => {
