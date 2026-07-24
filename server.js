@@ -613,6 +613,50 @@ function refreshCost() {
   });
   return costCache.p;
 }
+// 🤖 GPT(Codex) 사용량 — codex가 세션 로그(~/.codex/sessions/**.jsonl)에 남기는 rate_limits 스냅샷을 읽는다.
+// codex CLI엔 usage 명령이 없고 한도는 API 응답에 실려 오므로, 따로 호출하지 않고 그 기록을 재사용한다.
+// 즉 "마지막으로 GPT를 쓴 시점 기준" 값이다 (GPT 세션이 일할 때마다 갱신됨).
+const CODEX_SESS_DIR = path.join(os.homedir(), '.codex', 'sessions');
+let codexUsageCache = { t: 0, val: null };
+function readCodexUsage() {
+  if (Date.now() - codexUsageCache.t < 60 * 1000) return codexUsageCache.val;
+  let best = null;
+  try {
+    const files = [];
+    (function walk(dir, depth) {
+      if (depth > 5 || files.length > 400) return;
+      let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+      for (const e of ents) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p, depth + 1);
+        else if (e.name.endsWith('.jsonl')) { try { files.push({ p, t: fs.statSync(p).mtimeMs }); } catch (e2) {} }
+      }
+    })(CODEX_SESS_DIR, 0);
+    files.sort((a, b) => b.t - a.t);
+    for (const f of files.slice(0, 4)) {                  // 최근 파일 몇 개만
+      let size = 0; try { size = fs.statSync(f.p).size; } catch (e) { continue; }
+      const start = Math.max(0, size - 512 * 1024);        // 끝부분만 읽음 (로그가 클 수 있음)
+      let text = '';
+      try {
+        const fd = fs.openSync(f.p, 'r');
+        const buf = Buffer.alloc(size - start);
+        fs.readSync(fd, buf, 0, buf.length, start);
+        fs.closeSync(fd);
+        text = buf.toString('utf8');
+      } catch (e) { continue; }
+      const lines = text.split('\n');
+      for (let i = lines.length - 1; i >= 0; i--) {
+        let j; try { j = JSON.parse(lines[i]); } catch (e) { continue; }
+        const rl = j && j.payload && j.payload.rate_limits;
+        if (rl && rl.primary && typeof rl.primary.used_percent === 'number') { best = { rl, at: f.t }; break; }
+      }
+      if (best) break;
+    }
+  } catch (e) {}
+  codexUsageCache = { t: Date.now(), val: best };
+  return best;
+}
+
 app.get('/api/usage', async (req, res) => {
   // 2분 캐시 — 너무 자주 조회하면 공식 API가 429(rate limit)로 잠시 막는다
   if (usageCache.data && Date.now() - usageCache.t < 120 * 1000) return res.json(usageCache.data);
@@ -643,6 +687,22 @@ app.get('/api/usage', async (req, res) => {
   const cp = refreshCost();
   if (!costCache.val) { try { await cp; } catch (e) {} }   // 첫 조회는 $비용 계산을 기다림 (빈 화면 방지)
   if (costCache.val) data.fallback = costCache.val;        // $비용은 그래프와 '함께' 병기
+  // GPT(Codex) 사용량 — 있으면 별도 줄로 내려보냄 (클로드 막대와 섞지 않음)
+  try {
+    const cx = readCodexUsage();
+    if (cx && cx.rl && cx.rl.primary) {
+      const p = cx.rl.primary, s = cx.rl.secondary;
+      data.gpt = {
+        percent: Math.round(p.used_percent || 0),
+        windowMinutes: p.window_minutes || 0,
+        resetsAt: p.resets_at ? p.resets_at * 1000 : null,
+        plan: cx.rl.plan_type || '',
+        seenAt: cx.at,                                     // 이 값이 기록된 시각(마지막 GPT 사용)
+        secondPercent: s && typeof s.used_percent === 'number' ? Math.round(s.used_percent) : null,
+        secondWindowMinutes: s ? (s.window_minutes || 0) : 0
+      };
+    }
+  } catch (e) {}
   if (!data.bars.length && !data.fallback) data.error = '사용량 조회 실패';
   // 성공은 2분 캐시, 빈 결과는 30초 후 재시도
   usageCache = { t: data.bars.length ? Date.now() : Date.now() - 90 * 1000, data };

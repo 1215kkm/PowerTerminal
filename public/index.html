@@ -20,7 +20,7 @@
          font-family: Pretendard, 'Malgun Gothic', -apple-system, sans-serif;
          touch-action: pan-x pan-y; }   /* 더블탭/핀치 확대 방지 (앱처럼) */
   button, select { touch-action: manipulation; }
-  header { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px;
            border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 50; }
   header h1 { font-size: 16px; margin: 0;
               background: linear-gradient(90deg, var(--violet), var(--pink));
@@ -817,6 +817,11 @@
   .ub-track { width: 90px; height: 6px; border-radius: 3px; background: #374151; overflow: hidden; }
   .ub-fill { display: block; height: 100%; border-radius: 3px; transition: width .6s; }
   .ub-pct { font-size: 11px; font-weight: 700; color: var(--fg); }
+  /* 🤖 GPT 사용량 줄 — 클로드 막대 다음 줄 전체를 차지 (헤더가 flex-wrap 이라 100%면 줄바꿈) */
+  #usageGpt { flex-basis: 100%; display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--muted); }
+  #usageGpt:empty { display: none; }
+  #usageGpt .ub-label { color: #34d399; }        /* GPT는 초록 계열로 구분 */
+  #usageGpt .gpt-when { font-size: 10.5px; opacity: .8; }
   @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
     /* 헤더 3줄 구성: ①로고+QR+언어  ②배너  ③세션%+추가버튼  ④주간%+주간Fable% */
     header { flex-wrap: wrap; row-gap: 7px; }
@@ -929,6 +934,8 @@
             background:linear-gradient(90deg,var(--violet),var(--pink))"></a>
   <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
   <span class="sp"></span>
+  <!-- 🤖 GPT(Codex) 사용량 — 클로드 막대 바로 아랫줄. 값이 없으면(:empty) 자리도 안 차지함 -->
+  <span id="usageGpt"></span>
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
   <button id="btnTheme" onclick="toggleTheme()" data-i18n-title="themeT">☀</button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
@@ -3657,8 +3664,31 @@ async function refreshUsage() {
       el.innerHTML = costHtml;
     } else { el.textContent = ''; }
     _lastUsageBars = u.bars || [];
+    renderGptUsage(u.gpt);                        // 🤖 GPT(Codex) 줄
     cmUpdateUsage();                              // 코드 편집 모드 상단 바에도 반영
   } catch (e) {}
+}
+// 🤖 GPT(Codex) 사용량 줄 — codex 세션 로그에 남은 한도 스냅샷이라 "마지막으로 GPT를 쓴 시점" 기준.
+// 그래서 언제 값인지도 같이 적어준다 (클로드처럼 실시간 조회가 아님을 감추지 않기 위해).
+let _lastGpt = null;
+function renderGptUsage(g) {
+  _lastGpt = g || null;
+  const el = document.getElementById('usageGpt');
+  if (!el) return;
+  if (!g) { el.innerHTML = ''; return; }
+  const col = p => p >= 90 ? '#ef4444' : p >= 70 ? '#f59e0b' : '#34d399';
+  // 창 길이 표기는 GPT 전용으로 — T.weeklyAll 은 "클로드 주간"이라 그대로 쓰면 라벨이 뒤섞인다
+  const win = m => m >= 10080 ? (LANG === 'ko' ? '주간' : 'weekly')
+                 : m >= 1440 ? Math.round(m / 1440) + 'd' : Math.round(m / 60) + 'h';
+  const bar = (lab, p, m) => `<span class="ub">
+      <span class="ub-label">GPT ${m ? win(m) : ''}${lab}</span>
+      <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, p)}%;background:${col(p)}"></span></span>
+      <span class="ub-pct">${p}%</span></span>`;
+  let html = bar(g.plan ? ' (' + esc(g.plan) + ')' : '', g.percent, g.windowMinutes);
+  if (g.secondPercent != null) html += bar('', g.secondPercent, g.secondWindowMinutes);
+  if (g.resetsAt) html += `<span class="gpt-when">⏳${fmtLeft(g.resetsAt - Date.now())}</span>`;
+  if (g.seenAt) html += `<span class="gpt-when">(${new Date(g.seenAt).toLocaleString(T.locale, { hour: 'numeric', minute: '2-digit' })} 기준)</span>`;
+  el.innerHTML = html;
 }
 // 코드 편집 모드 상단 바의 간단 사용량 (막대 대신 % 텍스트) — 메인 사용량과 같은 데이터
 let _lastUsageBars = [];
