@@ -198,6 +198,11 @@
   #cmTerm { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; }
   #cmEditor { overflow: hidden; display: flex; }
   #cmEditor .cm-editor { flex: 1 1 auto; min-width: 0; height: 100%; }
+  /* 👁 미리보기를 켜면 우측 칸이 트리 대신 미리보기 — 볼 만하게 폭을 넉넉히 준다 */
+  #cmBody.preview { grid-template-columns: 170px minmax(190px, .75fr) minmax(300px, 1.3fr) minmax(320px, 1.25fr); }
+  #cmTree.previewing { overflow: hidden; display: flex; }
+  #cmPreview { flex: 1 1 auto; width: 100%; height: 100%; border: 0; background: #fff; }
+  #cmPrevBtn.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
   /* 좌측 세션 목록 — 비활성 세션은 회색 */
   .cm-sess { display: flex; align-items: center; gap: 6px; padding: 7px 9px; cursor: pointer;
              font-size: 12px; font-weight: 700; border-bottom: 1px solid var(--line);
@@ -877,6 +882,7 @@
     <span id="cmFile" title=""></span>
     <span id="cmDirty" title="Unsaved changes">●</span>
     <span class="sp"></span>
+    <button id="cmPrevBtn" title="Live preview — reloads itself every time you save">👁 <span data-i18n="cmPreview">Preview</span></button>
     <button id="cmSave" title="Ctrl+S">💾 <span data-i18n="cmSave">Save</span></button>
     <button id="cmClose">✕ <span data-i18n="cmExit">Close</span></button>
   </div>
@@ -1234,7 +1240,7 @@ const I18N = {
     gbPrT:'Open this branch on GitHub (its pull request, or a new one)',
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
-    codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close',
+    codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
@@ -1315,7 +1321,7 @@ const I18N = {
     gbPrT:'이 브랜치의 GitHub PR 페이지 열기 (열린 PR이 있으면 그것, 없으면 새 PR)',
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
-    codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기',
+    codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
@@ -5277,12 +5283,40 @@ async function cmOpenFile(rel) {
   document.querySelectorAll('#cmTree .cm-node').forEach(n => n.classList.toggle('on', n.dataset.file === rel));
 }
 
-// 저장
+// 저장 — 미리보기가 켜져 있으면 저장 직후 자동 새로고침 (go live)
 async function cmSave() {
   if (!cmSess || !cmPath || !cmView) return;
   const r = await cmApi('/file', { method: 'POST', body: { path: cmPath, content: cmView.state.doc.toString() } });
-  if (r && r.ok) { cmSetDirty(false); flashToast('💾 ' + cmPath); }
+  if (r && r.ok) { cmSetDirty(false); flashToast('💾 ' + cmPath); if (cmPreviewOn) cmReloadPreview(); }
   else flashToast('⚠ ' + ((r && r.error) || 'save failed'));
+}
+
+// ---------- 👁 라이브 미리보기 (우측 파일트리 자리를 교체) ----------
+// 세션 폴더를 그대로 서빙하는 /preview/<id>/ 를 iframe으로 띄운다. 저장할 때마다 새로고침돼
+// "go live"처럼 결과가 바로 보인다. dev 서버(previewUrl)가 설정돼 있으면 그쪽을 우선 사용.
+let cmPreviewOn = false;
+function cmPreviewUrl() {
+  const bust = '_=' + Date.now();                       // 캐시 때문에 옛 화면이 남지 않게
+  if (cmSess && cmSess.previewUrl) return cmSess.previewUrl + (cmSess.previewUrl.includes('?') ? '&' : '?') + bust;
+  return '/preview/' + cmSess.id + '/?token=' + encodeURIComponent(TOKEN || '') + '&' + bust;
+}
+function cmReloadPreview() {
+  const f = document.getElementById('cmPreview');
+  if (f) f.src = cmPreviewUrl();
+}
+function cmSetPreview(on) {
+  cmPreviewOn = on;
+  document.getElementById('cmPrevBtn').classList.toggle('on', on);
+  document.getElementById('cmBody').classList.toggle('preview', on);
+  const box = document.getElementById('cmTree');
+  box.classList.toggle('previewing', on);
+  if (on) {
+    box.innerHTML = '<iframe id="cmPreview"></iframe>';
+    cmReloadPreview();
+  } else {
+    box.innerHTML = '';
+    cmRenderTree();
+  }
 }
 
 // 파일 트리 — 폴더는 클릭할 때만 펼쳐서(lazy) 큰 레포도 가볍게
@@ -5373,7 +5407,8 @@ async function cmSwitch(s) {
   document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">← 오른쪽 파일 트리에서 파일을 고르세요</div>';
   if (cmView) { cmView.destroy(); cmView = null; }
   await cmRenderSessions();
-  await cmRenderTree();
+  if (cmPreviewOn) cmSetPreview(true);   // 미리보기 모드면 새 세션 것으로 다시 띄움
+  else await cmRenderTree();
   cmMountTerm();
 }
 
@@ -5390,6 +5425,7 @@ function closeCodeMode() {
 }
 document.getElementById('cmSave').onclick = cmSave;
 document.getElementById('cmClose').onclick = closeCodeMode;
+document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);
 // Ctrl+S 저장 · ESC 닫기 (편집 모드가 열려 있을 때만)
 document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
