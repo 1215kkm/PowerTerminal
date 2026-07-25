@@ -1383,6 +1383,58 @@ app.post('/api/sessions/:id/file', (req, res) => {
   } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
 });
 
+// 🔎 전체 파일 검색 (편집기 Ctrl+Shift+F) — 세션 폴더를 훑어 글자가 들어있는 파일·줄을 돌려준다.
+//   무거운/숨김 폴더는 건너뛰고, 바이너리·대용량 파일은 스킵. 파일 수·매치 수에 상한을 둬 큰 레포도 가볍게.
+app.get('/api/sessions/:id/grep', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const q = (req.query.q || '').toString();
+  if (!q) return res.json({ files: [], total: 0, q: '' });
+  const ci = req.query.ci !== '0';              // 대소문자 무시 (기본 켬)
+  const useRe = req.query.re === '1';
+  let rx = null;
+  if (useRe) { try { rx = new RegExp(q, ci ? 'gi' : 'g'); } catch (e) { return res.status(400).json({ error: 'bad regexp: ' + String(e.message || e) }); } }
+  const needle = ci ? q.toLowerCase() : q;
+  const root = path.resolve(s.path);
+  const MAX_FILES = 200, MAX_MATCHES = 1000, MAX_PER_FILE = 50, MAX_FILE_BYTES = 1.5 * 1024 * 1024;
+  const files = [];
+  let total = 0, scanned = 0, truncated = false;
+  const walk = (dir, rel, depth) => {
+    if (depth < 0 || total >= MAX_MATCHES || scanned >= 4000) return;
+    let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+    for (const e of ents) {
+      if (total >= MAX_MATCHES) { truncated = true; return; }
+      if (e.name.startsWith('.') && e.name !== '.pt-images') continue;
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { if (!CODE_SKIP_DIRS.has(e.name)) walk(path.join(dir, e.name), r, depth - 1); continue; }
+      if (!e.isFile()) continue;
+      scanned++;
+      const fp = path.join(dir, e.name);
+      let buf; try { const st = fs.statSync(fp); if (st.size > MAX_FILE_BYTES) continue; buf = fs.readFileSync(fp); } catch (x) { continue; }
+      if (buf.includes(0)) continue;                              // 바이너리 스킵
+      const text = buf.toString('utf8');
+      const hay = ci && !useRe ? text.toLowerCase() : text;
+      const lines = text.split(/\r?\n/);
+      const hits = [];
+      if (useRe) {
+        for (let li = 0; li < lines.length && hits.length < MAX_PER_FILE; li++) {
+          rx.lastIndex = 0;
+          const m = lines[li].match(rx);   // 대소문자는 정규식 i 플래그가 처리
+          if (m) { hits.push({ line: li + 1, text: lines[li].slice(0, 400), col: lines[li].search(rx) + 1 }); total += m.length; }
+        }
+      } else {
+        for (let li = 0; li < lines.length && hits.length < MAX_PER_FILE; li++) {
+          const hl = ci ? lines[li].toLowerCase() : lines[li];
+          const col = hl.indexOf(needle);
+          if (col !== -1) { let c = col, n = 0; while (c !== -1) { n++; c = hl.indexOf(needle, c + needle.length); } hits.push({ line: li + 1, text: lines[li].slice(0, 400), col: col + 1 }); total += n; }
+        }
+      }
+      if (hits.length) { files.push({ path: r, hits }); if (files.length >= MAX_FILES) { truncated = true; return; } }
+    }
+  };
+  walk(root, '', 12);
+  res.json({ q, files, total, truncated });
+});
+
 // 🌿 세션 폴더의 git 브랜치·리모트 — 입력창 위 얇은 줄에 표시. 클릭하면 그 브랜치의 PR 페이지로.
 // ⚠ 전부 비동기 — 이전엔 execFileSync(git 4회 + gh pr list 네트워크 7초)라 세션 4개×20초 폴링마다
 //   서버 전체가 수 초씩 멈췄다(터미널 출력·QR·마인드맵까지 전부 무반응으로 보임). v1.10.34에서 수정.

@@ -264,6 +264,51 @@
                            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 코드창에 이미지를 끌어오는 중 표시 */
   #cmEditor.imgdrop { outline: 2px dashed var(--pink); outline-offset: -3px; }
+  /* 💾 저장 안 된 코드 — 편집창을 밝은 갈색(탠) 테두리로 감싸 어디가 안 저장됐는지 보이게 */
+  #cmEditor.unsaved { box-shadow: inset 0 0 0 2.5px #d9a441; border-radius: 3px; }
+  /* 🔎 CM6 내장 찾기 패널(Ctrl+F) — 잘 보이게 선명한 배경·또렷한 버튼·매치 개수 표시 */
+  #cmEditor .cm-panels { background: #1f2937; color: var(--fg); border-top: 2px solid var(--violet); }
+  html.light #cmEditor .cm-panels { background: #eef0f4; border-top-color: var(--violet); }
+  #cmEditor .cm-search { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 7px 9px; }
+  #cmEditor .cm-search .cm-textfield { background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+                                       border-radius: 6px; padding: 4px 8px; font-size: 12.5px; }
+  #cmEditor .cm-search .cm-textfield:focus { outline: none; border-color: var(--violet); }
+  #cmEditor .cm-search .cm-button { background: #374151; color: #fff; border: 0; background-image: none;
+                                    border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  #cmEditor .cm-search .cm-button:hover { background: var(--violet); }
+  #cmEditor .cm-search label { font-size: 11.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; }
+  #cmEditor .cm-search .cm-find-count { font-size: 11.5px; font-weight: 700; color: #fbbf24; min-width: 44px; }
+  /* 매치 하이라이트 — 전부 노랑, 현재 선택된 매치는 주황 테두리로 또렷하게 */
+  #cmEditor .cm-searchMatch { background: rgba(250,204,21,.34); outline: 1px solid rgba(250,204,21,.55); border-radius: 2px; }
+  #cmEditor .cm-searchMatch-selected { background: rgba(249,115,22,.75) !important; outline: 1px solid #f97316; color: #fff; }
+  /* 🔎 여러 파일 검색 바 — cmBar 바로 아래 한 줄 */
+  #cmGrepBar { display: none; align-items: center; gap: 7px; padding: 6px 10px; flex: 0 0 auto;
+               border-bottom: 1px solid var(--line); background: #0f172a; }
+  #cmGrepBar.on { display: flex; }
+  html.light #cmGrepBar { background: #f3f4f6; }
+  #cmGrepBar input[type=text] { flex: 0 1 320px; background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+                                border-radius: 6px; padding: 5px 9px; font-size: 13px; }
+  #cmGrepBar input[type=text]:focus { outline: none; border-color: var(--violet); }
+  #cmGrepBar label { font-size: 11.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  #cmGrepBar .gp-stat { font-size: 11.5px; color: var(--muted); }
+  #cmGrepBar .gp-x { margin-left: auto; cursor: pointer; color: var(--muted); font-weight: 700; }
+  #cmGrepBtn { font-size: 12px; }
+  /* 🔎 검색 결과 — 파일트리 칸을 잠시 대신 차지 */
+  #cmTree.grepping { display: flex; flex-direction: column; }
+  #cmTree .gr-head { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+                     border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+  #cmTree .gr-head .gr-back { margin-left: auto; cursor: pointer; color: var(--violet); font-weight: 700; }
+  #cmTree .gr-list { flex: 1 1 auto; overflow: auto; }
+  #cmTree .gr-file { padding: 5px 8px 3px; font-size: 11.5px; font-weight: 700; color: var(--sky);
+                     position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); }
+  #cmTree .gr-file .gr-n { color: var(--muted); font-weight: 400; }
+  #cmTree .gr-hit { display: flex; gap: 6px; padding: 3px 8px 3px 14px; font-size: 11.5px; cursor: pointer;
+                    font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; }
+  #cmTree .gr-hit:hover { background: #374151; }
+  html.light #cmTree .gr-hit:hover { background: #e5e7eb; }
+  #cmTree .gr-hit .gr-ln { flex: 0 0 auto; color: var(--muted); min-width: 30px; text-align: right; }
+  #cmTree .gr-hit .gr-tx { overflow: hidden; text-overflow: ellipsis; }
+  #cmTree .gr-hit .gr-tx mark { background: rgba(250,204,21,.4); color: inherit; border-radius: 2px; }
   #cmTree.previewing { overflow: hidden; display: flex; flex-direction: column; }
   #cmPrevBar:not(:empty) { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 5px 8px;
                            border-bottom: 1px solid var(--line); background: #111827; font-size: 11px; }
@@ -1001,11 +1046,20 @@
     <span id="cmWrap" title="Alt+Z — 자동 줄바꿈">↩ off</span>
     <span id="cmUsage" title="Claude usage"></span>
     <span class="sp"></span>
+    <button id="cmGrepBtn" title="Find in files — Ctrl+Shift+F">🔎 <span data-i18n="cmGrep">Find in files</span></button>
     <button id="cmPrevBtn" title="Show the running page in this column (toggle)">👁 <span data-i18n="cmPreview">Preview</span></button>
     <button id="cmPopBtn" title="Open the running page full-size in a new window">⛶ <span data-i18n="cmPopOut">New window</span></button>
     <label id="cmVisWrap" title="Click something in the preview and change it with the mouse"><input type="checkbox" id="cmVisChk"> ✏️ <span data-i18n="cmVisual">Visual edit</span></label>
     <button id="cmSave" title="Ctrl+S">💾 <span data-i18n="cmSave">Save</span></button>
     <button id="cmClose">✕ <span data-i18n="cmExit">Close</span></button>
+  </div>
+  <!-- 🔎 여러 파일에서 글자 찾기 — cmBar 아래 한 줄 (Ctrl+Shift+F 로 열고 닫음) -->
+  <div id="cmGrepBar">
+    <input id="cmGrepInput" type="text" placeholder="여러 파일에서 찾기…  Enter로 검색 · Ctrl+Shift+F">
+    <label><input type="checkbox" id="cmGrepCase"> <span data-i18n="cmGrepCase">Aa 대소문자</span></label>
+    <label><input type="checkbox" id="cmGrepRe"> <span data-i18n="cmGrepRe">.* 정규식</span></label>
+    <span class="gp-stat" id="cmGrepStat"></span>
+    <span class="gp-x" id="cmGrepClose" title="닫기 (Esc)">✕</span>
   </div>
   <div id="cmBody">
     <div id="cmSessions" class="cmcol"></div>
@@ -1395,6 +1449,7 @@ const I18N = {
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
+    cmGrep:'Find in files', cmGrepCase:'Aa case', cmGrepRe:'.* regex',
     fileDropHint:'Drop files to attach',
     setIntentL:'Reason the user asked (intent)',
     setIntentHint:'One line on WHY you asked / what problem you want solved.',
@@ -1477,6 +1532,7 @@ const I18N = {
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
+    cmGrep:'파일들 검색', cmGrepCase:'Aa 대소문자', cmGrepRe:'.* 정규식',
     fileDropHint:'놓으면 이 세션에 첨부',
     setIntentL:'사용자가 요청한 이유 파악',
     setIntentHint:'왜 요청했는지 / 어떤 문제를 풀고 싶은지를 한 줄로.',
@@ -5548,6 +5604,8 @@ let cmDirty = false;        // 저장 안 된 변경 있음
 let cmTermObj = null;       // {term, fit, ws}
 const cmOpenDirs = new Set();   // 펼쳐진 폴더(상대경로)
 
+// 현재 탭의 '원본'(열었을 때·마지막 저장 시의 내용) — 되돌리기 판정 기준
+function cmCurrentBase() { const t = cmActiveTab(); return t ? (t.base != null ? t.base : t.text) : ''; }
 // 저장 상태등 — 고쳤는데 아직 저장 전이면 회색, 저장된 상태면 초록.
 function cmSetDirty(v) {
   cmDirty = v;
@@ -5556,6 +5614,8 @@ function cmSetDirty(v) {
   el.classList.toggle('dirty', !!v);
   el.classList.toggle('saved', !v);
   el.title = v ? '저장 안 됨 — Ctrl+S' : '저장됨';
+  // 저장 안 된 코드가 있으면 편집창을 밝은 갈색 테두리로 감싸 '여기가 안 저장됨'을 눈에 보이게
+  const ed = document.getElementById('cmEditor'); if (ed) ed.classList.toggle('unsaved', !!v && !!cmPath);
   const t = cmActiveTab();                       // 탭에도 저장여부 점 표시
   if (t && t.dirty !== !!v) { t.dirty = !!v; cmRenderTabs(); }
 }
@@ -5584,7 +5644,8 @@ function cmMountEditor(text, fileName) {
   cmWrapComp = new Compartment();
   const exts = [basicSetup, keymap.of([indentWithTab]), langFor(fileName || ''),
     cmWrapComp.of(cmWrapOn ? EditorView.lineWrapping : []),
-    EditorView.updateListener.of(u => { if (u.docChanged) cmSetDirty(true); })];
+    // 바뀔 때마다 '원본과 다른가'로 판정 — 되돌리기로 처음 코드와 같아지면 저장안됨 표시가 사라진다
+    EditorView.updateListener.of(u => { if (u.docChanged) cmSetDirty(cmView.state.doc.toString() !== cmCurrentBase()); })];
   if (!themeLight) exts.push(oneDark);
   cmView = new EditorView({ doc: text, extensions: exts, parent: host });
   cmUpdateWrapBadge();
@@ -5660,7 +5721,7 @@ async function cmOpenFile(rel) {
   if (r.tooBig) { flashToast('⚠ ' + Math.round(r.size / 1024) + 'KB — 너무 커서 안 엽니다'); return; }
   if (r.binary) { flashToast('⚠ 바이너리 파일이라 편집기에서 못 엽니다'); return; }
   cmStashCurrent();
-  cmTabs.push({ path: rel, text: r.content, dirty: false });
+  cmTabs.push({ path: rel, text: r.content, base: r.content, dirty: false });   // base=원본(되돌리기 기준)
   cmPath = null;              // cmShowTab이 전환을 처리하게
   cmShowTab(rel);
 }
@@ -5669,7 +5730,7 @@ async function cmOpenFile(rel) {
 async function cmSave() {
   if (!cmSess || !cmPath || !cmView) return;
   const r = await cmApi('/file', { method: 'POST', body: { path: cmPath, content: cmView.state.doc.toString() } });
-  if (r && r.ok) { const t = cmActiveTab(); if (t) t.text = cmView.state.doc.toString(); cmSetDirty(false); flashToast('💾 ' + cmPath); if (cmPreviewOn) cmReloadPreview(); }
+  if (r && r.ok) { const t = cmActiveTab(); if (t) { t.text = cmView.state.doc.toString(); t.base = t.text; } cmSetDirty(false); flashToast('💾 ' + cmPath); if (cmPreviewOn) cmReloadPreview(); }
   else flashToast('⚠ ' + ((r && r.error) || 'save failed'));
 }
 
@@ -6013,6 +6074,102 @@ async function cmRenderTree() {
   }
 }
 
+// ---------- 🔎 여러 파일에서 찾기 (Ctrl+Shift+F) ----------
+let cmGrepShown = false;                          // 검색 결과가 트리 칸을 차지하고 있는지
+function cmGrepOpen() {
+  document.getElementById('cmGrepBar').classList.add('on');
+  const inp = document.getElementById('cmGrepInput'); inp.focus(); inp.select();
+}
+function cmGrepRestoreTree() {                     // 결과 닫을 때 원래 칸(미리보기/트리)으로 복원
+  document.getElementById('cmTree').classList.remove('grepping');
+  if (cmPreviewOn) cmSetPreview(true); else cmRenderTree();
+}
+function cmGrepCloseBar() {
+  document.getElementById('cmGrepBar').classList.remove('on');
+  if (cmGrepShown) { cmGrepShown = false; cmGrepRestoreTree(); }
+}
+async function cmRunGrep() {
+  const q = document.getElementById('cmGrepInput').value;
+  const stat = document.getElementById('cmGrepStat');
+  if (!q.trim()) { stat.textContent = ''; return; }
+  const matchCase = document.getElementById('cmGrepCase').checked;   // 체크=대소문자 구분
+  const isRe = document.getElementById('cmGrepRe').checked;
+  stat.textContent = '검색 중…';
+  const r = await cmApi('/grep?q=' + encodeURIComponent(q) + '&ci=' + (matchCase ? '0' : '1') + '&re=' + (isRe ? '1' : '0'));
+  if (!r || r.error) { stat.textContent = '⚠ ' + ((r && r.error) || '검색 실패'); return; }
+  stat.textContent = r.total + '개 매치 · 파일 ' + r.files.length + (r.truncated ? ' (일부만)' : '');
+  cmGrepRenderResults(r, q, isRe, !matchCase);
+}
+// 결과 줄 미리보기에서 찾은 글자를 노랗게(<mark>) — 정규식은 표시만
+function cmGrepMark(text, q, isRe, ci) {
+  if (isRe || !q) return esc(text);
+  const hay = ci ? text.toLowerCase() : text, needle = ci ? q.toLowerCase() : q;
+  let out = '', i = 0, idx;
+  while ((idx = hay.indexOf(needle, i)) !== -1) {
+    out += esc(text.slice(i, idx)) + '<mark>' + esc(text.slice(idx, idx + q.length)) + '</mark>';
+    i = idx + q.length;
+  }
+  return out + esc(text.slice(i));
+}
+function cmGrepRenderResults(data, q, isRe, ci) {
+  const box = document.getElementById('cmTree');
+  box.classList.add('grepping');
+  box.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'gr-head';
+  head.innerHTML = '<span>🔎 ' + esc(q) + '</span><span class="gr-back">✕ 트리로</span>';
+  head.querySelector('.gr-back').onclick = () => { cmGrepShown = false; cmGrepRestoreTree(); };
+  box.appendChild(head);
+  const list = document.createElement('div'); list.className = 'gr-list';
+  if (!data.files.length) list.innerHTML = '<div class="cm-empty" style="padding:10px">결과 없음</div>';
+  const qlen = isRe ? 0 : q.length;
+  data.files.forEach(f => {
+    const fh = document.createElement('div'); fh.className = 'gr-file';
+    fh.innerHTML = esc(f.path) + ' <span class="gr-n">' + f.hits.length + '</span>';
+    list.appendChild(fh);
+    f.hits.forEach(h => {
+      const row = document.createElement('div'); row.className = 'gr-hit';
+      row.innerHTML = '<span class="gr-ln">' + h.line + '</span><span class="gr-tx">' + cmGrepMark(h.text, q, isRe, ci) + '</span>';
+      row.onclick = () => cmJumpToMatch(f.path, h.line, h.col, qlen);
+      list.appendChild(row);
+    });
+  });
+  box.appendChild(list);
+  cmGrepShown = true;
+}
+// 결과 클릭 → 그 파일을 열고 해당 줄로 스크롤 + 찾은 글자 선택
+async function cmJumpToMatch(rel, line, col, qlen) {
+  await cmOpenFile(rel);
+  if (!cmView || !window.CM6) return;
+  const EV = window.CM6.EditorView, doc = cmView.state.doc;
+  const ln = Math.max(1, Math.min(line, doc.lines));
+  const lineObj = doc.line(ln);
+  const from = Math.min(lineObj.to, lineObj.from + Math.max(0, (col | 0) - 1));
+  const to = qlen ? Math.min(lineObj.to, from + qlen) : from;
+  cmView.dispatch({ selection: { anchor: from, head: to }, effects: EV.scrollIntoView(from, { y: 'center' }) });
+  cmView.focus();
+}
+// CM6 내장 찾기(Ctrl+F) 패널이 뜨면 '매치 개수'를 붙여준다 (내장 패널엔 개수가 없어서 헷갈림)
+function cmEnhanceSearchPanel(panel) {
+  if (panel.__enh) return; panel.__enh = true;
+  const input = panel.querySelector('input[name=search]'); if (!input) return;
+  const count = document.createElement('span'); count.className = 'cm-find-count';
+  input.insertAdjacentElement('afterend', count);
+  const upd = () => {
+    const q = input.value;
+    if (!q || !cmView) { count.textContent = ''; return; }
+    const doc = cmView.state.doc.toString();
+    const ci = !(panel.querySelector('input[name=case]') || {}).checked;
+    const re = (panel.querySelector('input[name=re]') || {}).checked;
+    let n = 0;
+    if (re) { try { n = (doc.match(new RegExp(q, ci ? 'gi' : 'g')) || []).length; } catch (e) { count.textContent = '⚠'; return; } }
+    else { const hay = ci ? doc.toLowerCase() : doc, nd = ci ? q.toLowerCase() : q; let i = 0; while (nd && (i = hay.indexOf(nd, i)) !== -1) { n++; i += nd.length; } }
+    count.textContent = n ? (n + '개') : '없음';
+  };
+  input.addEventListener('input', upd);
+  panel.querySelectorAll('input[type=checkbox]').forEach(c => c.addEventListener('change', upd));
+  setTimeout(upd, 30);
+}
+
 // 좌측 세션 목록 (비활성 포함) — 클릭하면 그 세션으로 통째로 전환
 async function cmRenderSessions() {
   const box = document.getElementById('cmSessions');
@@ -6081,6 +6238,9 @@ function cmUnmountTerm() {
 async function cmSwitch(s) {
   if (cmDirty && !confirm('저장하지 않은 변경이 있습니다. 그래도 이동할까요?')) return;
   cmSess = s; cmPath = null; cmOpenDirs.clear(); cmTabs = []; cmRenderTabs(); cmSetDirty(false);   // 탭은 세션(폴더)마다 새로
+  document.getElementById('cmGrepBar').classList.remove('on');      // 세션 바뀌면 이전 검색 정리
+  document.getElementById('cmTree').classList.remove('grepping'); cmGrepShown = false;
+  document.getElementById('cmGrepStat').textContent = '';
   document.getElementById('cmTitle').textContent = '📝 ' + (s.title || '');
   document.getElementById('cmFile').textContent = '';
   document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">오른쪽 파일 트리에서 파일을 고르세요 →</div>';
@@ -6104,12 +6264,32 @@ function closeCodeMode() {
   cmStashCurrent();
   if (cmTabs.some(t => t.dirty) && !confirm('저장하지 않은 변경이 있습니다. 그래도 닫을까요?')) return;
   codeModal.classList.remove('on');
+  document.getElementById('cmGrepBar').classList.remove('on');       // 검색 바·결과 정리
+  document.getElementById('cmTree').classList.remove('grepping'); cmGrepShown = false;
   cmUnmountTerm();                                  // 옮겨왔던 세션창을 원래 자리로 되돌림
   if (cmView) { cmView.destroy(); cmView = null; }
   cmSess = null; cmPath = null; cmTabs = []; cmRenderTabs(); cmSetDirty(false);
 }
 document.getElementById('cmSave').onclick = cmSave;
 document.getElementById('cmClose').onclick = closeCodeMode;
+// 🔎 여러 파일 검색: 버튼으로 열고, Enter로 검색, Esc/✕로 닫기
+document.getElementById('cmGrepBtn').onclick = () => {
+  const bar = document.getElementById('cmGrepBar');
+  if (bar.classList.contains('on')) cmGrepCloseBar(); else cmGrepOpen();
+};
+document.getElementById('cmGrepClose').onclick = cmGrepCloseBar;
+document.getElementById('cmGrepInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); cmRunGrep(); }
+  else if (e.key === 'Escape') { e.preventDefault(); cmGrepCloseBar(); }
+});
+document.getElementById('cmGrepCase').onchange = () => { if (cmGrepShown) cmRunGrep(); };
+document.getElementById('cmGrepRe').onchange = () => { if (cmGrepShown) cmRunGrep(); };
+// CM6 Ctrl+F 찾기 패널이 뜨면 매치 개수 붙이기 (편집기 컨테이너는 계속 있으므로 한 번만 관찰 설정)
+new MutationObserver(muts => {
+  if (!muts.some(m => m.addedNodes && m.addedNodes.length)) return;
+  const p = document.querySelector('#cmEditor .cm-search');
+  if (p) cmEnhanceSearchPanel(p);
+}).observe(document.getElementById('cmEditor'), { childList: true, subtree: true });
 document.getElementById('cmPrevBtn').onclick = () => cmSetPreview(!cmPreviewOn);      // 현재창 미리보기 토글
 document.getElementById('cmPopBtn').onclick = cmPopOutPreview;                        // 새 창 전체보기
 document.getElementById('cmWrap').onclick = cmToggleWrap;                             // ↩ 자동 줄바꿈 배지 클릭
@@ -6130,7 +6310,8 @@ CI('ciBg').oninput    = e => cmVisChange('background-color', e.target.value);
 // Ctrl+S 저장 · ESC 닫기 (편집 모드가 열려 있을 때만)
 document.addEventListener('keydown', e => {
   if (!codeModal.classList.contains('on')) return;
-  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); cmSave(); }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); cmGrepOpen(); }   // Ctrl+Shift+F 여러 파일 찾기
+  else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); cmSave(); }
   else if (e.altKey && (e.key === 'z' || e.key === 'Z' || e.code === 'KeyZ')) { e.preventDefault(); cmToggleWrap(); }   // Alt+Z 자동 줄바꿈
   else if (e.ctrlKey && e.key === 'Tab') { e.preventDefault(); cmCycleTab(e.shiftKey); }                                // Ctrl+Tab 탭 전환
   else if (e.key === 'Escape' && !cmDirty && !cmVisOn) {
