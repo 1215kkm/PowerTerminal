@@ -753,11 +753,12 @@
   dialog h3 { margin: 0 0 10px; }
   dialog .proj { display: block; width: 100%; text-align: left; margin: 4px 0; }
   /* 🔢 창 번호 — 여러 창을 띄웠을 때 어느 창인지 한눈에 (헤더 맨 왼쪽, 크게) */
+  /* 배경 파랑 — 세션 번호(보라→분홍 그라데이션)와 헷갈리지 않게 창 번호는 파랑 계열로 구분 */
   #winNo { flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 9px;
-           background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff;
+           background: linear-gradient(135deg, #2563eb, var(--sky)); color: #fff;
            font-size: 19px; font-weight: 900; line-height: 1; letter-spacing: -.5px;
            display: inline-flex; align-items: center; justify-content: center;
-           box-shadow: 0 2px 10px rgba(124,58,237,.45); }
+           box-shadow: 0 2px 10px rgba(37,99,235,.45); }
   #winNo:empty { display: none; }
   @media (max-width: 768px) { #winNo { min-width: 24px; height: 24px; font-size: 15px; padding: 0 7px; } }
   .atab { background: #374151; }
