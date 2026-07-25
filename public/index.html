@@ -1357,7 +1357,7 @@ const I18N = {
     agClaude:'🟣 Claude Code (default)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell only (no AI)', agCustom:'⚙ Custom command',
     npTitle:'🆕 New Project + GitHub', npDesc:'Create folder + git + private GitHub repo in one go', npPh:'project-name (letters/numbers/-)', npGo:'Create & Start', npCreating:'Creating...',
     curSession:'Claude session', weeklyAll:'Claude weekly', weeklyPfx:'Weekly ', resets:'resets',
-    renameHint:'Double-click to rename', previewT:'Toggle live preview', fontUp:'Bigger font', fontDn:'Smaller font', closeT:'Close this session',
+    renameHint:'Double-click to rename', previewT:'Preview — opens the best page automatically (right-click / long-press to choose)', fontUp:'Bigger font', fontDn:'Smaller font', closeT:'Close this session',
     zoomT:'Full-screen this session', zoomExit:'✕ Exit full screen',
     quickPh:'Type a request and press Enter · start with "question…" to save the answer to the memo pad', send:'Send', done:'✅ Done',
     memoT:'Memo pad for this session', memoTitle:'📝 Memo', memoNewPh:'Write anything… Enter to save · Shift+Enter for a new line',
@@ -1439,7 +1439,7 @@ const I18N = {
     agClaude:'🟣 Claude Code (기본)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell만 (AI 없이)', agCustom:'⚙ 직접 명령 입력',
     npTitle:'🆕 새 프로젝트 + GitHub', npDesc:'폴더 생성 + git + GitHub 비공개 저장소 연결까지 한 번에', npPh:'프로젝트 이름 (영문/숫자/-)', npGo:'만들고 시작', npCreating:'생성 중...',
     curSession:'클로드 세션', weeklyAll:'클로드 주간', weeklyPfx:'주간 ', resets:'재설정',
-    renameHint:'더블클릭으로 이름 수정', previewT:'실제 모습 미리보기 토글', fontUp:'글자 크게', fontDn:'글자 작게', closeT:'이 세션 닫기',
+    renameHint:'더블클릭으로 이름 수정', previewT:'미리보기 — 알아서 제일 나은 화면을 엶 (우클릭·길게눌러 직접 선택)', fontUp:'글자 크게', fontDn:'글자 작게', closeT:'이 세션 닫기',
     zoomT:'이 세션 전체화면으로 크게 보기', zoomExit:'✕ 전체화면 닫기',
     quickPh:'요청 입력 후 엔터 · "질문~"으로 시작하면 답변이 메모장에 기록돼요', send:'전송', done:'✅ 완료',
     memoT:'이 세션 메모장', memoTitle:'📝 메모', memoNewPh:'자유롭게 메모하세요… Enter로 저장 · Shift+Enter는 줄바꿈',
@@ -2144,23 +2144,50 @@ function buildPane(sess, idx) {
     ov.addEventListener('click', e2 => { if (e2.target === ov) ov.remove(); });
     ov.appendChild(bx); el.appendChild(ov);
   };
-  // 미리보기 메뉴 구성 — skipDev면 개발서버 항목 제외(방금 실패해서 다시 뜬 경우), note면 상단에 노란 안내
+  const pvOpenFolder = () => window.open(location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || ''), '_blank');
+  // 👁 자동 미리보기 — 안 묻고 제일 나은 걸 바로 연다.
+  //  ① 이미 켜진 dev 서버 → 그걸 / ② dev 스크립트 있음(React·Vite·Next 등) → 알아서 실행해서 열기(npm run dev 안 쳐도 됨)
+  //  ③ 열 수 있는 html → 제일 위(index→폴더이름→main…) / ④ 아무것도 없음 → 폴더 목록(거기서 파일 고르면 됨)
+  const pvAuto = async () => {
+    const plan = await api('GET', '/api/preview-plan?id=' + sess.id) || {};
+    const htmls = plan.htmls || [];
+    if (plan.running) return pvOpenProxy(plan.running);
+    if (plan.dev)     return pvRunDev(plan.dev.cmd);
+    if (htmls.length) return pvOpenFile(htmls[0]);
+    return pvOpenFolder();
+  };
+  // 미리보기 메뉴 구성 — force면 무조건 목록(직접 고르고 싶을 때), skipDev면 개발서버 항목 제외(방금 실패), note면 상단 노란 안내
   const pvBuildMenu = async (opts) => {
     opts = opts || {};
     const plan = await api('GET', '/api/preview-plan?id=' + sess.id) || {};
     const htmls = plan.htmls || [];
     const canDev = !opts.skipDev && (plan.running || plan.dev);
-    if (!canDev && !htmls.length && !opts.note) return pvAskUrl();          // 단서 없음 → 주소 입력
-    if (!canDev && htmls.length === 1 && !opts.note) return pvOpenFile(htmls[0]);   // html 하나뿐 → 바로
+    if (!opts.force) {
+      if (!canDev && !htmls.length && !opts.note) return pvAskUrl();          // 단서 없음 → 주소 입력
+      if (!canDev && htmls.length === 1 && !opts.note) return pvOpenFile(htmls[0]);   // html 하나뿐 → 바로
+    }
     const items = [];
     if (!opts.skipDev && plan.running) items.push({ label: '🌐 ' + (T.pvRunning || 'Open running dev server') + ' — ' + plan.running, act: () => pvOpenProxy(plan.running) });
     else if (!opts.skipDev && plan.dev) items.push({ label: '▶ ' + (T.pvDev || 'Run dev server & preview') + ' (' + plan.dev.cmd + ')', act: () => pvRunDev(plan.dev.cmd) });
     htmls.forEach(f => items.push({ label: '📄 ' + f, act: () => pvOpenFile(f) }));
-    items.push({ label: '📂 ' + (T.pvFolder || 'Open folder listing'), act: () => window.open(location.origin + '/preview/' + sess.id + '/?token=' + (TOKEN || ''), '_blank') });
+    items.push({ label: '📂 ' + (T.pvFolder || 'Open folder listing'), act: pvOpenFolder });
     items.push({ label: '✏ ' + (T.pvUrl || 'Enter an address manually'), act: pvAskUrl });
     pvMenu(items, opts.note);
   };
-  el.querySelector('.btnPrev').onclick = (ev) => { ev.stopPropagation(); pvBuildMenu(); };
+  // 클릭 = 자동으로 바로 열기. 직접 고르고 싶으면 Alt/Shift/우클릭·길게눌러 목록.
+  const btnPrev = el.querySelector('.btnPrev');
+  let pvLongPressed = false;   // 길게눌러 목록을 띄운 직후 뒤따르는 click은 무시
+  btnPrev.onclick = (ev) => { ev.stopPropagation();
+    if (pvLongPressed) { pvLongPressed = false; return; }
+    if (ev.altKey || ev.shiftKey || ev.metaKey || ev.ctrlKey) return pvBuildMenu({ force: true });
+    pvAuto();
+  };
+  btnPrev.oncontextmenu = (ev) => { ev.preventDefault(); ev.stopPropagation(); pvBuildMenu({ force: true }); };
+  { let lp; // 터치: 길게 누르면 목록
+    btnPrev.addEventListener('touchstart', () => { pvLongPressed = false; lp = setTimeout(() => { lp = null; pvLongPressed = true; pvBuildMenu({ force: true }); }, 500); }, { passive: true });
+    const cancel = () => { if (lp) { clearTimeout(lp); lp = null; } };
+    btnPrev.addEventListener('touchend', cancel); btnPrev.addEventListener('touchmove', cancel);
+  }
 
   // 📖 넓게 읽기 — 터미널 스크롤백(위로 올려야 보이는 옛 작업 포함)을 문단 복원해 화면 전체폭 리더로.
   // 좁은 폭에서 소프트랩된 줄을 isWrapped로 다시 이어붙여, 넓은 창에서 자연스럽게 다시 흘러가게 함.
@@ -5611,7 +5638,7 @@ function cmCloseTab(rel) {
   if (cmTabs.length) { const next = cmTabs[Math.min(i, cmTabs.length - 1)]; cmShowTab(next.path); }
   else {   // 마지막 탭까지 닫음 — 빈 화면으로
     if (cmView) { cmView.destroy(); cmView = null; }
-    document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">← 오른쪽 파일 트리에서 파일을 고르세요</div>';
+    document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">오른쪽 파일 트리에서 파일을 고르세요 →</div>';
     document.getElementById('cmFile').textContent = '';
     cmSetDirty(false);
     cmRenderTabs();
@@ -6055,7 +6082,7 @@ async function cmSwitch(s) {
   cmSess = s; cmPath = null; cmOpenDirs.clear(); cmTabs = []; cmRenderTabs(); cmSetDirty(false);   // 탭은 세션(폴더)마다 새로
   document.getElementById('cmTitle').textContent = '📝 ' + (s.title || '');
   document.getElementById('cmFile').textContent = '';
-  document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">← 오른쪽 파일 트리에서 파일을 고르세요</div>';
+  document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">오른쪽 파일 트리에서 파일을 고르세요 →</div>';
   if (cmView) { cmView.destroy(); cmView = null; }
   await cmRenderSessions();
   if (cmPreviewOn) cmSetPreview(true);   // 미리보기 모드면 새 세션 것으로 다시 띄움

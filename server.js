@@ -1721,8 +1721,19 @@ function findHtmls(root) {
     }
   };
   scan(root, '', 2);
-  const rank = r => { const b = r.split('/').pop().toLowerCase(), seg = r.split('/').length;
-    return (b === 'index.html' ? 0 : b === 'main.html' ? 1 : 2) * 100 + seg; };   // index/main 우선, 얕은 경로 우선
+  // 순위: index.html → 폴더이름.html → main/home → 이름에 index·main·home 들어감 → 그 외. 같은 등급이면 얕은 경로 우선.
+  const folder = path.basename(root).toLowerCase();
+  const rank = r => {
+    const b = r.split('/').pop().toLowerCase(), seg = r.split('/').length;
+    const stem = b.replace(/\.html?$/, '');
+    let tier;
+    if (stem === 'index') tier = 0;
+    else if (folder && stem === folder) tier = 1;                        // 폴더와 같은 이름의 html
+    else if (stem === 'main' || stem === 'home') tier = 2;
+    else if (/(^|[-_. ])(index|main|home)([-_. ]|$)/.test(stem)) tier = 3; // 이름에 index/main/home 포함
+    else tier = 5;
+    return tier * 100 + seg;
+  };
   return out.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 15);
 }
 app.get('/api/preview-plan', (req, res) => {
