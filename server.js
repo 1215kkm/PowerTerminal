@@ -1797,7 +1797,12 @@ function killAllDev() { for (const id of [...devProcs.keys()]) killDev(id); }
 app.use('/preview/:id', (req, res, next) => {
   const s = sessions.find(x => x.id === req.params.id);
   if (!s) return res.status(404).end();
-  express.static(s.path)(req, res, () => {
+  // 붙여넣기·첨부 이미지는 .pt-images/ 에 저장됨. express.static 기본값(dotfiles:'ignore')이
+  // 점(.)으로 시작하는 폴더를 막아 그 썸네일이 전부 404가 됨 → .pt-images 만 예외로 서빙 허용.
+  // (.git·.env 등 다른 숨김파일은 계속 차단, '..' 경로 탈출도 차단)
+  let dp = ''; try { dp = decodeURIComponent(req.path); } catch (e) { dp = req.path; }
+  const allowDot = /^\/\.pt-images\//i.test(dp) && !dp.includes('..');
+  express.static(s.path, allowDot ? { dotfiles: 'allow' } : undefined)(req, res, () => {
     // 정적 파일이 아니면: 폴더일 때 간단한 목록 페이지 (클릭해서 파일 열기 / 하위 폴더 이동)
     let rel = ''; try { rel = decodeURIComponent(req.path); } catch (e) { rel = req.path; }
     const base = path.resolve(s.path);
