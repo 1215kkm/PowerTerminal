@@ -1676,7 +1676,7 @@ const grid = document.getElementById('grid');
 const addDlg = document.getElementById('addDlg');
 // 모델 드롭다운 표시 이름 — 값(alias)은 claude가 항상 최신으로 자동 연결하고, 숫자는 '지금 최신 버전'을 보여줄 뿐.
 // 새 버전(예: Opus 4.9)이 나오면 여기 한 줄만 바꾸면 세션 헤더·[+세션] 창 둘 다 반영됨. (2026-07 기준)
-const MODEL_LABELS = { opus: 'Opus 4.8', sonnet: 'Sonnet 5', haiku: 'Haiku 4.5', fable: 'Fable 5', opusplan: 'Opus Plan (4.8)' };
+const MODEL_LABELS = { opus: 'Opus 5', sonnet: 'Sonnet 5', haiku: 'Haiku 4.5', fable: 'Fable 5', opusplan: 'Opus Plan (5)' };
 document.querySelectorAll('#addModel option').forEach(o => { if (MODEL_LABELS[o.value]) o.textContent = MODEL_LABELS[o.value]; });   // [+세션] 창 라벨도 같은 이름으로
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
 // 마우스를 놓으면 각 창의 '선택 중 출력 보류'를 해제 — 선택이 남아있으면 1.2초 더 보여주고 재개
@@ -1812,6 +1812,8 @@ function autoOptExpand(sel) {
 autoOptExpand(document.getElementById('addModel'));   // 세션추가 창의 모델 선택
 
 function buildPane(sess, idx) {
+  if (panes.has(sess.id)) return;   // 이미 그려진 세션은 다시 안 그림 — 생성 직후 addHere와 5초 reconcile이 겹치면
+                                    // (특히 느린 GitHub+폴더 생성) 같은 세션이 두 pane으로 중복되던 레이스 방지
   const el = document.createElement('div');
   el.className = 'pane';
   el.dataset.id = sess.id;
