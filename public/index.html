@@ -2402,6 +2402,7 @@ function buildPane(sess, idx) {
     // 팡 — 전송 순간(버튼 클릭이든 엔터든) 버튼이 톡 튀어오름 + (안드로이드) 짧은 진동
     const sb = el.querySelector('.qSend');
     if (sb) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); }
+    sendBlip();   // 경쾌한 전송음
     if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
@@ -2908,6 +2909,24 @@ function chime() {   // 띵동(도어벨풍 2음) — Web Audio 합성, 파일 �
       g.gain.linearRampToValueAtTime(0.3, s + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, s + 0.35);
       o.start(s); o.stop(s + 0.4);
+    });
+  } catch (e) {}
+}
+// ✉ 전송 순간 경쾌한 짧은 소리 — A5→E6 빠른 상승 '틱-립' (파일 없이 Web Audio 합성).
+// 팡 애니메이션·진동처럼 전송 시 항상 남(완료 알림음의 soundOn과 별개 — 이건 내 클릭에 대한 즉각 피드백).
+function sendBlip() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    [[880, 0], [1319, 0.055]].forEach(([f, t]) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'triangle'; o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
+      const s = now + t;
+      g.gain.setValueAtTime(0, s);
+      g.gain.linearRampToValueAtTime(0.16, s + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, s + 0.13);
+      o.start(s); o.stop(s + 0.15);
     });
   } catch (e) {}
 }
