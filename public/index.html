@@ -2097,9 +2097,10 @@ function buildPane(sess, idx) {
     el.querySelectorAll('.pane-confirm').forEach(n => n.remove());
     const ov = document.createElement('div'); ov.className = 'pane-confirm';
     const bx = document.createElement('div'); bx.className = 'pc-box';
-    bx.style.cssText = 'min-width:280px;max-width:92%;max-height:74%;overflow:auto';
+    // 세로 flex — 헤더·셀렉트·닫기는 고정, 링크 목록만 스크롤 (모바일에서 닫기 버튼이 안 밀려 내려가게)
+    bx.style.cssText = 'min-width:280px;max-width:92%;max-height:74%;overflow:hidden;display:flex;flex-direction:column';
     const head = document.createElement('div');
-    head.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px';
+    head.style.cssText = 'flex:0 0 auto;font-size:12px;color:var(--muted);margin-bottom:8px';
     head.textContent = T.linksHead || '🔗 Links in this session — tap to copy';
     bx.appendChild(head);
     // 링크가 뜬 대화(그룹)들 — 최신 대화가 앞. 기본 선택은 링크가 있는 가장 최근 대화(=방금 대화).
@@ -2108,7 +2109,7 @@ function buildPane(sess, idx) {
     let listBox;
     if (convs.length > 1) {   // 이전 대화가 있을 때만 셀렉트 표시
       const dd = document.createElement('select');
-      dd.style.cssText = 'width:100%;margin-bottom:8px;background:#111827;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12px';
+      dd.style.cssText = 'flex:0 0 auto;width:100%;margin-bottom:8px;background:#111827;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12px';
       convs.forEach(cv => {
         const o = document.createElement('option'); o.value = String(cv);
         const lbl = convLabels[cv] || ((T.linksConv || '대화') + ' ' + cv);
@@ -2122,7 +2123,7 @@ function buildPane(sess, idx) {
       dd.onchange = () => { sel = dd.value === '__all' ? '__all' : +dd.value; renderList(); };
       bx.appendChild(dd);
     }
-    listBox = document.createElement('div'); bx.appendChild(listBox);
+    listBox = document.createElement('div'); listBox.style.cssText = 'flex:1 1 auto;overflow:auto;min-height:0'; bx.appendChild(listBox);
     function renderList() {
       listBox.innerHTML = '';
       const items = paneLinks.filter(l => sel === '__all' || l.conv === sel);
@@ -2146,7 +2147,7 @@ function buildPane(sess, idx) {
     }
     renderList();
     const c = document.createElement('button'); c.textContent = T.close || 'Close';
-    c.style.cssText = 'display:block;width:100%;margin:10px 0 0;padding:8px;border-radius:8px;border:none;background:#374151;color:var(--fg);cursor:pointer;font-size:12px';
+    c.style.cssText = 'flex:0 0 auto;display:block;width:100%;margin:10px 0 0;padding:8px;border-radius:8px;border:none;background:#374151;color:var(--fg);cursor:pointer;font-size:12px';
     c.onclick = e2 => { e2.stopPropagation(); ov.remove(); };
     bx.appendChild(c);
     ov.addEventListener('click', e2 => { if (e2.target === ov) ov.remove(); });
