@@ -404,9 +404,11 @@
   html.light .reqSticky { background: #ede9fe; }
   /* ⬇ 맨아래로 — 스크롤을 올려 두었을 때만 나타나는 둥근 버튼, 누르면 최신 출력으로 복귀 */
   .termBot { position: absolute; right: 14px; bottom: 14px; z-index: 7; cursor: pointer;
-             width: 36px; height: 36px; border-radius: 50%; border: none;
-             background: var(--violet); color: #fff; font-size: 16px; line-height: 1;
+             width: 36px; height: 36px; border-radius: 50%; border: none; padding: 0;
+             display: flex; align-items: center; justify-content: center;   /* SVG를 원 정중앙에 */
+             background: var(--violet); color: #fff; line-height: 0;
              box-shadow: 0 2px 8px rgba(0,0,0,.35); }   /* 평소에도 보라색으로 잘 보이게 */
+  .termBot svg { display: block; width: 18px; height: 18px; }
   .termBot:hover { filter: brightness(.8); }            /* 마우스 올리면 조금 진하게 */
   /* 🧠 마인드맵 오버레이 */
   #mindDlg { width: calc(100vw - 100px); height: calc(100vh - 100px); max-width: calc(100vw - 100px); max-height: calc(100vh - 100px);
@@ -2707,7 +2709,8 @@ function buildPane(sess, idx) {
   // ⬇ 맨아래로 — 스크롤을 올려 두면 나타나고, 누르면 최신 출력(생방송)으로 부드럽게 복귀
   const botBtn = document.createElement('button');
   botBtn.className = 'termBot';
-  botBtn.textContent = '⬇';
+  // 이모지 '⬇'는 사파리에서 둥근 박스 이모지로 깨져 렌더돼 — 어디서나 또렷·중앙정렬되는 SVG 화살표로
+  botBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 12l6 6 6-6"/></svg>';
   botBtn.title = T.toBottomT || '';
   botBtn.style.display = 'none';
   botBtn.onclick = () => smoothTermScroll(term, term.buffer.active.baseY);
