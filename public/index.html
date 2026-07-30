@@ -381,7 +381,15 @@
                        position: sticky; top: -4px; background: #fefefe; }
   .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer;
                              font-size: var(--tfs, 13px); }   /* 세션 글자크기 드롭다운을 따라감 */
+  .reqPanel .memo-row.mreq { position: relative; padding-right: 26px; }   /* ↻ 재요청 버튼 자리 */
   .reqPanel .memo-row.mreq:hover { background: #f3f4f6; }
+  /* ↻ 재요청 — 이 요청을 터미널로 다시 보냄. 평소 숨김, 행에 마우스 올리면(또는 터치기기 항상) 표시 */
+  .reqPanel .mreq .rp-resend { position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; padding: 0;
+                               border: 1px solid #d1d5db; border-radius: 6px; background: #eef2ff; color: #4f46e5;
+                               font-size: 13px; line-height: 1; cursor: pointer; display: none; }
+  .reqPanel .mreq:hover .rp-resend { display: block; }
+  .reqPanel .mreq .rp-resend:hover { background: #c7d2fe; }
+  @media (hover: none) { .reqPanel .mreq .rp-resend { display: block; } }
   /* 패널은 터미널을 줄이지 않고 위에 겹쳐서 뜸(오버레이) — 터미널 폭이 안 바뀌니 글자폭 재계산 문제 없음 */
   .reqPanel { box-shadow: -5px 0 16px rgba(0,0,0,.4); }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
@@ -1429,7 +1437,7 @@ const I18N = {
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — Opus',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
-    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes',
+    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again',
     memoEdit:'Edit', memoDelBtn:'Del', memoDelConfirm:'Delete this memo?', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
@@ -1512,7 +1520,7 @@ const I18N = {
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
-    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동',
+    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
@@ -2705,6 +2713,11 @@ function buildPane(sess, idx) {
       r.classList.toggle('gone', !findable);
       r.title = findable ? (T.memoJumpT || '') : (T.memoJumpMiss || '');
       r.onclick = () => jumpToReqIn(panes.get(sess.id), rq);
+      // ↻ 재요청 — 이 요청을 터미널로 그대로 다시 보냄 (행 클릭=위치 이동과 분리)
+      const resend = document.createElement('button');
+      resend.className = 'rp-resend'; resend.textContent = '↻'; resend.title = T.reqResendT || 'Send this request again';
+      resend.onclick = ev => { ev.stopPropagation(); if (!sendText(rq.text)) flashToast(T.memoNoSess || ''); };
+      r.appendChild(resend);
       list.appendChild(r);
     });
   };
