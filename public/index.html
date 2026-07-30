@@ -2071,6 +2071,14 @@ function buildPane(sess, idx) {
   let convSeq = 0;
   const convLabels = { 0: (T.linksPrev || '이전 대화') };
   const URL_RE = /\bhttps?:\/\/[^\s"'`<>\]\)]+/g;
+  // 스트리밍/줄바꿈으로 URL이 조금씩 렌더되는 중간 조각(한 URL의 접두사)들을 접어 최종 URL만 남긴다.
+  // 단 뒤가 '/'로 이어지는 짧은 URL(진짜 다른 링크일 수 있음)은 보존 — 토큰 중간에서 잘린 것만 조각으로 본다.
+  function collapseLinkPrefixes() {
+    const before = paneLinks.length;
+    paneLinks = paneLinks.filter(l =>
+      !paneLinks.some(o => o.url !== l.url && o.url.startsWith(l.url) && o.url[l.url.length] !== '/'));
+    if (paneLinks.length !== before) { paneLinkSet.clear(); paneLinks.forEach(l => paneLinkSet.add(l.url)); }
+  }
   function scanLinks() {
     let lines; try { lines = reconstructBuffer(term); } catch (e) { return; }
     let added = 0;
@@ -2082,8 +2090,9 @@ function buildPane(sess, idx) {
         paneLinkSet.add(u); paneLinks.unshift({ url: u, conv: convSeq }); added++;
       }
     }
+    if (added) collapseLinkPrefixes();                  // 조각 URL 접기
     if (paneLinks.length > 60) paneLinks = paneLinks.slice(0, 60);
-    if (added) renderLinkBadge();
+    renderLinkBadge();
   }
   function scheduleLinkScan() { clearTimeout(linkScanT); linkScanT = setTimeout(scanLinks, 700); }   // 출력이 잦아든 뒤 한 번
   function renderLinkBadge() {
