@@ -250,7 +250,9 @@ function getPty(sess) {
     ptys.set(sess.id, p);
     return p;
   }
-  p = { proc, buffer: pathWarn, sockets: new Set(), busy: true, done: false, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
+  // armed = '완료되면 소리로 알릴 작업이 걸려 있음'. 새로 띄운 세션은 사용자가 시킨 일이 아직 없으니 false —
+  // 재시작 자동 이어하기(resume)로 뜬 세션만, 끊긴 그 작업이 끝나면 알려주도록 미리 장전한다.
+  p = { proc, buffer: pathWarn, sockets: new Set(), busy: true, done: false, armed: !!resume, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
   const isClaude = isClaudeAgent;
   const isCodex = sess.agent === 'codex';
   proc.onData(d => {
@@ -300,9 +302,22 @@ function getPty(sess) {
   return p;
 }
 
-function broadcastStatus(id, p) {
-  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy });
+// announce=true 로 보낸 완료만 클라이언트가 소리로 알린다.
+// 예전엔 status 가 오면 무조건 울려서, PT를 켜기만 해도 세션 수만큼 "session N done" 이 났다
+// (PTY는 busy:true 로 시작 → 마커가 4초간 없으면 곧장 완료 전환 = 아무 요청도 안 한 완료).
+function broadcastStatus(id, p, announce) {
+  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy, announce: !!announce });
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
+}
+// 이 입력이 '요청 제출'인가 — 그냥 Enter(\r)면 제출, ESC+\r 은 줄바꿈이라 제출이 아니다.
+function isSubmitInput(s) {
+  if (typeof s !== 'string') return false;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== '\r' && s[i] !== '\n') continue;
+    if (i > 0 && s[i - 1] === '\x1b') continue;   // ESC+CR = 제출 없는 줄바꿈
+    return true;
+  }
+  return false;
 }
 
 // 세션이 작업 중이었는지 여부를 sessions.json에 저장 (busy=true 저장 → 종료돼도 재시작 때 이어하기)
@@ -323,10 +338,10 @@ setInterval(() => {
       const working = p.lastMarker && Date.now() - p.lastMarker < 4000;
       // 재시작 이어하기 플래그는 Claude 전용(getPty가 Claude일 때만 씀) — codex엔 안 걸어 불필요한 저장을 막는다
       if (working) { if (isClaude) setResume(sess, true); if (!p.busy || p.done) { p.busy = true; p.done = false; broadcastStatus(id, p); } }
-      else { if (p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p); } if (isClaude) setResume(sess, false); }
+      else { if (p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p, p.armed); p.armed = false; } if (isClaude) setResume(sess, false); }
     } else if (p.busy && Date.now() - p.lastOut > 8000) {
       p.busy = false; p.done = true;
-      broadcastStatus(id, p);
+      broadcastStatus(id, p, p.armed); p.armed = false;
     }
   }
 }, 1500);
@@ -1982,10 +1997,17 @@ wss.on('connection', (ws, req) => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
       p.proc.write(m.data);
-      if (p.done) { p.done = false; broadcastStatus(id, p); }   // 입력하면 초록 해제
+      // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
+      //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
+      if (isSubmitInput(m.data)) p.armed = true;
       // Claude·codex 는 화면 마커가 busy를 결정 — 여기서 켜면 타이핑만 해도 '작업 중'이 돼 버린다
       const markerBased = !sess.agent || sess.agent === 'claude' || sess.agent === 'codex';
+      const wasDone = p.done, wasBusy = p.busy;
+      if (p.done) p.done = false;          // 입력하면 초록(완료) 해제
       if (!markerBased) p.busy = true;
+      // busy 를 여기서 켜면서 방송을 안 해, 쉘·커스텀 세션은 클라이언트가 '작업 중'을 한 번도 못 봤다.
+      // → 완료음 조건(작업 중이었다가 끝남)이 성립하지 않아 소리가 영영 안 났음. 바뀐 것만 한 번 방송.
+      if (p.done !== wasDone || p.busy !== wasBusy) broadcastStatus(id, p);
       p.lastOut = Date.now();
     } else if (m.type === 'resize' && m.cols > 10 && m.rows > 5) {
       ws._size = { cols: m.cols, rows: m.rows };

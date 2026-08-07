@@ -2291,9 +2291,12 @@ function buildPane(sess, idx) {
         // 작업 중인데 출력만 없는 구간도 있다. 그때 실제 화면 하단엔 스피너가 그대로 떠 있으므로,
         // 화면에 스피너가 보이는 동안엔 완료 적용을 보류하고 2초마다 재확인 (사라지는 순간 완료 확정).
         clearInterval(el._doneGuardT);
+        // 🔔 announce = 서버가 '사용자가 시킨 작업이 끝났다'고 표시한 완료만 true.
+        // (세션을 막 띄웠을 때·유휴 중 감지가 깜빡일 때 나던 헛소리 방지 — 화면 표시는 예전대로 다 갱신)
+        const ann = !!m.announce;
         const applyStatus = (done, busy) => {
           const wasBusy = el.classList.contains('busy');
-          setState(el, done, busy);
+          setState(el, done, busy, ann);
           // 작업 시작 순간(유휴→busy) — 터미널에 직접 타이핑한 요청이면 회색 박스를 읽어 기록
           if (!wasBusy && busy && !done) setTimeout(scanTermReq, 1200);
         };
@@ -3180,7 +3183,7 @@ function toggleSound() {
 }
 updateSoundBtn();
 
-function setState(el, done, busy) {
+function setState(el, done, busy, announce) {
   const wasDone = el.classList.contains('done');
   const wasBusy = el.classList.contains('busy');
   const nowBusy = !!busy && !done;
@@ -3203,8 +3206,9 @@ function setState(el, done, busy) {
   // 완료 소리: Claude는 한 요청 안에서도 작업표시가 껌뻑거려 busy↔done이 여러 번 뒤집힘.
   // → 다시 작업 시작하면 대기 소리 취소하고, done 이 6초간 유지될 때(진짜 마무리)만 한 번 울림.
   //   (반복 재생 기능은 없음 — 완료당 1회. 여러 번 들렸다면 감지 깜빡임이 원인이라 유지시간을 넉넉히 둠.)
+  // announce=false 면 사용자가 시킨 작업의 완료가 아니다(세션 기동 직후 등) — 소리·완료 스탬프 모두 건너뜀.
   if (nowBusy && el._doneTimer) { clearTimeout(el._doneTimer); el._doneTimer = null; }
-  if (!!done && !wasDone && wasBusy) {
+  if (!!done && !wasDone && wasBusy && announce) {
     if (el._doneTimer) clearTimeout(el._doneTimer);
     el._doneTimer = setTimeout(() => {
       el._doneTimer = null;
