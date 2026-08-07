@@ -1372,6 +1372,23 @@
       <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
     </div>
   </div>
+  <!-- 💳 구독 재결제일 — 상단 사용량 막대에 마우스를 올리면 표시된다.
+       결제일을 주는 API가 없어(사용량 API는 리셋시각만 준다) 사용자가 '매달 며칠'만 한 번 적어둔다. -->
+  <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">💳 <span id="billTitle"></span></div>
+    <div id="billSub" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px"></div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <label style="display:flex;gap:7px;align-items:center;font-size:13px">Claude
+        <input id="billClaude" type="number" min="0" max="31" placeholder="—"
+               style="width:74px;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 8px;font-size:13px">
+        <span id="billUnit1" style="color:var(--muted);font-size:12px"></span></label>
+      <label style="display:flex;gap:7px;align-items:center;font-size:13px">GPT
+        <input id="billGpt" type="number" min="0" max="31" placeholder="—"
+               style="width:74px;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 8px;font-size:13px">
+        <span id="billUnit2" style="color:var(--muted);font-size:12px"></span></label>
+    </div>
+    <div id="billPreview" style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.7"></div>
+  </div>
   <!-- 🛠 배너 관리 (개발자 전용) — 헤더에 따로 있던 🛠 버튼을 없애고 설정창 안으로 합침.
        내용은 /admin.html 을 그대로 품는다(코드 이중관리 없음). 열면 설정창이 넓어진다. -->
   <div id="admBox" style="display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
@@ -1484,6 +1501,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
+    billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
     cmGrep:'Find in files', cmGrepCase:'Aa case', cmGrepRe:'.* regex',
@@ -1568,6 +1586,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
+    billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
     cmGrep:'파일들 검색', cmGrepCase:'Aa 대소문자', cmGrepRe:'.* 정규식',
@@ -4031,6 +4050,36 @@ function fmtLeft(ms) {   // 리셋까지 남은 시간: '1h 23m' / '45m'
   const m = Math.ceil(ms / 60000), h = Math.floor(m / 60);
   return h ? h + 'h ' + (m % 60) + 'm' : m + 'm';
 }
+// 💳 구독 재결제일 — 설정에 적어둔 '매달 며칠'로 다음 결제일을 계산해 사용량 막대 툴팁에 붙인다.
+// (결제일을 알려주는 API가 없어서 자동으로는 못 가져온다 — 사용량 API는 사용량 창 리셋시각만 준다.)
+const BILL = { claude: 0, gpt: 0 };
+function nextBillDate(day) {
+  day = Math.floor(Number(day) || 0);
+  if (day < 1 || day > 31) return null;
+  const now = new Date();
+  // 그 달에 없는 날짜(2월 31일 등)는 그 달 마지막 날로
+  const on = (y, m) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let d = on(now.getFullYear(), now.getMonth());
+  if (d < today) d = on(now.getFullYear(), now.getMonth() + 1);   // 이번 달 결제일이 지났으면 다음 달
+  return d;
+}
+function billText(day) {
+  const d = nextBillDate(day);
+  if (!d) return '';
+  const now = new Date();
+  const left = Math.round((d - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  const when = left === 0 ? (T.billToday || '오늘') : (T.billIn || '{n}일 뒤').replace('{n}', left);
+  return (T.billNext || '재결제일') + ': ' + d.toLocaleDateString(T.locale, { year: 'numeric', month: 'long', day: 'numeric' }) + ' (' + when + ')';
+}
+async function loadBilling() {
+  try {
+    const s = await api('GET', '/api/settings');
+    BILL.claude = Math.floor(Number(s && s.billClaude) || 0);
+    BILL.gpt = Math.floor(Number(s && s.billGpt) || 0);
+  } catch (e) {}
+  refreshUsage();   // 툴팁 다시 그리기
+}
 async function refreshUsage() {
   try {
     const u = await api('GET', '/api/usage');
@@ -4048,7 +4097,8 @@ async function refreshUsage() {
         const reset = b.resetsAt ? new Date(b.resetsAt).toLocaleString(T.locale, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
         const left = b.resetsAt ? fmtLeft(new Date(b.resetsAt) - Date.now()) : '';
         const full = b.percent >= 100;   // 다 썼으면 남은시간을 빨갛게 강조
-        return `<span class="ub ub-${b.kind}" title="${label} — ${T.resets}: ${reset}">
+        const bill = billText(BILL.claude);   // 💳 구독 재결제일 (설정에 적어둔 경우만)
+        return `<span class="ub ub-${b.kind}" title="${esc(label + ' — ' + T.resets + ': ' + reset + (bill ? '\n💳 ' + bill : ''))}">
           <span class="ub-label">${label}</span>
           <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, b.percent)}%;background:${col}"></span></span>
           <span class="ub-pct">${b.percent}%</span>
@@ -4074,7 +4124,11 @@ function renderGptUsage(g) {
   // 창 길이 표기는 GPT 전용으로 — T.weeklyAll 은 "클로드 주간"이라 그대로 쓰면 라벨이 뒤섞인다
   const win = m => m >= 10080 ? (LANG === 'ko' ? '주간' : 'weekly')
                  : m >= 1440 ? Math.round(m / 1440) + 'd' : Math.round(m / 60) + 'h';
-  const bar = (lab, p, m) => `<span class="ub">
+  const gbill = billText(BILL.gpt);   // 💳 GPT 구독 재결제일
+  const gtip = (T.gptTip || 'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준')
+             + (g.resetsAt ? '\n' + T.resets + ': ' + new Date(g.resetsAt).toLocaleString(T.locale, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '')
+             + (gbill ? '\n💳 ' + gbill : '');
+  const bar = (lab, p, m) => `<span class="ub" title="${esc(gtip)}">
       <span class="ub-label">GPT ${m ? win(m) : ''}${lab}</span>
       <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, p)}%;background:${col(p)}"></span></span>
       <span class="ub-pct">${p}%</span></span>`;
@@ -4096,6 +4150,7 @@ function cmUpdateUsage() {
   el.innerHTML = [seg(T.curSession || '세션', s), seg(T.weeklyAll || '주간', w)].filter(Boolean).join(' · ');
 }
 refreshUsage();
+loadBilling();   // 💳 재결제일을 읽어와 툴팁에 반영 (읽고 나서 refreshUsage 한 번 더)
 setInterval(refreshUsage, 60 * 1000);
 
 // 폰: 현재세션 그래프 ↔ 📊 $비용 을 5초마다 교대 (PC는 CSS가 모바일에서만 적용되므로 영향 없음)
@@ -4242,9 +4297,33 @@ async function openSettings() {
   document.getElementById('setSummaryHint').textContent = T.setSummaryHint || '';
   document.getElementById('setClose').textContent = T.close || 'Close';
   const ci = document.getElementById('setIntent'), cs = document.getElementById('setSummary');
-  try { const s = await api('GET', '/api/settings'); ci.checked = !!(s && s.intentNotes); cs.checked = !!(s && s.summaryNotes); } catch (e) {}
+  const bc = document.getElementById('billClaude'), bg = document.getElementById('billGpt');
+  try {
+    const s = await api('GET', '/api/settings');
+    ci.checked = !!(s && s.intentNotes); cs.checked = !!(s && s.summaryNotes);
+    bc.value = (s && s.billClaude) || ''; bg.value = (s && s.billGpt) || '';
+    BILL.claude = Math.floor(Number(s && s.billClaude) || 0); BILL.gpt = Math.floor(Number(s && s.billGpt) || 0);
+  } catch (e) {}
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
+  // 💳 재결제일 — 입력 즉시 저장하고 미리보기·상단 막대 툴팁을 갱신
+  document.getElementById('billTitle').textContent = T.billTitle || '구독 재결제일';
+  document.getElementById('billSub').textContent = T.billSub || '';
+  document.getElementById('billUnit1').textContent = document.getElementById('billUnit2').textContent = T.billUnit || '일';
+  const billPrev = () => {
+    const rows = [];
+    if (BILL.claude) rows.push('Claude — ' + billText(BILL.claude));
+    if (BILL.gpt) rows.push('GPT — ' + billText(BILL.gpt));
+    document.getElementById('billPreview').textContent = rows.join('\n');
+  };
+  const saveBill = async () => {
+    BILL.claude = Math.floor(Number(bc.value) || 0); BILL.gpt = Math.floor(Number(bg.value) || 0);
+    billPrev();
+    await api('POST', '/api/settings', { billClaude: BILL.claude, billGpt: BILL.gpt });
+    refreshUsage();   // 툴팁 즉시 반영
+  };
+  bc.onchange = bg.onchange = saveBill;
+  billPrev();
   // 🎈 온보딩 — 말풍선 표시 여부(이 기기 저장) + 다시 보기
   document.getElementById('setHintsL').textContent = T.setHintsL || '';
   document.getElementById('setHintsHint').textContent = T.setHintsHint || '';

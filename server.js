@@ -857,13 +857,23 @@ app.post('/api/mindmap', (req, res) => {
 });
 
 // ---------- ⚙ 사용자 설정 (요청 이유·요약 자동 기록 등) ----------
-app.get('/api/settings', (req, res) => res.json({ intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes }));
+// 💳 구독 재결제일은 '매달 며칠'만 저장한다 (0 = 미설정).
+// 결제일은 어떤 API로도 못 받아온다 — Anthropic usage API 는 사용량 창·리셋시각만 주고,
+// codex 로그도 rate limit 스냅샷뿐이라 사용자가 한 번 적어주는 수밖에 없다.
+const billDay = v => { const n = Math.floor(Number(v)); return (n >= 1 && n <= 31) ? n : 0; };
+const settingsView = () => ({
+  intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes,
+  billClaude: config.billClaude || 0, billGpt: config.billGpt || 0
+});
+app.get('/api/settings', (req, res) => res.json(settingsView()));
 app.post('/api/settings', (req, res) => {
   let dirty = false;
   if (req.body && typeof req.body.intentNotes === 'boolean') { config.intentNotes = req.body.intentNotes; dirty = true; }
   if (req.body && typeof req.body.summaryNotes === 'boolean') { config.summaryNotes = req.body.summaryNotes; dirty = true; }
+  if (req.body && req.body.billClaude !== undefined) { config.billClaude = billDay(req.body.billClaude); dirty = true; }
+  if (req.body && req.body.billGpt !== undefined) { config.billGpt = billDay(req.body.billGpt); dirty = true; }
   if (dirty) saveConfig();
-  res.json({ ok: true, intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes });
+  res.json({ ok: true, ...settingsView() });
 });
 
 // ============ 📆 구글 캘린더 직접 연동 (OAuth) — PT 일정을 사용자 구글 캘린더에 실제로 씀 ============
