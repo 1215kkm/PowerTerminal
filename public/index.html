@@ -1372,6 +1372,19 @@
       <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
     </div>
   </div>
+  <!-- 🛠 배너 관리 (개발자 전용) — 헤더에 따로 있던 🛠 버튼을 없애고 설정창 안으로 합침.
+       내용은 /admin.html 을 그대로 품는다(코드 이중관리 없음). 열면 설정창이 넓어진다. -->
+  <div id="admBox" style="display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">🛠 <span id="admTitle"></span></div>
+    <div id="admSub" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="small" id="admToggle"></button>
+      <button class="small" id="admNewTab"></button>
+    </div>
+    <div id="admHost" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden">
+      <iframe id="admFrame" title="Banner admin" style="width:100%;height:66vh;border:0;background:var(--bg,#0b1220);display:block"></iframe>
+    </div>
+  </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">
     <button class="small" id="setOnboard"></button>
     <button class="small" id="setClose" onclick="setDlg.close()"></button>
@@ -1471,6 +1484,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
+    codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
     cmGrep:'Find in files', cmGrepCase:'Aa case', cmGrepRe:'.* regex',
     fileDropHint:'Drop files to attach',
@@ -1554,6 +1568,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
+    codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
     cmGrep:'파일들 검색', cmGrepCase:'Aa 대소문자', cmGrepRe:'.* 정규식',
     fileDropHint:'놓으면 이 세션에 첨부',
@@ -1733,6 +1748,11 @@ const addDlg = document.getElementById('addDlg');
 const MODEL_LABELS = { opus: 'Opus 5', sonnet: 'Sonnet 5', haiku: 'Haiku 4.5', fable: 'Fable 5', opusplan: 'Opus Plan (5)' };
 document.querySelectorAll('#addModel option').forEach(o => { if (MODEL_LABELS[o.value]) o.textContent = MODEL_LABELS[o.value]; });   // [+세션] 창 라벨도 같은 이름으로
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
+// 마지막으로 만졌던(커서가 있던) 세션 id — 헤더 </> 코드편집기가 이 세션을 골라 연다.
+// 없거나 이미 닫힌 세션이면 화면 맨 위 세션으로 폴백.
+let lastFocusId = null;
+// 이 PC의 GitHub 계정이 개발자인지 (아래 gh-user 확인에서 세팅) — ⚙ 설정창의 🛠 배너 관리 노출 조건
+let IS_DEV = false;
 // 마우스를 놓으면 각 창의 '선택 중 출력 보류'를 해제 — 선택이 남아있으면 1.2초 더 보여주고 재개
 document.addEventListener('mouseup', () => {
   panes.forEach(p => { try { if (p.releaseHold) p.releaseHold((p.term.getSelection() || '').trim() ? 1200 : 0); } catch (e) {} });
@@ -1901,7 +1921,6 @@ function buildPane(sess, idx) {
         <button class="small btnZoom" title="${T.zoomT}">⛶</button>
         <button class="small btnPrev hv" title="${T.previewT}">👁</button>
         <button class="small btnRead hv" title="${esc(T.readT || '')}" style="display:none">📖</button><!-- 넓게 읽기 — 사용자 요청으로 숨김(openReader 배선은 유지) -->
-        <button class="small btnCode hv" title="${esc(T.codeT || 'Code editor — see and edit all the files')}">📝</button>
         <select class="small fontSel hv" title="${T.fontSel}">
           ${[10, 11, 12, 13, 14, 15, 16, 18, 20, 22].map(s => `<option value="${s}" ${s === (isMobile ? 13 : 15) ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
@@ -2447,7 +2466,12 @@ function buildPane(sess, idx) {
   // 📖 넓게 읽기 — 터미널 스크롤백(위로 올려야 보이는 옛 작업 포함)을 문단 복원해 화면 전체폭 리더로.
   // 좁은 폭에서 소프트랩된 줄을 isWrapped로 다시 이어붙여, 넓은 창에서 자연스럽게 다시 흘러가게 함.
   el.querySelector('.btnRead').onclick = (ev) => { ev.stopPropagation(); openReader(sess, term); };
-  el.querySelector('.btnCode').onclick = (ev) => { ev.stopPropagation(); openCodeMode(sess); };   // 📝 코드 편집 모드
+  // </> 코드 편집 모드는 세션 툴바에서 빠지고 헤더(⚙ 옆) 버튼 하나로 통합 — 커서가 있던 세션이 선택된 채 열린다.
+  // 어느 세션을 보고 있었는지 기억: 이 pane 안에서 마우스를 누르거나 포커스가 들어오면 그 세션을 '최근 사용'으로 표시.
+  const markFocus = () => { lastFocusId = sess.id; };
+  el.addEventListener('mousedown', markFocus, true);
+  el.addEventListener('touchstart', markFocus, { capture: true, passive: true });
+  el.addEventListener('focusin', markFocus);
 
   // 세션 AI(agent) 변경 — 다른 AI로 세션 재시작 (헤더가 바뀌므로 pane 재생성, 위치 유지)
   const aiDrop = el.querySelector('.aiSel');
@@ -4174,6 +4198,29 @@ async function pollUntilBackThenReload() {
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
 
+// </> 코드 편집기 — 세션마다 있던 버튼(메모장 📝와 아이콘이 같아 헷갈렸음)을 헤더 ⚙ 옆 하나로 통합.
+// 아이콘도 </> 로 바꿔 메모장과 확실히 구분. 이모지가 아니라 글자라서 사파리에서 네모로 깨지지 않는다.
+{
+  const cb = document.createElement('button');
+  cb.textContent = '</>';
+  cb.style.fontFamily = 'ui-monospace,Menlo,Consolas,monospace';
+  cb.style.fontWeight = '700';
+  cb.title = T.codeT || 'Code editor — see and edit all the files';
+  cb.onclick = () => {
+    const s = codeTargetSess();
+    if (!s) { flashToast(T.codeNoSess || '먼저 세션을 하나 여세요.'); return; }
+    openCodeMode(s);
+  };
+  hdrInsert(cb);
+}
+// 코드편집기가 열 세션 고르기 — ① 커서가 있던(마지막으로 만진) 세션 ② 없으면 화면 맨 위 세션
+function codeTargetSess() {
+  if (lastFocusId && panes.has(lastFocusId)) return panes.get(lastFocusId).sess;
+  const first = grid.querySelector('.pane');            // DOM 순서 = 화면에 보이는 순서
+  if (first && panes.has(first.dataset.id)) return panes.get(first.dataset.id).sess;
+  const it = panes.values().next();
+  return it.done ? null : it.value.sess;
+}
 // ⚙ 설정 — 모든 사용자. 요청 의도 자동 기록(약간의 토큰) 켜기/끄기
 {
   const sb = document.createElement('button');
@@ -4204,7 +4251,31 @@ async function openSettings() {
   ob.textContent = T.setOnboard || '🎈';
   ob.onclick = () => { localStorage.setItem(OB_KEY, 'seen'); setDlg.close(); showOnboarding(); };
   gcalRefresh();   // 📆 구글 캘린더 연동 상태 표시
+  admRefresh();    // 🛠 배너 관리 (개발자에게만 보임)
   setDlg.showModal();
+}
+// 🛠 배너 관리 — 개발자일 때만 설정창 아래에 나타난다. 내용은 /admin.html 을 iframe 으로 품어
+// 배너 편집·미리보기·최신버전·설치 통계를 그대로 쓴다(로직 복사 없음 = 한 곳만 고치면 됨).
+function admRefresh() {
+  const box = document.getElementById('admBox');
+  if (!box) return;
+  box.style.display = IS_DEV ? '' : 'none';
+  if (!IS_DEV) return;
+  document.getElementById('admTitle').textContent = T.admTitle || '배너 관리 (개발자)';
+  document.getElementById('admSub').textContent = T.admSub || '배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.';
+  const host = document.getElementById('admHost'), frame = document.getElementById('admFrame');
+  const tog = document.getElementById('admToggle'), nt = document.getElementById('admNewTab');
+  const open = host.style.display !== 'none';
+  tog.textContent = open ? (T.admHide || '접기') : (T.admShow || '열기');
+  nt.textContent = T.admNewTab || '새 탭에서 열기';
+  nt.onclick = () => window.open('/admin.html?token=' + TOKEN, '_blank');
+  tog.onclick = () => {
+    const nowOpen = host.style.display === 'none';
+    host.style.display = nowOpen ? '' : 'none';
+    if (nowOpen && !frame.src) frame.src = '/admin.html?token=' + TOKEN;   // 처음 열 때만 로드
+    setDlg.style.maxWidth = nowOpen ? 'min(980px, 94vw)' : '470px';        // 열면 설정창을 넓게
+    tog.textContent = nowOpen ? (T.admHide || '접기') : (T.admShow || '열기');
+  };
 }
 async function gcalRefresh() {
   const box = document.getElementById('gcalBox'); if (!box) return;
@@ -5664,21 +5735,17 @@ function mindInitCanvas() {
   mindDlg.addEventListener('click', ev => { if (ev.target === mindDlg) closeMind(); });
 }
 
-// 배너 관리자(🛠)·사용자요청 배지(✉) — 개발자 전용.
+// 배너 관리·사용자요청 배지(✉) — 개발자 전용.
 // localhost 조건만으론 부족: PowerTerminal을 설치한 다른 사용자도 자기 PC에선 localhost라 버튼이 보였음.
 // → 이 PC의 GitHub CLI 로그인 계정이 개발자(1215kkm)일 때만 노출. (배너 발행 자체도 그 계정만 push 가능)
+// 헤더의 🛠 버튼은 없앴다 — 배너 관리는 ⚙ 설정창 안(admBox)으로 합쳤다. 어차피 관리자만 쓰는 기능이라 한곳이면 충분.
 (async () => {
   if (!['localhost', '127.0.0.1'].includes(location.hostname)) return;
   let u = null;
   try { u = await api('GET', '/api/gh-user'); } catch (e) {}
   if (!u || u.login !== '1215kkm') return;
-
-  const b = document.createElement('button');
-  b.textContent = '🛠';
-  b.title = 'Banner admin (dev)';
-  // 새 탭으로 열기 — 같은 탭으로 이동하면 메인이 리로드돼 입력 중이던 요청글이 날아감
-  b.onclick = () => { window.open('/admin.html?token=' + TOKEN, '_blank'); };
-  hdrInsert(b);
+  IS_DEV = true;
+  if (setDlg.open) admRefresh();   // 설정창을 이미 열어둔 채로 확인이 끝났으면 바로 반영
 
   // 사용자 요청(GitHub Issues) 개수 배지 — 새 요청이 있으면 ✉N 표시
   const iss = document.createElement('button');
