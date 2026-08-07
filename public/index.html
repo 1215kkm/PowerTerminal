@@ -1782,6 +1782,8 @@ let maxedId = null;        // 확대(포커스) 중인 세션 id — null이면 
 let zoomedId = null;       // 🔍 전체화면 모달에 올라간 세션 id (폰)
 let _zoomSlot = null;      // 원래 자리로 되돌릴 위치 표시자
 const MIN_W = 300;         // 세션 한 칸 최소 폭 — 이보다 좁아지면 2줄/새 창 안내
+const MIN_ROW_H = 340;     // 세션 한 줄 최소 높이 — .pane 의 min-height 와 같은 값.
+                           // 여러 줄이 이보다 납작해져야 할 상황이면 칸이 더 안 줄어드니 화면맞춤을 포기하고 스크롤.
 const FOCUS_FR = 3;        // 확대 시 그 칸이 차지하는 비율 (나머지 칸은 1)
 
 // ---------- 여러 창 분산 (창이 좁아지면 다른 브라우저 창으로) ----------
@@ -3494,9 +3496,16 @@ function applyLayout() {
   }
   grid.style.gridTemplateColumns = weights.join(' ');
 
-  if (singleRow) {   // 한 줄이면 남은 세로 공간을 꽉 채움
-    const off = (document.querySelector('header').offsetHeight || 56) + 24;
-    grid.style.gridTemplateRows = '1fr';
+  // 남은 세로 공간을 줄 수만큼 균등하게 나눠 화면 안에 다 들어오게.
+  // 예전엔 한 줄일 때만 높이를 잡아줘서, 2줄로 접히면(예: 6개=3×2) 칸이 내용 높이만큼 늘어나
+  // 페이지 전체가 스크롤됐다 — 아래 줄을 보려면 스크롤해야 했던 원인.
+  const rows = singleRow ? 1 : Math.ceil(n / cols);
+  const off = (document.querySelector('header').offsetHeight || 56) + 24;
+  const avail = window.innerHeight - off;
+  // 줄당 높이가 이보다 낮아지면 오히려 못 쓰니 그때만 스크롤을 허용한다 (짧은 화면 대비)
+  if (rows === 1 || avail / rows >= MIN_ROW_H) {
+    // minmax(0,1fr) 이어야 한다 — 그냥 1fr(=minmax(auto,1fr))이면 칸 내용의 최소높이만큼 줄이 늘어나 또 넘친다
+    grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
     grid.style.height = `calc(100vh - ${off}px)`;
   }
 }
