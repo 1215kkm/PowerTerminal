@@ -2324,7 +2324,12 @@ function buildPane(sess, idx) {
         // 실제 모델을 출력에서 읽어 드롭다운에 반영 (거짓말 방지) — 값만 바꿈(onchange 미발동)
         if (modelDrop) {
           const dm = detectModel(m.data);
-          if (dm && modelDrop.value !== dm) { modelDrop.value = dm; sess.model = dm; }
+          if (dm && modelDrop.value !== dm) {
+            modelDrop.value = dm; sess.model = dm;
+            // 세션 안에서 /model 로 바꾼 경우 — 서버에도 기록해 둬야 껐다 켤 때 같은 모델로 다시 뜬다.
+            // 'modelSeen' 은 기록 전용(세션 재시작 안 함) — 'model' 로 보내면 작업 중에 세션이 죽는다.
+            api('PATCH', '/api/sessions/' + sess.id, { modelSeen: dm });
+          }
         }
       }
       else if (m.type === 'status') {
@@ -6660,7 +6665,8 @@ async function cmRenderSessions() {
     el.innerHTML = '<span class="dot"></span><span>' + esc(k.title || k.name || '') + '</span>';
     el.title = (k.path || '') + ' — 닫힘 (클릭하면 열림)';
     el.onclick = async () => {
-      const ns = await api('POST', '/api/sessions', { path: k.path, title: k.title || k.name, agent: k.agent || 'claude' });
+      // model 을 같이 넘겨야 닫혔던 세션이 쓰던 모델 그대로 다시 열린다 (안 넘기면 '자동'으로 리셋)
+      const ns = await api('POST', '/api/sessions', { path: k.path, title: k.title || k.name, agent: k.agent || 'claude', model: k.model || 'default' });
       if (ns && !ns.error) cmSwitch(ns);
     };
     box.appendChild(el);
@@ -7235,7 +7241,8 @@ async function pickStart() {
     const isPane = panes.has(s.id);
     if (s._sel && !isPane) {
       if (s._new) {   // 최근 닫은 세션 → 서버에 새로 만들어 켜기
-        const ns = await api('POST', '/api/sessions', { path: s.path, title: s.title, agent: s.agent || 'claude' });
+        // model 을 같이 넘겨야 그 프로젝트가 마지막에 쓰던 모델로 다시 열린다
+        const ns = await api('POST', '/api/sessions', { path: s.path, title: s.title, agent: s.agent || 'claude', model: s.model || 'default' });
         if (!ns.error) buildPane(ns, grid.children.length);
       } else {
         buildPane(s, grid.children.length);   // 저장돼 있던 세션 그대로 재개
@@ -7265,7 +7272,7 @@ async function openPicker() {
     const known = await api('GET', '/api/known-projects');
     const have = new Set(list.map(s => nrm(s.path)));
     known.filter(k => k.path && !k.active && !have.has(nrm(k.path))).forEach(k => {
-      pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, _sel: false, _new: true });
+      pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, model: k.model || 'default', _sel: false, _new: true });
     });
   } catch (e) {}
   // 서버 배열 순서 그대로 (localStorage 재정렬 안 함) — 최근닫은(_new)만 뒤에 붙음
@@ -7402,7 +7409,7 @@ applyStatic();
     const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
     const have = new Set([...alive, ...idle].map(s => nrm(s.path)));
     known.filter(k => k.path && !k.active && !have.has(nrm(k.path))).forEach(k => {
-      pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, _sel: false, _new: true });
+      pickList.push({ id: 'new:' + nrm(k.path), title: k.title || k.name, path: k.path, agent: k.agent, model: k.model || 'default', _sel: false, _new: true });
       have.add(nrm(k.path));
     });
   } catch (e) {}

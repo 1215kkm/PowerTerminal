@@ -92,6 +92,16 @@ function addRecent(s) {
   recent = recent.slice(0, 40);
   saveRecent();
 }
+// AI·모델이 바뀌면 '최근 닫은 세션' 기록도 같이 고친다 — 안 그러면 닫았다 다시 열 때
+// 처음 만들 때의 모델로 되돌아간다 (껐다 켤 때 쓰던 모델이 안 살아나던 원인 중 하나).
+function syncRecent(s) {
+  const r = recent.find(x => x.path === s.path);
+  if (!r) return;
+  r.agent = s.agent || 'claude';
+  r.model = s.model || 'default';
+  r.title = s.title || r.title;
+  saveRecent();
+}
 
 // ---------- 세션 메모 (폴더 경로 기준) ----------
 // 세션 id는 재시작마다 바뀌므로 폴더 경로를 키로 저장 — 세션을 껐다 켜도, 폰·PC 어느 기기로 봐도 같은 메모.
@@ -1222,6 +1232,7 @@ app.patch('/api/sessions/:id', (req, res) => {
     s.agent = req.body.agent;
     if (typeof req.body.cmd === 'string') s.cmd = req.body.cmd;
     saveSessions();
+    syncRecent(s);
     const p = ptys.get(s.id);
     if (p && !p.dead) {
       try { p.proc.kill(); } catch (e) {}
@@ -1230,9 +1241,18 @@ app.patch('/api/sessions/:id', (req, res) => {
     }
     return res.json(s);
   }
+  // 세션 *안에서* /model 로 바꾼 걸 클라이언트가 화면에서 읽어 알려준 경우 — 기록만 하고 재시작하지 않는다.
+  // (아래 model 분기는 사용자가 PT 드롭다운으로 고른 것이라 세션을 새 모델로 재시작한다 — 여기서 그걸 타면
+  //  작업 중에 세션이 죽는다.) 이 기록 덕분에 껐다 켜도 마지막에 쓰던 모델 그대로 다시 뜬다.
+  if (typeof req.body.modelSeen === 'string') {
+    const m = req.body.modelSeen;
+    if (m && s.model !== m) { s.model = m; saveSessions(); syncRecent(s); }
+    return res.json(s);
+  }
   if (typeof req.body.model === 'string') {
     s.model = req.body.model;
     saveSessions();
+    syncRecent(s);
     // 실행 중이면 세션을 새 모델로 재시작 (실행 중 /model 은 '새 세션 기본값'만 바꿔 현재 세션은 안 바뀜)
     const p = ptys.get(s.id);
     if (p && !p.dead && (s.agent || 'claude') === 'claude') {
