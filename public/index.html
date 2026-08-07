@@ -3232,7 +3232,13 @@ function setState(el, done, busy, announce) {
     el._doneTimer = setTimeout(() => {
       el._doneTimer = null;
       if (el.isConnected && el.classList.contains('done')) {
-        speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
+        // 소리는 완료당 한 번만 — 서버는 요청이 끝날 때까지 announce 를 유지하므로(중간 깜빡임 대비)
+        // 같은 완료가 두 번 넘어올 수 있다. 15초 안에는 다시 말하지 않는다. (스탬프·메모 처리는 그대로)
+        const annNow = Date.now();
+        if (!el._lastAnn || annNow - el._lastAnn > 15000) {
+          el._lastAnn = annNow;
+          speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
+        }
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
         if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); });

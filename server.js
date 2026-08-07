@@ -309,6 +309,14 @@ function broadcastStatus(id, p, announce) {
   const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy, announce: !!announce });
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
 }
+// 한 번의 요청 안에서도 Claude 는 작업표시가 끊겨 busy→done 이 여러 번 뒤집힌다
+// (실측: 요청 하나에 done 이 35.9s·42.0s 두 번). 그래서 첫 done 에서 장전을 풀면
+// *진짜* 완료 때는 announce 가 꺼져 있어 소리가 안 났다.
+// → 완료가 이만큼 유지돼야 그 요청이 끝난 것으로 보고 장전을 푼다. 중간 깜빡임에는 계속 장전 유지.
+const DONE_SETTLE_MS = 20000;
+function disarmIfSettled(p) {
+  if (p.armed && p.doneSince && Date.now() - p.doneSince > DONE_SETTLE_MS) p.armed = false;
+}
 // 이 입력이 '요청 제출'인가 — 그냥 Enter(\r)면 제출, ESC+\r 은 줄바꿈이라 제출이 아니다.
 function isSubmitInput(s) {
   if (typeof s !== 'string') return false;
@@ -337,12 +345,18 @@ setInterval(() => {
     if (markerBased) {
       const working = p.lastMarker && Date.now() - p.lastMarker < 4000;
       // 재시작 이어하기 플래그는 Claude 전용(getPty가 Claude일 때만 씀) — codex엔 안 걸어 불필요한 저장을 막는다
-      if (working) { if (isClaude) setResume(sess, true); if (!p.busy || p.done) { p.busy = true; p.done = false; broadcastStatus(id, p); } }
-      else { if (p.busy) { p.busy = false; p.done = true; broadcastStatus(id, p, p.armed); p.armed = false; } if (isClaude) setResume(sess, false); }
+      if (working) {
+        if (isClaude) setResume(sess, true);
+        if (!p.busy || p.done) { p.busy = true; p.done = false; p.doneSince = 0; broadcastStatus(id, p); }
+      } else {
+        if (p.busy) { p.busy = false; p.done = true; p.doneSince = Date.now(); broadcastStatus(id, p, p.armed); }
+        else disarmIfSettled(p);
+        if (isClaude) setResume(sess, false);
+      }
     } else if (p.busy && Date.now() - p.lastOut > 8000) {
-      p.busy = false; p.done = true;
-      broadcastStatus(id, p, p.armed); p.armed = false;
-    }
+      p.busy = false; p.done = true; p.doneSince = Date.now();
+      broadcastStatus(id, p, p.armed);
+    } else if (!p.busy) disarmIfSettled(p);
   }
 }, 1500);
 
