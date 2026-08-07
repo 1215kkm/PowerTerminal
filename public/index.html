@@ -1375,6 +1375,13 @@
       <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
     </div>
   </div>
+  <!-- 🔔 완료 소리 점검 — 안 울릴 때 '어디서 막혔는지'를 이 창에서 바로 확인 -->
+  <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">🔔 <span id="sndTitle"></span></div>
+    <div id="sndSub" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
+    <button class="small" id="sndTest"></button>
+    <div id="sndOut" style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.7;word-break:break-all"></div>
+  </div>
   <!-- 💳 구독 재결제일 — 상단 사용량 막대에 마우스를 올리면 표시된다.
        결제일을 주는 API가 없어(사용량 API는 리셋시각만 준다) 사용자가 '매달 며칠'만 한 번 적어둔다. -->
   <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
@@ -1504,6 +1511,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
+    sndTitle:'Completion sound check', sndSub:'Plays the sound you get when a request finishes, right now. If you hear nothing, the line below says why.', sndTest:'▶ Play it now',
     billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
@@ -1589,6 +1597,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
+    sndTitle:'완료 소리 점검', sndSub:'요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.', sndTest:'▶ 지금 울려보기',
     billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
@@ -3199,11 +3208,24 @@ function sendBlip() {
     });
   } catch (e) {}
 }
+// 완료음이 왜 안 났는지 남겨두는 진단 기록 — ⚙ 설정의 '완료 소리 테스트'와 콘솔에서 확인.
+let soundDiag = '(아직 완료 이벤트 없음)';
 function speakNum(n) {   // 띵동 후 "session two done"
-  if (!soundOn || !n) return;
+  if (!soundOn) { soundDiag = '소리 꺼짐 — 헤더 🔇 를 눌러 켜세요'; return; }
+  if (!n) { soundDiag = '세션 번호를 못 읽음'; return; }
+  soundDiag = '울림 (세션 ' + n + ') — ' + new Date().toLocaleTimeString();
   chime();
   const w = NUMWORDS[n] || String(n);
   setTimeout(() => speak('session ' + w + ' done'), IS_REMOTE_VIEW ? 800 : 560);   // 3음 차임이 끝난 뒤 말하기
+}
+// 지금 이 창에서 소리가 날 수 있는 상태인지 한 줄로. (콘솔에서 ptSoundDiag() 로도 호출 가능)
+function ptSoundDiag() {
+  let ctx = '없음';
+  try { ctx = audioCtx ? audioCtx.state : '아직 안 만들어짐'; } catch (e) {}
+  let voices = -1;
+  try { voices = (speechSynthesis.getVoices() || []).length; } catch (e) {}
+  return '소리켜짐=' + soundOn + ' · 오디오=' + ctx + ' · 음성엔진=' + (window.speechSynthesis ? voices + '개' : '없음')
+       + ' · 마지막 완료판정=' + soundDiag;
 }
 function updateSoundBtn() {
   const b = document.getElementById('btnSound'); if (!b) return;
@@ -3244,7 +3266,10 @@ function setState(el, done, busy, announce) {
   //   (반복 재생 기능은 없음 — 완료당 1회. 여러 번 들렸다면 감지 깜빡임이 원인이라 유지시간을 넉넉히 둠.)
   // announce=false 면 사용자가 시킨 작업의 완료가 아니다(세션 기동 직후 등) — 소리·완료 스탬프 모두 건너뜀.
   if (nowBusy && el._doneTimer) { clearTimeout(el._doneTimer); el._doneTimer = null; }
+  if (!!done && !wasDone && wasBusy && !announce) soundDiag = '완료는 왔지만 서버가 announce=false (요청 없이 끝난 완료로 판단)';
+  if (!!done && !wasDone && !wasBusy) soundDiag = '완료 직전에 작업중 상태를 못 봄 (busy→done 전환이 아님)';
   if (!!done && !wasDone && wasBusy && announce) {
+    soundDiag = '완료 감지됨 — 6초 뒤 울릴 예정…';
     if (el._doneTimer) clearTimeout(el._doneTimer);
     el._doneTimer = setTimeout(() => {
       el._doneTimer = null;
@@ -3255,7 +3280,7 @@ function setState(el, done, busy, announce) {
         if (!el._lastAnn || annNow - el._lastAnn > 15000) {
           el._lastAnn = annNow;
           speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
-        }
+        } else soundDiag = '15초 안에 이미 울려서 건너뜀';
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
         if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); });
@@ -3273,7 +3298,7 @@ function setState(el, done, busy, announce) {
             if (last && memoDlg.open && pend.some(q => normPath(q.path) === normPath(memoPath))) { memoData = last; renderMemo(); }
           })();
         }
-      }
+      } else soundDiag = '6초 기다리는 사이 완료 상태가 풀림 (다시 작업중이 됨)';
     }, 6000);
   }
 }
@@ -4336,6 +4361,16 @@ async function openSettings() {
   } catch (e) {}
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
+  // 🔔 완료 소리 점검 — 실제 완료음과 똑같은 경로(speakNum)를 태워보고 상태를 그대로 보여준다
+  document.getElementById('sndTitle').textContent = T.sndTitle || '완료 소리 점검';
+  document.getElementById('sndSub').textContent = T.sndSub || '요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.';
+  const sndBtn = document.getElementById('sndTest'), sndOut = document.getElementById('sndOut');
+  sndBtn.textContent = T.sndTest || '▶ 지금 울려보기';
+  sndOut.textContent = ptSoundDiag();
+  sndBtn.onclick = () => {
+    speakNum(1);                                  // 완료음과 완전히 같은 경로
+    setTimeout(() => { sndOut.textContent = ptSoundDiag(); }, 400);
+  };
   // 💳 재결제일 — 입력 즉시 저장하고 미리보기·상단 막대 툴팁을 갱신
   document.getElementById('billTitle').textContent = T.billTitle || '구독 재결제일';
   document.getElementById('billSub').textContent = T.billSub || '';
