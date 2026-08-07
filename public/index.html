@@ -7048,6 +7048,12 @@ function flipGrid(mutate) {
 // ---------- 시작 세션 선택창 ----------
 const pickDlg = document.getElementById('pickDlg');
 let pickList = [];
+// 선택창이 답을 기다리는 세션 id — reconcile이 이걸 건너뛴다.
+// 예전엔 창을 띄우자마자 focus·5초 reconcile이 저장된 세션을 전부 그려버려서, 고르기도 전에 다 열렸고
+// '건너뛰기'를 눌러도 전부 열렸다 → "선택한 것과 실제 열리는 게 다름"의 원인.
+const pickPending = new Set();
+// 초기 복원이 끝났는가 — 끝나기 전엔 reconcile이 세션을 열지 않는다 (선택창보다 먼저 열어버리던 경합 방지)
+let bootReady = false;
 function renderPicker() {
   const g = document.getElementById('pickGrid');
   g.innerHTML = '';
@@ -7077,6 +7083,9 @@ function renderPicker() {
 function pickToggleAll(on) { pickList.forEach(s => s._sel = on); renderPicker(); }
 async function pickStart() {
   pickDlg.close();
+  // 결정이 났으니 고른 세션은 보류 해제 — 이제부터 reconcile이 정상적으로 돌봐준다.
+  // 안 고른 세션은 보류에 남겨둔다(아래에서 서버에서도 지움 · 건너뛰기로 닫으면 그대로 안 열림).
+  pickList.forEach(s => { if (s._sel) pickPending.delete(s.id); });
   // 선택창에 보이던 순서(=서버 배열 순서) 그대로 세움. localStorage 재정렬 안 함 — 재실행 때 위치가 바뀌던 원인.
   for (const s of pickList) {
     const isPane = panes.has(s.id);
@@ -7087,11 +7096,12 @@ async function pickStart() {
       } else {
         buildPane(s, grid.children.length);   // 저장돼 있던 세션 그대로 재개
       }
-    } else if (!s._sel && isPane) {
-      removePaneLocal(s.id);
-      // 화면에서만 숨기면 5초 주기 reconcile이 "안 그려진 세션"으로 보고 되살림 → 실제 종료.
-      // 최근 목록엔 남아 다시 선택 가능하고, 다시 켜면 --continue로 대화가 이어짐.
-      if (!s._new) await api('DELETE', '/api/sessions/' + s.id);
+    } else if (!s._sel && !s._new) {
+      // 선택 해제 = 이번엔 열지 않음 + 세션 목록에서 내림. 그려져 있었으면 화면에서도 뺀다.
+      // (목록에 남기면 다음 재시작 때 또 체크된 채로 떠서 매번 다시 해제해야 한다.)
+      // 폴더는 그대로고 '최근 닫은'(회색)으로 남아 다시 고를 수 있으며, 다시 켜면 --continue로 대화가 이어짐.
+      if (isPane) removePaneLocal(s.id);
+      await api('DELETE', '/api/sessions/' + s.id);
     }
   }
   renumber();
@@ -7105,6 +7115,8 @@ async function openPicker() {
   try { list = await api('GET', '/api/sessions'); } catch (e) {}
   const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
   pickList = list.map(s => ({ ...s, _sel: panes.has(s.id) || s.alive }));   // 열려있거나 살아있으면 기본 체크
+  // 아직 안 그려진 세션은 이 창에서 결정할 때까지 reconcile이 멋대로 열지 않게 보류
+  list.forEach(s => { if (!panes.has(s.id)) pickPending.add(s.id); });
   try {
     const known = await api('GET', '/api/known-projects');
     const have = new Set(list.map(s => nrm(s.path)));
@@ -7174,6 +7186,9 @@ window.addEventListener('beforeunload', () => {
 // 이 창 소속으로 아직 안 그려진 세션은 그리고, 소속 아닌 세션은 제거 (서버 세션은 유지)
 async function reconcile() {
   if (isMobile) return;
+  // 초기 복원 판단(선택창 띄울지·무엇을 보류할지)이 끝나기 전엔 아무것도 안 한다.
+  // 창이 포커스를 받는 순간 reconcile이 먼저 돌아 저장된 세션을 전부 열어버리던 경합 방지.
+  if (!bootReady) return;
   let list;
   try { list = await api('GET', '/api/sessions'); } catch (e) { return; }
   if (!Array.isArray(list)) return;   // api()는 실패 시 {error} 객체를 반환(안 던짐) — 서버 재시작 중 forEach 폭발 방지
@@ -7181,7 +7196,8 @@ async function reconcile() {
   [...panes.keys()].forEach(id => {
     if (!belongsHere(id) || !list.find(s => s.id === id)) { removePaneLocal(id); changed = true; }
   });
-  list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id)) { buildPane(s, grid.children.length); changed = true; } });
+  // 선택창이 답을 기다리는 세션은 건드리지 않는다 — 고른 대로만 열리게 (pickStart가 결정 뒤 풀어줌)
+  list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id) && !pickPending.has(s.id)) { buildPane(s, grid.children.length); changed = true; } });
   if (changed) { applyLayout(); renumber(); }   // renumber()가 번호 재정렬 + 미니맵까지 갱신 (변화 없으면 재렌더 안 함)
 }
 window.addEventListener('storage', e => { if (e.key === 'pt_popped') reconcile(); });
@@ -7201,6 +7217,7 @@ applyStatic();
     list.filter(s => WSET.has(s.id)).forEach((s, i) => buildPane(s, i));
     applyLayout();
     renderMinimap();
+    bootReady = true;
     return;
   }
 
@@ -7226,6 +7243,9 @@ applyStatic();
   // 열 때마다 세션 위치가 뒤바뀌는 원인이었음 → 클라 재정렬 제거.
   const alive = mine.filter(s => s.alive);
   const idle  = mine.filter(s => !s.alive);  // 껐다 켠 경우 — 선택창으로
+  // ⚠ 선택창에 올릴 세션은 '보류'로 먼저 잠근다. buildPane 보다 앞서야 한다 —
+  //   창이 포커스를 받는 순간 reconcile이 돌아 idle 세션을 전부 열어버리던 게 여기서 막힌다.
+  idle.forEach(s => pickPending.add(s.id));
 
   alive.forEach((s, i) => buildPane(s, i));
   applyLayout();
@@ -7250,6 +7270,7 @@ applyStatic();
     renderPicker();
     pickDlg.showModal();
   }
+  bootReady = true;
 })();
 </script>
 </body>
