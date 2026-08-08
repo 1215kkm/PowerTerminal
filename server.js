@@ -1272,8 +1272,11 @@ app.post('/api/sessions', async (req, res) => {
   sessions.push(sess);
   saveSessions();
   if (!sess.autoClose) addRecent(sess);            // 임시 세션은 최근 목록에 안 남김
-  getPty(sess);
+  // 응답을 먼저 보내고 터미널(PTY)은 그 다음에 띄운다 — pty.spawn 이 이 응답의 대부분을 차지해서
+  // [추가] 버튼이 한참 반응 없는 것처럼 보였다. 클라이언트는 응답을 받아 창을 그리고 WebSocket 을
+  // 붙이는데, 그때 getPty 가 이미 만들어진 걸 그대로 돌려준다. (getPty 는 동기 함수라 중복 생성 없음)
   res.json(sess);
+  setImmediate(() => { try { getPty(sess); } catch (e) {} });
 });
 
 // 📁 드래그한 폴더의 실제 경로 찾기 — 브라우저는 절대경로를 안 주므로 폴더 이름 + 안의 파일 이름 몇 개로

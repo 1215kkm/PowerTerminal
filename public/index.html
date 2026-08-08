@@ -4080,9 +4080,16 @@ async function addManual() {
     if (!cmd) return;
   }
   const title = document.getElementById('addTitle').value.trim();
-  const s = await addSession(p, title, agent, cmd);
+  // 누른 티를 즉시 낸다 — 예전엔 세션이 다 만들어질 때까지(수백 ms) 버튼이 그대로라 안 눌린 줄 알았다.
+  // 입력칸도 바로 비워서 "접수됐다"가 눈에 보이게. 연타로 같은 폴더가 두 번 열리는 것도 막힌다.
+  const btn = document.querySelector('button[onclick="addManual()"]');
+  const oldTxt = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
   document.getElementById('addPath').value = '';                 // 다음 추가 위해 비움
   document.getElementById('addTitle').value = '';
+  let s = null;
+  try { s = await addSession(p, title, agent, cmd); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = oldTxt; } }
   renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
   if (s) showAddMsg(s.title || title || p);
 }
