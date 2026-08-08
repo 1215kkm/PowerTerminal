@@ -12,6 +12,7 @@ const { execFileSync, execFile, spawn } = require('child_process');
 const https = require('https');
 let CLOUDFLARED_PATH;
 
+const IS_WIN = process.platform === 'win32';   // 경로 구분자 정규화(memoKey)가 쓰므로 파일 상단에서 정의
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 7777;   // 포트 충돌 시 PORT 환경변수로 변경 가능
 
@@ -92,6 +93,51 @@ function addRecent(s) {
   recent = recent.slice(0, 40);
   saveRecent();
 }
+// ---------- 🌿 worktree 격리 세션 ----------
+// 같은 폴더를 하나 더 여는 이유는 "다른 작업을 시키려고"뿐이다. 그런데 지금까진 작업 폴더가 그대로 같아서
+// 두 AI가 같은 파일을 고치고, git index.lock 이 부딪히고, dev 서버 포트가 겹쳤다.
+// → git 레포면 자동으로 `git worktree` 로 분리해서 연다. 히스토리는 공유하고 작업 트리만 갈라진다.
+// ⚠ worktree 는 HEAD 에서 새 브랜치를 따므로 원본의 *미커밋 변경은 따라오지 않는다*.
+//   "지금 상태 그대로 보려고" 여는 경우를 위해 클라이언트가 dupSame:true 로 이 동작을 끌 수 있다.
+const WT_MAP_FILE = dataFile('worktrees.json');
+let wtMap = {};                       // { 소문자 worktree경로: { repo, branch } }
+try { wtMap = readJson(WT_MAP_FILE) || {}; } catch (e) {}
+function saveWtMap() { try { fs.writeFileSync(WT_MAP_FILE, JSON.stringify(wtMap, null, 2)); } catch (e) {} }
+const execFileW = (bin, args, opts) => new Promise((resolve, reject) =>
+  execFile(bin, args, opts, (err, so, se) => err ? reject(Object.assign(err, { stderr: String(se || '') })) : resolve(String(so || ''))));
+const git = (cwd, args, timeout) => execFileW('git', args, { cwd, encoding: 'utf8', timeout: timeout || 20000, windowsHide: true });
+
+async function gitTopLevel(dir) {
+  try { return (await git(dir, ['rev-parse', '--show-toplevel'], 6000)).trim().replace(/\//g, path.sep); }
+  catch (e) { return ''; }
+}
+// 원본 레포 경로 옆(.pt-worktrees)에 새 작업트리를 만든다. 레포 안에 두면 git 이 자기 자신을 추적하게 돼 지저분해진다.
+async function makeWorktree(repoTop) {
+  const base = path.basename(repoTop).replace(/[^\w가-힣.-]/g, '_');
+  const root = path.join(path.dirname(repoTop), '.pt-worktrees');
+  for (let n = 2; n <= 30; n++) {
+    const dir = path.join(root, base + '-' + n);
+    const branch = 'pt/' + base + '-' + n;
+    if (fs.existsSync(dir)) continue;
+    try {
+      await git(repoTop, ['worktree', 'add', dir, '-b', branch], 60000);
+      wtMap[dir.toLowerCase()] = { repo: repoTop, branch };
+      saveWtMap();
+      return { dir, branch };
+    } catch (e) {
+      // 브랜치 이름이 이미 있으면 다음 번호로. 그 외(레포 아님 등)는 포기하고 같은 폴더로 폴백.
+      if (!/already exists|이미 존재/i.test(e.stderr || e.message || '')) return null;
+    }
+  }
+  return null;
+}
+// worktree 경로면 원본 레포 경로로 바꿔준다 — 메모·요청내역이 worktree 마다 갈리지 않게 하는 데 씀
+function repoOf(p) {
+  const k = (IS_WIN ? String(p || '').replace(/\//g, '\\') : String(p || '')).replace(/[\\/]+$/, '').toLowerCase();
+  const e = wtMap[k];
+  return (e && e.repo) || p;
+}
+
 // AI·모델이 바뀌면 '최근 닫은 세션' 기록도 같이 고친다 — 안 그러면 닫았다 다시 열 때
 // 처음 만들 때의 모델로 되돌아간다 (껐다 켤 때 쓰던 모델이 안 살아나던 원인 중 하나).
 function syncRecent(s) {
@@ -108,7 +154,12 @@ function syncRecent(s) {
 const MEMOS_FILE = dataFile('memos.json');
 let memos = {};
 try { memos = readJson(MEMOS_FILE); } catch (e) {}
-const memoKey = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+// worktree 로 분리된 세션도 원본 레포 기준으로 묶는다 — 메모·요청내역이 갈라지면 "내가 뭘 시켰나"를 잃는다.
+// (같은 폴더 중복 판정 dupAlive 도 이 키를 쓰므로, worktree 세션은 원본과 '같은 폴더'로 취급돼 새 대화로 시작한다.)
+// ⚠ 윈도우에선 같은 폴더가 "C:/x" 로도 "C:\x" 로도 들어온다(브라우저는 \, 직접 입력·API는 /) — 구분자를
+//   \ 로 통일하지 않으면 같은 폴더인데 메모가 갈라진다. 기존 메모 키가 \ 형태라 \ 쪽으로 맞춘다.
+const sepNorm = p => (IS_WIN ? String(p || '').replace(/\//g, '\\') : String(p || ''));
+const memoKey = p => repoOf(sepNorm(p).replace(/[\\/]+$/, '')).toLowerCase();
 function memoOf(p) {
   const k = memoKey(p);
   if (!memos[k]) memos[k] = { items: [], reqs: [] };
@@ -159,7 +210,6 @@ const MAX_BUF = 200 * 1024;
 
 // 세션별 선택: claude(기본) / codex / shell(순수 PowerShell) / custom(직접 명령)
 // 모든 세션은 실제 powershell.exe(PTY)에 붙는다 — 브라우저는 그 화면을 비추는 창일 뿐.
-const IS_WIN = process.platform === 'win32';
 // Mac/Linux 셸 선택: $SHELL(맥 기본 zsh) → zsh → bash → sh 중 실제 있는 것 (zsh 없는 리눅스 대비)
 function pickShell() {
   if (process.env.SHELL) { try { if (fs.existsSync(process.env.SHELL)) return process.env.SHELL; } catch (e) {} }
@@ -180,7 +230,22 @@ function claudeTuiFlag() {
 // resume=true: 작업 중에 서버가 꺼졌던 세션 — 재개 문구를 실행 인자로 넣어 뜨자마자 이어서 작업.
 // (예전엔 부팅 후 터미널에 타이핑했는데, Claude 로딩 중 입력은 먹혀 사라져서 실패했음)
 const RESUME_MSG = 'Continue the previous task where you left off.';
+// 🌿 worktree 는 추적 안 되는 파일(node_modules·.env·dist)을 안 가져온다. package.json 이 있는데
+// node_modules 가 없으면 AI 를 띄우기 전에 설치부터 — 안 그러면 첫 명령이 전부 "모듈 없음"으로 실패한다.
+function worktreePrep(sess) {
+  if (!sess.worktree) return '';
+  try { if (!fs.existsSync(path.join(sess.path, 'package.json'))) return ''; } catch (e) { return ''; }
+  try { if (fs.existsSync(path.join(sess.path, 'node_modules'))) return ''; } catch (e) {}
+  const note = '  🌿 worktree(' + (sess.branch || '') + ') — node_modules 설치 중… / installing dependencies…';
+  return IS_WIN
+    ? 'Write-Host ""; Write-Host "' + note + '" -ForegroundColor Cyan; ' +
+      'if (Get-Command npm -ErrorAction SilentlyContinue) { npm install } else { Write-Host "  npm 없음 — 건너뜀" -ForegroundColor Yellow }; '
+    : 'echo "' + note + '"; command -v npm >/dev/null 2>&1 && npm install; ';
+}
 function agentCommand(sess, fresh, resume) {
+  return worktreePrep(sess) + agentCommandRaw(sess, fresh, resume);
+}
+function agentCommandRaw(sess, fresh, resume) {
   const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag();
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
@@ -1179,13 +1244,30 @@ app.get('/api/admin/translate', async (req, res) => {
   }
 });
 
-app.post('/api/sessions', (req, res) => {
+app.post('/api/sessions', async (req, res) => {
   let { path: dir, title, agent, cmd, model } = req.body;
   if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
   if (!fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
+  const wantTitle = title || path.basename(dir);
+  // 🌿 같은 폴더를 또 여는 경우 = 다른 작업을 시키려는 것 → git 레포면 자동으로 worktree 로 분리.
+  //    dupSame:true 면 예전처럼 같은 폴더 그대로 (원본의 미커밋 변경을 그대로 보며 쓰려는 경우).
+  let wt = null;
+  if (!req.body.autoClose && !req.body.dupSame) {
+    const already = sessions.some(s => {
+      if (memoKey(s.path) !== memoKey(dir)) return false;
+      const q = ptys.get(s.id); return q && !q.dead;
+    });
+    if (already) {
+      const top = await gitTopLevel(dir);
+      if (top) wt = await makeWorktree(top);      // git 레포가 아니면 null → 예전처럼 같은 폴더
+      if (wt) dir = wt.dir;
+    }
+  }
   const id = crypto.randomBytes(4).toString('hex');
-  const sess = { id, title: title || path.basename(dir), path: dir, previewUrl: '',
+  const sess = { id, title: wt ? wantTitle + ' · ' + wt.branch.replace(/^pt\//, '') : wantTitle,
+                 path: dir, previewUrl: '',
                  agent: agent || 'claude', model: (model && String(model)) || 'default', cmd: cmd || '' };
+  if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
   if (req.body.autoClose) sess.autoClose = true;   // 설치용 임시 세션 — 명령 종료 후 자동 제거
   sessions.push(sess);
   saveSessions();
@@ -1785,7 +1867,32 @@ app.delete('/api/sessions/:id', (req, res) => {
   // 그 폴더에 다른 세션이 안 남았으면 스탬프: 일 끝난 상태로 닫힘=완료 · 작업 중 닫힘=종료로 중단
   if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, wasBusy ? 'off' : 'done');
   saveSessions();
+  // 🌿 worktree 세션을 닫으면 작업트리도 정리한다 — 단, 커밋 안 한 변경이 남아 있으면 지우지 않는다(작업 유실 방지).
+  //    지우지 못한 경우 경로를 돌려줘 클라이언트가 "변경이 남아 폴더를 남겨뒀다"고 알릴 수 있게.
+  if (gone && gone.worktree && gone.repo) {
+    const dir = gone.path;
+    git(dir, ['status', '--porcelain'], 8000).then(out => {
+      if (String(out).trim()) return { kept: true };                    // 변경 있음 → 보존
+      return git(gone.repo, ['worktree', 'remove', dir], 20000)
+        .then(() => { delete wtMap[dir.toLowerCase()]; saveWtMap(); return { kept: false }; });
+    }).catch(() => {});
+    return res.json({ ok: true, worktree: dir, branch: gone.branch });
+  }
   res.json({ ok: true });
+});
+// 🌿 worktree 세션의 변경을 원본 브랜치로 합치기 (스쿼시 아님 — 그냥 merge)
+app.post('/api/sessions/:id/merge-worktree', async (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s || !s.worktree || !s.repo) return res.status(400).json({ error: 'worktree 세션이 아닙니다.' });
+  try {
+    const dirty = (await git(s.path, ['status', '--porcelain'], 8000)).trim();
+    if (dirty) return res.json({ error: '커밋하지 않은 변경이 있습니다. 이 세션에서 먼저 커밋하세요.' });
+    const base = (await git(s.repo, ['rev-parse', '--abbrev-ref', 'HEAD'], 8000)).trim();
+    await git(s.repo, ['merge', '--no-edit', s.branch], 60000);
+    res.json({ ok: true, base, branch: s.branch });
+  } catch (e) {
+    res.json({ error: (e.stderr || e.message || '').toString().slice(0, 400) });
+  }
 });
 
 // 서버 완전 종료 — 브라우저의 🔌 종료 버튼에서 호출.
