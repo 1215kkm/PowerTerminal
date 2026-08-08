@@ -159,6 +159,9 @@ try { memos = readJson(MEMOS_FILE); } catch (e) {}
 // ⚠ 윈도우에선 같은 폴더가 "C:/x" 로도 "C:\x" 로도 들어온다(브라우저는 \, 직접 입력·API는 /) — 구분자를
 //   \ 로 통일하지 않으면 같은 폴더인데 메모가 갈라진다. 기존 메모 키가 \ 형태라 \ 쪽으로 맞춘다.
 const sepNorm = p => (IS_WIN ? String(p || '').replace(/\//g, '\\') : String(p || ''));
+// pathKey = 그 폴더 '자체'의 키 (worktree 통합 안 함). memoKey = 메모·요청내역용 (worktree → 원본 레포로 통합).
+// 둘을 섞어 쓰면 안 된다 — 대화 이어하기 판정에 memoKey 를 쓰면 worktree 세션이 원본의 --continue 를 뺏는다.
+const pathKey = p => sepNorm(p).replace(/[\\/]+$/, '').toLowerCase();
 const memoKey = p => repoOf(sepNorm(p).replace(/[\\/]+$/, '')).toLowerCase();
 function memoOf(p) {
   const k = memoKey(p);
@@ -283,9 +286,12 @@ function agentCommandRaw(sess, fresh, resume) {
 function getPty(sess) {
   let p = ptys.get(sess.id);
   if (p && !p.dead) return p;
-  // 같은 폴더에 이미 살아있는(PTY 가동 중) 다른 세션이 있으면 이 세션은 새 대화로 시작
+  // 같은 폴더에 이미 살아있는(PTY 가동 중) 다른 세션이 있으면 이 세션은 새 대화로 시작.
+  // ⚠ 여기는 반드시 *실제 경로*(pathKey)로 비교한다 — memoKey 는 worktree 를 원본 레포로 묶어버려서,
+  //   worktree 세션과 원본이 '같은 폴더'로 잡히고 나중에 뜬 쪽이 --continue 를 잃어 대화가 사라졌다.
+  //   Claude 는 대화를 폴더 단위로 저장하므로 worktree(다른 폴더)는 애초에 대화가 겹치지 않는다.
   const dupAlive = sessions.some(s => {
-    if (s.id === sess.id || memoKey(s.path) !== memoKey(sess.path)) return false;
+    if (s.id === sess.id || pathKey(s.path) !== pathKey(sess.path)) return false;
     const q = ptys.get(s.id);
     return q && !q.dead;
   });
