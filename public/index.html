@@ -1511,6 +1511,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
+    sendQueued:'Offline right now — your request will be sent when the connection is back.',
     sndTitle:'Completion sound check', sndSub:'Plays the sound you get when a request finishes, right now. If you hear nothing, the line below says why.', sndTest:'▶ Play it now',
     billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
@@ -1597,6 +1598,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
+    sendQueued:'연결이 끊겨 있어 잠시 뒤에 보냅니다…',
     sndTitle:'완료 소리 점검', sndSub:'요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.', sndTest:'▶ 지금 울려보기',
     billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
@@ -2371,6 +2373,7 @@ function buildPane(sess, idx) {
     ws.onopen = () => {
       if (!counted) { counted = true; liveSockets++; updateConnBanner(); }
       sendResize(); setTimeout(sendResize, 250); setTimeout(sendResize, 900);
+      flushOutQ();   // 재접속 중에 밀렸던 요청을 순서대로 흘려보냄
     };
     ws.onclose = () => {
       if (counted) { counted = false; liveSockets--; updateConnBanner(); }
@@ -2378,6 +2381,26 @@ function buildPane(sess, idx) {
     };
   }
   connect();
+  // 📮 터미널로 보내는 글은 반드시 이 큐를 거친다.
+  // 소켓이 재접속 중(CONNECTING/CLOSING/CLOSED)이면 ws.send 는 예외를 내거나 *조용히 버려진다*.
+  // 그런데 요청내역 기록(HTTP)은 그 앞에서 이미 성공하므로, 그대로 두면
+  // "요청내역엔 있는데 터미널엔 안 올라감"이 된다 → 열릴 때까지 모아뒀다가 순서대로 보낸다.
+  let outQ = [];
+  function wsSend(data) {
+    if (!outQ.length && ws && ws.readyState === 1) {
+      try { ws.send(JSON.stringify({ type: 'in', data })); return true; } catch (e) {}
+    }
+    outQ.push(data);                                   // 큐가 비어있지 않으면 무조건 뒤에 붙임 (순서 보장)
+    if (outQ.length === 1) flashToast(T.sendQueued || '연결이 끊겨 있어 잠시 뒤 보냅니다…');
+    return false;
+  }
+  function flushOutQ() {
+    if (!ws || ws.readyState !== 1 || !outQ.length) return;
+    const q = outQ; outQ = [];
+    q.forEach((d, i) => setTimeout(() => {
+      try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: d })); else outQ.push(d); } catch (e) { outQ.push(d); }
+    }, i * 60));
+  }
   term.onData(d => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: d })); });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && ws.readyState !== 1 && !closedByUser) connect();
@@ -2690,8 +2713,8 @@ function buildPane(sess, idx) {
     }
     // 직접 타이핑한 줄바꿈은 ESC+CR(제출 없는 개행)로 변환 — 여러 줄이 한 요청으로 감
     val = val.replace(/\r?\n/g, '\x1b\r');
-    ws.send(JSON.stringify({ type: 'in', data: val }));
-    setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
+    wsSend(val);                                  // 큐 경유 — 재접속 중이면 열릴 때 보냄
+    setTimeout(() => wsSend('\r'), 80);
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
@@ -2807,10 +2830,10 @@ function buildPane(sess, idx) {
   // 메모장 '📤 전송' 등 외부에서 이 세션 터미널로 보내기 — send()와 같은 경로 (요청내역 기록)
   const sendText = (text) => {
     const t = String(text || '').trim();
-    if (!t || ws.readyState !== 1) return false;
+    if (!t) return false;
     api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => { reqsCache = null; refreshReq(); });
-    ws.send(JSON.stringify({ type: 'in', data: t.replace(/\r?\n/g, '\x1b\r') }));
-    setTimeout(() => ws.send(JSON.stringify({ type: 'in', data: '\r' })), 80);
+    wsSend(t.replace(/\r?\n/g, '\x1b\r'));        // 큐 경유 — 재접속 중이어도 안 사라짐
+    setTimeout(() => wsSend('\r'), 80);
     return true;
   };
 
