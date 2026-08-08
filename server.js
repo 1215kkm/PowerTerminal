@@ -121,7 +121,7 @@ async function makeWorktree(repoTop) {
     if (fs.existsSync(dir)) continue;
     try {
       await git(repoTop, ['worktree', 'add', dir, '-b', branch], 60000);
-      wtMap[dir.toLowerCase()] = { repo: repoTop, branch };
+      wtMap[dir.toLowerCase()] = { dir, repo: repoTop, branch };   // dir = 원래 대소문자 (목록 표시용)
       saveWtMap();
       return { dir, branch };
     } catch (e) {
@@ -1888,6 +1888,39 @@ app.delete('/api/sessions/:id', (req, res) => {
     return res.json({ ok: true, worktree: dir, branch: gone.branch });
   }
   res.json({ ok: true });
+});
+// 🌿 PT가 만든 worktree 목록 — ⚙ 설정에서 어디에 뭐가 있는지 보고 한 번에 정리하려고.
+// 폴더가 이미 사라졌으면 지도에서도 지워 목록이 계속 깨끗하게 유지된다.
+app.get('/api/worktrees', async (req, res) => {
+  const out = [];
+  let changed = false;
+  for (const [k, v] of Object.entries(wtMap)) {
+    const dir = v.dir || k;
+    if (!fs.existsSync(dir)) { delete wtMap[k]; changed = true; continue; }
+    let dirty = null;
+    try { dirty = (await git(dir, ['status', '--porcelain'], 8000)).trim().length > 0; } catch (e) {}
+    const open = sessions.some(s => pathKey(s.path) === k && (ptys.get(s.id) || {}).dead === false);
+    out.push({ dir, repo: v.repo, branch: v.branch, dirty, open });
+  }
+  if (changed) saveWtMap();
+  res.json(out);
+});
+// 🌿 안 쓰는 worktree 한 번에 정리 — 세션이 열려 있거나 커밋 안 한 변경이 있으면 절대 안 지운다.
+app.post('/api/worktrees/prune', async (req, res) => {
+  const removed = [], kept = [];
+  for (const [k, v] of Object.entries(wtMap)) {
+    const dir = v.dir || k;
+    const open = sessions.some(s => pathKey(s.path) === k && (ptys.get(s.id) || {}).dead === false);
+    if (open) { kept.push({ dir, why: 'open' }); continue; }
+    try {
+      if (!fs.existsSync(dir)) { delete wtMap[k]; continue; }
+      if ((await git(dir, ['status', '--porcelain'], 8000)).trim()) { kept.push({ dir, why: 'dirty' }); continue; }
+      await git(v.repo, ['worktree', 'remove', dir], 20000);
+      delete wtMap[k]; removed.push(dir);
+    } catch (e) { kept.push({ dir, why: 'error' }); }
+  }
+  saveWtMap();
+  res.json({ removed, kept });
 });
 // 🌿 worktree 세션의 변경을 원본 브랜치로 합치기 (스쿼시 아님 — 그냥 merge)
 app.post('/api/sessions/:id/merge-worktree', async (req, res) => {

@@ -1380,6 +1380,13 @@
       <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
     </div>
   </div>
+  <!-- 🌿 worktree 관리 — 같은 레포를 여러 세션으로 열면 생기는 분리 폴더들을 한눈에 보고 정리 -->
+  <div id="wtBox" style="display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">🌿 <span id="wtTitle"></span></div>
+    <div id="wtSub" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
+    <div id="wtList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+    <button class="small" id="wtPrune"></button>
+  </div>
   <!-- 🔔 완료 소리 점검 — 안 울릴 때 '어디서 막혔는지'를 이 창에서 바로 확인 -->
   <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
     <div style="font-size:14px;font-weight:700;margin-bottom:4px">🔔 <span id="sndTitle"></span></div>
@@ -1516,6 +1523,7 @@ const I18N = {
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
     readT:'Wide reader — re-flow the scrollback (incl. older work) to full width', readTitle:'Wide reader',
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
+    wtSecTitle:'Separate working folders (worktrees)', wtSecSub:'Opening one more session on the same repo creates one of these so the files never clash. It lives outside the repo folder, on the same drive.', wtOpen:'in use', wtDirty:'has changes', wtClean:'removable', wtPrune:'🧹 Clean up unused', wtPruned:'Removed {n}, kept {k} (in use or has changes)', icOpenShort:'📂',
     wtTip:'Separate working folder (git worktree) — files here never clash with the other session. Click to merge into the original branch', wtMergeAsk:'Merge the work in this session ({b}) into the original branch?', wtMerged:'Merged {b} into {base}', wtKept:'Uncommitted changes remain — the worktree folder was kept.',
     sendQueued:'Offline right now — your request will be sent when the connection is back.',
     sndTitle:'Completion sound check', sndSub:'Plays the sound you get when a request finishes, right now. If you hear nothing, the line below says why.', sndTest:'▶ Play it now',
@@ -1604,6 +1612,7 @@ const I18N = {
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
     readT:'넓게 읽기 — 스크롤백(위쪽 옛 작업 포함)을 전체폭으로 다시 흘려서 보기', readTitle:'넓게 읽기',
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
+    wtSecTitle:'분리 작업 폴더 (worktree)', wtSecSub:'같은 레포를 세션으로 하나 더 열면 파일이 안 겹치게 자동으로 만들어지는 폴더입니다. 레포와 같은 드라이브의, 레포 폴더 바깥에 생깁니다.', wtOpen:'사용 중', wtDirty:'변경 있음', wtClean:'정리 가능', wtPrune:'🧹 안 쓰는 것 정리', wtPruned:'{n}개 정리 · {k}개 유지(사용 중이거나 변경 있음)', icOpenShort:'📂',
     wtTip:'분리된 작업 폴더(git worktree) — 다른 세션과 파일이 안 겹칩니다. 눌러서 원본 브랜치로 합치기', wtMergeAsk:'이 세션의 작업({b})을 원본 브랜치로 합칠까요?', wtMerged:'{b} → {base} 합쳤습니다', wtKept:'커밋 안 한 변경이 남아 worktree 폴더를 남겨두었습니다.',
     sendQueued:'연결이 끊겨 있어 잠시 뒤에 보냅니다…',
     sndTitle:'완료 소리 점검', sndSub:'요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.', sndTest:'▶ 지금 울려보기',
@@ -4416,6 +4425,7 @@ async function openSettings() {
   } catch (e) {}
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
+  wtRefresh();     // 🌿 worktree 목록
   // 🔔 완료 소리 점검 — 실제 완료음과 똑같은 경로(speakNum)를 태워보고 상태를 그대로 보여준다
   document.getElementById('sndTitle').textContent = T.sndTitle || '완료 소리 점검';
   document.getElementById('sndSub').textContent = T.sndSub || '요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.';
@@ -4456,6 +4466,43 @@ async function openSettings() {
   gcalRefresh();   // 📆 구글 캘린더 연동 상태 표시
   admRefresh();    // 🛠 배너 관리 (개발자에게만 보임)
   setDlg.showModal();
+}
+// 🌿 worktree 관리 — 같은 레포를 여러 세션으로 열면 생기는 분리 폴더 목록. 하나도 없으면 섹션 자체를 숨긴다.
+async function wtRefresh() {
+  const box = document.getElementById('wtBox'); if (!box) return;
+  let list = [];
+  try { list = await api('GET', '/api/worktrees'); } catch (e) {}
+  if (!Array.isArray(list) || !list.length) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  document.getElementById('wtTitle').textContent = T.wtSecTitle || '분리 작업 폴더 (worktree)';
+  document.getElementById('wtSub').textContent = T.wtSecSub || '같은 레포를 세션으로 하나 더 열면 파일이 안 겹치게 자동으로 만들어지는 폴더입니다. 레포와 같은 드라이브, 레포 폴더 바깥에 생깁니다.';
+  const wrap = document.getElementById('wtList');
+  wrap.innerHTML = '';
+  list.forEach(w => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:12px;background:#111827;border:1px solid var(--line);border-radius:8px;padding:6px 8px';
+    const state = w.open ? (T.wtOpen || '사용 중') : w.dirty ? (T.wtDirty || '변경 있음') : (T.wtClean || '정리 가능');
+    const col = w.open ? '#60a5fa' : w.dirty ? '#fbbf24' : '#4ade80';
+    row.innerHTML = `<span style="color:${col};font-weight:700;flex:0 0 auto">${esc(state)}</span>`
+      + `<span style="flex:0 0 auto;color:#bbf7d0">${esc(w.branch || '')}</span>`
+      + `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)" title="${esc(w.dir)}">${esc(w.dir)}</span>`;
+    const b = document.createElement('button');
+    b.className = 'small'; b.textContent = T.icOpenShort || '📂';
+    b.title = T.icOpen || '폴더 열기';
+    b.onclick = () => openFolder(w.dir);
+    row.appendChild(b);
+    wrap.appendChild(row);
+  });
+  const pr = document.getElementById('wtPrune');
+  pr.textContent = T.wtPrune || '🧹 안 쓰는 것 정리';
+  pr.onclick = async () => {
+    pr.disabled = true;
+    const r = await api('POST', '/api/worktrees/prune', {});
+    pr.disabled = false;
+    const n = (r && r.removed || []).length, k = (r && r.kept || []).length;
+    flashToast((T.wtPruned || '{n}개 정리 · {k}개 유지(사용 중이거나 변경 있음)').replace('{n}', n).replace('{k}', k));
+    wtRefresh();
+  };
 }
 // 🛠 배너 관리 — 개발자일 때만 설정창 아래에 나타난다. 내용은 /admin.html 을 iframe 으로 품어
 // 배너 편집·미리보기·최신버전·설치 통계를 그대로 쓴다(로직 복사 없음 = 한 곳만 고치면 됨).
