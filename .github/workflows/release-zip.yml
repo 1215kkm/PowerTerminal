@@ -1,0 +1,33 @@
+# 릴리스를 만들면 PowerTerminal.zip 을 자동으로 첨부한다.
+#
+# 왜 필요한가: pominal.com 의 [ZIP 바로 받기] 버튼은
+#   https://github.com/1215kkm/PowerTerminal/releases/latest/download/PowerTerminal.zip
+# 를 가리키는데, 이 주소는 *최신 릴리스에 그 이름의 첨부파일이 있을 때만* 동작한다.
+# 사람이 손으로 올리다 보니 v1.29.0~v1.35.1 은 첨부를 빠뜨려 다운로드 버튼이 계속 404 였다.
+# → 첨부를 사람 손에서 떼어낸다.
+#
+# ZIP 내용은 `git archive` 그대로 = 추적되는 파일 전부, PowerTerminal/ 폴더로 감싸서.
+# node_modules 는 넣지 않는다 — start.bat / start.command 가 실행 시 npm install 을 한다.
+name: Attach ZIP to release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  attach-zip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Build PowerTerminal.zip
+        run: git archive --format=zip --prefix=PowerTerminal/ HEAD -o PowerTerminal.zip
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" PowerTerminal.zip --clobber --repo "$GITHUB_REPOSITORY"
