@@ -48,7 +48,14 @@ Then launch:
 
 - **Windows:** double-click **`start.bat`**
 - **macOS / Linux:** double-click **`start.command`** (macOS) or run `./start.command`
-  *(first time on macOS: right-click → Open, to get past Gatekeeper)*
+
+  *macOS blocks scripts it downloaded. If you see “cannot be opened because it is from an unidentified
+  developer”, run this once in Terminal (right-click → Open no longer works on macOS 15 and later):*
+
+  ```
+  xattr -dr com.apple.quarantine ~/Downloads/PowerTerminal && open ~/Downloads/PowerTerminal
+  ```
+  *Adjust the path if you unzipped somewhere else.*
 
 That's it 🎉 — the launcher auto-updates (if you cloned with git), starts the server, and opens your browser.
 
