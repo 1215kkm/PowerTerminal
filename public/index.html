@@ -4004,11 +4004,11 @@ async function updateGhPick() {
 }
 // 🖥 서버가 어느 OS인지 — 브라우저(폰일 수도 있음)가 아니라 *PT가 도는 컴퓨터* 기준이어야 한다.
 // 기본값을 win 으로 두면 맥에서 winget 이 실행돼 zsh 오류가 났다(실제 사고). /api/info 로 받아서 채운다.
-let SRV = { platform: 'win32', home: '' };
+let SRV = { platform: 'win32', home: '', hasBrew: false };
 const isMacSrv = () => SRV.platform === 'darwin';
 const isWinSrv = () => SRV.platform === 'win32';
 function applyServerPlatform(inf) {
-  if (inf && inf.platform) SRV = { platform: inf.platform, home: inf.home || '' };
+  if (inf && inf.platform) SRV = { platform: inf.platform, home: inf.home || '', hasBrew: !!inf.hasBrew };
   // 폴더 경로 예시를 그 컴퓨터 형식으로 (맥에 "D:\projects\folder"를 보여주면 그대로 따라 적는다)
   const ph = document.getElementById('addPath');
   if (ph && !isWinSrv()) ph.placeholder = (SRV.home || '/Users/you') + '/projects/my-app';
@@ -4016,7 +4016,12 @@ function applyServerPlatform(inf) {
 // gh(GitHub CLI) 설치 명령 — OS 마다 다르다. 없으면 설치법 안내만.
 function ghInstallCmd() {
   if (isWinSrv()) return 'winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements';
-  if (isMacSrv()) return 'brew install gh';
+  // brew 가 없는 맥에 'brew install gh' 를 보여주면 그대로 붙여넣었다가 command not found 를 본다.
+  // 그럴 땐 관리자 권한 없이 되는 공식 배포판 설치를 안내한다.
+  if (isMacSrv()) return SRV.hasBrew ? 'brew install gh'
+    : 'V=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest | sed -n \'s/.*"tag_name"[^"]*"v\\([^"]*\\)".*/\\1/p\' | head -1); A=$(uname -m); [ "$A" = "arm64" ] || A=amd64; '
+      + 'curl -fsSL "https://github.com/cli/cli/releases/download/v$V/gh_${V}_macOS_${A}.zip" -o /tmp/gh.zip && unzip -oq /tmp/gh.zip -d /tmp && mkdir -p ~/.local/bin && '
+      + 'cp "/tmp/gh_${V}_macOS_${A}/bin/gh" ~/.local/bin/gh && chmod +x ~/.local/bin/gh && echo "installed: ~/.local/bin/gh"';
   return 'sudo apt install gh || sudo dnf install gh';
 }
 // ⚡ 터미널 세션을 하나 열어 gh 를 바로 설치. 설치가 끝나면 그 세션은 자동으로 닫힘.

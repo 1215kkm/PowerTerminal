@@ -937,7 +937,10 @@ app.get('/api/info', (req, res) => {
   // platform·home: 브라우저는 서버가 윈도우인지 맥인지 알 수 없다. 이걸 안 내려줘서 화면이 winget 같은
   // 윈도우 전용 명령을 맥에서도 그대로 실행해버렸다(zsh: command not found: winget).
   res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName,
-             platform: process.platform, home: (() => { try { return os.homedir(); } catch (e) { return ''; } })() });
+             platform: process.platform, home: (() => { try { return os.homedir(); } catch (e) { return ''; } })(),
+             // 화면이 "brew install ..." 같은 안내를 보여줄지 판단하려면 brew 유무를 알아야 한다
+             //  — brew 가 없는 맥에 'brew install gh' 를 안내해 그대로 붙여넣었다가 command not found 를 봤다.
+             hasBrew: (() => { try { return ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'].some(b => fs.existsSync(b)); } catch (e) { return false; } })() });
 });
 
 // ---------- 🧠 마인드맵 저장 — PT 데이터 폴더에 트리 JSON 1개 (memos와 같은 철학: 기기 간 동기화) ----------
@@ -2407,9 +2410,10 @@ async function startTunnel(wifiUrl) {
       //   · fd 가 바닥나면(EMFILE/EBADF) → *동기* throw
       // 둘 다 여기로 모은다. 그리고 cloudflared 가 아예 없으면 20초마다 영원히 다시 해봐야 성공할 수 없다 —
       // 예전엔 그 무한 루프가 매번 fd 를 하나씩 갉아먹어 결국 서버를 죽였다.
-      let done = false;
+      let done = false, poll = null;
       const failed = (e) => {
         if (done) return; done = true;
+        if (poll) { clearInterval(poll); poll = null; }   // 주소 대기 폴링도 같이 멈춘다 (안 그러면 따로 재시도한다)
         closeFd();
         const code = (e && e.code) || '';
         tunTries++;
@@ -2438,23 +2442,24 @@ async function startTunnel(wifiUrl) {
         proc.unref();               // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
         closeFd();                  // 자식이 이미 복제해 갔으므로 부모 쪽은 바로 닫는다
       } catch (e) { failed(e); return; }
-      tunTries = 0;                     // 성공했으면 카운터 초기화 (나중에 터널이 끊겨 재스폰할 때를 위해)
+      // ⚠ spawn 이 성공했다고 터널이 뜬 건 아니다 (실행파일이 없으면 에러는 *나중에* 이벤트로 온다).
+      //   그래서 여기서 tunTries 를 0으로 되돌리면 안 된다 — 실제 주소를 받은 순간에 초기화한다.
       // detached라 파이프 대신 로그 파일에서 주소를 추출
       let tries = 0;
-      const poll = setInterval(() => {
+      poll = setInterval(() => {
+        if (done) { clearInterval(poll); poll = null; return; }
         tries++;
         let m = null;
         try { m = fs.readFileSync(TUN_LOG, 'utf8').match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/); } catch (e) {}
         if (m) {
-          clearInterval(poll);
+          clearInterval(poll); poll = null; done = true;
+          tunTries = 0;            // 진짜로 주소를 받았을 때만 카운터 초기화
           try { fs.writeFileSync(TUN_FILE, JSON.stringify({ pid: proc.pid, url: m[0], port: PORT, at: Date.now() })); } catch (e) {}
           announce(m[0]);
           watch(proc.pid);
-        } else if (tries > 60) {   // 30초 넘게 주소가 안 나옴 — 실패로 보고 재시도
-          clearInterval(poll);
+        } else if (tries > 60) {   // 30초 넘게 주소가 안 나옴 — 실패 처리로 넘긴다(재시도 횟수 제한이 걸리도록)
           try { process.kill(proc.pid); } catch (e) {}
-          showWifiOnce();
-          setTimeout(spawnDetached, 20000);
+          failed({ code: 'NOURL' });
         } else if (tries === 20) showWifiOnce();   // 10초 넘게 걸리면 와이파이 QR 먼저 안내
       }, 500);
     });
