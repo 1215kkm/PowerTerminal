@@ -2358,6 +2358,7 @@ async function startTunnel(wifiUrl) {
       } finally { checking = false; }
     }, 30000);
   };
+  let tunTries = 0;   // 터널 실행 연속 실패 횟수 — 무한 재시도를 막는다
   const spawnDetached = () => {
     // 같은 포트를 겨냥한 기존(고아) 터널부터 정리 — 재스폰 반복으로 터널이 쌓이는 것 방지
     killStrayTunnels(null, () => {
@@ -2367,20 +2368,43 @@ async function startTunnel(wifiUrl) {
       //   하나씩 샌다. 맥은 fd 상한이 기본 256이라 몇 번 만에 바닥나 이후 모든 spawn 이 EBADF 로 실패했다.
       //   (윈도우는 상한이 훨씬 커서 안 드러남 — 맥 사용자만 30분에 두 번씩 서버가 죽던 원인)
       const closeFd = () => { if (typeof fd === 'number') { try { fs.closeSync(fd); } catch (e) {} fd = 'ignore'; } };
+      // 터널 실행 실패 처리 — ⚠ spawn 은 실패 방식이 두 가지다.
+      //   · 파일이 없거나 실행권한이 없으면 → *비동기* 'error' 이벤트 (try/catch 로 못 잡음. 핸들러가 없으면 서버가 죽는다)
+      //   · fd 가 바닥나면(EMFILE/EBADF) → *동기* throw
+      // 둘 다 여기로 모은다. 그리고 cloudflared 가 아예 없으면 20초마다 영원히 다시 해봐야 성공할 수 없다 —
+      // 예전엔 그 무한 루프가 매번 fd 를 하나씩 갉아먹어 결국 서버를 죽였다.
+      let done = false;
+      const failed = (e) => {
+        if (done) return; done = true;
+        closeFd();
+        const code = (e && e.code) || '';
+        tunTries++;
+        if (code === 'ENOENT' || code === 'EACCES' || tunTries >= 5) {
+          console.log('  ③ 외부 접속(LTE)을 켤 수 없습니다 — 같은 와이파이 주소로는 그대로 쓸 수 있어요.');
+          if (code === 'ENOENT' || code === 'EACCES') {
+            console.log('     외부 접속 도구(cloudflared)를 실행할 수 없습니다. (' + code + ')');
+            if (process.platform === 'darwin') console.log('     설치: brew install cloudflared      → 설치 후 PowerTerminal 재시작');
+            else if (process.platform !== 'win32') console.log('     설치 안내: https://developers.cloudflare.com/cloudflare-tunnel/downloads/');
+          } else {
+            console.log('     (' + code + ') ' + tunTries + '번 시도했지만 실패했습니다.');
+          }
+          showWifiOnce();
+          return;                       // 더 이상 재시도하지 않음 — 무한 루프 방지
+        }
+        console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도 (' + code + ')');
+        showWifiOnce();
+        setTimeout(spawnDetached, 20000);
+      };
       let proc;
       try {
         // --protocol http2: 기본 QUIC(UDP)이 불안정한 회선에서 중간 끊김을 줄임
         proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate', '--protocol', 'http2'],
                      { windowsHide: true, detached: true, stdio: ['ignore', fd, fd] });
-        proc.unref();   // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
-        closeFd();      // 자식이 이미 복제해 갔으므로 부모 쪽은 바로 닫는다
-      } catch (e) {
-        closeFd();
-        console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도 (' + (e && e.code || e && e.message || '') + ')');
-        showWifiOnce();
-        setTimeout(spawnDetached, 20000);
-        return;
-      }
+        proc.on('error', failed);   // 없는 파일·권한 없음은 이 이벤트로 온다 (핸들러 없으면 프로세스 종료)
+        proc.unref();               // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
+        closeFd();                  // 자식이 이미 복제해 갔으므로 부모 쪽은 바로 닫는다
+      } catch (e) { failed(e); return; }
+      tunTries = 0;                     // 성공했으면 카운터 초기화 (나중에 터널이 끊겨 재스폰할 때를 위해)
       // detached라 파이프 대신 로그 파일에서 주소를 추출
       let tries = 0;
       const poll = setInterval(() => {
