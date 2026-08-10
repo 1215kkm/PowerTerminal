@@ -686,7 +686,11 @@ app.post('/api/gh-login/poll', async (req, res) => {
       ghDeviceCode = null;
       return res.json({ status: 'authed' });
     }
-    if (j.error === 'authorization_pending' || j.error === 'slow_down') return res.json({ status: 'pending' });
+    // ⚠ slow_down 을 pending 과 똑같이 취급하면 안 된다. GitHub 는 폴링이 규정보다 빠르면 slow_down 을 주고,
+    //   그 뒤로는 *간격을 늘리기 전까지 계속 slow_down 만* 돌려준다 — 사용자가 승인해도 토큰이 안 나온다.
+    //   ("승인 기다리는 중…" 에서 영원히 멈춰 있던 원인) → 클라이언트가 간격을 늘리도록 따로 알려준다.
+    if (j.error === 'slow_down') return res.json({ status: 'pending', slow: true });
+    if (j.error === 'authorization_pending') return res.json({ status: 'pending' });
     ghDeviceCode = null;
     return res.json({ status: 'error', detail: j.error_description || j.error });
   } catch (e) { res.json({ status: 'error', detail: 'network' }); }

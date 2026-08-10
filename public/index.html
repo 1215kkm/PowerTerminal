@@ -4127,18 +4127,31 @@ async function ghLogin() {
   const copyOpen = () => { copyTxt(j.user_code); setTimeout(() => window.open(j.verification_uri, '_blank'), 350); };
   document.getElementById('ghCopyOpen').onclick = copyOpen;
   document.getElementById('ghCode').onclick = copyOpen;
-  ghPollTimer = setInterval(async () => {
-    const p = await api('POST', '/api/gh-login/poll');
-    if (!p) return;
-    if (p.status === 'authed') {
-      clearInterval(ghPollTimer); ghPollTimer = null;
-      loadRepos();
-    } else if (p.status === 'error' || p.status === 'idle') {
-      clearInterval(ghPollTimer); ghPollTimer = null;
-      const m = document.getElementById('ghPollMsg');
-      if (m) { m.textContent = (T.ghFail || 'Sign-in failed — try again') + (p.detail ? ' (' + p.detail + ')' : ''); m.style.color = '#f87171'; }
-    }
-  }, (j.interval || 5) * 1000);
+  // GitHub 기기 인증은 '정해진 간격보다 빨리 물어보면' slow_down 을 주고, 간격을 늘리기 전까지 계속 거부한다.
+  // 그래서 고정 간격으로 돌리면 승인을 해도 영영 안 끝난다 → slow_down 이 오면 5초씩 늘려 다시 건다.
+  let ghWait = (j.interval || 5) * 1000;
+  const startPoll = () => {
+    ghPollTimer = setInterval(async () => {
+      const p = await api('POST', '/api/gh-login/poll');
+      if (!p) return;
+      if (p.status === 'authed') {
+        clearInterval(ghPollTimer); ghPollTimer = null;
+        loadRepos();
+      } else if (p.slow) {
+        clearInterval(ghPollTimer); ghPollTimer = null;
+        ghWait += 5000;
+        // 간격이 길어지면 멈춘 것처럼 보인다 — 몇 초마다 확인 중인지 같이 보여준다
+        const m = document.getElementById('ghPollMsg');
+        if (m) m.textContent = (T.ghWaiting || 'Waiting for approval…') + ' (' + Math.round(ghWait / 1000) + 's)';
+        startPoll();
+      } else if (p.status === 'error' || p.status === 'idle') {
+        clearInterval(ghPollTimer); ghPollTimer = null;
+        const m = document.getElementById('ghPollMsg');
+        if (m) { m.textContent = (T.ghFail || 'Sign-in failed — try again') + (p.detail ? ' (' + p.detail + ')' : ''); m.style.color = '#f87171'; }
+      }
+    }, ghWait);
+  };
+  startPoll();
 }
 // 세션추가 창: AI 종류에 따라 모델 선택 표시(클로드만 의미 있음), 추가 완료 확인글 표시/숨김
 function onAddAgentChange() {
