@@ -683,6 +683,15 @@ app.post('/api/gh-login/poll', async (req, res) => {
           setTimeout(() => { try { p.kill(); } catch (e2) {} }, 15000);
         });
       } catch (e) { return res.json({ status: 'error', detail: (e.message || '').toString().slice(0, 200) }); }
+      // gh 로그인만으로는 *git* 이 그 인증을 못 쓴다 → 비공개 저장소를 clone 하면 git 이 아이디·비밀번호를
+      // 물으며 멈춘다(화면엔 경과 시간만 계속 늘어남). setup-git 으로 자격증명 도우미를 붙여준다.
+      try {
+        await new Promise(resolve => {
+          const g = spawn(ghBin(), ['auth', 'setup-git'], { windowsHide: true });
+          g.on('error', () => resolve()); g.on('close', () => resolve());
+          setTimeout(() => { try { g.kill(); } catch (e2) {} resolve(); }, 10000);
+        });
+      } catch (e) {}
       ghDeviceCode = null;
       return res.json({ status: 'authed' });
     }
@@ -719,7 +728,11 @@ app.post('/api/clone', (req, res) => {
     res.json(sess);
   };
   if (fs.existsSync(dir)) return proceed();   // 이미 있으면 clone 생략하고 그 폴더로 세션
-  execFile('git', ['clone', url, dir], { timeout: 300000, windowsHide: true }, (err, so, se) => {
+  // ⚠ 인증이 필요한 저장소에서 git 은 아이디·비밀번호를 물으며 *조용히 멈춘다* — 화면엔 경과 시간만 늘어난다.
+  //   터미널 프롬프트를 꺼서 기다리는 대신 즉시 실패하게 만든다. gh 가 있으면 gh 로 clone 해 인증을 그대로 쓴다.
+  //   (인증 자체는 로그인할 때 실행하는 `gh auth setup-git` 이 붙여준다)
+  const cloneEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'echo', SSH_ASKPASS: 'echo', GCM_INTERACTIVE: 'never' };
+  execFile('git', ['clone', url, dir], { timeout: 300000, windowsHide: true, env: cloneEnv }, (err, so, se) => {
     if (err) {
       // git 은 첫 줄이 항상 "Cloning into '...'" 이라, 앞에서 자르면 정작 실패 이유가 잘려나간다 → 뒤쪽을 보여준다.
       const txt = String(se || err.message || '').trim();
