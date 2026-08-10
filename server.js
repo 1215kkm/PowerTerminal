@@ -737,7 +737,9 @@ app.post('/api/clone', (req, res) => {
       // git 은 첫 줄이 항상 "Cloning into '...'" 이라, 앞에서 자르면 정작 실패 이유가 잘려나간다 → 뒤쪽을 보여준다.
       const txt = String(se || err.message || '').trim();
       const tail = txt.split('\n').filter(Boolean).slice(-3).join(' / ').slice(-300);
-      const why = err.killed ? '시간 초과(5분) — 저장소가 크거나 네트워크가 느립니다'
+      // 시간 초과의 원인은 대부분 '큰 저장소'가 아니라 *인증 대기*였다 — git 이 아이디·비밀번호를 물으며 멈춘다.
+      // (v1.39.1에서 프롬프트를 껐지만, 옛 버전이나 다른 원인일 수 있어 둘 다 짚어준다)
+      const why = err.killed ? '시간 초과(5분) — 대개 인증 문제입니다. GitHub 탭에서 다시 로그인해 보세요 (비공개 저장소면 특히). 저장소가 아주 크거나 네트워크가 느려도 발생합니다'
                 : /already exists|not an empty/i.test(txt) ? '그 폴더가 이미 있습니다'
                 : /Permission denied|denied/i.test(txt) ? '그 위치에 쓸 권한이 없습니다'
                 : /could not read|Authentication|403|404|not found|Repository not found/i.test(txt) ? '저장소를 찾을 수 없거나 접근 권한이 없습니다'
