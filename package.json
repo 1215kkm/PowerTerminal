@@ -1,6 +1,6 @@
 {
   "name": "powerterminal",
-  "version": "1.37.1",
+  "version": "1.38.0",
   "description": "Run Claude Code (or any CLI AI) in your browser — multi-session, mobile, QR, usage bars",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1",
     "ccusage": "^20.0.14",
     "express": "^5.2.1",
     "qrcode-generator": "^2.0.4",

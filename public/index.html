@@ -4028,9 +4028,19 @@ async function ghInstallViaPS() {
     // 맥·리눅스는 zsh/bash — PowerShell 명령어(Write-Host·Start-Sleep)를 쓰면 command not found 가 난다.
     // brew 가 없을 수도 있으니 먼저 확인하고 설치법을 알려준다.
     : (isMacSrv()
-        // ⚠ 안내 문구는 반드시 홑따옴표로 — 큰따옴표 안에 두면 셸이 $(curl ...) 를 *실행*해서
-        //   Homebrew 설치 스크립트 본문이 통째로 화면에 쏟아진다 (실제로 그렇게 나왔다).
-        ? 'if command -v brew >/dev/null 2>&1; then ' + ghInstallCmd() + '; else echo ""; echo "  Homebrew가 필요합니다 / Homebrew is required:"; echo \'  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\'; fi; '
+        // 맥: Homebrew 가 있으면 brew, 없으면 **공식 배포 바이너리를 홈 폴더에 직접 설치**한다.
+        // Homebrew 를 깔라고 안내만 하면 거기서 막힌다 — brew 설치는 관리자 암호를 묻는 큰 작업이라
+        // "gh 하나 쓰자고" 하기엔 과하다. gh 는 단일 실행파일이라 ~/.local/bin 에 두면 sudo 없이 끝난다.
+        ? 'if command -v brew >/dev/null 2>&1; then ' + ghInstallCmd() + '; else '
+          + 'echo ""; echo "  Homebrew가 없어 공식 배포판을 홈 폴더에 설치합니다 / No Homebrew — installing the official build into your home folder"; '
+          + 'A=$(uname -m); case "$A" in arm64) A=arm64;; *) A=amd64;; esac; '
+          + 'V=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest | sed -n \'s/.*"tag_name"[^"]*"v\\([^"]*\\)".*/\\1/p\' | head -1); '
+          + 'if [ -z "$V" ]; then echo "  버전 조회 실패 — 네트워크를 확인하세요"; else '
+          + 'T=$(mktemp -d); curl -fsSL "https://github.com/cli/cli/releases/download/v${V}/gh_${V}_macOS_${A}.zip" -o "$T/gh.zip" '
+          + '&& unzip -oq "$T/gh.zip" -d "$T" && mkdir -p "$HOME/.local/bin" '
+          + '&& cp "$T/gh_${V}_macOS_${A}/bin/gh" "$HOME/.local/bin/gh" && chmod +x "$HOME/.local/bin/gh" '
+          + '&& for RC in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.profile"; do [ -e "$RC" ] || continue; grep -q \'.local/bin\' "$RC" || printf \'\\n# added by PowerTerminal\\nexport PATH="$HOME/.local/bin:$PATH"\\n\' >> "$RC"; done '
+          + '&& echo "  설치 완료: $HOME/.local/bin/gh  (v$V)" || echo "  설치 실패 — 수동: brew install gh"; rm -rf "$T"; fi; fi; '
         : ghInstallCmd() + '; ')
       + 'echo ""; echo "  ' + done + '"; sleep 5; exit';
   await addSession('', 'GitHub CLI 설치', 'custom', cmd, true, { autoClose: true });

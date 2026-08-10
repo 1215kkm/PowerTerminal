@@ -29,15 +29,17 @@ if ! command -v claude >/dev/null 2>&1; then
   read -p "  Claude Code is not installed. Install it now with npm? (y/N): " c
   case "$c" in
     y|Y)
-      echo "  Installing Claude Code... this can take a minute."
-      # On macOS (and most Linux) npm's global folder is /usr/local/lib/node_modules, owned by root, so a
-      # plain `npm install -g` dies with EACCES and Claude Code is never installed — the launcher then asks
-      # again on every single start. Fall back to a prefix inside the user's home instead of demanding sudo
-      # from a script someone double-clicked.
-      if ! npm install -g @anthropic-ai/claude-code; then
-        echo
-        echo "  The system blocked the global install (no admin rights)."
-        echo "  Installing into your home folder instead: ~/.npm-global"
+      # On macOS npm's global folder is /usr/local/lib/node_modules, owned by root, so `npm install -g`
+      # fails with EACCES. Letting it fail first buries the screen in npm's error dump before we recover,
+      # so check whether that folder is actually writable and pick the right target up front.
+      gp=$(npm config get prefix 2>/dev/null)
+      if [ -n "$gp" ] && [ -w "$gp/lib/node_modules" ] 2>/dev/null; then
+        echo "  Installing Claude Code... this can take a minute."
+        npm install -g @anthropic-ai/claude-code || echo "  [!] Install failed. Try manually:  npm install -g @anthropic-ai/claude-code"
+      else
+        # No permission for the system-wide folder — install into the user's home instead of asking a
+        # double-clicked script for sudo.
+        echo "  Installing Claude Code into your home folder (~/.npm-global)... this can take a minute."
         npm config set prefix "$HOME/.npm-global" >/dev/null 2>&1
         export PATH="$HOME/.npm-global/bin:$PATH"
         if npm install -g @anthropic-ai/claude-code; then
@@ -109,7 +111,26 @@ while true; do
     fi
   fi
 
-  npm install --silent >/dev/null 2>&1
+  # PowerTerminal's own dependencies. This was fully silenced, which hid the one failure that matters:
+  # node-pty ships prebuilt binaries per Node version, and on a brand-new Node there may be none yet, so npm
+  # falls back to compiling — which needs Xcode Command Line Tools on macOS. When that fails the app used to
+  # start anyway and die later with a confusing module error. Say it plainly and stop instead.
+  if ! npm install --silent >/tmp/pt-npm-$$.log 2>&1; then
+    echo
+    echo "  [!] Could not install PowerTerminal's dependencies."
+    tail -n 15 "/tmp/pt-npm-$$.log" 2>/dev/null | sed 's/^/      /'
+    echo
+    if [ "$(uname)" = "Darwin" ]; then
+      echo "      Most often this is a missing compiler. Run this once, then start again:"
+      echo "        xcode-select --install"
+    fi
+    echo "      Node version in use: $(node -v 2>/dev/null)"
+    echo "      A very new Node release can also be the cause — Node LTS is the safe choice."
+    rm -f "/tmp/pt-npm-$$.log"
+    read -p "  Press Enter to close..." _
+    exit 1
+  fi
+  rm -f "/tmp/pt-npm-$$.log"
 
   ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package.json 2>/dev/null | head -1)
 

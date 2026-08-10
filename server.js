@@ -292,7 +292,21 @@ function agentCommandRaw(sess, fresh, resume) {
                           'else echo ""; echo "  Node.js(npm)가 필요합니다 / Node.js (npm) is required first"; echo "  npm install -g @openai/codex"; fi';
     case 'shell':  return 'echo "shell session"';
     case 'custom': return sess.cmd || '';
-    default:       return fresh ? 'claude' + model : 'claude' + model + contArgs + ' || claude' + model;
+    // Claude 도 codex 와 같은 수준으로 — 없으면 세션 안에서 바로 설치하고 이어서 실행한다.
+    // 예전엔 그냥 실행만 해서 "zsh: command not found: claude" 로 끝났고, 설치가 안 되니 계정 연결도 못 했다.
+    // 맥·리눅스는 공식 설치 스크립트를 쓴다 — npm 전역 설치는 /usr/local 이 root 소유라 EACCES 로 죽는다.
+    default: {
+      const run = fresh ? 'claude' + model : 'claude' + model + contArgs + ' || claude' + model;
+      return 'if command -v claude >/dev/null 2>&1; then ' + run + '; '
+           + 'else echo ""; echo "  Claude Code 설치 중… 잠시만요 / Installing Claude Code, please wait…"; '
+           + 'curl -fsSL https://claude.ai/install.sh | bash; '
+           + 'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"; '
+           + 'if command -v claude >/dev/null 2>&1; then '
+           +   'for RC in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.profile"; do [ -e "$RC" ] || continue; '
+           +   'grep -q \'.local/bin\' "$RC" || printf \'\\n# added by PowerTerminal\\nexport PATH="$HOME/.local/bin:$PATH"\\n\' >> "$RC"; done; '
+           +   'echo "  설치 완료 — 시작합니다 / Installed, starting…"; ' + run + '; '
+           + 'else echo "  설치 실패 / install failed — 수동: curl -fsSL https://claude.ai/install.sh | bash"; fi; fi';
+    }
   }
 }
 
