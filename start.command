@@ -28,7 +28,30 @@ if ! command -v claude >/dev/null 2>&1; then
   echo
   read -p "  Claude Code is not installed. Install it now with npm? (y/N): " c
   case "$c" in
-    y|Y) echo "  Installing Claude Code... this can take a minute."; npm install -g @anthropic-ai/claude-code ;;
+    y|Y)
+      echo "  Installing Claude Code... this can take a minute."
+      # On macOS (and most Linux) npm's global folder is /usr/local/lib/node_modules, owned by root, so a
+      # plain `npm install -g` dies with EACCES and Claude Code is never installed — the launcher then asks
+      # again on every single start. Fall back to a prefix inside the user's home instead of demanding sudo
+      # from a script someone double-clicked.
+      if ! npm install -g @anthropic-ai/claude-code; then
+        echo
+        echo "  The system blocked the global install (no admin rights)."
+        echo "  Installing into your home folder instead: ~/.npm-global"
+        npm config set prefix "$HOME/.npm-global" >/dev/null 2>&1
+        export PATH="$HOME/.npm-global/bin:$PATH"
+        if npm install -g @anthropic-ai/claude-code; then
+          # Keep it on PATH for future terminals too, so PowerTerminal's sessions can find `claude`.
+          for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
+            [ -e "$rc" ] || continue
+            grep -q '.npm-global/bin' "$rc" 2>/dev/null || printf '\n# added by PowerTerminal\nexport PATH="$HOME/.npm-global/bin:$PATH"\n' >> "$rc"
+          done
+          echo "  Installed. (added ~/.npm-global/bin to your PATH)"
+        else
+          echo "  [!] Install failed. Try manually:  npm install -g @anthropic-ai/claude-code"
+        fi
+      fi
+      ;;
   esac
 fi
 

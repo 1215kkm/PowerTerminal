@@ -1535,6 +1535,7 @@ const I18N = {
     sendQueued:'Offline right now — your request will be sent when the connection is back.',
     sndTitle:'Completion sound check', sndSub:'Plays the sound you get when a request finishes, right now. If you hear nothing, the line below says why.', sndTest:'▶ Play it now',
     billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
+    exitMsg:'[Session ended — close it with ✕ or add a new one]', addNeedPath:'Type a folder path, or pick one with 📂.',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
     cmGrep:'Find in files', cmGrepCase:'Aa case', cmGrepRe:'.* regex',
@@ -1625,6 +1626,7 @@ const I18N = {
     sendQueued:'연결이 끊겨 있어 잠시 뒤에 보냅니다…',
     sndTitle:'완료 소리 점검', sndSub:'요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.', sndTest:'▶ 지금 울려보기',
     billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
+    exitMsg:'[세션 종료 — ✕ 로 닫거나 새로 추가하세요]', addNeedPath:'폴더 경로를 입력하거나 📂 로 골라주세요.',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
     cmGrep:'파일들 검색', cmGrepCase:'Aa 대소문자', cmGrepRe:'.* 정규식',
@@ -4026,7 +4028,9 @@ async function ghInstallViaPS() {
     // 맥·리눅스는 zsh/bash — PowerShell 명령어(Write-Host·Start-Sleep)를 쓰면 command not found 가 난다.
     // brew 가 없을 수도 있으니 먼저 확인하고 설치법을 알려준다.
     : (isMacSrv()
-        ? 'if command -v brew >/dev/null 2>&1; then ' + ghInstallCmd() + '; else echo ""; echo "  Homebrew가 없습니다 / Homebrew is required:"; echo "  /bin/bash -c \\"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\\""; fi; '
+        // ⚠ 안내 문구는 반드시 홑따옴표로 — 큰따옴표 안에 두면 셸이 $(curl ...) 를 *실행*해서
+        //   Homebrew 설치 스크립트 본문이 통째로 화면에 쏟아진다 (실제로 그렇게 나왔다).
+        ? 'if command -v brew >/dev/null 2>&1; then ' + ghInstallCmd() + '; else echo ""; echo "  Homebrew가 필요합니다 / Homebrew is required:"; echo \'  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\'; fi; '
         : ghInstallCmd() + '; ')
       + 'echo ""; echo "  ' + done + '"; sleep 5; exit';
   await addSession('', 'GitHub CLI 설치', 'custom', cmd, true, { autoClose: true });
@@ -4133,7 +4137,13 @@ function curAddModel() {
 function showAddMsg(name) {
   const m = document.getElementById('addMsg'); if (!m) return;
   m.textContent = '✅ ' + (T.sessionAdded || 'Session added') + (name ? ' — ' + name : '');
-  m.style.display = 'block';
+  m.style.color = ''; m.style.display = 'block';
+}
+// 성공이 아닌 안내(입력 누락 등) — 위 함수는 "✅ 세션이 추가됐어요"를 앞에 붙이므로 여기선 쓰면 안 된다
+function showAddWarn(msg) {
+  const m = document.getElementById('addMsg'); if (!m) return;
+  m.textContent = '⚠ ' + msg;
+  m.style.color = '#fca5a5'; m.style.display = 'block';
 }
 function clearAddMsg() {
   const m = document.getElementById('addMsg'); if (m) { m.style.display = 'none'; m.textContent = ''; }
@@ -4152,8 +4162,17 @@ async function doClone(url) {
   showAddMsg(r.title);
 }
 async function addManual() {
-  const p = document.getElementById('addPath').value.trim();
-  if (!p) return;
+  const pathEl = document.getElementById('addPath');
+  const p = pathEl.value.trim();
+  // 비었는데 조용히 끝내면 "버튼을 눌러도 아무 반응이 없다"가 된다 — 회색 예시 글자를 입력된 값으로
+  // 착각하기 쉬워서 실제로 그렇게 보고됐다. 왜 안 되는지 말해주고 입력칸으로 커서를 보낸다.
+  if (!p) {
+    showAddWarn(T.addNeedPath || '폴더 경로를 입력하거나 📂 로 골라주세요.');
+    try { pathEl.focus(); } catch (e) {}
+    pathEl.style.borderColor = '#ef4444';
+    setTimeout(() => { pathEl.style.borderColor = ''; }, 1500);
+    return;
+  }
   const agent = document.getElementById('addAgent').value;
   let cmd = '';
   if (agent === 'custom') {
