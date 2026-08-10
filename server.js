@@ -14,6 +14,19 @@ let CLOUDFLARED_PATH;
 
 const IS_WIN = process.platform === 'win32';   // 경로 구분자 정규화(memoKey)가 쓰므로 파일 상단에서 정의
 
+// 🔎 맥·리눅스에서 사용자 폴더에 설치된 실행파일을 서버가 못 찾던 문제.
+// PT가 GUI(더블클릭)로 뜨면 로그인 셸의 PATH를 물려받지 못해 ~/.local/bin, ~/.npm-global/bin,
+// Homebrew 경로가 통째로 빠진다. 그래서 PT가 gh·claude 를 방금 그 자리에 깔아놓고도
+// "설치 안 됨"이라고 표시했다. 여기서 한 번 채워주면 이후 모든 조회·세션(PTY는 이 env 를 물려받음)이 함께 해결된다.
+if (!IS_WIN) {
+  const home = (() => { try { return os.homedir(); } catch (e) { return ''; } })();
+  const extra = [home && path.join(home, '.local', 'bin'), home && path.join(home, '.npm-global', 'bin'),
+                 '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean);
+  const cur = (process.env.PATH || '').split(':');
+  const add = extra.filter(d => { try { return fs.existsSync(d) && !cur.includes(d); } catch (e) { return false; } });
+  if (add.length) process.env.PATH = add.join(':') + ':' + (process.env.PATH || '');
+}
+
 // 🛡 배경 작업 하나가 서버 전체를 죽이지 못하게. 이 프로세스가 죽으면 열려 있던 모든 세션의 터미널이 같이 사라진다
 // — 사용량 조회나 터널 재시도 같은 부가 기능의 실패로 그 대가를 치르는 건 말이 안 된다.
 // (실제 사고: 맥에서 fd 고갈 → ccusage spawn 이 EBADF 로 거부 → 아무도 안 받은 거부 → 30분에 두 번 서버 종료)
@@ -733,9 +746,13 @@ function findExe(name, candidates) {
 }
 // gh 경로를 호출마다 다시 탐색 — 설치 직후 PowerTerminal 재시작 없이도 '다시 시도'가 먹히게
 function ghBin() {
+  const home = (() => { try { return os.homedir(); } catch (e) { return ''; } })();
   return findExe('gh', [
     path.join(process.env.ProgramFiles || '', 'GitHub CLI', 'gh.exe'),
     path.join(process.env.LOCALAPPDATA || '', 'Programs', 'GitHub CLI', 'gh.exe'),
+    // 맥·리눅스: PT가 직접 깔아둔 자리와 Homebrew 자리를 절대경로로도 확인 (PATH가 비어 있어도 찾도록)
+    ...(IS_WIN || !home ? [] : [path.join(home, '.local', 'bin', 'gh'), path.join(home, '.npm-global', 'bin', 'gh'),
+                               '/opt/homebrew/bin/gh', '/usr/local/bin/gh']),
   ]);
 }
 const CLOUDFLARED = findExe('cloudflared', [
