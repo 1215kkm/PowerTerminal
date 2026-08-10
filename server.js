@@ -730,9 +730,21 @@ app.post('/api/clone', (req, res) => {
   if (fs.existsSync(dir)) return proceed();   // 이미 있으면 clone 생략하고 그 폴더로 세션
   // ⚠ 인증이 필요한 저장소에서 git 은 아이디·비밀번호를 물으며 *조용히 멈춘다* — 화면엔 경과 시간만 늘어난다.
   //   터미널 프롬프트를 꺼서 기다리는 대신 즉시 실패하게 만든다. gh 가 있으면 gh 로 clone 해 인증을 그대로 쓴다.
-  //   (인증 자체는 로그인할 때 실행하는 `gh auth setup-git` 이 붙여준다)
   const cloneEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'echo', SSH_ASKPASS: 'echo', GCM_INTERACTIVE: 'never' };
-  execFile('git', ['clone', url, dir], { timeout: 300000, windowsHide: true, env: cloneEnv }, (err, so, se) => {
+  // github.com 이면 `gh repo clone` 을 먼저 쓴다 — gh 는 자기 로그인 토큰을 직접 쓰므로,
+  // 맥 키체인 등에 남은 *옛 자격증명* 때문에 "Invalid username or token" 으로 거절당하는 걸 피할 수 있다.
+  // gh 가 없거나 실패하면 평범한 git clone 으로 내려간다(그 결과를 사용자에게 보여준다).
+  const isGh = /^https:\/\/github\.com\//.test(url);
+  const repoSlug = url.replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+  const gitClone = (cb) => execFile('git', ['clone', url, dir], { timeout: 300000, windowsHide: true, env: cloneEnv }, cb);
+  const doIt = (cb) => {
+    if (!isGh) return gitClone(cb);
+    execFile(ghBin(), ['repo', 'clone', repoSlug, dir], { timeout: 300000, windowsHide: true, env: cloneEnv }, (e, o, s) => {
+      if (!e) return cb(null, o, s);
+      return gitClone(cb);          // gh 미설치·미로그인 등 → git 으로 재시도하고 그 오류를 보고
+    });
+  };
+  doIt((err, so, se) => {
     if (err) {
       // git 은 첫 줄이 항상 "Cloning into '...'" 이라, 앞에서 자르면 정작 실패 이유가 잘려나간다 → 뒤쪽을 보여준다.
       const txt = String(se || err.message || '').trim();
