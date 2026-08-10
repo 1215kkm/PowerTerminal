@@ -110,6 +110,10 @@ while true; do
   fi
 
   echo "  Starting PowerTerminal v$ver ..."
+  # macOS ships a 256 file-descriptor limit per process. PowerTerminal holds one pty per session plus
+  # sockets and short-lived git/gh/ccusage processes, and once it runs out every spawn fails with EBADF.
+  # Raise it as high as the system allows before starting; harmless where the limit is already high.
+  ulimit -n 4096 2>/dev/null || ulimit -n unlimited 2>/dev/null || true
   node server.js
   EC=$?
   if [ "$EC" = "75" ]; then

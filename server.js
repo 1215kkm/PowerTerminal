@@ -13,6 +13,19 @@ const https = require('https');
 let CLOUDFLARED_PATH;
 
 const IS_WIN = process.platform === 'win32';   // 경로 구분자 정규화(memoKey)가 쓰므로 파일 상단에서 정의
+
+// 🛡 배경 작업 하나가 서버 전체를 죽이지 못하게. 이 프로세스가 죽으면 열려 있던 모든 세션의 터미널이 같이 사라진다
+// — 사용량 조회나 터널 재시도 같은 부가 기능의 실패로 그 대가를 치르는 건 말이 안 된다.
+// (실제 사고: 맥에서 fd 고갈 → ccusage spawn 이 EBADF 로 거부 → 아무도 안 받은 거부 → 30분에 두 번 서버 종료)
+// ⚠ 트레이드오프: 예외를 삼키면 잘못된 상태로 계속 돌 수 있다. 그래서 조용히 넘기지 않고 스택까지 남긴다.
+const logFatal = (kind, e) => {
+  try {
+    console.log('\n  ⚠ ' + kind + ' — 서버는 계속 실행합니다. 아래 내용을 개발자에게 알려주세요:');
+    console.log('    ' + String((e && e.stack) || e).split('\n').slice(0, 6).join('\n    ') + '\n');
+  } catch (e2) {}
+};
+process.on('unhandledRejection', e => logFatal('처리되지 않은 오류(비동기)', e));
+process.on('uncaughtException', e => logFatal('처리되지 않은 오류', e));
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 7777;   // 포트 충돌 시 PORT 환경변수로 변경 가능
 
@@ -728,6 +741,10 @@ function refreshCost() {
   const cli = path.join(ROOT, 'node_modules', 'ccusage', 'src', 'cli.js');
   // 비동기 실행 — 동기(execFileSync)로 돌리면 그 몇 초간 서버 전체(터미널 출력까지)가 멈춘다
   costCache.p = new Promise(resolve => {
+    // execFile 은 fd 가 바닥나면(EBADF) *동기적으로 throw* 한다 → Promise 실행자 안에서 던지면 거부(reject)가 되고,
+    // 아래 호출부가 그 Promise 를 안 기다리는 경로가 있어 '처리되지 않은 거부'로 서버가 통째로 죽었다.
+    // 비용 표시는 실패해도 그만인 부가 기능이라, 어떤 경우에도 resolve 만 하고 넘어간다.
+    try {
     execFile(process.execPath, [cli, 'daily', '--json'], { encoding: 'utf8', timeout: 30000, windowsHide: true },
       (err, out) => {
         if (!err) try {
@@ -739,6 +756,7 @@ function refreshCost() {
         } catch (e) {}
         resolve();
       });
+    } catch (e) { console.log('  ⚠ 사용비용 조회 건너뜀 (' + (e && e.code || e && e.message || '') + ')'); resolve(); }
   });
   return costCache.p;
 }
@@ -813,7 +831,7 @@ app.get('/api/usage', async (req, res) => {
     else { try { data.bars = readJson(USAGE_LAST) || []; } catch (e2) {} }
   }
   if (data.bars.length) { try { fs.writeFileSync(USAGE_LAST, JSON.stringify(data.bars)); } catch (e) {} }
-  const cp = refreshCost();
+  const cp = refreshCost().catch(() => {});   // ⚠ .catch 필수 — 아래에서 안 기다리는 경로가 있어 떠도는 거부가 되면 서버가 죽는다
   if (!costCache.val) { try { await cp; } catch (e) {} }   // 첫 조회는 $비용 계산을 기다림 (빈 화면 방지)
   if (costCache.val) data.fallback = costCache.val;        // $비용은 그래프와 '함께' 병기
   // GPT(Codex) 사용량 — 있으면 별도 줄로 내려보냄 (클로드 막대와 섞지 않음)
@@ -2345,14 +2363,20 @@ async function startTunnel(wifiUrl) {
     killStrayTunnels(null, () => {
       let fd = 'ignore';
       try { fs.writeFileSync(TUN_LOG, ''); fd = fs.openSync(TUN_LOG, 'a'); } catch (e) {}
+      // ⚠ openSync 로 연 fd 는 자식에게 넘겨도 *부모(PT)에도 그대로 열려 있다*. 안 닫으면 재시도할 때마다
+      //   하나씩 샌다. 맥은 fd 상한이 기본 256이라 몇 번 만에 바닥나 이후 모든 spawn 이 EBADF 로 실패했다.
+      //   (윈도우는 상한이 훨씬 커서 안 드러남 — 맥 사용자만 30분에 두 번씩 서버가 죽던 원인)
+      const closeFd = () => { if (typeof fd === 'number') { try { fs.closeSync(fd); } catch (e) {} fd = 'ignore'; } };
       let proc;
       try {
         // --protocol http2: 기본 QUIC(UDP)이 불안정한 회선에서 중간 끊김을 줄임
         proc = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', 'http://localhost:' + PORT, '--no-autoupdate', '--protocol', 'http2'],
                      { windowsHide: true, detached: true, stdio: ['ignore', fd, fd] });
         proc.unref();   // PT가 재시작·종료돼도 터널 프로세스는 계속 산다
+        closeFd();      // 자식이 이미 복제해 갔으므로 부모 쪽은 바로 닫는다
       } catch (e) {
-        console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도');
+        closeFd();
+        console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도 (' + (e && e.code || e && e.message || '') + ')');
         showWifiOnce();
         setTimeout(spawnDetached, 20000);
         return;
