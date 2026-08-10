@@ -186,6 +186,12 @@
   /* 입력칸 우측: [📜 요청내역] 아래 [📎 파일] 세로 배치 — 폭은 요청내역 버튼에 맞춤 */
   .quick .qBtns { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
   .quick .qBtns button { width: 100%; }
+  /* 📎 첨부 + 🎤 음성을 한 줄에 반반 — 모바일에서 엄지로 누르기 쉽게 */
+  .quick .qDuo { display: flex; gap: 4px; }
+  .quick .qDuo button { flex: 1 1 0; min-width: 0; }
+  .quick .qMic.rec { background: #b91c1c; color: #fff; border-color: #ef4444; animation: micPulse 1s ease-in-out infinite; }
+  @keyframes micPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
   /* ⬆ 요청내역 버튼 위 회색 안내 — Ctrl+↑로 이전 요청 불러오기 */
   .quick .qBtns .qHistHint { font-size: 9.5px; color: var(--muted); text-align: center; line-height: 1; white-space: nowrap; }
   .quick .qSend { width: 100%; font-weight: 700; background: linear-gradient(90deg, var(--violet), var(--pink));
@@ -1525,6 +1531,7 @@ const I18N = {
     codeT:'Code editor — browse and edit this project\'s files', cmSave:'Save', cmExit:'Close', cmPreview:'Preview',
     wtSecTitle:'Separate working folders (worktrees)', wtSecSub:'Opening one more session on the same repo creates one of these so the files never clash. It lives outside the repo folder, on the same drive.', wtOpen:'in use', wtDirty:'has changes', wtClean:'removable', wtPrune:'🧹 Clean up unused', wtPruned:'Removed {n}, kept {k} (in use or has changes)', icOpenShort:'📂',
     wtTip:'Separate working folder (git worktree) — files here never clash with the other session. Click to merge into the original branch', wtMergeAsk:'Merge the work in this session ({b}) into the original branch?', wtMerged:'Merged {b} into {base}', wtKept:'Uncommitted changes remain — the worktree folder was kept.',
+    micT:'Speak your request', micInsecure:'The microphone only works over a secure connection — open the external-access (QR) address instead', micDenied:'Microphone access is blocked — allow it in your browser settings', micNo:'This browser has no voice input', micErr:'Voice input error',
     sendQueued:'Offline right now — your request will be sent when the connection is back.',
     sndTitle:'Completion sound check', sndSub:'Plays the sound you get when a request finishes, right now. If you hear nothing, the line below says why.', sndTest:'▶ Play it now',
     billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
@@ -1614,6 +1621,7 @@ const I18N = {
     codeT:'코드 편집기 — 이 프로젝트 파일을 보고 고치기', cmSave:'저장', cmExit:'닫기', cmPreview:'미리보기',
     wtSecTitle:'분리 작업 폴더 (worktree)', wtSecSub:'같은 레포를 세션으로 하나 더 열면 파일이 안 겹치게 자동으로 만들어지는 폴더입니다. 레포와 같은 드라이브의, 레포 폴더 바깥에 생깁니다.', wtOpen:'사용 중', wtDirty:'변경 있음', wtClean:'정리 가능', wtPrune:'🧹 안 쓰는 것 정리', wtPruned:'{n}개 정리 · {k}개 유지(사용 중이거나 변경 있음)', icOpenShort:'📂',
     wtTip:'분리된 작업 폴더(git worktree) — 다른 세션과 파일이 안 겹칩니다. 눌러서 원본 브랜치로 합치기', wtMergeAsk:'이 세션의 작업({b})을 원본 브랜치로 합칠까요?', wtMerged:'{b} → {base} 합쳤습니다', wtKept:'커밋 안 한 변경이 남아 worktree 폴더를 남겨두었습니다.',
+    micT:'말로 요청 입력', micInsecure:'마이크는 보안 연결에서만 됩니다 — 외부 접속(QR) 주소로 들어오세요', micDenied:'마이크 권한이 막혀 있어요 — 브라우저 설정에서 허용해 주세요', micNo:'이 브라우저는 음성 입력을 지원하지 않아요', micErr:'음성 입력 오류',
     sendQueued:'연결이 끊겨 있어 잠시 뒤에 보냅니다…',
     sndTitle:'완료 소리 점검', sndSub:'요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.', sndTest:'▶ 지금 울려보기',
     billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
@@ -2008,7 +2016,7 @@ function buildPane(sess, idx) {
         <span class="qBtns">
           <span class="qHistHint">${esc(T.histHint || '이전 글: Ctrl+↑')}</span>
           <button class="small qHist" title="${esc(T.reqHistT || '')}">📜 ${esc(T.reqHistBtn || 'Requests')}</button>
-          <button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+          <span class="qDuo"><button class="small qImg" title="${T.imgT}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button><button class="small qMic" title="${escA(T.micT || '霟으로 입력')}" style="display:none">🎤</button></span>
         </span>
         <input type="file" class="qFile" multiple style="display:none">
       </div>
@@ -3124,6 +3132,48 @@ function buildPane(sess, idx) {
   });
   const qFile = el.querySelector('.qFile');
   el.querySelector('.qImg').onclick = ev => { ev.stopPropagation(); qFile.click(); };
+
+  // 🎤 말로 요청 입력 — 브라우저 내장 음성인식(Web Speech API). 서버·API키 없이 동작한다.
+  // 인식된 글은 *입력칸에만* 넣고 바로 보내지 않는다 — 오인식된 걸 터미널이 그대로 실행하면 곤란하니까
+  // 눈으로 확인하고 전송을 누르게 한다.
+  const micBtn = el.querySelector('.qMic');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (micBtn && SR) {
+    micBtn.style.display = '';
+    let rec = null, baseText = '';
+    const stopRec = () => { try { rec && rec.stop(); } catch (e) {} };
+    micBtn.onclick = ev => {
+      ev.stopPropagation();
+      if (rec) { stopRec(); return; }
+      // ⚠ 마이크는 보안 컨텍스트에서만 열린다. 폰에서 같은 와이파이 주소(http://192.168.x.x)로 들어오면
+      //   브라우저가 막으므로, 왜 안 되는지와 어디로 들어와야 하는지를 알려준다.
+      if (!window.isSecureContext) { flashToast(T.micInsecure || '마이크는 보안 연결에서만 됩니다 — 외부 접속(QR) 주소로 들어오세요'); return; }
+      try { rec = new SR(); } catch (e) { flashToast(T.micNo || '이 브라우저는 음성 입력을 지원하지 않아요'); rec = null; return; }
+      rec.lang = (T.locale || 'en-US');
+      rec.interimResults = true;
+      rec.continuous = true;
+      baseText = qInput.value ? qInput.value.replace(/\s*$/, ' ') : '';
+      rec.onstart = () => { micBtn.classList.add('rec'); };
+      rec.onresult = e => {
+        let done = '', live = '';
+        for (let i = 0; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) done += t; else live += t;
+        }
+        qInput.value = baseText + done + live;   // 말하는 대로 실시간 반영
+        autoGrow();
+        try { localStorage.setItem(draftKey, qInput.value); } catch (e2) {}
+      };
+      rec.onerror = e => {
+        const c = (e && e.error) || '';
+        if (c === 'not-allowed' || c === 'service-not-allowed') flashToast(T.micDenied || '마이크 권한이 막혀 있어요 — 브라우저 설정에서 허용해 주세요');
+        else if (c !== 'aborted' && c !== 'no-speech') flashToast((T.micErr || '음성 입력 오류') + ' (' + c + ')');
+      };
+      rec.onend = () => { micBtn.classList.remove('rec'); rec = null; qInput.focus(); };
+      try { rec.start(); } catch (e) { rec = null; micBtn.classList.remove('rec'); }
+    };
+    el.addEventListener('ptclose', stopRec);
+  }
   qFile.onchange = async () => { for (const f of [...qFile.files]) await attachFile(f); qFile.value = ''; };   // 여러 개 순차 첨부 (이미지·문서 구분은 attachFile이)
 
   // 🖼 입력창에 이미지 끌어다 놓기 = 첨부 (붙여넣기와 동일 처리, 여러 장 가능)
