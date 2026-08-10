@@ -3950,14 +3950,36 @@ async function updateGhPick() {
   const who = (u && u.login) ? u.login : (T.ghNoLogin || 'not signed in');
   p.textContent = base + ' — ' + (T.ghId || 'ID') + ' : ' + who;
 }
-// ⚡ PowerShell(터미널) 세션을 열어 winget으로 gh를 바로 설치. 설치가 끝나면 그 세션은 자동으로 닫힘.
+// 🖥 서버가 어느 OS인지 — 브라우저(폰일 수도 있음)가 아니라 *PT가 도는 컴퓨터* 기준이어야 한다.
+// 기본값을 win 으로 두면 맥에서 winget 이 실행돼 zsh 오류가 났다(실제 사고). /api/info 로 받아서 채운다.
+let SRV = { platform: 'win32', home: '' };
+const isMacSrv = () => SRV.platform === 'darwin';
+const isWinSrv = () => SRV.platform === 'win32';
+function applyServerPlatform(inf) {
+  if (inf && inf.platform) SRV = { platform: inf.platform, home: inf.home || '' };
+  // 폴더 경로 예시를 그 컴퓨터 형식으로 (맥에 "D:\projects\folder"를 보여주면 그대로 따라 적는다)
+  const ph = document.getElementById('addPath');
+  if (ph && !isWinSrv()) ph.placeholder = (SRV.home || '/Users/you') + '/projects/my-app';
+}
+// gh(GitHub CLI) 설치 명령 — OS 마다 다르다. 없으면 설치법 안내만.
+function ghInstallCmd() {
+  if (isWinSrv()) return 'winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements';
+  if (isMacSrv()) return 'brew install gh';
+  return 'sudo apt install gh || sudo dnf install gh';
+}
+// ⚡ 터미널 세션을 하나 열어 gh 를 바로 설치. 설치가 끝나면 그 세션은 자동으로 닫힘.
 async function ghInstallViaPS() {
   try { addDlg.close(); } catch (e) {}
-  await addSession('', 'GitHub CLI 설치', 'custom',
-    'winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements; '
-    + 'Write-Host ""; Write-Host "  Done — this session closes itself in a few seconds / 설치 끝 — 이 세션은 잠시 후 자동으로 닫혀요" -ForegroundColor Green; '
-    + 'Start-Sleep -Seconds 5; exit',   // exit → 서버가 autoClose 세션을 목록에서 제거
-    true, { autoClose: true });
+  const done = '설치 끝 — 이 세션은 잠시 후 자동으로 닫혀요 / Done, this session closes itself';
+  const cmd = isWinSrv()
+    ? ghInstallCmd() + '; Write-Host ""; Write-Host "  ' + done + '" -ForegroundColor Green; Start-Sleep -Seconds 5; exit'
+    // 맥·리눅스는 zsh/bash — PowerShell 명령어(Write-Host·Start-Sleep)를 쓰면 command not found 가 난다.
+    // brew 가 없을 수도 있으니 먼저 확인하고 설치법을 알려준다.
+    : (isMacSrv()
+        ? 'if command -v brew >/dev/null 2>&1; then ' + ghInstallCmd() + '; else echo ""; echo "  Homebrew가 없습니다 / Homebrew is required:"; echo "  /bin/bash -c \\"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\\""; fi; '
+        : ghInstallCmd() + '; ')
+      + 'echo ""; echo "  ' + done + '"; sleep 5; exit';
+  await addSession('', 'GitHub CLI 설치', 'custom', cmd, true, { autoClose: true });
 }
 async function loadRepos() {
   updateGhPick();
@@ -3972,7 +3994,7 @@ async function loadRepos() {
         + `<div style="color:var(--muted);margin-bottom:8px">${esc(T.ghNeedLogin || 'Not signed in to GitHub.')}</div>`
         + `<button class="primary" onclick="ghLogin()">🔑 ${esc(T.ghLoginBtn || 'Sign in to GitHub')}</button></div>`;
     } else if (repos.code === 'not_installed') {
-      const wc = 'winget install --id GitHub.cli -e';
+      const wc = ghInstallCmd();   // OS 별 설치 명령 (맥이면 brew install gh)
       box.innerHTML = `<div style="font-size:13px;padding:10px;line-height:1.7">`
         + `<div style="margin-bottom:10px">${esc(T.ghNeedCli || 'GitHub CLI (gh) is not installed. Install it to list/clone your repos and create new projects.')}</div>`
         + `<button class="primary" onclick="ghInstallViaPS()" title="${esc(T.ghPsTip || 'Opens a PowerShell terminal and runs winget to install gh')}">⚡ ${esc(T.ghPsBtn || 'Auto-install in PowerShell')}</button>`
@@ -7455,7 +7477,11 @@ if (!IS_MAIN) window.addEventListener('beforeunload', () => { if (WSET.size) rem
 
 applyStatic();
 (async () => {
-  try { const inf = await api('GET', '/api/info'); document.getElementById('hverBadge').textContent = 'v' + inf.version; } catch (e) {}
+  try {
+    const inf = await api('GET', '/api/info');
+    document.getElementById('hverBadge').textContent = 'v' + inf.version;
+    applyServerPlatform(inf);   // 서버가 맥/리눅스면 화면의 윈도우 전용 안내(winget·D:\경로)를 바꿔 끼움
+  } catch (e) {}
   const list0 = await api('GET', '/api/sessions');
   const list = Array.isArray(list0) ? list0 : [];   // 실패({error}) 시 빈 목록으로 — 초기 로드 filter 폭발 방지
 

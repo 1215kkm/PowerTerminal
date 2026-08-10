@@ -903,7 +903,10 @@ app.get('/api/info', (req, res) => {
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
   // token 포함: 이 API 자체가 인증 뒤에서만 응답하므로 안전 — QR/주소 생성에 사용
   let userName = ''; try { userName = os.userInfo().username || ''; } catch (e) {}
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName });
+  // platform·home: 브라우저는 서버가 윈도우인지 맥인지 알 수 없다. 이걸 안 내려줘서 화면이 winget 같은
+  // 윈도우 전용 명령을 맥에서도 그대로 실행해버렸다(zsh: command not found: winget).
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName,
+             platform: process.platform, home: (() => { try { return os.homedir(); } catch (e) { return ''; } })() });
 });
 
 // ---------- 🧠 마인드맵 저장 — PT 데이터 폴더에 트리 JSON 1개 (memos와 같은 철학: 기기 간 동기화) ----------
