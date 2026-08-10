@@ -702,7 +702,12 @@ app.post('/api/clone', (req, res) => {
   let base = (req.body.base || '').toString().trim();
   if (!/^https:\/\/github\.com\//.test(url) && !/^git@/.test(url)) return res.status(400).json({ error: '유효한 GitHub 주소가 아닙니다.' });
   if (!base) { try { base = readJson(LAUNCHER_PROJECTS).baseDir; } catch (e) {} }
-  if (!base) base = process.env.USERPROFILE || 'D:\\';
+  // ⚠ 받을 위치의 기본값. USERPROFILE 은 윈도우 전용이라 맥·리눅스에선 비어 있고, 그러면 'D:\' 로 떨어져
+  //   맥에서 "cloning into 'd:/이름'" 으로 실패했다. 홈 폴더를 쓴다.
+  if (!base) { try { base = os.homedir(); } catch (e) { base = ''; } }
+  if (!base) base = IS_WIN ? (process.env.USERPROFILE || 'C:\\') : '/tmp';
+  // 저장된 baseDir 이 이 컴퓨터에 없는 경로(다른 PC에서 쓰던 설정 등)면 홈 폴더로 되돌린다
+  try { if (!fs.existsSync(base)) base = os.homedir(); } catch (e) {}
   const name = url.replace(/\.git$/, '').split('/').pop();
   const dir = path.join(base, name);
   // clone은 몇 분까지 걸릴 수 있음 — 비동기 실행 (동기면 그동안 서버 전체·모든 세션이 얼어붙음)
@@ -714,8 +719,18 @@ app.post('/api/clone', (req, res) => {
     res.json(sess);
   };
   if (fs.existsSync(dir)) return proceed();   // 이미 있으면 clone 생략하고 그 폴더로 세션
-  execFile('git', ['clone', url, dir], { timeout: 120000, windowsHide: true }, (err, so, se) => {
-    if (err) return res.status(500).json({ error: 'clone 실패: ' + String(se || err.message || '').slice(0, 300) });
+  execFile('git', ['clone', url, dir], { timeout: 300000, windowsHide: true }, (err, so, se) => {
+    if (err) {
+      // git 은 첫 줄이 항상 "Cloning into '...'" 이라, 앞에서 자르면 정작 실패 이유가 잘려나간다 → 뒤쪽을 보여준다.
+      const txt = String(se || err.message || '').trim();
+      const tail = txt.split('\n').filter(Boolean).slice(-3).join(' / ').slice(-300);
+      const why = err.killed ? '시간 초과(5분) — 저장소가 크거나 네트워크가 느립니다'
+                : /already exists|not an empty/i.test(txt) ? '그 폴더가 이미 있습니다'
+                : /Permission denied|denied/i.test(txt) ? '그 위치에 쓸 권한이 없습니다'
+                : /could not read|Authentication|403|404|not found|Repository not found/i.test(txt) ? '저장소를 찾을 수 없거나 접근 권한이 없습니다'
+                : '';
+      return res.status(500).json({ error: 'clone 실패' + (why ? ' — ' + why : '') + '\n받을 위치: ' + dir + (tail ? '\n' + tail : '') });
+    }
     proceed();
   });
 });

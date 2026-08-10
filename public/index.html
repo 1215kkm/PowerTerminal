@@ -4180,8 +4180,12 @@ function cloneRepo() { doClone(document.getElementById('cloneUrl').value.trim())
 async function doClone(url) {
   if (!url) return;
   const btn = document.querySelector('#tab-github .primary');
-  const old = btn.textContent; btn.disabled = true; btn.textContent = '⬇ …';
+  const old = btn.textContent; btn.disabled = true;
+  // clone 은 저장소가 크면 몇 분씩 걸린다 — 경과 초를 보여주지 않으면 "눌러도 반응 없다"로 보인다.
+  let secs = 0; btn.textContent = '⬇ …';
+  const tick = setInterval(() => { secs++; btn.textContent = '⬇ ' + secs + 's'; }, 1000);
   const r = await api('POST', '/api/clone', { url, agent: document.getElementById('addAgent').value, model: curAddModel() });
+  clearInterval(tick);
   btn.disabled = false; btn.textContent = old;
   if (r.error) { alert(r.error); return; }
   document.getElementById('cloneUrl').value = '';   // 다음 clone 위해 입력칸 비움
