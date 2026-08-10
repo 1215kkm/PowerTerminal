@@ -4,6 +4,17 @@ cd "$(dirname "$0")" || exit 1
 
 openurl(){ command -v open >/dev/null 2>&1 && open "$1" || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$1"); }
 
+# This script runs under #!/bin/bash, non-interactively, so it reads no ~/.zshrc or ~/.bash_profile — the
+# PATH additions those files carry are simply absent. Claude Code installed into ~/.local/bin was therefore
+# invisible here and the launcher asked to install it on every single start, and Homebrew's own bin can be
+# missing too when the launcher is opened by double-click. Put the usual places back before anything looks
+# for a program.
+for d in "$HOME/.local/bin" "$HOME/.npm-global/bin" /opt/homebrew/bin /usr/local/bin; do
+  [ -d "$d" ] || continue
+  case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac
+done
+export PATH
+
 # --- Node.js check (one-time; the app can't install this itself) ---
 if ! command -v node >/dev/null 2>&1; then
   echo
