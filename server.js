@@ -1059,7 +1059,9 @@ app.post('/api/mindmap', (req, res) => {
 const billDay = v => { const n = Math.floor(Number(v)); return (n >= 1 && n <= 31) ? n : 0; };
 const settingsView = () => ({
   intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes,
-  qaDoc: !!config.qaDoc,
+  // 표는 PT가 직접 그려 토큰이 안 드니 기본으로 켜 둔다 (undefined = 아직 정한 적 없음).
+  // 사용자가 명시적으로 끈 false 는 그대로 존중한다 — 껐는데 다시 켜지면 안 되니까.
+  qaDoc: config.qaDoc === undefined ? true : !!config.qaDoc,
   billClaude: config.billClaude || 0, billGpt: config.billGpt || 0,
   // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다.
   // null = "아직 한 번도 정한 적 없음" → 클라이언트가 화면 언어에 맞는 기본 4개를 넣는다.
@@ -1901,7 +1903,7 @@ function qaEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 function writeQaDoc(dir) {
-  if (!config.qaDoc) return;                       // 설정에서 켠 사람만
+  if (config.qaDoc === false) return;              // 설정에서 끈 사람만 제외 (기본은 켜짐)
   try {
     const m = memos[memoKey(dir)];
     const list = ((m && m.reqs) || []).filter(r => r.q && r.answer);
