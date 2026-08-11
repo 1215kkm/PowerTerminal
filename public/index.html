@@ -1559,7 +1559,7 @@ const I18N = {
     billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
     exitMsg:'[Session ended — close it with ✕ or add a new one]', addNeedPath:'Type a folder path, or pick one with 📂.',
     setQaDocL:'Keep a questions-and-answers page — no tokens', setQaDocHint:'Requests you start with "question" / "질문" already get the answer attached in the request history. With this on they are also written to docs/질문-답변-기록.html in that folder — newest first, one row per question. PowerTerminal draws the page itself and never calls the AI for it (zero tokens), which is why it is on by default.',
-    phraseDefaults:'Continue,1,2,3',
+    phraseDefaults:'Continue,Done?,1,2,3',
     phTitle:'Frequent request words', phSub:'Each one becomes a button just above the request box in every session. Pressing it only fills the box — it does not send.', phNone:'none yet', phraseAdd:'＋ Add a word', phraseAddShort:'quick word', phrasePrompt:'Type a word you use often (e.g. pushed it)', phraseUse:'Press to put it in the request box', phraseDel:'Right-click or long-press to delete', phraseDelAsk:'Delete the "{w}" button?',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
@@ -1653,7 +1653,7 @@ const I18N = {
     billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
     exitMsg:'[세션 종료 — ✕ 로 닫거나 새로 추가하세요]', addNeedPath:'폴더 경로를 입력하거나 📂 로 골라주세요.',
     setQaDocL:'질문 답변 기록 만들기 — 토큰 안 씀', setQaDocHint:'"질문~"으로 시작한 요청은 이미 요청내역에 답이 붙습니다. 이걸 켜면 그 폴더의 docs/질문-답변-기록.html 에도 표로 남습니다 — 최신이 위, 한 줄에 시각·질문·답. 표는 PowerTerminal이 직접 그리므로 AI를 부르지 않습니다(토큰 0). 그래서 기본으로 켜져 있어요.',
-    phraseDefaults:'진행,1,2,3',
+    phraseDefaults:'진행해,다했어?,1,2,3',
     phTitle:'자주 쓰는 요청 단어', phSub:'등록하면 각 세션의 요청칸 바로 위에 버튼으로 나옵니다. 눌러도 바로 보내지 않고 요청칸에 넣기만 해요.', phNone:'아직 없음', phraseAdd:'＋ 단어 추가', phraseAddShort:'자주 쓰는 단어', phrasePrompt:'자주 쓰는 요청 단어를 적으세요 (예: 올렸어)', phraseUse:'눌러서 요청칸에 넣기', phraseDel:'우클릭·길게눌러 삭제', phraseDelAsk:'"{w}" 버튼을 지울까요?',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
@@ -4355,7 +4355,16 @@ async function loadBilling() {
     // 💬 자주 쓰는 요청 단어도 같은 응답에 실려 온다 — 세션이 이미 그려졌으면 버튼 줄을 채운다.
     // phrases 가 null 이면 아직 한 번도 정한 적이 없다는 뜻 → 화면 언어에 맞는 기본 4개를 넣어준다.
     // (전부 지워서 빈 배열이 된 경우엔 그 뜻대로 비워 둔다 — 지워도 계속 되살아나면 안 되니까)
-    if (s && Array.isArray(s.phrases)) { PHRASES = s.phrases; renderAllPhrases(); }
+    if (s && Array.isArray(s.phrases)) {
+      PHRASES = s.phrases; renderAllPhrases();
+      // 기본값을 그대로 두고 쓰던 설치에는 새로 추가된 기본 단어를 한 번 얹어준다.
+      // 손대지 않은 목록일 때만 — 직접 고른 목록을 건드리면 안 된다.
+      const OLD_DEFAULTS = [['진행', '1', '2', '3'], ['Continue', '1', '2', '3'],
+                            ['진행', '다했어?', '1', '2', '3'], ['Continue', 'Done?', '1', '2', '3']];
+      if (OLD_DEFAULTS.some(d => d.length === PHRASES.length && d.every((v, i) => v === PHRASES[i]))) {
+        await savePhrases(defaultPhrases());
+      }
+    }
     else if (s && s.phrases === null) { await savePhrases(defaultPhrases()); }
   } catch (e) {}
   refreshUsage();   // 툴팁 다시 그리기
