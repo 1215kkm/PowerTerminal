@@ -1356,6 +1356,13 @@
     </span>
   </label>
   <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
+    <input type="checkbox" id="setQaDoc" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
+    <span style="display:block">
+      <span id="setQaDocL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
+      <small id="setQaDocHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+    </span>
+  </label>
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
     <input type="checkbox" id="setHints" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
     <span style="display:block">
       <span id="setHintsL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
@@ -1551,6 +1558,7 @@ const I18N = {
     sndTitle:'Completion sound check', sndSub:'Plays the sound you get when a request finishes, right now. If you hear nothing, the line below says why.', sndTest:'▶ Play it now',
     billTitle:'Subscription renewal', billSub:'No API reports a billing date, so type the day of the month you\'re charged. Hover a usage bar at the top to see the next renewal. Leave empty to hide.', billUnit:'of each month', billNext:'Renews', billToday:'today', billIn:'in {n} days', gptTip:'GPT (Codex) usage — as of the last time GPT ran',
     exitMsg:'[Session ended — close it with ✕ or add a new one]', addNeedPath:'Type a folder path, or pick one with 📂.',
+    setQaDocL:'Keep a questions-and-answers page', setQaDocHint:'Requests you start with "질문" / "question" are already answered in the request history; turning this on also writes them into docs/질문-답변-기록.html in that folder — newest first, one row per question. PowerTerminal builds the page itself, so it costs nothing beyond the answer extraction that already happens.',
     phraseDefaults:'Continue,1,2,3',
     phTitle:'Frequent request words', phSub:'Each one becomes a button just above the request box in every session. Pressing it only fills the box — it does not send.', phNone:'none yet', phraseAdd:'＋ Add a word', phraseAddShort:'quick word', phrasePrompt:'Type a word you use often (e.g. pushed it)', phraseUse:'Press to put it in the request box', phraseDel:'Right-click or long-press to delete', phraseDelAsk:'Delete the "{w}" button?',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
@@ -1644,6 +1652,7 @@ const I18N = {
     sndTitle:'완료 소리 점검', sndSub:'요청이 끝났을 때 나는 소리를 지금 그대로 재생해 봅니다. 안 들리면 아래 줄에 이유가 나옵니다.', sndTest:'▶ 지금 울려보기',
     billTitle:'구독 재결제일', billSub:'결제일을 알려주는 API가 없어서 직접 적어야 합니다. 매달 결제되는 날짜를 넣으면 상단 사용량 막대에 마우스를 올렸을 때 다음 재결제일이 보입니다. 비우면 표시 안 함.', billUnit:'일', billNext:'재결제일', billToday:'오늘', billIn:'{n}일 뒤', gptTip:'GPT (Codex) 사용량 — 마지막으로 GPT를 쓴 시점 기준',
     exitMsg:'[세션 종료 — ✕ 로 닫거나 새로 추가하세요]', addNeedPath:'폴더 경로를 입력하거나 📂 로 골라주세요.',
+    setQaDocL:'질문 답변 기록 만들기', setQaDocHint:'"질문~"으로 시작한 요청은 이미 요청내역에 답이 붙습니다. 이걸 켜면 그 폴더의 docs/질문-답변-기록.html 에도 표로 남습니다 — 최신이 위, 한 줄에 시각·질문·답. 표는 PowerTerminal이 직접 그리므로 AI 토큰이 추가로 들지 않습니다(답변 추출은 원래 하던 작업).',
     phraseDefaults:'진행,1,2,3',
     phTitle:'자주 쓰는 요청 단어', phSub:'등록하면 각 세션의 요청칸 바로 위에 버튼으로 나옵니다. 눌러도 바로 보내지 않고 요청칸에 넣기만 해요.', phNone:'아직 없음', phraseAdd:'＋ 단어 추가', phraseAddShort:'자주 쓰는 단어', phrasePrompt:'자주 쓰는 요청 단어를 적으세요 (예: 올렸어)', phraseUse:'눌러서 요청칸에 넣기', phraseDel:'우클릭·길게눌러 삭제', phraseDelAsk:'"{w}" 버튼을 지울까요?',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
@@ -4572,11 +4581,17 @@ async function openSettings() {
   try {
     const s = await api('GET', '/api/settings');
     ci.checked = !!(s && s.intentNotes); cs.checked = !!(s && s.summaryNotes);
+    { const q = document.getElementById('setQaDoc'); if (q) q.checked = !!(s && s.qaDoc); }
     bc.value = (s && s.billClaude) || ''; bg.value = (s && s.billGpt) || '';
     BILL.claude = Math.floor(Number(s && s.billClaude) || 0); BILL.gpt = Math.floor(Number(s && s.billGpt) || 0);
   } catch (e) {}
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
+  // ❓ 질문 답변 기록 HTML
+  const cq = document.getElementById('setQaDoc');
+  document.getElementById('setQaDocL').textContent = T.setQaDocL || '질문 답변 기록 만들기 (docs/질문-답변-기록.html)';
+  document.getElementById('setQaDocHint').textContent = T.setQaDocHint || '';
+  cq.onchange = () => api('POST', '/api/settings', { qaDoc: cq.checked });
   phraseRefreshUI();   // 💬 자주 쓰는 요청 단어 관리
   wtRefresh();     // 🌿 worktree 목록
   // 🔔 완료 소리 점검 — 실제 완료음과 똑같은 경로(speakNum)를 태워보고 상태를 그대로 보여준다

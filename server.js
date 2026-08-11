@@ -1059,6 +1059,7 @@ app.post('/api/mindmap', (req, res) => {
 const billDay = v => { const n = Math.floor(Number(v)); return (n >= 1 && n <= 31) ? n : 0; };
 const settingsView = () => ({
   intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes,
+  qaDoc: !!config.qaDoc,
   billClaude: config.billClaude || 0, billGpt: config.billGpt || 0,
   // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다.
   // null = "아직 한 번도 정한 적 없음" → 클라이언트가 화면 언어에 맞는 기본 4개를 넣는다.
@@ -1070,6 +1071,11 @@ app.post('/api/settings', (req, res) => {
   let dirty = false;
   if (req.body && typeof req.body.intentNotes === 'boolean') { config.intentNotes = req.body.intentNotes; dirty = true; }
   if (req.body && typeof req.body.summaryNotes === 'boolean') { config.summaryNotes = req.body.summaryNotes; dirty = true; }
+  if (req.body && typeof req.body.qaDoc === 'boolean') {
+    config.qaDoc = req.body.qaDoc; dirty = true;
+    // 켜는 즉시, 이미 쌓여 있던 질문·답으로 열려 있는 폴더들의 문서를 한 번 만들어 준다
+    if (config.qaDoc) { try { [...new Set(sessions.map(s => s.path))].forEach(p => writeQaDoc(p)); } catch (e) {} }
+  }
   if (req.body && req.body.billClaude !== undefined) { config.billClaude = billDay(req.body.billClaude); dirty = true; }
   if (req.body && req.body.billGpt !== undefined) { config.billGpt = billDay(req.body.billGpt); dirty = true; }
   if (req.body && Array.isArray(req.body.phrases)) {
@@ -1845,7 +1851,10 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   }
   const rid = crypto.randomBytes(6).toString('hex');
   const entry = { id: rid, text, ts: Date.now(), st: 'run' };
-  if (/질문|question/i.test(text.slice(0, 20))) entry.q = true;   // ❓ "질문~"으로 시작 = 완료 시 답변을 추출해 밑에 기록
+  // ❓ "질문~"으로 *시작*할 때만 = 완료 시 답변을 추출해 밑에 기록.
+  // 예전엔 앞 20자 어디에든 '질문'이 있으면 잡아서, "올렸어 이건 질문이 아니라 지시" 같은 평범한 요청까지
+  // 질문으로 오인해 답변 추출(AI 호출 = 토큰)이 돌았다. 시작 위치로 못박는다.
+  if (/^\s*(질문|question)/i.test(text)) entry.q = true;
   m.reqs.unshift(entry);
   m.reqs = m.reqs.slice(0, 200);
   saveMemos();
@@ -1883,6 +1892,60 @@ function genReqNotes(dir, reqId, text) {
 }
 // ❓ 질문 답변 기록 — "질문~"으로 시작한 요청이 완료되면 그 폴더 터미널의 최근 출력에서
 // 답변을 추출해(claude -p haiku) 메모장 요청내역의 질문 밑에 남김. 실패하면 조용히 생략.
+// ❓ 질문 답변 기록 — 그 폴더에서 "질문~"으로 보낸 것과 그 답을 HTML 한 장으로 남긴다.
+// AI 에게 "표로 정리해줘"라고 시키지 않는다 — PT 가 이미 갖고 있는 요청내역으로 직접 그리므로
+// 문서 작성에 드는 토큰이 0이고, AI 가 잊어버리거나 형식이 흔들릴 일도 없다.
+// (답변 추출 자체는 원래도 하던 일이고, 이 기능은 ⚙ 설정에서 켠 사람만 파일을 만든다)
+const QA_REL = path.join('docs', '질문-답변-기록.html');
+function qaEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function writeQaDoc(dir) {
+  if (!config.qaDoc) return;                       // 설정에서 켠 사람만
+  try {
+    const m = memos[memoKey(dir)];
+    const list = ((m && m.reqs) || []).filter(r => r.q && r.answer);
+    if (!list.length) return;
+    // 최신이 위로. 날짜별로 묶고 각 줄은 시각·질문·답.
+    const byDay = new Map();
+    list.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach(r => {
+      const d = new Date(r.ts || Date.now());
+      const p = n => (n < 10 ? '0' + n : '' + n);
+      const day = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push({ time: p(d.getHours()) + ':' + p(d.getMinutes()), q: r.text, a: r.answer });
+    });
+    const title = path.basename(dir.replace(/[\\/]+$/, '')) + ' — 질문 답변 기록';
+    let body = '';
+    for (const [day, rows] of byDay) {
+      body += '<h2>' + qaEsc(day) + '</h2>\n<table>\n<thead><tr><th class="t">시각</th><th class="q">질문</th><th>답</th></tr></thead>\n<tbody>\n';
+      for (const r of rows) {
+        body += '<tr><td class="t">' + qaEsc(r.time) + '</td><td class="q">' + qaEsc(r.q) + '</td><td>' + qaEsc(r.a) + '</td></tr>\n';
+      }
+      body += '</tbody>\n</table>\n';
+    }
+    const html = '<!doctype html>\n<html lang="ko"><head><meta charset="utf-8">\n'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+      + '<title>' + qaEsc(title) + '</title>\n<style>\n'
+      + 'body{font-family:Pretendard,-apple-system,"Segoe UI",sans-serif;max-width:1000px;margin:32px auto;padding:0 18px;color:#111;line-height:1.65}\n'
+      + 'h1{font-size:26px;margin:0 0 8px} h2{font-size:18px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb}\n'
+      + '.lead{color:#6b7280;font-size:14px;margin:0 0 4px}\n'
+      + 'table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid #eef0f3}\n'
+      + 'thead th{background:#f8fafc;color:#475569;font-weight:600;font-size:13px}\n'
+      + 'td.t,th.t{width:64px;color:#6b7280;white-space:nowrap} td.q,th.q{width:34%;font-weight:600}\n'
+      + '@media(max-width:640px){td.q,th.q{width:auto} table,thead,tbody,tr,td,th{display:block} thead{display:none}\n'
+      + ' tr{border-bottom:1px solid #e5e7eb;padding:8px 0} td{border:0;padding:3px 0}}\n'
+      + '</style></head><body>\n'
+      + '<h1>' + qaEsc(title) + '</h1>\n'
+      + '<p class="lead">물어본 것과 그 답만 남습니다 (작업 지시는 여기 안 적힙니다). 최신이 위에 옵니다.</p>\n'
+      + '<p class="lead">PowerTerminal이 자동으로 갱신합니다 — 직접 고쳐도 다음 질문 때 덮어씁니다.</p>\n'
+      + body
+      + '</body></html>\n';
+    const out = path.join(dir, QA_REL);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, html);
+  } catch (e) {}
+}
 function genReqAnswer(dir, reqId, question) {
   try {
     const cands = sessions.filter(s => memoKey(s.path) === memoKey(dir)).map(s => ptys.get(s.id)).filter(p => p && !p.dead);
@@ -1905,7 +1968,7 @@ function genReqAnswer(dir, reqId, question) {
       const ans = mt[1].trim().slice(0, 1500);
       const m = memos[memoKey(dir)];
       const r = m && (m.reqs || []).find(x => x.id === reqId);
-      if (r && ans) { r.answer = ans; saveMemos(); }
+      if (r && ans) { r.answer = ans; saveMemos(); writeQaDoc(dir); }
     });
     proc.on('error', () => clearTimeout(kill));
     proc.stdin.write('Below is the tail of a terminal log where an AI assistant just answered the user\'s question.\n'
