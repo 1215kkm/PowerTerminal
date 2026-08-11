@@ -1060,8 +1060,10 @@ const billDay = v => { const n = Math.floor(Number(v)); return (n >= 1 && n <= 3
 const settingsView = () => ({
   intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes,
   billClaude: config.billClaude || 0, billGpt: config.billGpt || 0,
-  // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다
-  phrases: Array.isArray(config.phrases) ? config.phrases : []
+  // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다.
+  // null = "아직 한 번도 정한 적 없음" → 클라이언트가 화면 언어에 맞는 기본 4개를 넣는다.
+  // 빈 배열([])은 "전부 지웠다"는 사용자의 뜻이므로 기본값을 다시 채우지 않는다 — 둘을 구분해야 한다.
+  phrases: Array.isArray(config.phrases) ? config.phrases : null
 });
 app.get('/api/settings', (req, res) => res.json(settingsView()));
 app.post('/api/settings', (req, res) => {
