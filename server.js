@@ -1059,7 +1059,9 @@ app.post('/api/mindmap', (req, res) => {
 const billDay = v => { const n = Math.floor(Number(v)); return (n >= 1 && n <= 31) ? n : 0; };
 const settingsView = () => ({
   intentNotes: !!config.intentNotes, summaryNotes: !!config.summaryNotes,
-  billClaude: config.billClaude || 0, billGpt: config.billGpt || 0
+  billClaude: config.billClaude || 0, billGpt: config.billGpt || 0,
+  // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다
+  phrases: Array.isArray(config.phrases) ? config.phrases : []
 });
 app.get('/api/settings', (req, res) => res.json(settingsView()));
 app.post('/api/settings', (req, res) => {
@@ -1068,6 +1070,16 @@ app.post('/api/settings', (req, res) => {
   if (req.body && typeof req.body.summaryNotes === 'boolean') { config.summaryNotes = req.body.summaryNotes; dirty = true; }
   if (req.body && req.body.billClaude !== undefined) { config.billClaude = billDay(req.body.billClaude); dirty = true; }
   if (req.body && req.body.billGpt !== undefined) { config.billGpt = billDay(req.body.billGpt); dirty = true; }
+  if (req.body && Array.isArray(req.body.phrases)) {
+    // 문자열만 · 앞뒤 공백 제거 · 빈 값과 중복 제거 · 길이와 개수 제한 (버튼 줄이 터지지 않게)
+    const seen = new Set();
+    config.phrases = req.body.phrases
+      .filter(x => typeof x === 'string')
+      .map(x => x.trim().slice(0, 60))
+      .filter(x => x && !seen.has(x) && seen.add(x))
+      .slice(0, 30);
+    dirty = true;
+  }
   if (dirty) saveConfig();
   res.json({ ok: true, ...settingsView() });
 });
