@@ -1895,6 +1895,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
 const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
+    memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
     numAddT: 'Open one more session on this folder — a git repo gets its own worktree so the two never clash (Shift-click = same folder as-is)',
     flowT: 'Flow — drag out an arrow onto another session to link it (click = pick mode). Click an arrow, then press Delete to remove it',
     flowPickHint: 'Click the sessions that ‘{t}’ hands work to. Click again to unlink.',
@@ -1908,6 +1909,7 @@ const I18N_MORE = {
   },
   ko: {
     mPinned: '지난 버전 (고정)',
+    memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
     numAddT: '이 폴더로 세션 하나 더 열기 — git 레포면 worktree 로 분리돼 서로 안 겹칩니다 (Shift+클릭 = 같은 폴더 그대로)',
     flowT: '플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션과 연결됩니다 (클릭 = 고르기 모드) · 화살표 클릭 후 Delete = 삭제',
     flowPickHint: '‘{t}’ 다음으로 이어질 세션들을 클릭하세요. 다시 누르면 연결이 풀립니다.',
@@ -1921,6 +1923,7 @@ const I18N_MORE = {
   },
   ja: {
     mPinned: '過去のバージョン(固定)',
+    memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
     numAddT: 'このフォルダでもう1つセッションを開く — gitリポジトリなら worktree に分かれて衝突しません (Shift+クリック = 同じフォルダのまま)',
     flowT: 'フロー — ドラッグで矢印を引き出して他のセッションへ接続 (クリック = 選択モード) · 矢印をクリックして Delete で削除',
     flowPickHint: '「{t}」の次に続くセッションをクリックしてください。もう一度押すと解除されます。',
@@ -2118,6 +2121,7 @@ const I18N_MORE = {
   },
   zh: {
     mPinned: '旧版本(固定)',
+    memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
     numAddT: '在这个文件夹再开一个会话 — 若是 git 仓库会自动分到独立 worktree，互不冲突 (Shift+点击 = 保持同一文件夹)',
     flowT: '流程 — 拖动会拉出一条箭头，放到目标会话上即可连接 (点击 = 选择模式) · 点箭头后按 Delete 删除',
     flowPickHint: '点击「{t}」之后接手的会话。再点一次即可取消连接。',
@@ -2315,6 +2319,7 @@ const I18N_MORE = {
   },
   es: {
     mPinned: 'Versiones anteriores (fijas)',
+    memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
     numAddT: 'Abre otra sesión en esta carpeta — si es un repo git se separa en su propio worktree y nunca chocan (Shift+clic = la misma carpeta tal cual)',
     flowT: 'Flujo — arrastra y sale una flecha: suéltala sobre otra sesión para enlazar (clic = modo selección) · clic en una flecha y Supr para quitarla',
     flowPickHint: 'Haz clic en las sesiones que continúan después de ‘{t}’. Vuelve a hacer clic para desenlazar.',
@@ -2519,6 +2524,7 @@ const I18N_MORE = {
   },
   de: {
     mPinned: 'Ältere Versionen (fest)',
+    memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
     numAddT: 'Noch eine Sitzung in diesem Ordner öffnen — bei einem Git-Repo entsteht ein eigenes Worktree, damit sich beide nie in die Quere kommen (Shift+Klick = derselbe Ordner)',
     flowT: 'Ablauf — beim Ziehen kommt ein Pfeil heraus: auf einer anderen Sitzung loslassen verbindet (Klick = Auswahlmodus) · Pfeil anklicken und Entf löscht ihn',
     flowPickHint: 'Klicke die Sitzungen an, die nach ‘{t}’ weitermachen. Nochmal klicken löst die Verbindung.',
@@ -2719,6 +2725,7 @@ const I18N_MORE = {
   },
   fr: {
     mPinned: 'Anciennes versions (figées)',
+    memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
     numAddT: 'Ouvrir une session de plus sur ce dossier — un dépôt git obtient son propre worktree, donc les deux ne se gênent jamais (Maj+clic = le même dossier tel quel)',
     flowT: 'Flux — glisse et une flèche sort : lâche-la sur une autre session pour relier (clic = mode choix) · clique une flèche puis Suppr pour l’enlever',
     flowPickHint: 'Clique sur les sessions qui prennent la suite de ‘{t}’. Reclique pour délier.',
@@ -2922,6 +2929,7 @@ const I18N_MORE = {
   },
   pt: {
     mPinned: 'Versões antigas (fixas)',
+    memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
     numAddT: 'Abrir mais uma sessão nesta pasta — se for um repo git ganha o próprio worktree, então as duas nunca se atrapalham (Shift+clique = a mesma pasta como está)',
     flowT: 'Fluxo — arraste e sai uma seta: solte em outra sessão para ligar (clique = modo de escolha) · clique numa seta e Delete para remover',
     flowPickHint: 'Clique nas sessões que continuam depois de ‘{t}’. Clique de novo para desligar.',
@@ -3125,6 +3133,7 @@ const I18N_MORE = {
   },
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
+    memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
     numAddT: 'Открыть ещё одну сессию в этой папке — для git-репозитория создаётся свой worktree, чтобы они не мешали друг другу (Shift+клик = та же папка как есть)',
     flowT: 'Поток — потяните, и вытянется стрелка: отпустите на другой сессии, чтобы связать (клик = режим выбора) · нажмите на стрелку и Delete, чтобы удалить',
     flowPickHint: 'Нажмите на сессии, которые продолжают после ‘{t}’. Повторное нажатие снимает связь.',
@@ -3327,6 +3336,7 @@ const I18N_MORE = {
   },
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
+    memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
     numAddT: 'इसी फ़ोल्डर पर एक और सेशन खोलें — git रिपॉज़िटरी है तो उसका अपना worktree बनता है, इसलिए दोनों कभी टकराते नहीं (Shift+क्लिक = वही फ़ोल्डर जैसा है)',
     flowT: 'फ़्लो — खींचने पर तीर निकलता है: दूसरी सेशन पर छोड़ें तो जुड़ जाता है (क्लिक = चुनने का मोड) · तीर पर क्लिक करके Delete से हटाएँ',
     flowPickHint: '‘{t}’ के बाद जो सेशन काम आगे बढ़ाते हैं उन पर क्लिक करें। दोबारा क्लिक करने पर जोड़ हट जाता है।',
@@ -9490,8 +9500,8 @@ async function openMemo(sess) {
   };
   colHead('memoNewH', T.memoNewCol || 'New memos',
     () => (memoData.items || []).filter(i => !i.done).map(i => fmtMemoDate(i.ts) + '  ' + i.text));
-  colHead('memoDoneH', T.memoDoneCol || 'Completed',
-    () => (memoData.items || []).filter(i => i.done).map(i => fmtMemoDate(i.doneTs || i.ts) + '  ' + i.text));
+  colHead('memoDoneH', T.memoQaCol || 'Questions & answers',
+    () => (memoData.reqs || []).filter(r => r.q).map(r => fmtMemoDate(r.ts) + '  ' + r.text + (r.answer ? '\n  💬 ' + String(r.answer).replace(/\n/g, '\n  ') : '')));
   colHead('memoReqH', T.memoReqCol || 'Requests',
     () => (memoData.reqs || []).map(r => { const n = reqNotes(r, true); return fmtMemoDate(r.ts) + '  ' + r.text + (n ? '\n  ' + n.replace(/\n/g, '\n  ') : ''); }));
   // 📱 좁은 화면(한 줄 배치) 아코디언 — 제목 탭하면 그 컬럼만 펼치고 나머지 접기. 데스크톱은 무동작(CSS도 미적용).
@@ -9523,7 +9533,6 @@ async function openMemo(sess) {
 }
 function renderMemo() {
   const items = (memoData.items || []).filter(i => !i.done);
-  const done = (memoData.items || []).filter(i => i.done);
   const boxI = document.getElementById('memoItems'); boxI.innerHTML = '';
   if (!items.length) boxI.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`;
   items.forEach(it => {
@@ -9584,19 +9593,20 @@ function renderMemo() {
     };
     boxI.appendChild(r);
   });
+  // ❓ 가운데 칸 — 완료 목록 대신 질문·답변만 모아 보여준다 (질문답변-기록.html 에 들어가는 것과 같은 내용).
+  //   체크로 완료한 메모는 화면에서만 빠질 뿐 데이터·Excel 내보내기에는 그대로 남는다.
   const boxD = document.getElementById('memoDone'); boxD.innerHTML = '';
-  done.forEach(it => {
-    const r = document.createElement('div'); r.className = 'memo-row mdone';
-    r.innerHTML = `<span class="mdate">${fmtMemoDate(it.doneTs || it.ts)}<br><button class="mcopy" title="${esc(T.memoCopyT || '')}">📋</button></span>`
-                + `<span class="mtext">${esc(it.text)}</span>`
-                + `<button class="mdel" title="${esc(T.memoDelT || 'Delete')}">✕</button>`;
-    r.querySelector('.mcopy').onclick = () => copyTxt(it.text);
-    r.querySelector('.mdel').onclick = async () => {
-      if (!confirm(T.memoDelConfirm || '이 메모를 삭제할까요?')) return;
-      const res = await api('POST', '/api/memos/del', { path: memoPath, id: it.id });
-      if (res && res.memo) memoData = res.memo;
-      renderMemo();
-    };
+  const qas = (memoData.reqs || []).filter(rq => rq.q);
+  if (!qas.length) boxD.innerHTML = `<div class="memo-empty">${esc(T.memoQaEmpty || '')}</div>`;
+  qas.forEach(rq => {
+    const r = document.createElement('div'); r.className = 'memo-row mreq';
+    r.innerHTML = `<span class="mdate">${fmtMemoDate(rq.ts)}<br><button class="mcopy" title="${esc(T.memoCopyT || '')}">📋</button></span>`
+                + `<span class="mtext">${esc(rq.text)}`
+                + (rq.answer ? `<span class="mans">💬 ${esc(rq.answer)}</span>`
+                             : `<span class="mans">⏳ ${esc(T.stRun || '')}</span>`)   // 아직 답이 안 온 질문
+                + `</span><button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
+    r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (rq.answer ? '\n💬 ' + rq.answer : ''));
+    r.querySelector('.mjump').onclick = () => jumpToReq(rq);
     boxD.appendChild(r);
   });
   const boxR = document.getElementById('memoReqs'); boxR.innerHTML = '';   // 최신순 (서버가 unshift로 저장)
