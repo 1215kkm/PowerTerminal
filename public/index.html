@@ -78,7 +78,21 @@
   .pane-head { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; padding: 6px 8px;
                background: #111827; border-bottom: 1px solid var(--line); cursor: grab;
                user-select: none; -webkit-user-select: none; }   /* 제목·경로 글자에서 드래그 시작하면 '텍스트 선택'이 이겨서 창 이동이 안 되던 문제 — 헤더 전체를 선택불가로 */
-  .ph-top { display: flex; align-items: center; gap: 6px; }
+  /* 창이 좁을 때: 제목이 먼저 줄어들고(말줄임), 도구버튼 묶음은 우측 기준으로 끝까지 남는다.
+     그래도 한 줄에 안 들어가면 묶음이 통째로 아랫줄(역시 우측 정렬)로 내려간다 — 잘려서 사라지지 않게. */
+  .ph-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ph-top > .title { min-width: 0; }
+  .ph-top > .dragsp { min-width: 0 !important; }
+  /* 묶음 자체도 줄바꿈된다 — 아주 좁은 칸에서도 버튼이 접히면서 전부 보인다 */
+  .ph-tools { flex: 0 1 auto; margin-left: auto; display: flex; align-items: center;
+              flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  /* 칸이 좁으면(.tight) 묶음을 헤더 위에 띄운다. 그냥 접히게 두면 마우스를 올릴 때마다 헤더가
+     30~60px 씩 커졌다 작아지며 터미널이 출렁인다 — 띄우면 자리 차지가 없어 흔들리지 않는다. */
+  .pane.tight .ph-top { position: relative; }
+  .pane.tight .ph-tools { position: absolute; right: 0; top: -3px; z-index: 6; max-width: calc(100% - 26px);
+                          padding: 3px 5px; border-radius: 9px; background: #111827; border: 1px solid var(--line);
+                          box-shadow: 0 5px 16px rgba(0,0,0,.5); }
+  html.light .pane.tight .ph-tools { background: #eef0f4; }
   .ph-bottom { display: flex; align-items: center; gap: 8px; }
   .ph-bottom .folder { flex: 0 1 auto; }
   /* 제목/경로 옆 빈 공간 = 손바닥(grab) 드래그 영역 (pane-head가 draggable이라 여기 잡고 옮김) */
@@ -86,7 +100,14 @@
   .pane-head .dragsp:active { cursor: grabbing; }
   .pane-head .num { min-width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700;
                     display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
-                    background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
+                    background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; cursor: pointer; }
+  /* 세션 위에 마우스를 올리면 번호가 ＋ 로 바뀐다 — 누르면 같은 폴더를 worktree 로 분리해 세션 하나 더.
+     (번호는 그때그때 자리로 다시 매겨지는 값이라, 가리고 있어도 잃는 정보가 없다) */
+  .pane:hover .pane-head .num { font-size: 0; background: linear-gradient(135deg, #15803d, #22c55e); }
+  .pane:hover .pane-head .num::after { content: '＋'; font-size: 14px; font-weight: 700; line-height: 1; }
+  .pane:hover .pane-head .num:hover { filter: brightness(1.2); }
+  @media (hover: none) { .pane:hover .pane-head .num { font-size: 12px; background: linear-gradient(135deg, var(--violet), var(--pink)); }
+                         .pane:hover .pane-head .num::after { content: none; } }
   .pane-head .title { font-weight: 700; font-size: 14px; cursor: text; padding: 2px 4px; border-radius: 4px;
                       flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pane-head .title:hover { background: #374151; }
@@ -117,6 +138,27 @@
                         background: #14532d; color: #bbf7d0; border: 1px solid #166534; cursor: pointer; max-width: 190px;
                         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pane-head .wtBadge:hover { background: #166534; color: #dcfce7; }
+  /* ◎ 플로우 화살표 — 평소엔 아무것도 안 그려져 있고, 세션에 마우스를 올리거나 요청을 보낼 때만 켜진다 */
+  /* svg 는 대체요소라 width/height 를 안 주면 inset:0 을 무시하고 기본 300x150 으로 잡히고,
+     그 밖으로 나간 선은 통째로 잘려 아무것도 안 보인다 — 크기를 명시해야 한다. */
+  #flowLayer { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+               z-index: 45; pointer-events: none; opacity: 0; transition: opacity .18s; }
+  #flowLayer.on { opacity: 1; }
+  #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
+                          filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
+  #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
+  /* 연결 대상 고르는 중 — 다른 세션들 위에 덮이는 클릭판 */
+  .flow-target { position: absolute; inset: 0; z-index: 46; cursor: pointer; display: flex;
+                 align-items: center; justify-content: center; text-align: center; padding: 10px;
+                 background: rgba(17,24,39,.72); border: 2.5px dashed #f472b6; border-radius: 12px;
+                 color: #fbcfe8; font-weight: 700; font-size: 13px; }
+  .flow-target.on { background: rgba(22,101,52,.72); border-color: #22c55e; color: #dcfce7; }
+  .flow-target:hover { background: rgba(139,56,245,.75); color: #fff; }
+  #flowHint { position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 60;
+              display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 999px;
+              background: #111827; border: 1px solid var(--violet); color: var(--fg); font-size: 12.5px;
+              box-shadow: 0 6px 22px rgba(0,0,0,.5); }
+  html.light #flowHint { background: #fff; }
   /* 칸이 짧아지면 *터미널 영역이* 양보한다. min-height:220px 이던 시절엔 칸보다 내용이 커져서
      .pane 의 overflow:hidden 에 아래쪽(입력줄·전송 버튼)이 잘려 안 보였다. */
   .pane-body { flex: 1 1 auto; position: relative; min-height: 0; }
@@ -378,6 +420,26 @@
   .cm-sess.idle { color: var(--muted); }
   .cm-sess .dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
   .cm-sess.idle .dot { background: #6b7280; }
+  .cm-sess .cs-t { overflow: hidden; text-overflow: ellipsis; }
+  .cm-sess .cs-wt { flex: 0 0 auto; font-size: 11px; }
+  /* ◎ 플로우 연결 버튼 — 마우스를 올린 행에만 나타난다 (터치 기기는 항상) */
+  .cm-sess .cs-flow { display: none; flex: 0 0 auto; margin-left: auto; padding: 0 5px; line-height: 18px;
+                      border: 1px solid var(--line); border-radius: 6px; background: transparent;
+                      color: var(--muted); font-size: 12px; cursor: pointer; }
+  .cm-sess:hover .cs-flow { display: block; }
+  .cm-sess .cs-flow:hover { border-color: var(--pink); color: var(--pink); }
+  @media (hover: none) { .cm-sess .cs-flow { display: block; } }
+  .cm-sess.flowfrom { outline: 2px solid #22d3ee; outline-offset: -2px; }
+  .cm-sess.flowfrom .cs-flow { display: block; border-color: #22d3ee; color: #22d3ee; }
+  .cm-sess.flowon { background: rgba(34,197,94,.18); }
+  /* 🌿 같은 레포에서 갈라진 세션 묶음 — 왼쪽 세로선 하나로 "이건 한 뿌리" 를 표시 */
+  #cmSessions { position: relative; }
+  .cm-grp { position: relative; padding-left: 10px; }
+  .cm-grp::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 2px;
+                    border-radius: 2px; background: linear-gradient(#22c55e, #15803d); }
+  #cmFlowSvg { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; display: none; }
+  #cmFlowSvg .cmflow-line { fill: none; stroke: #f472b6; stroke-width: 2; stroke-linecap: round; }
+  #cmFlowSvg .cmflow-line.from-here { stroke: #22d3ee; stroke-width: 2.6; }
   /* 우측 파일 트리 */
   .cm-node { display: flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer;
              font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -387,11 +449,37 @@
   .cm-node.dim { color: var(--muted); }        /* node_modules 등 무거운 폴더 */
   .cm-node .tw { flex: 0 0 auto; width: 12px; text-align: center; color: var(--muted); }
   .cm-empty { padding: 10px; font-size: 12px; color: var(--muted); }
+  /* 트리 상단 고정 줄 — 새 파일/새 폴더/새로고침 */
+  .cm-treebar { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 4px;
+                padding: 5px 6px; background: #111827; border-bottom: 1px solid var(--line); }
+  html.light .cm-treebar { background: #eef0f4; }
+  .cm-treebar .ctb-sp { flex: 1 1 auto; }
+  .cm-treebar button { flex: 0 0 auto; padding: 2px 7px; font-size: 12px; border: 1px solid var(--line);
+                       border-radius: 6px; background: transparent; color: var(--fg); cursor: pointer; }
+  .cm-treebar button:hover { border-color: var(--violet); color: var(--violet); }
+  /* 트리 우클릭 메뉴 */
+  #cmCtx { display: none; position: fixed; z-index: 120; min-width: 150px; padding: 4px;
+           background: #1f2937; border: 1px solid var(--line); border-radius: 9px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.5); font-size: 12.5px; }
+  html.light #cmCtx { background: #fff; }
+  #cmCtx .cx-head { padding: 3px 8px 5px; color: var(--muted); font-size: 11px; border-bottom: 1px solid var(--line);
+                    margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+  #cmCtx .cx-it { padding: 6px 9px; border-radius: 6px; cursor: pointer; }
+  #cmCtx .cx-it:hover { background: var(--violet); color: #fff; }
   /* 폰: 4분할은 안 맞으니 에디터+트리만 (세션·터미널·리사이저는 숨김) */
   @media (max-width: 900px) {
     #cmBody { grid-template-columns: 1fr 150px !important; }
     #cmSessions, #cmTermCol, #cmBody .cm-resize { display: none; }
   }
+  /* 코드편집 모드의 세션 칸은 폭이 좁다 — 요청내역·파일첨부·마이크를 입력창 오른쪽에 세로로 쌓으면
+     입력칸이 손톱만 해진다. 여기서는 세 버튼을 입력창 아래 가로 한 줄(우측 정렬)로 내리고,
+     전송 버튼이 그 아래에 오게 한다. */
+  #cmTerm .quick .qRow { flex-wrap: wrap; }
+  #cmTerm .quick .qBtns { flex: 1 0 100%; flex-direction: row; justify-content: flex-end; align-items: center; gap: 6px; }
+  #cmTerm .quick .qBtns button { width: auto; }
+  #cmTerm .quick .qBtns .qHistHint { display: none; }     /* 'Ctrl+↑' 안내는 좁은 칸에선 자리만 차지 */
+  #cmTerm .quick .qDuo { flex: 0 0 auto; }
+  #cmTerm .quick .qDuo button { min-width: 40px; }
   /* 📜 요청내역 토글 버튼 (이미지첨부 옆) */
   .quick .qHist { flex: 0 0 auto; white-space: nowrap; }
   .quick .qHist.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
@@ -1250,13 +1338,7 @@
       <option value="custom" data-i18n="agCustom">⚙ Custom command</option>
     </select>
     <select id="addModel" data-i18n-title="modelTip" style="flex:1;min-width:108px;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:7px 10px;font-family:inherit">
-      <!-- 라벨의 버전 숫자는 초기화 때 MODEL_LABELS로 채움 (세션 헤더와 한 곳에서 관리) -->
-      <option value="default" data-i18n="mDefault">Default model</option>
-      <option value="opus">Opus</option>
-      <option value="sonnet">Sonnet</option>
-      <option value="haiku">Haiku</option>
-      <option value="fable">Fable</option>
-      <option value="opusplan">Opus Plan</option>
+      <!-- 목록은 초기화 때 modelOptionsHtml()로 채움 (세션 헤더와 한 곳에서 관리) -->
     </select>
     <input id="addTitle" data-i18n-ph="titlePh" style="flex:1;min-width:120px;margin:0">
   </div>
@@ -1799,6 +1881,1648 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
   for (const tag of list) { const l = String(tag || '').slice(0, 2).toLowerCase(); if (I18N[l]) return l; }
   return '';
 }
+/* 🌍 언어 보강표 — 위 I18N 에 덧씌운다.
+   en/ko 는 늘 전부 채워져 있었지만 나머지 8개 언어는 오래 전 일부만 번역된 채였고, 그 뒤 추가된 기능
+   (메모장·마인드맵·worktree·음성입력·자주쓰는 단어·질문답변 기록 …) 문구는 전부 영어로 새고 있었다.
+   앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
+const I18N_MORE = {
+  en: {
+    mPinned: 'Older versions (pinned)',
+    numAddT: 'Open one more session on this folder — a git repo gets its own worktree so the two never clash (Shift-click = same folder as-is)',
+    flowT: 'Flow — link this session to the ones it hands work to',
+    flowPickHint: 'Click the sessions that ‘{t}’ hands work to. Click again to unlink.',
+    flowDone: 'Done',
+    wtGroupT: 'Same repo — the original and the worktrees split off from it',
+    cmNewFile: 'New file', cmNewDir: 'New folder',
+    cmNewFileT: 'New file in the top folder', cmNewDirT: 'New folder in the top folder',
+    cmRefreshT: 'Refresh the tree', cmNewFilePh: 'New file name', cmNewDirPh: 'New folder name',
+    cmBadName: 'That name cannot be used.', cmExists: 'Something with that name is already there.',
+    cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
+  },
+  ko: {
+    mPinned: '지난 버전 (고정)',
+    numAddT: '이 폴더로 세션 하나 더 열기 — git 레포면 worktree 로 분리돼 서로 안 겹칩니다 (Shift+클릭 = 같은 폴더 그대로)',
+    flowT: '플로우 — 이 세션 다음으로 이어지는 세션을 화살표로 연결',
+    flowPickHint: '‘{t}’ 다음으로 이어질 세션들을 클릭하세요. 다시 누르면 연결이 풀립니다.',
+    flowDone: '완료',
+    wtGroupT: '같은 레포 — 원본과 거기서 갈라져 나온 worktree 들',
+    cmNewFile: '새 파일', cmNewDir: '새 폴더',
+    cmNewFileT: '최상위 폴더에 새 파일', cmNewDirT: '최상위 폴더에 새 폴더',
+    cmRefreshT: '트리 새로고침', cmNewFilePh: '새 파일 이름', cmNewDirPh: '새 폴더 이름',
+    cmBadName: '쓸 수 없는 이름입니다.', cmExists: '같은 이름이 이미 있습니다.',
+    cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
+  },
+  ja: {
+    mPinned: '過去のバージョン(固定)',
+    numAddT: 'このフォルダでもう1つセッションを開く — gitリポジトリなら worktree に分かれて衝突しません (Shift+クリック = 同じフォルダのまま)',
+    flowT: 'フロー — このセッションの次に続くセッションを矢印でつなぐ',
+    flowPickHint: '「{t}」の次に続くセッションをクリックしてください。もう一度押すと解除されます。',
+    flowDone: '完了',
+    wtGroupT: '同じリポジトリ — 元のフォルダと、そこから分かれた worktree',
+    cmNewFile: '新しいファイル', cmNewDir: '新しいフォルダ',
+    cmNewFileT: '最上位フォルダに新しいファイル', cmNewDirT: '最上位フォルダに新しいフォルダ',
+    cmRefreshT: 'ツリーを更新', cmNewFilePh: '新しいファイル名', cmNewDirPh: '新しいフォルダ名',
+    cmBadName: 'この名前は使えません。', cmExists: '同じ名前がすでにあります。',
+    cmTreeRoot: '最上位フォルダ', cmEmptyDir: '(空のフォルダ)',
+    qrToggle: 'スマホ用QRの表示切替', infoBtn: '接続アドレス', copyImg: '📋 コピー', saveImg: '💾 保存',
+    orManual: 'または、フォルダのパスを直接入力:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 新規プロジェクト + GitHub', npPh: 'プロジェクト名 (英数字・-)',
+    fontUp: '文字を大きく', fontDn: '文字を小さく',
+    previewPrompt: '新しいタブでどのページを開きますか? (開発サーバー、例 http://localhost:3000 — PowerTerminal が中継するのでスマホでも開けます · 空ならフォルダを開く)',
+    customPrompt: '実行するコマンド (例: codex, aider, gemini)',
+    tunnelNone: 'トンネル起動中、または cloudflared がありません',
+    urlChanges: '(サーバー再起動でURLが変わります)', qrLte: 'LTEでどこからでも: ', qrWifi: '同じWi-Fi: ',
+    copyOk: 'QR画像をコピーしました — チャットに貼り付けられます。', copyFail: 'コピー失敗',
+    ghLocal: '(ローカルフォルダとgitは作成済み)', feedbackShort: 'リクエスト',
+    noTunnel: '外部アクセスを準備中 — この画面は自動で更新されます。',
+    aiLabel: 'このセッションで使うAI', updText: 'アップデート',
+    updTip: '新バージョンあり — PowerTerminal を再起動すると自動更新',
+    dupAsk: '「{t}」は既に開いています。別のセッションとしてもう一度開きますか?',
+    soundBtn: '終了時にセッション番号を読み上げる (オン/オフ)',
+    pairTitle: '別のPCをつなぐ — 長いリンクを打つ必要なし',
+    pairStep1: '別のPCで次を開き', pairStep2: 'このコードを入力:',
+    sessionAdded: 'セッションを追加しました', zoomT: 'このセッションを全画面に', zoomExit: '✕ 全画面を終了',
+    memoT: 'このセッションのメモ帳', memoTitle: '📝 メモ',
+    memoNewPh: '何でも書けます… Enterで保存 · Shift+Enterで改行',
+    memoSaveBtn: '保存', memoSaveTip: 'このメモを保存 (Enter)',
+    themeT: 'ライト / ダークモード (ターミナルも)',
+    previewNoIndex: 'このフォルダに index.html がないので直接プレビューできません。フォルダ直下に index.html を置くか、開発サーバーを起動してそのアドレス (例 http://localhost:3000) を入力してください。',
+    mDefaultLong: '自動 — Opus',
+    memoDoneCol: '完了', memoReqCol: '送ったリクエスト', memoEmpty: 'まだメモがありません — 下に書いてください。',
+    memoDelT: '削除', memoSend: '送信', memoSendTip: 'このメモをセッションのターミナルへ送る — 作業が終わると完了に移ります',
+    reqResendT: 'このリクエストをもう一度ターミナルへ送る',
+    memoEdit: '編集', memoDelBtn: '削除', memoDelConfirm: 'このメモを削除しますか?',
+    memoEditSaveT: '保存 (Enter)', memoEditCancelT: '編集をやめる (Esc)',
+    memoExport: 'Excel', memoExportAllT: 'すべてのセッションのメモとリクエスト履歴を1つのExcelでダウンロード',
+    memoNewCol: '新しいメモ', memoCopy: 'コピー', memoCopyT: 'この文をクリップボードにコピー',
+    copyAll: 'すべてコピー', copyAllT: 'この列の内容をすべてコピー',
+    setBtnT: '設定', setTitle: '⚙ 設定',
+    setSub: 'リクエストを保存するとき、AIが短いメモを付けられます。メモはリクエスト履歴のホバー表示とExcelに出ます。少量のAIトークンを使うことがあります。',
+    setHintsL: '機能ヒントの吹き出しを表示', setHintsHint: '初回の機能ツアーと、5分アイドル後にランダムで3秒だけ出るヒント。',
+    setOnboard: '🎈 機能ツアーをもう一度見る',
+    obNext: '次へ →', obCloseAll: 'すべて閉じる', obNever: '今後表示しない',
+    obAdd: 'セッションを追加', obAddD: '作業フォルダを選んで、その中でAIターミナルを動かします。',
+    obQR: 'スマホで開く', obQRD: 'QRを読み取り — 自宅はWi-Fi、外出先は外部アクセスで。',
+    obMind: 'マインドマップ', obMindD: 'アイデアを枝で整理して画像に書き出せます。',
+    obTheme: 'ライト / ダーク', obThemeD: 'ターミナルを含め、アプリ全体のテーマを切り替えます。',
+    obFeedback: 'リクエストを送る', obFeedbackD: '開発者に機能要望や不具合を送れます。',
+    obMemo: 'メモ帳', obMemoD: 'フォルダごとのメモと送ったリクエスト全部 — Excel書き出し付き。',
+    obHist: 'リクエスト履歴', obHistD: '過去のリクエスト — クリックでターミナルのその位置へ移動。',
+    obInput: 'リクエスト入力', obInputD: 'ここに書いてEnter。「質問…」で始めると答えがメモ帳に残ります。',
+    pvDev: '開発サーバーを起動してプレビュー', pvRunning: '起動中の開発サーバーを開く',
+    pvFolder: 'フォルダ一覧を開く', pvUrl: 'アドレスを手入力', pvStarting: '開発サーバーを起動中…',
+    pvFail: 'そのスクリプトはWeb開発サーバーではありません (アドレスが見つかりません)。ページを選ぶかフォルダを開いてください:',
+    dropPick: '同じ名前のフォルダが複数あります — 番号を入力して開いてください:',
+    dropMiss: 'このフォルダの実際のパスが分かりませんでした — [+ セッション] → 📂 参照 を使ってください。',
+    ghCopyOpen: 'コードをコピー → GitHubを開く', ghCopyOpenT: 'コードをコピーしてGitHubの承認ページを開きます',
+    fileOpened: '開きました', modeSwitched: 'モードを切り替えました (Shift+Tab)',
+    gbDirty: '未コミットの変更', gbAhead: 'プッシュ待ちのコミット', gbBehind: 'プル待ちのコミット',
+    gbPrT: 'このブランチをGitHubで開く (プルリクエスト、なければ新規)',
+    gbLocal: 'ローカル', gbLocalT: 'このフォルダはGitHubにつながっていません',
+    readT: '広く読む — スクロールバック(過去の作業も)を全幅で読み直す', readTitle: '広く読む',
+    codeT: 'コードエディタ — このプロジェクトのファイルを見て編集',
+    cmSave: '保存', cmExit: '閉じる', cmPreview: 'プレビュー',
+    wtSecTitle: '分離した作業フォルダ (worktree)',
+    wtSecSub: '同じリポジトリでセッションをもう1つ開くと、ファイルが衝突しないよう自動で作られるフォルダです。リポジトリの外、同じドライブにできます。',
+    wtOpen: '使用中', wtDirty: '変更あり', wtClean: '削除できます', wtPrune: '🧹 使っていないものを整理',
+    wtPruned: '{n}個を整理 · {k}個は保持 (使用中または変更あり)', icOpenShort: '📂',
+    wtTip: '分離した作業フォルダ (git worktree) — 他のセッションとファイルが衝突しません。押すと元のブランチに統合します',
+    wtMergeAsk: 'このセッションの作業 ({b}) を元のブランチに統合しますか?',
+    wtMerged: '{b} を {base} に統合しました', wtKept: '未コミットの変更が残っているため worktree フォルダは残しました。',
+    micT: '声でリクエストを入力',
+    micInsecure: 'マイクは安全な接続でのみ動きます — 外部アクセス(QR)のアドレスで開いてください',
+    micDenied: 'マイクがブロックされています — ブラウザの設定で許可してください',
+    micNo: 'このブラウザは音声入力に対応していません', micErr: '音声入力エラー',
+    sendQueued: '今はオフラインです — 接続が戻ったらリクエストを送ります。',
+    sndTitle: '完了音のテスト', sndSub: 'リクエストが終わったときに鳴る音を今すぐ鳴らします。聞こえない場合は下に理由が出ます。',
+    sndTest: '▶ 今すぐ鳴らす',
+    billTitle: 'サブスクの更新日',
+    billSub: '請求日を返すAPIがないので、毎月の請求日を入力してください。上部の使用量バーにマウスを乗せると次の更新日が出ます。空なら非表示。',
+    billUnit: '日 (毎月)', billNext: '更新', billToday: '今日', billIn: 'あと{n}日',
+    gptTip: 'GPT (Codex) の使用量 — 最後にGPTを動かした時点',
+    addNeedPath: 'フォルダのパスを入力するか、📂 で選んでください。',
+    setQaDocL: '質問と回答の記録ページを作る — トークン不要',
+    setQaDocHint: '「質問」で始めたリクエストは、もともと回答がリクエスト履歴に付きます。これをオンにすると、そのフォルダの docs/질문-답변-기록.html にも書き出されます — 新しい順、質問1つにつき1行。PowerTerminal が自分でページを組み立て、AIは一切呼びません (トークン0) — だから既定でオンです。',
+    phraseDefaults: '続けて,終わった?,1,2,3',
+    phTitle: 'よく使うリクエストの言葉',
+    phSub: '登録するとすべてのセッションの入力欄のすぐ上にボタンとして出ます。押すと入力欄に入るだけで、送信はしません。',
+    phNone: 'まだありません', phraseAdd: '＋ 言葉を追加', phraseAddShort: 'よく使う言葉',
+    phrasePrompt: 'よく使う言葉を入力 (例: 上げたよ)', phraseUse: '押すと入力欄に入ります',
+    phraseDel: '右クリックまたは長押しで削除', phraseDelAsk: '「{w}」ボタンを削除しますか?',
+    codeNoSess: '先にセッションを開いてください。',
+    admTitle: 'バナー管理 (開発者)',
+    admSub: 'バナーの公開、最新バージョンの設定、インストール統計。このPCのGitHubアカウントが開発者のときだけ表示されます。',
+    admShow: '開く', admHide: 'たたむ', admNewTab: '新しいタブで開く',
+    cmImgs: '画像', cmImgsHint: '— クリックで拡大 · コードへドラッグ', cmVisual: 'ビジュアル編集',
+    cmPopOut: '新しいウィンドウ', cmGrep: '複数ファイルを検索', cmGrepCase: 'Aa 大文字小文字', cmGrepRe: '.* 正規表現',
+    fileDropHint: 'ファイルをドロップして添付',
+    setIntentL: '依頼した理由 (意図)', setIntentHint: 'なぜ依頼したか / 何を解決したいかを一行で。',
+    setSummaryL: '要約プロンプト',
+    setSummaryHint: '何を依頼したかを掴む短い命令文 — 次回そのまま使い回せる言い方で。',
+    noteReasonL: '依頼した理由', noteSummaryL: '要約プロンプト',
+    mindBtn: 'マインドマップ', mindTitle: 'マインドマップ', mindRootTitle: '{u} のマップ', mindRootNoUser: 'マイマップ',
+    mindNewNode: '新しい枝', mindNewRoot: '新しいルート', mindAdd: '枝', mindDelBtn: '削除', mindReset: '表示を戻す',
+    mindDelConfirm: 'この枝と、その下にあるものをすべて削除します。続けますか?',
+    mindHint: 'ノードにマウスを乗せると8方向に+ · ドラッグで移動 · ダブルクリック/F2/Enterで名前変更 (Tabで確定) · +で枝を追加 · Deleteで削除 · 空白をドラッグで範囲選択→Ctrl+C / Ctrl+Vでコピー貼り付け · 空白を右クリックでルート追加 · Ctrl+ホイールで拡大縮小 · スペース/中ドラッグで移動',
+    mindAddBranchT: '選んだノードの下に枝を追加 (+キー)', mindColorT: '色を変える', mindColorReset: '既定',
+    mtTodo: 'やること', mtDone: '完了', mtPh: 'やることを書いてEnter', mtAddT: '追加',
+    mtDoneBtn: '完了にする', mtRestore: 'やることに戻す', mtEmpty: 'やることを追加', mtEditT: 'クリックで編集',
+    mindMemoT: '枝のメモ', mindMemoPh: 'この枝を担当する人へのメモ…', mindProgT: 'ドラッグで進捗を設定',
+    mtLinkedT: 'クリックでマップ上のこの枝へ', mtProgT: 'クリック/ドラッグで進捗を設定',
+    mtProgLinkedT: '枝の進捗 (マップで設定します)', mtCollapse: 'やることパネルをたたむ', mtExpand: 'やることパネルを表示',
+    mindLinkBtn: 'つなぐ', mindLinkPick: 'つなぐ先のノードをクリック (Escで中止)',
+    mindLinkNeedSel: '先にノードを選んでから[つなぐ]',
+    mindLinkPick1: 'つなぐ1つ目の枝をクリック',
+    mindLinkPick2: '2つ目の枝をクリック · 空白クリックでやり直し · Escで中止',
+    mindLinkSelHint: '矢印を選択中 — Deleteで削除 · 端の枝をクリックしてから別の枝でつなぎ直し',
+    mindLinkRepick: 'この端をつなぎ直す枝をクリック',
+    mindUndoT: '元に戻す (Ctrl+Z)', mindRedoT: 'やり直す (Ctrl+Y)',
+    mindCopyBtn: 'コピー', mindPasteBtn: '貼り付け',
+    mindCopyBtnT: '選択をコピー (Ctrl+C) — 空白をドラッグして枝と矢印を範囲選択',
+    mindPasteBtnT: 'カーソル位置に貼り付け (Ctrl+V)', mindCopied: 'コピーしました', mindPasted: '貼り付けました',
+    mindTabMap: 'マップ', mindTabCal: '予定', mcToday: '今日', mcTitleFmt: '{y}年{m}月',
+    mcWeekdays: '日,月,火,水,木,金,土', mcAddPh: '予定を書いてEnter', mcEditPrompt: '予定を編集 (空で削除)',
+    mcEvT: 'クリック: 完了切替 · ダブルクリック: 編集 (空で削除)',
+    mcTodoT: 'やること (クリックで完了切替 — 左のリストと同期)',
+    mcIcsBtn: 'カレンダー連携',
+    mcIcsT: '購読(ICS)URLをコピー — Googleカレンダーの「URLで追加」に貼るとスマホでも見られます',
+    mcIcsHow: 'URLをコピーしました。\n\nGoogleカレンダー (calendar.google.com) › 設定 › カレンダーを追加 › URLで追加 — ここに貼ると、\nPTの予定と日付つきのやることがスマホのカレンダーに出ます。\n\n· 一方向 (PT→カレンダー)、更新は数時間おき (Google側)\n· PTの外部アドレスが変わったら追加し直してください',
+    mtDateT: '日付 — 予定カレンダーに出ます (クリックで変更)',
+    mindDelMultiConfirm: '選択した{n}個の枝を (その下の枝も含めて) 削除しますか? ',
+    mindCopyEmpty: '選択がありません — 先に枝を範囲選択してください',
+    mindPasteEmpty: 'クリップボードが空です',
+    mindUnitNode: '個', mindUnitLink: '本の線',
+    mindAddRoot: 'ルート追加', mindAddRootT: 'もう1つルートマップを追加', mindAddRootHere: 'ここにルートを追加',
+    mindExport: '画像で保存', mindExportT: 'マップをPNG画像で保存', mindExportOne: '選んだルートだけ',
+    mindExportAll: 'マップ全体', mindExportPick: 'どれを画像で保存しますか?',
+    mindOneWay: '一方向', mindTwoWay: '双方向', mindLeftWay: '左向き', mindRightWay: '右向き',
+    mindNotePh: 'このつながりについてのメモ…',
+    memoNoSess: '先にこのフォルダのセッションを開いてから送ってください。', memoSent: 'ターミナルへ送りました',
+    memoJumpT: 'ターミナルのこのリクエストへ移動', memoJumpNoSess: 'このフォルダのセッションが開いていません',
+    memoJumpMiss: 'ターミナルの履歴に見つかりません (流れて消えたか、セッションが再起動した可能性)',
+    cancelReqT: '進行中のリクエストだけ止めます (ESC送信) — 終わった作業は取り消しません',
+    cancelLast: '進行中の\nリクエストを\n停止', toBottomT: '最新の出力へ移動',
+    reqHistBtn: 'リクエスト履歴', reqHistT: 'このターミナル横のリクエスト履歴を表示/非表示 — 項目クリックでその位置へ',
+    stRun: '進行中', stDone: '完了', stStop: '停止', stOff: '終了で中断',
+    bnNewVer: '🔄 新バージョン v{v} が出ました — クリックして再起動・更新',
+    newFolder: '＋ 新しいフォルダ', brwGrid: 'グリッド表示', brwList: '詳細リスト (縦)',
+    newFolderPh: '新しいフォルダ名 → Enter',
+    qrLoading: 'アドレスを読み込み中…', qrFail: 'アドレスを読み込めませんでした — ネットワークを確認してください。',
+    connLostHint: 'アドレスが変わったかもしれません — PC画面のQRを読み直すと再接続できます。',
+    ghId: 'ID', ghNoLogin: '未ログイン', ghSearch: '🔍 リポジトリ名で絞り込み',
+    ghNeedLogin: 'GitHubにログインしていません。', ghLoginBtn: 'GitHubにログイン',
+    ghNeedCli: 'GitHub CLI (gh) がインストールされていません。リポジトリ一覧・clone・新規作成に必要です。',
+    ghNeedCliShort: 'GitHub CLI のインストールが必要です。', ghInstallBtn: 'GitHub CLI をインストール', ghRetry: '再試行',
+    ghPsBtn: 'PowerShellで自動インストール', ghPsTip: 'PowerShellを開いて winget で gh をインストールします',
+    ghManual: '手動インストール:',
+    ghInstStep1: '[GitHub CLI をインストール] で公式サイトを開き、Windows用インストーラ (.msi) をダウンロード',
+    ghInstStep2: 'インストーラを実行 (次へ → 次へ → 完了)',
+    ghInstStep3: 'ここに戻って[再試行] — 再起動は不要です',
+    ghWinget: '下のボタン (GitHub CLI をインストール) を押すか、PowerShellにこのコマンドを貼り付け:',
+    ghInstallTip: 'ブラウザで cli.github.com を開きます。インストール後に[再試行]を押せばOK (再起動不要)。',
+    imgRemove: '削除', imgZoom: 'クリックで拡大', histHint: '履歴: Ctrl+↑', winNoT: 'ウィンドウ番号',
+    dragReorder: 'ドラッグで並べ替え', dragMove: 'ドラッグでこの画面を移動',
+    tabBtn: '普通のブラウザタブで開く (そのタブを別のChromeウィンドウへドラッグできます)',
+    linkClickOpen: 'クリック → 新しいウィンドウで開く',
+    adminPwPrompt: '管理者パスワード:', adminPwFail: 'パスワードが違います。',
+    rebootConfirm: 'このウィンドウを再起動します: PowerTerminal が最新版で再起動し、このページも再読み込みされます。セッションは維持され、10〜20秒ほどです。続けますか?',
+    rebootIng: '最新版で再起動中…', rebootWait: 'このページは自動で再読み込みされます。',
+    ghStep1: '1) コードをコピー  2) GitHubを開く  3) 貼り付けて承認',
+    ghOpen: 'GitHubを開く', ghWaiting: '承認を待っています…', ghFail: 'ログイン失敗 — もう一度お試しください',
+    aiPick: 'このセッションのAIを変更', aiChangeAsk: 'このセッションを別のAIに変えますか? セッションが再起動します。',
+    workingT: '作業中',
+    linksT: 'このセッションに出たリンク — タップでコピー', linksHead: '🔗 リンク・パス — タップでコピー',
+    linksNone: 'ここにはリンクがありません', linksOpen: '新しいタブで開く', linksOpenFile: 'ファイルを開く (プレビューで)',
+    linksPrev: '前の対話', linksConv: '対話', linksAll: 'すべて表示',
+    fileChip: 'ファイル', copied: 'コピーしました',
+    connLost: '⚠ 接続が切れました — サーバー (PC) が止まったか、ネットワークが切れました。再接続中…',
+    pickBtn: 'どのセッションを表示するか選ぶ', quitBtn: '終了 — サーバー (このPC) も止める',
+    quitConfirm: 'PowerTerminal を完全に終了します — このPCのサーバーと実行中のすべてのセッションが止まり、スマホからもつながらなくなります。セッション一覧は保存され、次回起動時に戻ります。続けますか?',
+    quitBye: 'PowerTerminal を終了しました。',
+    quitByeSub: 'このタブは閉じて大丈夫です。start.bat をもう一度実行すればセッションが復元されます。',
+    modelRestartAsk: 'このセッション (「{t}」) だけを {m} で再起動しますか?\n\nこの1つだけが再起動します — 他のセッションはそのままです。会話は続きます (--continue)。',
+    ok: 'このセッションを再起動',
+    verWarn: '⚠ 旧バージョン v{c} で動作中 (最新 v{l})。更新されない場合はコピーが複数あるかもしれません — 全部閉じて1つだけ起動してください。',
+    icOpen: 'フォルダを開く', icRemove: '一覧から外す',
+    icDup: 'このフォルダでもう1つセッションを開く — gitリポジトリなら worktree に分かれて衝突しません (Shift+クリック・右クリックで同じフォルダのまま)',
+    qrGateWarn: 'このQR・アドレスを知る人は、このコンピュータでコマンドを実行できます。',
+    qrGateResp: '信頼できる人にだけ共有してください。漏れた場合の責任はご自身にあります。',
+    qrGateOk: '理解しました — QRを表示'
+  },
+  zh: {
+    mPinned: '旧版本(固定)',
+    numAddT: '在这个文件夹再开一个会话 — 若是 git 仓库会自动分到独立 worktree，互不冲突 (Shift+点击 = 保持同一文件夹)',
+    flowT: '流程 — 用箭头连到这个会话之后接手的会话',
+    flowPickHint: '点击「{t}」之后接手的会话。再点一次即可取消连接。',
+    flowDone: '完成',
+    wtGroupT: '同一个仓库 — 原始文件夹和从它分出的 worktree',
+    cmNewFile: '新建文件', cmNewDir: '新建文件夹',
+    cmNewFileT: '在顶层文件夹新建文件', cmNewDirT: '在顶层文件夹新建文件夹',
+    cmRefreshT: '刷新文件树', cmNewFilePh: '新文件名', cmNewDirPh: '新文件夹名',
+    cmBadName: '这个名字不能用。', cmExists: '已经有同名的了。',
+    cmTreeRoot: '顶层文件夹', cmEmptyDir: '(空文件夹)',
+    qrToggle: '手机访问二维码 开/关', infoBtn: '访问地址', copyImg: '📋 复制', saveImg: '💾 保存',
+    orManual: '或者直接输入文件夹路径:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 新建项目 + GitHub', npPh: '项目名 (字母/数字/-)',
+    fontUp: '字体放大', fontDn: '字体缩小',
+    previewPrompt: '在新标签页打开哪个页面? (你的开发服务器，例如 http://localhost:3000 — PowerTerminal 会转发，手机上也能打开 · 留空则打开文件夹)',
+    customPrompt: '要运行的命令 (例如 codex, aider, gemini)',
+    tunnelNone: '隧道启动中，或缺少 cloudflared',
+    urlChanges: '(服务器重启后地址会变)', qrLte: '用 LTE 随处访问: ', qrWifi: '同一 Wi-Fi: ',
+    copyOk: '二维码已复制 — 可以直接粘贴到聊天里。', copyFail: '复制失败',
+    ghLocal: '(本地文件夹和 git 已创建)', feedbackShort: '反馈',
+    noTunnel: '正在准备外部访问 — 此面板会自动刷新。',
+    aiLabel: '这个会话使用的 AI', updText: '更新',
+    updTip: '有新版本 — 重启 PowerTerminal 即可自动更新',
+    dupAsk: '「{t}」已经打开了。要作为单独的会话再打开一次吗?',
+    soundBtn: '完成时朗读会话编号 (开/关)',
+    pairTitle: '连接另一台电脑 — 不用手打长链接',
+    pairStep1: '在另一台电脑上打开', pairStep2: '并输入这个代码:',
+    sessionAdded: '已添加会话', zoomT: '把这个会话全屏', zoomExit: '✕ 退出全屏',
+    memoT: '这个会话的记事本', memoTitle: '📝 记事',
+    memoNewPh: '随便写… Enter 保存 · Shift+Enter 换行',
+    memoSaveBtn: '保存', memoSaveTip: '保存这条记事 (Enter)',
+    themeT: '浅色 / 深色模式 (包括终端)',
+    previewNoIndex: '这个文件夹里没有 index.html，所以无法直接预览。可以在文件夹根目录放一个 index.html，或者启动你的开发服务器并输入它的地址 (例如 http://localhost:3000)。',
+    mDefaultLong: '自动 — Opus',
+    memoDoneCol: '已完成', memoReqCol: '你发过的请求', memoEmpty: '还没有记事 — 在下面写吧。',
+    memoDelT: '删除', memoSend: '发送', memoSendTip: '把这条记事发到会话终端 — 工作完成后会移到「已完成」',
+    reqResendT: '把这条请求再发一次到终端',
+    memoEdit: '编辑', memoDelBtn: '删除', memoDelConfirm: '删除这条记事?',
+    memoEditSaveT: '保存 (Enter)', memoEditCancelT: '取消编辑 (Esc)',
+    memoExport: 'Excel', memoExportAllT: '把所有会话的记事和请求记录下载为一个 Excel',
+    memoNewCol: '新记事', memoCopy: '复制', memoCopyT: '把这段文字复制到剪贴板',
+    copyAll: '全部复制', copyAllT: '复制这一列的全部内容',
+    setBtnT: '设置', setTitle: '⚙ 设置',
+    setSub: '保存请求时，AI 可以给它加一小段备注。备注会在请求记录里悬停显示，也会出现在 Excel 里，可能消耗少量 AI token。',
+    setHintsL: '显示功能提示气泡', setHintsHint: '首次使用的功能导览，以及闲置 5 分钟后随机出现 3 秒的小提示。',
+    setOnboard: '🎈 再看一次功能导览',
+    obNext: '下一步 →', obCloseAll: '全部关闭', obNever: '不再显示',
+    obAdd: '添加会话', obAddD: '选一个工作文件夹，在里面运行 AI 终端。',
+    obQR: '在手机上打开', obQRD: '扫二维码 — 在家用 Wi-Fi，在外用外部访问。',
+    obMind: '思维导图', obMindD: '把想法整理成分支，还能导出为图片。',
+    obTheme: '浅色 / 深色', obThemeD: '切换整个应用的主题，终端也一起。',
+    obFeedback: '发送需求', obFeedbackD: '向开发者反馈功能需求或问题。',
+    obMemo: '记事本', obMemoD: '按文件夹保存记事和你发过的所有请求 — 支持导出 Excel。',
+    obHist: '请求记录', obHistD: '你过去的请求 — 点一条就能跳到终端里的对应位置。',
+    obInput: '请求输入框', obInputD: '在这里输入并回车。以「质问…」开头，答案会存进记事本。',
+    pvDev: '启动开发服务器并预览', pvRunning: '打开正在运行的开发服务器',
+    pvFolder: '打开文件夹列表', pvUrl: '手动输入地址', pvStarting: '正在启动开发服务器…',
+    pvFail: '那个脚本不是 Web 开发服务器 (找不到地址)。请选择一个页面，或直接打开文件夹:',
+    dropPick: '发现多个同名文件夹 — 输入编号来打开:',
+    dropMiss: '找不到这个文件夹的真实路径 — 请用 [+ 会话] → 📂 浏览。',
+    ghCopyOpen: '复制代码 → 打开 GitHub', ghCopyOpenT: '复制代码并打开 GitHub 授权页面',
+    fileOpened: '已打开', modeSwitched: '已切换模式 (Shift+Tab)',
+    gbDirty: '未提交的改动', gbAhead: '待推送的提交', gbBehind: '待拉取的提交',
+    gbPrT: '在 GitHub 上打开这个分支 (它的 PR，或者新建一个)',
+    gbLocal: '本地', gbLocalT: '这个文件夹没有连接 GitHub',
+    readT: '宽屏阅读 — 把回滚内容(含更早的工作)按全宽重新排版', readTitle: '宽屏阅读',
+    codeT: '代码编辑器 — 浏览并编辑这个项目的文件',
+    cmSave: '保存', cmExit: '关闭', cmPreview: '预览',
+    wtSecTitle: '独立工作文件夹 (worktree)',
+    wtSecSub: '在同一个仓库再开一个会话时会自动创建，这样文件不会互相冲突。它在仓库文件夹之外、同一个盘符上。',
+    wtOpen: '使用中', wtDirty: '有改动', wtClean: '可清理', wtPrune: '🧹 清理没用的',
+    wtPruned: '已清理 {n} 个 · 保留 {k} 个 (使用中或有改动)', icOpenShort: '📂',
+    wtTip: '独立工作文件夹 (git worktree) — 这里的文件不会和其他会话冲突。点击可合并回原分支',
+    wtMergeAsk: '把这个会话的工作 ({b}) 合并到原分支?',
+    wtMerged: '已把 {b} 合并到 {base}', wtKept: '还有未提交的改动 — 已保留 worktree 文件夹。',
+    micT: '用语音输入请求',
+    micInsecure: '麦克风只在安全连接下可用 — 请改用外部访问(二维码)的地址打开',
+    micDenied: '麦克风被拦截了 — 请在浏览器设置里允许',
+    micNo: '这个浏览器不支持语音输入', micErr: '语音输入出错',
+    sendQueued: '当前离线 — 连接恢复后会自动发送你的请求。',
+    sndTitle: '完成提示音检查', sndSub: '现在就播放请求完成时的提示音。如果听不到，下面会说明原因。',
+    sndTest: '▶ 立即播放',
+    billTitle: '订阅续费日',
+    billSub: '没有 API 提供账单日期，请输入每月扣费的日子。把鼠标放到顶部的用量条上就能看到下次续费日。留空则不显示。',
+    billUnit: '日 (每月)', billNext: '续费', billToday: '今天', billIn: '还有 {n} 天',
+    gptTip: 'GPT (Codex) 用量 — 截至最后一次运行 GPT 时',
+    addNeedPath: '请输入文件夹路径，或用 📂 选择。',
+    setQaDocL: '生成问答记录页面 — 不消耗 token',
+    setQaDocHint: '以「质问 / 질문」开头的请求，本来就会把答案附在请求记录里。打开这个开关后，还会写入该文件夹的 docs/질문-답변-기록.html — 最新在前，一问一行。页面由 PowerTerminal 自己生成，完全不调用 AI (零 token)，所以默认开启。',
+    phraseDefaults: '继续,做完了吗?,1,2,3',
+    phTitle: '常用请求词',
+    phSub: '每个词都会变成所有会话输入框正上方的按钮。按下只会填进输入框，不会直接发送。',
+    phNone: '还没有', phraseAdd: '＋ 添加词', phraseAddShort: '常用词',
+    phrasePrompt: '输入你常用的词 (例如 已经上传了)', phraseUse: '按一下就填进输入框',
+    phraseDel: '右键或长按可删除', phraseDelAsk: '删除「{w}」按钮?',
+    codeNoSess: '请先打开一个会话。',
+    admTitle: '横幅管理 (开发者)',
+    admSub: '发布横幅、设置最新版本、查看安装统计。只有这台电脑的 GitHub 账号是开发者时才显示。',
+    admShow: '打开', admHide: '收起', admNewTab: '在新标签页打开',
+    cmImgs: '图片', cmImgsHint: '— 点击放大 · 拖进代码里', cmVisual: '可视化编辑',
+    cmPopOut: '新窗口', cmGrep: '在多个文件中查找', cmGrepCase: 'Aa 区分大小写', cmGrepRe: '.* 正则',
+    fileDropHint: '拖放文件即可附加',
+    setIntentL: '提出请求的原因 (意图)', setIntentHint: '一句话说明你为什么问 / 想解决什么问题。',
+    setSummaryL: '摘要提示词',
+    setSummaryHint: '一句简短的祈使句，概括你请求了什么 — 写成下次可以原样复用的命令。',
+    noteReasonL: '提出请求的原因', noteSummaryL: '摘要提示词',
+    mindBtn: '思维导图', mindTitle: '思维导图', mindRootTitle: '{u} 的导图', mindRootNoUser: '我的导图',
+    mindNewNode: '新分支', mindNewRoot: '新根节点', mindAdd: '分支', mindDelBtn: '删除', mindReset: '重置视图',
+    mindDelConfirm: '这会删除该分支及其下面的所有内容。继续吗?',
+    mindHint: '鼠标悬停节点会出现 8 个方向的 + · 拖动可移动 · 双击/F2/Enter 改名 (Tab 确认) · + 添加分支 · Delete 删除 · 拖动空白处框选，然后 Ctrl+C / Ctrl+V 复制粘贴 · 右键空白处添加根节点 · Ctrl+滚轮缩放 · 空格/中键拖动平移',
+    mindAddBranchT: '在选中的节点下添加分支 (+ 键)', mindColorT: '换颜色', mindColorReset: '默认',
+    mtTodo: '待办', mtDone: '已完成', mtPh: '写下待办，然后回车', mtAddT: '添加',
+    mtDoneBtn: '标记完成', mtRestore: '移回待办', mtEmpty: '添加一条待办', mtEditT: '点击编辑',
+    mindMemoT: '分支备注', mindMemoPh: '给负责这个分支的人留言…', mindProgT: '拖动设置进度',
+    mtLinkedT: '点击定位到导图上的这个分支', mtProgT: '点击/拖动设置进度',
+    mtProgLinkedT: '分支进度 (在导图上设置)', mtCollapse: '收起待办面板', mtExpand: '显示待办面板',
+    mindLinkBtn: '连接', mindLinkPick: '点击目标节点来连接 (Esc 取消)',
+    mindLinkNeedSel: '请先选中一个节点，再点[连接]',
+    mindLinkPick1: '点击要连接的第一个分支',
+    mindLinkPick2: '点击第二个分支 · 点空白处重来 · Esc 取消',
+    mindLinkSelHint: '已选中箭头 — Delete 删除 · 点一端的分支，再点另一个分支即可重连',
+    mindLinkRepick: '现在点击要把这一端重连到的分支',
+    mindUndoT: '撤销 (Ctrl+Z)', mindRedoT: '重做 (Ctrl+Y)',
+    mindCopyBtn: '复制', mindPasteBtn: '粘贴',
+    mindCopyBtnT: '复制选中内容 (Ctrl+C) — 拖动空白处可框选分支和箭头',
+    mindPasteBtnT: '粘贴到光标位置 (Ctrl+V)', mindCopied: '已复制', mindPasted: '已粘贴',
+    mindTabMap: '导图', mindTabCal: '日程', mcToday: '今天', mcTitleFmt: '{y}年{m}月',
+    mcWeekdays: '日,一,二,三,四,五,六', mcAddPh: '添加日程，然后回车', mcEditPrompt: '编辑日程 (留空则删除)',
+    mcEvT: '点击: 切换完成 · 双击: 编辑 (留空则删除)',
+    mcTodoT: '待办 (点击切换完成 — 与左侧列表同步)',
+    mcIcsBtn: '日历同步',
+    mcIcsT: '复制订阅 (ICS) 地址 — 在 Google 日历用「通过网址添加」，手机上也能看到',
+    mcIcsHow: '地址已复制。\n\nGoogle 日历 (calendar.google.com) › 设置 › 添加日历 › 通过网址添加 — 粘贴到那里，\nPT 的日程和带日期的待办就会出现在手机日历里。\n\n· 单向 (PT→日历)，每隔几小时刷新一次 (由 Google 决定)\n· 如果 PT 的外部地址变了，需要重新添加',
+    mtDateT: '日期 — 会显示在日程日历上 (点击可修改)',
+    mindDelMultiConfirm: '删除选中的 {n} 个分支 (包括它们的子分支)? ',
+    mindCopyEmpty: '没有选中内容 — 请先框选分支',
+    mindPasteEmpty: '剪贴板是空的',
+    mindUnitNode: '个', mindUnitLink: ' 条连线',
+    mindAddRoot: '添加根节点', mindAddRootT: '再添加一个根导图', mindAddRootHere: '在这里添加根节点',
+    mindExport: '保存为图片', mindExportT: '把导图保存为 PNG 图片', mindExportOne: '仅选中的根',
+    mindExportAll: '整张导图', mindExportPick: '要把哪个保存为图片?',
+    mindOneWay: '单向', mindTwoWay: '双向', mindLeftWay: '朝左', mindRightWay: '朝右',
+    mindNotePh: '关于这条连线的备注…',
+    memoNoSess: '请先打开这个文件夹的会话，再发送。', memoSent: '已发送到终端',
+    memoJumpT: '跳到终端里的这条请求', memoJumpNoSess: '这个文件夹的会话没有打开',
+    memoJumpMiss: '在终端回滚记录里找不到 (可能已滚出，或会话重启过)',
+    cancelReqT: '只停止正在进行的请求 (发送 ESC) — 不会撤销已完成的工作',
+    cancelLast: '停止\n当前\n请求', toBottomT: '跳到最新输出',
+    reqHistBtn: '请求记录', reqHistT: '显示/隐藏这个终端旁的请求记录面板 — 点一条就跳过去',
+    stRun: '进行中', stDone: '完成', stStop: '已停止', stOff: '因关闭而中断',
+    bnNewVer: '🔄 新版本 v{v} 已发布 — 点击重启并更新',
+    newFolder: '＋ 新建文件夹', brwGrid: '网格视图', brwList: '详细列表 (纵向)',
+    newFolderPh: '新文件夹名 → 回车',
+    qrLoading: '正在加载地址…', qrFail: '无法加载地址 — 请检查网络。',
+    connLostHint: '地址可能变了 — 在电脑上重新扫描二维码即可重连。',
+    ghId: '账号', ghNoLogin: '未登录', ghSearch: '🔍 按名称筛选你的仓库',
+    ghNeedLogin: '尚未登录 GitHub。', ghLoginBtn: '登录 GitHub',
+    ghNeedCli: '没有安装 GitHub CLI (gh)。列出/克隆你的仓库、创建新项目都需要它。',
+    ghNeedCliShort: '必须先安装 GitHub CLI。', ghInstallBtn: '安装 GitHub CLI', ghRetry: '重试',
+    ghPsBtn: '用 PowerShell 自动安装', ghPsTip: '打开 PowerShell，用 winget 安装 gh',
+    ghManual: '手动安装:',
+    ghInstStep1: '点[安装 GitHub CLI]打开官网，下载 Windows 安装包 (.msi)',
+    ghInstStep2: '运行安装包 (下一步 → 下一步 → 完成)',
+    ghInstStep3: '回到这里点[重试] — 不需要重启',
+    ghWinget: '点下面的按钮 (安装 GitHub CLI)，或者把这条命令粘贴到 PowerShell:',
+    ghInstallTip: '会在浏览器打开 cli.github.com。装好后点[重试]即可，不用重启。',
+    imgRemove: '移除', imgZoom: '点击放大', histHint: '历史: Ctrl+↑', winNoT: '窗口编号',
+    dragReorder: '拖动可调整顺序', dragMove: '拖动可移动这个面板',
+    tabBtn: '用普通浏览器标签页打开 (然后可以把它拖到任意 Chrome 窗口)',
+    linkClickOpen: '点击 → 在新窗口打开',
+    adminPwPrompt: '管理员密码:', adminPwFail: '密码不对。',
+    rebootConfirm: '这会重启当前窗口: PowerTerminal 会以最新版本重启，本页面也会重新加载。会话会保留，大约 10~20 秒。继续吗?',
+    rebootIng: '正在以最新版本重启…', rebootWait: '本页面会自动重新加载。',
+    ghStep1: '1) 复制这个代码  2) 打开 GitHub  3) 粘贴并授权',
+    ghOpen: '打开 GitHub', ghWaiting: '等待授权…', ghFail: '登录失败 — 请重试',
+    aiPick: '更换这个会话的 AI', aiChangeAsk: '把这个会话换成别的 AI? 会话会重启。',
+    workingT: '工作中',
+    linksT: '这个会话里出现的链接 — 点一下复制', linksHead: '🔗 链接和路径 — 点一下复制',
+    linksNone: '这里没有链接', linksOpen: '在新标签页打开', linksOpenFile: '打开文件 (用预览)',
+    linksPrev: '更早', linksConv: '轮次', linksAll: '显示全部',
+    fileChip: '文件', copied: '已复制',
+    connLost: '⚠ 连接断开 — 服务器 (你的电脑) 可能关了，或者网络断了。正在重连…',
+    pickBtn: '选择要显示哪些会话', quitBtn: '退出 — 连服务器 (这台电脑) 一起关闭',
+    quitConfirm: '这会完全关闭 PowerTerminal — 这台电脑上的服务器和所有运行中的会话都会停止，手机也会断开。会话列表会保存，下次启动时恢复。继续吗?',
+    quitBye: 'PowerTerminal 已关闭。',
+    quitByeSub: '可以关掉这个标签页了。再次运行 start.bat 就会恢复你的会话。',
+    modelRestartAsk: '只把这个会话 (「{t}」) 用 {m} 重启?\n\n只有这一个会话会重启 — 其他会话不受影响。对话会继续 (通过 --continue)。',
+    ok: '重启这个会话',
+    verWarn: '⚠ 正在运行旧版本 v{c} (最新 v{l})。如果一直更新不了，很可能有多个副本 — 全部关掉，只启动一个。',
+    icOpen: '打开文件夹', icRemove: '从列表中移除',
+    icDup: '在这个文件夹再开一个会话 — 若是 git 仓库会在自己的 worktree 里打开，互不冲突 (Shift+点击或右键 = 保持同一文件夹)',
+    qrGateWarn: '拿到这个二维码或地址的人，就能在这台电脑上执行命令。',
+    qrGateResp: '只分享给你信任的人。一旦泄露，后果由你自己承担。',
+    qrGateOk: '我明白了 — 显示二维码'
+  },
+  es: {
+    mPinned: 'Versiones anteriores (fijas)',
+    numAddT: 'Abre otra sesión en esta carpeta — si es un repo git se separa en su propio worktree y nunca chocan (Shift+clic = la misma carpeta tal cual)',
+    flowT: 'Flujo — enlaza esta sesión con las que recogen el trabajo después',
+    flowPickHint: 'Haz clic en las sesiones que continúan después de ‘{t}’. Vuelve a hacer clic para desenlazar.',
+    flowDone: 'Listo',
+    wtGroupT: 'Mismo repo — el original y los worktrees que salieron de él',
+    cmNewFile: 'Nuevo archivo', cmNewDir: 'Nueva carpeta',
+    cmNewFileT: 'Nuevo archivo en la carpeta raíz', cmNewDirT: 'Nueva carpeta en la carpeta raíz',
+    cmRefreshT: 'Actualizar el árbol', cmNewFilePh: 'Nombre del archivo', cmNewDirPh: 'Nombre de la carpeta',
+    cmBadName: 'Ese nombre no se puede usar.', cmExists: 'Ya hay algo con ese nombre.',
+    cmTreeRoot: 'carpeta raíz', cmEmptyDir: '(carpeta vacía)',
+    qrToggle: 'Mostrar/ocultar el QR para el móvil', infoBtn: 'Direcciones de acceso',
+    copyImg: '📋 Copiar', saveImg: '💾 Guardar',
+    orManual: 'O escribe directamente la ruta de una carpeta:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 Proyecto nuevo + GitHub', npPh: 'nombre-del-proyecto (letras/números/-)',
+    fontUp: 'Letra más grande', fontDn: 'Letra más pequeña',
+    previewPrompt: '¿Qué página abrir en una pestaña nueva? (tu servidor de desarrollo, p. ej. http://localhost:3000 — PowerTerminal lo retransmite para que también se abra en el móvil · vacío = abrir la carpeta)',
+    customPrompt: 'Comando a ejecutar (p. ej. codex, aider, gemini)',
+    tunnelNone: 'El túnel está arrancando, o falta cloudflared',
+    urlChanges: '(la URL cambia al reiniciar el servidor)', qrLte: 'Desde cualquier sitio por LTE: ', qrWifi: 'Misma Wi-Fi: ',
+    copyOk: 'Imagen QR copiada — pégala en cualquier chat.', copyFail: 'No se pudo copiar',
+    ghLocal: '(la carpeta local y git fueron creados)', feedbackShort: 'Solicitar',
+    noTunnel: 'Se está preparando el acceso externo — este panel se actualiza solo.',
+    aiLabel: 'IA de esta sesión', updText: 'Actualizar',
+    updTip: 'Hay una versión nueva — reinicia PowerTerminal para actualizar solo',
+    dupAsk: '‘{t}’ ya está abierto. ¿Abrirlo otra vez como sesión aparte?',
+    soundBtn: 'Decir en voz alta el número de sesión al terminar (sí/no)',
+    pairTitle: 'Conectar otro PC — sin escribir enlaces largos',
+    pairStep1: 'En el otro PC abre', pairStep2: 'y escribe este código:',
+    sessionAdded: 'Sesión añadida', zoomT: 'Poner esta sesión a pantalla completa', zoomExit: '✕ Salir de pantalla completa',
+    memoT: 'Bloc de notas de esta sesión', memoTitle: '📝 Nota',
+    memoNewPh: 'Escribe lo que quieras… Enter para guardar · Shift+Enter para otra línea',
+    memoSaveBtn: 'Guardar', memoSaveTip: 'Guardar esta nota (Enter)',
+    themeT: 'Modo claro / oscuro (terminal incluida)',
+    previewNoIndex: 'No hay index.html en esta carpeta, así que no se puede previsualizar directamente. Añade un index.html en la raíz de la carpeta, o arranca tu servidor de desarrollo e introduce su dirección (p. ej. http://localhost:3000).',
+    mDefaultLong: 'Auto — Opus',
+    memoDoneCol: 'Completado', memoReqCol: 'Peticiones que enviaste', memoEmpty: 'Aún no hay notas — escribe abajo.',
+    memoDelT: 'Eliminar', memoSend: 'Enviar',
+    memoSendTip: 'Envía esta nota a la terminal de la sesión — pasa a Completado cuando el trabajo termine',
+    reqResendT: 'Enviar esta petición otra vez a la terminal',
+    memoEdit: 'Editar', memoDelBtn: 'Borrar', memoDelConfirm: '¿Eliminar esta nota?',
+    memoEditSaveT: 'Guardar (Enter)', memoEditCancelT: 'Cancelar la edición (Esc)',
+    memoExport: 'Excel', memoExportAllT: 'Descargar las notas y el historial de peticiones de TODAS las sesiones en un Excel',
+    memoNewCol: 'Notas nuevas', memoCopy: 'Copiar', memoCopyT: 'Copiar este texto al portapapeles',
+    copyAll: 'Copiar todo', copyAllT: 'Copiar todo lo de esta columna',
+    setBtnT: 'Ajustes', setTitle: '⚙ Ajustes',
+    setSub: 'Al guardar una petición, una IA puede añadirle notas breves. Se ven al pasar el ratón por el historial y en la descarga de Excel, y pueden gastar algunos tokens de IA.',
+    setHintsL: 'Mostrar globos de consejos', setHintsHint: 'El recorrido inicial por las funciones, más un consejo aleatorio de 3 segundos tras 5 minutos inactivo.',
+    setOnboard: '🎈 Ver otra vez el recorrido',
+    obNext: 'Siguiente →', obCloseAll: 'Cerrar todo', obNever: 'No mostrar más',
+    obAdd: 'Añadir una sesión', obAddD: 'Elige una carpeta de trabajo y lanza una terminal de IA dentro.',
+    obQR: 'Abrir en el móvil', obQRD: 'Escanea el QR — Wi-Fi en casa, Externo desde cualquier sitio.',
+    obMind: 'Mapa mental', obMindD: 'Organiza ideas en ramas y expórtalas como imagen.',
+    obTheme: 'Claro / oscuro', obThemeD: 'Cambia el tema de toda la app, terminal incluida.',
+    obFeedback: 'Enviar una petición', obFeedbackD: 'Manda al desarrollador una idea o un fallo.',
+    obMemo: 'Bloc de notas', obMemoD: 'Notas por carpeta y todas las peticiones que enviaste — con exportación a Excel.',
+    obHist: 'Historial de peticiones', obHistD: 'Tus peticiones anteriores — haz clic para saltar a ellas en la terminal.',
+    obInput: 'Campo de petición', obInputD: 'Escribe aquí y pulsa Enter. Empieza con ‘pregunta…’ para guardar la respuesta en el bloc.',
+    pvDev: 'Arrancar el servidor de desarrollo y previsualizar', pvRunning: 'Abrir el servidor de desarrollo en marcha',
+    pvFolder: 'Abrir el listado de la carpeta', pvUrl: 'Escribir una dirección a mano',
+    pvStarting: 'Arrancando el servidor de desarrollo…',
+    pvFail: 'Ese script no es un servidor web de desarrollo (no se encontró dirección). Elige una página o abre la carpeta:',
+    dropPick: 'Hay varias carpetas con el mismo nombre — escribe el número para abrirla:',
+    dropMiss: 'No se pudo localizar la ruta real de esta carpeta — usa [+ Sesión] → 📂 Explorar.',
+    ghCopyOpen: 'Copiar código → abrir GitHub', ghCopyOpenT: 'Copia el código y abre la página de aprobación de GitHub',
+    fileOpened: 'Abierto', modeSwitched: 'modo cambiado (Shift+Tab)',
+    gbDirty: 'cambios sin confirmar', gbAhead: 'commits por subir', gbBehind: 'commits por bajar',
+    gbPrT: 'Abrir esta rama en GitHub (su pull request, o uno nuevo)',
+    gbLocal: 'local', gbLocalT: 'Esta carpeta no está conectada a GitHub',
+    readT: 'Lectura ancha — recompone el historial (también el trabajo antiguo) a ancho completo', readTitle: 'Lectura ancha',
+    codeT: 'Editor de código — explora y edita los archivos de este proyecto',
+    cmSave: 'Guardar', cmExit: 'Cerrar', cmPreview: 'Vista previa',
+    wtSecTitle: 'Carpetas de trabajo separadas (worktrees)',
+    wtSecSub: 'Al abrir otra sesión sobre el mismo repo se crea una de estas para que los archivos nunca choquen. Vive fuera de la carpeta del repo, en la misma unidad.',
+    wtOpen: 'en uso', wtDirty: 'con cambios', wtClean: 'se puede borrar', wtPrune: '🧹 Limpiar las que no se usan',
+    wtPruned: 'Se borraron {n}, se mantuvieron {k} (en uso o con cambios)', icOpenShort: '📂',
+    wtTip: 'Carpeta de trabajo separada (git worktree) — sus archivos nunca chocan con la otra sesión. Haz clic para fusionar en la rama original',
+    wtMergeAsk: '¿Fusionar el trabajo de esta sesión ({b}) en la rama original?',
+    wtMerged: '{b} fusionada en {base}', wtKept: 'Quedan cambios sin confirmar — se conservó la carpeta del worktree.',
+    micT: 'Dicta tu petición',
+    micInsecure: 'El micrófono solo funciona con conexión segura — abre la dirección de acceso externo (QR)',
+    micDenied: 'El micrófono está bloqueado — permítelo en los ajustes del navegador',
+    micNo: 'Este navegador no tiene entrada de voz', micErr: 'Error de entrada de voz',
+    sendQueued: 'Ahora mismo sin conexión — tu petición se enviará cuando vuelva.',
+    sndTitle: 'Prueba del sonido de fin', sndSub: 'Reproduce ahora mismo el sonido que suena al terminar una petición. Si no oyes nada, abajo se explica por qué.',
+    sndTest: '▶ Reproducir ahora',
+    billTitle: 'Renovación de la suscripción',
+    billSub: 'Ninguna API informa de la fecha de facturación, así que escribe el día del mes en que te cobran. Pasa el ratón por una barra de uso arriba para ver la próxima renovación. Déjalo vacío para ocultarlo.',
+    billUnit: 'de cada mes', billNext: 'Renueva', billToday: 'hoy', billIn: 'en {n} días',
+    gptTip: 'Uso de GPT (Codex) — a fecha de la última vez que se ejecutó GPT',
+    addNeedPath: 'Escribe la ruta de una carpeta, o elige una con 📂.',
+    setQaDocL: 'Mantener una página de preguntas y respuestas — sin tokens',
+    setQaDocHint: 'Las peticiones que empiezan por ‘pregunta’ / ‘질문’ ya llevan la respuesta adjunta en el historial. Con esto activado también se escriben en docs/질문-답변-기록.html dentro de esa carpeta — lo más nuevo primero, una fila por pregunta. PowerTerminal genera la página él mismo y nunca llama a la IA (cero tokens); por eso viene activado.',
+    phraseDefaults: 'Continúa,¿Terminaste?,1,2,3',
+    phTitle: 'Palabras de petición frecuentes',
+    phSub: 'Cada una aparece como botón justo encima del campo de petición en todas las sesiones. Al pulsarlo solo se rellena el campo — no se envía.',
+    phNone: 'todavía ninguna', phraseAdd: '＋ Añadir palabra', phraseAddShort: 'palabra rápida',
+    phrasePrompt: 'Escribe una palabra que uses a menudo (p. ej. ya lo subí)',
+    phraseUse: 'Púlsalo para ponerlo en el campo de petición',
+    phraseDel: 'Clic derecho o pulsación larga para borrar', phraseDelAsk: '¿Borrar el botón ‘{w}’?',
+    codeNoSess: 'Abre primero una sesión.',
+    admTitle: 'Admin de banners (dev)',
+    admSub: 'Publica banners, fija la última versión, mira las estadísticas de instalación. Solo visible cuando la cuenta de GitHub de este PC es la del desarrollador.',
+    admShow: 'Abrir', admHide: 'Plegar', admNewTab: 'Abrir en una pestaña nueva',
+    cmImgs: 'Imágenes', cmImgsHint: '— clic para ampliar · arrastra al código', cmVisual: 'Edición visual',
+    cmPopOut: 'Ventana nueva', cmGrep: 'Buscar en archivos', cmGrepCase: 'Aa mayúsculas', cmGrepRe: '.* regex',
+    fileDropHint: 'Suelta archivos para adjuntarlos',
+    setIntentL: 'Motivo de la petición (intención)', setIntentHint: 'Una línea sobre POR QUÉ preguntaste / qué problema quieres resolver.',
+    setSummaryL: 'Prompt resumen',
+    setSummaryHint: 'Un prompt corto en imperativo que capte QUÉ pediste — redactado como una orden reutilizable tal cual.',
+    noteReasonL: 'Motivo de la petición', noteSummaryL: 'Prompt resumen',
+    mindBtn: 'Mapa mental', mindTitle: 'Mapa mental', mindRootTitle: 'Mapa de {u}', mindRootNoUser: 'Mi mapa',
+    mindNewNode: 'Rama nueva', mindNewRoot: 'Raíz nueva', mindAdd: 'Rama', mindDelBtn: 'Eliminar', mindReset: 'Restablecer vista',
+    mindDelConfirm: 'Esto elimina la rama y todo lo que cuelga de ella. ¿Continuar?',
+    mindHint: 'Pasa el ratón por un nodo para ver + en 8 direcciones · arrastra para mover · doble clic/F2/Enter renombra (Tab confirma) · + añade rama · Supr elimina · arrastra en vacío para seleccionar por caja, luego Ctrl+C / Ctrl+V para copiar y pegar · clic derecho en vacío añade una raíz · Ctrl+rueda zoom · Espacio/arrastre central desplaza',
+    mindAddBranchT: 'Añadir una rama bajo el nodo seleccionado (tecla +)', mindColorT: 'Cambiar color', mindColorReset: 'Por defecto',
+    mtTodo: 'Pendiente', mtDone: 'Hecho', mtPh: 'Añade una tarea y pulsa Enter', mtAddT: 'Añadir',
+    mtDoneBtn: 'Marcar hecho', mtRestore: 'Devolver a pendiente', mtEmpty: 'Añade una tarea', mtEditT: 'Clic para editar',
+    mindMemoT: 'Nota de la rama', mindMemoPh: 'Una nota para quien trabaje en esta rama…',
+    mindProgT: 'Arrastra para fijar el progreso',
+    mtLinkedT: 'Clic para localizar esta rama en el mapa', mtProgT: 'Clic/arrastre para fijar el progreso',
+    mtProgLinkedT: 'Progreso de la rama (se fija en el mapa)',
+    mtCollapse: 'Plegar el panel de tareas', mtExpand: 'Mostrar el panel de tareas',
+    mindLinkBtn: 'Conectar', mindLinkPick: 'Haz clic en el nodo destino para conectar (Esc para cancelar)',
+    mindLinkNeedSel: 'Selecciona un nodo primero y luego Conectar',
+    mindLinkPick1: 'Haz clic en la primera rama a conectar',
+    mindLinkPick2: 'Haz clic en la segunda rama · clic en vacío para reiniciar · Esc para cancelar',
+    mindLinkSelHint: 'Flecha seleccionada — Supr para quitarla · haz clic en una rama del extremo y luego en otra para reconectar',
+    mindLinkRepick: 'Ahora haz clic en la rama a la que reconectar este extremo',
+    mindUndoT: 'Deshacer (Ctrl+Z)', mindRedoT: 'Rehacer (Ctrl+Y)',
+    mindCopyBtn: 'Copiar', mindPasteBtn: 'Pegar',
+    mindCopyBtnT: 'Copiar la selección (Ctrl+C) — arrastra en vacío para seleccionar ramas y flechas',
+    mindPasteBtnT: 'Pegar en el cursor (Ctrl+V)', mindCopied: 'Copiado', mindPasted: 'Pegado',
+    mindTabMap: 'Mapa', mindTabCal: 'Agenda', mcToday: 'Hoy', mcTitleFmt: '{m}/{y}',
+    mcWeekdays: 'Dom,Lun,Mar,Mié,Jue,Vie,Sáb', mcAddPh: 'Añade un evento y pulsa Enter',
+    mcEditPrompt: 'Editar evento (vacío = eliminar)',
+    mcEvT: 'Clic: marcar hecho · doble clic: editar (vacío elimina)',
+    mcTodoT: 'Tarea (el clic marca hecho — sincronizado con la lista de la izquierda)',
+    mcIcsBtn: 'Sincronizar calendario',
+    mcIcsT: 'Copia la URL de suscripción (ICS) — añádela en Google Calendar con ‘Desde URL’ para verlo en el móvil',
+    mcIcsHow: 'URL copiada.\n\nGoogle Calendar (calendar.google.com) › Configuración › Añadir calendario › Desde URL — pégala ahí,\ny los eventos de PT y las tareas con fecha aparecerán en el calendario del móvil.\n\n· Un solo sentido (PT→calendario), se refresca cada pocas horas (lo decide Google)\n· Vuelve a añadirla si cambia la dirección externa de PT',
+    mtDateT: 'Fecha — aparece en el calendario de la Agenda (clic para cambiarla)',
+    mindDelMultiConfirm: '¿Eliminar las {n} ramas seleccionadas (incluidas sus subramas)? ',
+    mindCopyEmpty: 'Nada seleccionado — arrastra una caja sobre las ramas primero',
+    mindPasteEmpty: 'El portapapeles está vacío',
+    mindUnitNode: '', mindUnitLink: ' enlaces',
+    mindAddRoot: 'Añadir raíz', mindAddRootT: 'Añadir otro mapa raíz', mindAddRootHere: 'Añadir una raíz aquí',
+    mindExport: 'Guardar imagen', mindExportT: 'Guardar el mapa como imagen PNG', mindExportOne: 'Solo la raíz seleccionada',
+    mindExportAll: 'Todo el mapa', mindExportPick: '¿Qué guardar como imagen?',
+    mindOneWay: 'Un sentido', mindTwoWay: 'Dos sentidos', mindLeftWay: 'Hacia la izquierda', mindRightWay: 'Hacia la derecha',
+    mindNotePh: 'Nota sobre esta conexión…',
+    memoNoSess: 'Abre primero una sesión para esta carpeta y luego envía.', memoSent: 'Enviado a la terminal',
+    memoJumpT: 'Saltar a esta petición en la terminal', memoJumpNoSess: 'La sesión de esta carpeta no está abierta',
+    memoJumpMiss: 'No se encuentra en el historial de la terminal (puede haberse ido con el scroll o la sesión se reinició)',
+    cancelReqT: 'Detiene solo la petición en curso (envía ESC) — no deshace el trabajo ya terminado',
+    cancelLast: 'Detener\npetición\nen curso', toBottomT: 'Saltar a la salida más reciente',
+    reqHistBtn: 'Peticiones', reqHistT: 'Mostrar/ocultar el panel de historial junto a esta terminal — haz clic en una entrada para saltar a ella',
+    stRun: 'en curso', stDone: 'hecho', stStop: 'detenido', stOff: 'cortado al apagar',
+    bnNewVer: '🔄 Nueva versión v{v} disponible — haz clic para reiniciar y actualizar',
+    newFolder: '＋ Carpeta nueva', brwGrid: 'Vista de cuadrícula', brwList: 'Lista detallada (vertical)',
+    newFolderPh: 'Nombre de la carpeta → Enter',
+    qrLoading: 'Cargando direcciones…', qrFail: 'No se pudieron cargar las direcciones — revisa tu red.',
+    connLostHint: 'Puede que la dirección haya cambiado — vuelve a escanear el QR en tu PC para reconectar.',
+    ghId: 'ID', ghNoLogin: 'sin iniciar sesión', ghSearch: '🔍 Filtra tus repos por nombre',
+    ghNeedLogin: 'No has iniciado sesión en GitHub.', ghLoginBtn: 'Iniciar sesión en GitHub',
+    ghNeedCli: 'GitHub CLI (gh) no está instalado. Hace falta para listar/clonar tus repos y crear proyectos nuevos.',
+    ghNeedCliShort: 'Hay que instalar GitHub CLI.', ghInstallBtn: 'Instalar GitHub CLI', ghRetry: 'Reintentar',
+    ghPsBtn: 'Instalar solo con PowerShell', ghPsTip: 'Abre una terminal de PowerShell e instala gh con winget',
+    ghManual: 'Instalación manual:',
+    ghInstStep1: 'Pulsa [Instalar GitHub CLI] para abrir la web oficial y descarga el instalador de Windows (.msi)',
+    ghInstStep2: 'Ejecuta el instalador (Siguiente → Siguiente → Finalizar)',
+    ghInstStep3: 'Vuelve aquí y pulsa Reintentar — no hace falta reiniciar',
+    ghWinget: 'Pulsa el botón de abajo (Instalar GitHub CLI), o pega este comando en PowerShell:',
+    ghInstallTip: 'Abre cli.github.com en tu navegador. Tras instalar, pulsa Reintentar — sin reiniciar.',
+    imgRemove: 'Quitar', imgZoom: 'Clic para ampliar', histHint: 'Historial: Ctrl+↑', winNoT: 'Ventana',
+    dragReorder: 'Arrastra para reordenar', dragMove: 'Arrastra para mover este panel',
+    tabBtn: 'Abrir en una pestaña normal (luego arrástrala a cualquier ventana de Chrome)',
+    linkClickOpen: 'Clic → abrir en una ventana nueva',
+    adminPwPrompt: 'Contraseña de admin:', adminPwFail: 'Contraseña incorrecta.',
+    rebootConfirm: 'Esto reinicia la ventana actual: PowerTerminal se reinicia en la última versión y esta página se recarga. Las sesiones se mantienen — unos 10-20 segundos. ¿Continuar?',
+    rebootIng: 'Reiniciando en la última versión…', rebootWait: 'Esta página se recargará sola.',
+    ghStep1: '1) Copia este código  2) abre GitHub  3) pégalo y aprueba',
+    ghOpen: 'Abrir GitHub', ghWaiting: 'Esperando la aprobación…', ghFail: 'Fallo al iniciar sesión — inténtalo otra vez',
+    aiPick: 'Cambiar la IA de esta sesión', aiChangeAsk: '¿Cambiar esta sesión a otra IA? La sesión se reinicia.',
+    workingT: 'Trabajando',
+    linksT: 'Enlaces que salieron en esta sesión — toca para copiar', linksHead: '🔗 Enlaces y rutas — toca para copiar',
+    linksNone: 'Aquí no hay enlaces', linksOpen: 'Abrir en una pestaña nueva', linksOpenFile: 'Abrir el archivo (con la vista previa)',
+    linksPrev: 'Anteriores', linksConv: 'Turno', linksAll: 'Ver todo',
+    fileChip: 'Archivo', copied: 'Copiado',
+    connLost: '⚠ Desconectado — puede que el servidor (tu PC) esté apagado, o que se cayera la red. Reconectando…',
+    pickBtn: 'Elegir qué sesiones mostrar', quitBtn: 'Salir — apagar también el servidor (este PC)',
+    quitConfirm: 'Esto apaga PowerTerminal por completo — el servidor de este PC y todas las sesiones en marcha se detienen, y los móviles pierden el acceso. Tu lista de sesiones se guarda y vuelve en el próximo arranque. ¿Continuar?',
+    quitBye: 'PowerTerminal está apagado.',
+    quitByeSub: 'Puedes cerrar esta pestaña. Ejecuta start.bat otra vez para volver — tus sesiones se restaurarán.',
+    modelRestartAsk: '¿Reiniciar SOLO esta sesión (‘{t}’) con {m}?\n\nSolo se reinicia esta — las demás no se tocan. Su conversación continúa (con --continue).',
+    ok: 'Reiniciar esta sesión',
+    verWarn: '⚠ Estás usando la versión antigua v{c} (la última es v{l}). Si no se actualiza, probablemente tengas varias copias — ciérralas todas y arranca solo una.',
+    icOpen: 'Abrir carpeta', icRemove: 'Quitar de la lista',
+    icDup: 'Abre otra sesión en esta carpeta — un repo git se abre en su propio worktree y nunca chocan (Shift+clic o clic derecho para la misma carpeta tal cual)',
+    qrGateWarn: 'Cualquiera que consiga este QR o esta dirección puede ejecutar comandos en ESTE ordenador.',
+    qrGateResp: 'Compártelo solo con gente de confianza. Tú eres responsable de lo que pase si se filtra.',
+    qrGateOk: 'Entendido — mostrar el QR'
+  },
+  de: {
+    mPinned: 'Ältere Versionen (fest)',
+    numAddT: 'Noch eine Sitzung in diesem Ordner öffnen — bei einem Git-Repo entsteht ein eigenes Worktree, damit sich beide nie in die Quere kommen (Shift+Klick = derselbe Ordner)',
+    flowT: 'Ablauf — verbindet diese Sitzung mit denen, die danach übernehmen',
+    flowPickHint: 'Klicke die Sitzungen an, die nach ‘{t}’ weitermachen. Nochmal klicken löst die Verbindung.',
+    flowDone: 'Fertig',
+    wtGroupT: 'Gleiches Repo — das Original und die daraus abgezweigten Worktrees',
+    cmNewFile: 'Neue Datei', cmNewDir: 'Neuer Ordner',
+    cmNewFileT: 'Neue Datei im obersten Ordner', cmNewDirT: 'Neuer Ordner im obersten Ordner',
+    cmRefreshT: 'Baum aktualisieren', cmNewFilePh: 'Name der neuen Datei', cmNewDirPh: 'Name des neuen Ordners',
+    cmBadName: 'Dieser Name geht nicht.', cmExists: 'So etwas gibt es dort schon.',
+    cmTreeRoot: 'oberster Ordner', cmEmptyDir: '(leerer Ordner)',
+    qrToggle: 'QR fürs Handy ein/aus', infoBtn: 'Zugriffsadressen', copyImg: '📋 Kopieren', saveImg: '💾 Speichern',
+    orManual: 'Oder einen Ordnerpfad direkt eingeben:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 Neues Projekt + GitHub', npPh: 'projekt-name (Buchstaben/Zahlen/-)',
+    fontUp: 'Schrift größer', fontDn: 'Schrift kleiner',
+    previewPrompt: 'Welche Seite in einem neuen Tab öffnen? (dein Dev-Server, z. B. http://localhost:3000 — PowerTerminal leitet ihn weiter, dann geht er auch am Handy auf · leer = Ordner öffnen)',
+    customPrompt: 'Auszuführender Befehl (z. B. codex, aider, gemini)',
+    tunnelNone: 'Tunnel startet, oder cloudflared fehlt',
+    urlChanges: '(die URL ändert sich beim Neustart des Servers)', qrLte: 'Überall per LTE: ', qrWifi: 'Gleiches WLAN: ',
+    copyOk: 'QR-Bild kopiert — einfach in einen Chat einfügen.', copyFail: 'Kopieren fehlgeschlagen',
+    ghLocal: '(lokaler Ordner und git wurden angelegt)', feedbackShort: 'Feedback',
+    noTunnel: 'Der externe Zugriff wird vorbereitet — dieses Feld aktualisiert sich von selbst.',
+    aiLabel: 'KI für diese Sitzung', updText: 'Update',
+    updTip: 'Update verfügbar — PowerTerminal neu starten, dann wird automatisch aktualisiert',
+    dupAsk: '‘{t}’ ist schon offen. Nochmal als eigene Sitzung öffnen?',
+    soundBtn: 'Sitzungsnummer beim Fertigwerden vorlesen (ein/aus)',
+    pairTitle: 'Anderen PC verbinden — ohne langen Link zu tippen',
+    pairStep1: 'Öffne am anderen PC', pairStep2: 'und gib diesen Code ein:',
+    sessionAdded: 'Sitzung hinzugefügt', zoomT: 'Diese Sitzung im Vollbild', zoomExit: '✕ Vollbild verlassen',
+    memoT: 'Notizblock für diese Sitzung', memoTitle: '📝 Notiz',
+    memoNewPh: 'Schreib irgendwas… Enter speichert · Shift+Enter für eine neue Zeile',
+    memoSaveBtn: 'Speichern', memoSaveTip: 'Diese Notiz speichern (Enter)',
+    themeT: 'Heller / dunkler Modus (Terminal inklusive)',
+    previewNoIndex: 'In diesem Ordner gibt es keine index.html, deshalb lässt sich nichts direkt anzeigen. Leg entweder eine index.html in den Ordner, oder starte deinen Dev-Server und gib dessen Adresse ein (z. B. http://localhost:3000).',
+    mDefaultLong: 'Automatisch — Opus',
+    memoDoneCol: 'Erledigt', memoReqCol: 'Deine gesendeten Anfragen', memoEmpty: 'Noch keine Notizen — schreib unten.',
+    memoDelT: 'Löschen', memoSend: 'Senden',
+    memoSendTip: 'Diese Notiz an das Sitzungsterminal schicken — sie wandert zu Erledigt, wenn die Arbeit fertig ist',
+    reqResendT: 'Diese Anfrage nochmal ans Terminal schicken',
+    memoEdit: 'Bearbeiten', memoDelBtn: 'Löschen', memoDelConfirm: 'Diese Notiz löschen?',
+    memoEditSaveT: 'Speichern (Enter)', memoEditCancelT: 'Bearbeiten abbrechen (Esc)',
+    memoExport: 'Excel', memoExportAllT: 'Notizen und Anfrageverlauf ALLER Sitzungen als eine Excel-Datei herunterladen',
+    memoNewCol: 'Neue Notizen', memoCopy: 'Kopieren', memoCopyT: 'Diesen Text in die Zwischenablage kopieren',
+    copyAll: 'Alles kopieren', copyAllT: 'Alles aus dieser Spalte kopieren',
+    setBtnT: 'Einstellungen', setTitle: '⚙ Einstellungen',
+    setSub: 'Beim Speichern einer Anfrage kann eine KI kurze Notizen ergänzen. Sie erscheinen beim Überfahren im Anfrageverlauf und im Excel-Download und können ein paar KI-Tokens kosten.',
+    setHintsL: 'Tipp-Sprechblasen anzeigen', setHintsHint: 'Die Funktionstour beim ersten Start, plus ein zufälliger 3-Sekunden-Tipp nach 5 Minuten Pause.',
+    setOnboard: '🎈 Funktionstour nochmal ansehen',
+    obNext: 'Weiter →', obCloseAll: 'Alle schließen', obNever: 'Nicht mehr anzeigen',
+    obAdd: 'Sitzung hinzufügen', obAddD: 'Arbeitsordner wählen und darin ein KI-Terminal starten.',
+    obQR: 'Am Handy öffnen', obQRD: 'QR-Code scannen — zu Hause per WLAN, unterwegs über Extern.',
+    obMind: 'Mindmap', obMindD: 'Ideen als Zweige ordnen und als Bild exportieren.',
+    obTheme: 'Hell / dunkel', obThemeD: 'Das Design der ganzen App umschalten, Terminal inklusive.',
+    obFeedback: 'Wunsch senden', obFeedbackD: 'Dem Entwickler einen Funktionswunsch oder Fehler melden.',
+    obMemo: 'Notizblock', obMemoD: 'Notizen pro Ordner und alle gesendeten Anfragen — mit Excel-Export.',
+    obHist: 'Anfrageverlauf', obHistD: 'Deine früheren Anfragen — anklicken springt im Terminal dorthin.',
+    obInput: 'Anfrage-Eingabe', obInputD: 'Hier tippen und Enter drücken. Beginne mit ‘Frage…’, dann landet die Antwort im Notizblock.',
+    pvDev: 'Dev-Server starten und anzeigen', pvRunning: 'Laufenden Dev-Server öffnen',
+    pvFolder: 'Ordnerübersicht öffnen', pvUrl: 'Adresse von Hand eingeben', pvStarting: 'Dev-Server startet…',
+    pvFail: 'Dieses Skript ist kein Web-Dev-Server (keine Adresse gefunden). Wähle eine Seite oder öffne den Ordner:',
+    dropPick: 'Mehrere Ordner mit gleichem Namen gefunden — Nummer eingeben zum Öffnen:',
+    dropMiss: 'Der echte Pfad dieses Ordners ließ sich nicht finden — nimm [+ Sitzung] → 📂 Durchsuchen.',
+    ghCopyOpen: 'Code kopieren → GitHub öffnen', ghCopyOpenT: 'Kopiert den Code und öffnet die Bestätigungsseite von GitHub',
+    fileOpened: 'Geöffnet', modeSwitched: 'Modus gewechselt (Shift+Tab)',
+    gbDirty: 'nicht committete Änderungen', gbAhead: 'Commits zum Pushen', gbBehind: 'Commits zum Pullen',
+    gbPrT: 'Diesen Branch auf GitHub öffnen (seinen Pull Request oder einen neuen)',
+    gbLocal: 'lokal', gbLocalT: 'Dieser Ordner ist nicht mit GitHub verbunden',
+    readT: 'Breites Lesen — den Verlauf (auch ältere Arbeit) auf volle Breite neu umbrechen', readTitle: 'Breites Lesen',
+    codeT: 'Code-Editor — die Dateien dieses Projekts ansehen und bearbeiten',
+    cmSave: 'Speichern', cmExit: 'Schließen', cmPreview: 'Vorschau',
+    wtSecTitle: 'Getrennte Arbeitsordner (Worktrees)',
+    wtSecSub: 'Wenn du eine zweite Sitzung auf dasselbe Repo öffnest, entsteht so ein Ordner, damit sich die Dateien nie in die Quere kommen. Er liegt außerhalb des Repo-Ordners, auf demselben Laufwerk.',
+    wtOpen: 'in Benutzung', wtDirty: 'hat Änderungen', wtClean: 'kann weg', wtPrune: '🧹 Ungenutzte aufräumen',
+    wtPruned: '{n} entfernt, {k} behalten (in Benutzung oder mit Änderungen)', icOpenShort: '📂',
+    wtTip: 'Getrennter Arbeitsordner (git worktree) — die Dateien hier kollidieren nie mit der anderen Sitzung. Klicken, um in den ursprünglichen Branch zu mergen',
+    wtMergeAsk: 'Die Arbeit dieser Sitzung ({b}) in den ursprünglichen Branch mergen?',
+    wtMerged: '{b} in {base} gemergt', wtKept: 'Es sind nicht committete Änderungen übrig — der Worktree-Ordner wurde behalten.',
+    micT: 'Anfrage einsprechen',
+    micInsecure: 'Das Mikrofon geht nur über eine sichere Verbindung — nimm stattdessen die externe (QR-)Adresse',
+    micDenied: 'Das Mikrofon ist blockiert — erlaube es in den Browsereinstellungen',
+    micNo: 'Dieser Browser kann keine Spracheingabe', micErr: 'Fehler bei der Spracheingabe',
+    sendQueued: 'Gerade offline — deine Anfrage geht raus, sobald die Verbindung wieder da ist.',
+    sndTitle: 'Abschlusston prüfen', sndSub: 'Spielt sofort den Ton ab, der beim Fertigwerden einer Anfrage kommt. Hörst du nichts, steht der Grund unten.',
+    sndTest: '▶ Jetzt abspielen',
+    billTitle: 'Verlängerung des Abos',
+    billSub: 'Keine API meldet ein Abrechnungsdatum, also trag den Tag im Monat ein, an dem abgebucht wird. Fahr oben über einen Nutzungsbalken, um die nächste Verlängerung zu sehen. Leer lassen blendet es aus.',
+    billUnit: '. jedes Monats', billNext: 'Verlängert', billToday: 'heute', billIn: 'in {n} Tagen',
+    gptTip: 'GPT-(Codex-)Nutzung — Stand des letzten GPT-Laufs',
+    addNeedPath: 'Gib einen Ordnerpfad ein oder wähle einen mit 📂.',
+    setQaDocL: 'Seite mit Fragen und Antworten führen — kostet keine Tokens',
+    setQaDocHint: 'Anfragen, die mit ‘Frage’ / ‘질문’ beginnen, bekommen die Antwort ohnehin im Anfrageverlauf angehängt. Ist das an, werden sie zusätzlich in docs/질문-답변-기록.html in diesem Ordner geschrieben — neueste zuerst, eine Zeile pro Frage. PowerTerminal baut die Seite selbst und ruft dafür nie die KI (null Tokens) — deshalb ist es standardmäßig an.',
+    phraseDefaults: 'Weiter,Fertig?,1,2,3',
+    phTitle: 'Häufige Anfragewörter',
+    phSub: 'Jedes wird in allen Sitzungen zu einem Knopf direkt über dem Eingabefeld. Ein Druck füllt nur das Feld — gesendet wird nichts.',
+    phNone: 'noch keine', phraseAdd: '＋ Wort hinzufügen', phraseAddShort: 'Kurzwort',
+    phrasePrompt: 'Ein Wort, das du oft nutzt (z. B. hochgeladen)', phraseUse: 'Drücken, um es ins Eingabefeld zu setzen',
+    phraseDel: 'Rechtsklick oder langes Drücken löscht', phraseDelAsk: 'Den Knopf ‘{w}’ löschen?',
+    codeNoSess: 'Öffne zuerst eine Sitzung.',
+    admTitle: 'Banner-Verwaltung (Dev)',
+    admSub: 'Banner veröffentlichen, neueste Version setzen, Installationsstatistik sehen. Nur sichtbar, wenn das GitHub-Konto dieses PCs dem Entwickler gehört.',
+    admShow: 'Öffnen', admHide: 'Einklappen', admNewTab: 'In neuem Tab öffnen',
+    cmImgs: 'Bilder', cmImgsHint: '— klicken zum Vergrößern · in den Code ziehen', cmVisual: 'Visuell bearbeiten',
+    cmPopOut: 'Neues Fenster', cmGrep: 'In Dateien suchen', cmGrepCase: 'Aa Groß/klein', cmGrepRe: '.* Regex',
+    fileDropHint: 'Dateien hierher ziehen zum Anhängen',
+    setIntentL: 'Grund der Anfrage (Absicht)', setIntentHint: 'Eine Zeile dazu, WARUM du gefragt hast / welches Problem weg soll.',
+    setSummaryL: 'Zusammenfassungs-Prompt',
+    setSummaryHint: 'Ein kurzer Befehlssatz, der WAS du wolltest festhält — so formuliert, dass du ihn nächstes Mal wörtlich wiederverwenden kannst.',
+    noteReasonL: 'Grund der Anfrage', noteSummaryL: 'Zusammenfassungs-Prompt',
+    mindBtn: 'Mindmap', mindTitle: 'Mindmap', mindRootTitle: 'Karte von {u}', mindRootNoUser: 'Meine Karte',
+    mindNewNode: 'Neuer Zweig', mindNewRoot: 'Neue Wurzel', mindAdd: 'Zweig', mindDelBtn: 'Löschen', mindReset: 'Ansicht zurücksetzen',
+    mindDelConfirm: 'Das löscht den Zweig und alles darunter. Weitermachen?',
+    mindHint: 'Über einen Knoten fahren zeigt + in 8 Richtungen · ziehen verschiebt · Doppelklick/F2/Enter benennt um (Tab bestätigt) · + fügt einen Zweig hinzu · Entf löscht · leere Fläche ziehen wählt per Rahmen aus, dann Ctrl+C / Ctrl+V zum Kopieren · Rechtsklick auf leere Fläche fügt eine Wurzel hinzu · Ctrl+Rad zoomt · Leertaste/Mittelklick zieht die Ansicht',
+    mindAddBranchT: 'Einen Zweig unter dem gewählten Knoten anlegen (+-Taste)', mindColorT: 'Farbe ändern', mindColorReset: 'Standard',
+    mtTodo: 'Zu tun', mtDone: 'Erledigt', mtPh: 'Aufgabe eintragen, Enter drücken', mtAddT: 'Hinzufügen',
+    mtDoneBtn: 'Als erledigt markieren', mtRestore: 'Zurück zu Zu tun', mtEmpty: 'Eine Aufgabe hinzufügen', mtEditT: 'Klicken zum Bearbeiten',
+    mindMemoT: 'Notiz zum Zweig', mindMemoPh: 'Eine Notiz für den, der an diesem Zweig arbeitet…',
+    mindProgT: 'Ziehen, um den Fortschritt zu setzen',
+    mtLinkedT: 'Klicken, um diesen Zweig auf der Karte zu finden', mtProgT: 'Klicken/ziehen, um den Fortschritt zu setzen',
+    mtProgLinkedT: 'Fortschritt des Zweigs (wird auf der Karte gesetzt)',
+    mtCollapse: 'Aufgabenfeld einklappen', mtExpand: 'Aufgabenfeld zeigen',
+    mindLinkBtn: 'Verbinden', mindLinkPick: 'Zielknoten anklicken zum Verbinden (Esc bricht ab)',
+    mindLinkNeedSel: 'Erst einen Knoten wählen, dann Verbinden',
+    mindLinkPick1: 'Den ersten Zweig anklicken',
+    mindLinkPick2: 'Den zweiten Zweig anklicken · leere Fläche klicken setzt zurück · Esc bricht ab',
+    mindLinkSelHint: 'Pfeil ausgewählt — Entf entfernt ihn · einen Endzweig anklicken, dann einen anderen zum Neuverbinden',
+    mindLinkRepick: 'Jetzt den Zweig anklicken, an den dieses Ende soll',
+    mindUndoT: 'Rückgängig (Ctrl+Z)', mindRedoT: 'Wiederholen (Ctrl+Y)',
+    mindCopyBtn: 'Kopieren', mindPasteBtn: 'Einfügen',
+    mindCopyBtnT: 'Auswahl kopieren (Ctrl+C) — leere Fläche ziehen wählt Zweige und Pfeile aus',
+    mindPasteBtnT: 'An der Cursorstelle einfügen (Ctrl+V)', mindCopied: 'Kopiert', mindPasted: 'Eingefügt',
+    mindTabMap: 'Karte', mindTabCal: 'Termine', mcToday: 'Heute', mcTitleFmt: '{m}/{y}',
+    mcWeekdays: 'So,Mo,Di,Mi,Do,Fr,Sa', mcAddPh: 'Termin eintragen, Enter drücken', mcEditPrompt: 'Termin bearbeiten (leer = löschen)',
+    mcEvT: 'Klick: erledigt umschalten · Doppelklick: bearbeiten (leer löscht)',
+    mcTodoT: 'Aufgabe (Klick schaltet erledigt um — synchron mit der Liste links)',
+    mcIcsBtn: 'Kalender-Sync',
+    mcIcsT: 'Abo-(ICS-)URL kopieren — im Google Kalender über ‘Per URL’ hinzufügen, dann siehst du es am Handy',
+    mcIcsHow: 'URL kopiert.\n\nGoogle Kalender (calendar.google.com) › Einstellungen › Kalender hinzufügen › Per URL — dort einfügen,\ndann erscheinen PT-Termine und datierte Aufgaben in der Kalender-App am Handy.\n\n· Einbahn (PT→Kalender), Aktualisierung alle paar Stunden (bestimmt Google)\n· Neu hinzufügen, wenn sich die externe Adresse von PT ändert',
+    mtDateT: 'Datum — erscheint im Terminkalender (klicken zum Ändern)',
+    mindDelMultiConfirm: 'Die {n} ausgewählten Zweige (samt Unterzweigen) löschen? ',
+    mindCopyEmpty: 'Nichts ausgewählt — zieh erst einen Rahmen über die Zweige',
+    mindPasteEmpty: 'Die Zwischenablage ist leer',
+    mindUnitNode: '', mindUnitLink: ' Verbindungen',
+    mindAddRoot: 'Wurzel hinzufügen', mindAddRootT: 'Noch eine Wurzelkarte hinzufügen', mindAddRootHere: 'Hier eine Wurzel hinzufügen',
+    mindExport: 'Bild speichern', mindExportT: 'Die Karte als PNG-Bild speichern', mindExportOne: 'Nur die gewählte Wurzel',
+    mindExportAll: 'Ganze Karte', mindExportPick: 'Was als Bild speichern?',
+    mindOneWay: 'Einbahn', mindTwoWay: 'Beidseitig', mindLeftWay: 'Nach links', mindRightWay: 'Nach rechts',
+    mindNotePh: 'Notiz zu dieser Verbindung…',
+    memoNoSess: 'Öffne zuerst eine Sitzung für diesen Ordner, dann sende.', memoSent: 'Ans Terminal geschickt',
+    memoJumpT: 'Im Terminal zu dieser Anfrage springen', memoJumpNoSess: 'Die Sitzung dieses Ordners ist nicht offen',
+    memoJumpMiss: 'Im Terminalverlauf nicht gefunden (vielleicht rausgescrollt, oder die Sitzung wurde neu gestartet)',
+    cancelReqT: 'Stoppt nur die laufende Anfrage (sendet ESC) — macht fertige Arbeit nicht rückgängig',
+    cancelLast: 'Laufende\nAnfrage\nstoppen', toBottomT: 'Zur neuesten Ausgabe springen',
+    reqHistBtn: 'Anfragen', reqHistT: 'Den Anfrageverlauf neben diesem Terminal ein-/ausblenden — ein Eintrag springt dorthin',
+    stRun: 'läuft', stDone: 'fertig', stStop: 'gestoppt', stOff: 'durch Beenden abgebrochen',
+    bnNewVer: '🔄 Neue Version v{v} ist da — klicken zum Neustarten und Aktualisieren',
+    newFolder: '＋ Neuer Ordner', brwGrid: 'Kachelansicht', brwList: 'Detaillierte Liste (vertikal)',
+    newFolderPh: 'Name des neuen Ordners → Enter',
+    qrLoading: 'Adressen werden geladen…', qrFail: 'Die Adressen ließen sich nicht laden — prüf dein Netzwerk.',
+    connLostHint: 'Die Adresse hat sich vielleicht geändert — scanne den QR am PC neu, um wieder zu verbinden.',
+    ghId: 'ID', ghNoLogin: 'nicht angemeldet', ghSearch: '🔍 Deine Repos nach Namen filtern',
+    ghNeedLogin: 'Nicht bei GitHub angemeldet.', ghLoginBtn: 'Bei GitHub anmelden',
+    ghNeedCli: 'GitHub CLI (gh) ist nicht installiert. Du brauchst es, um deine Repos zu listen/klonen und neue Projekte anzulegen.',
+    ghNeedCliShort: 'GitHub CLI muss installiert sein.', ghInstallBtn: 'GitHub CLI installieren', ghRetry: 'Nochmal',
+    ghPsBtn: 'Automatisch per PowerShell installieren', ghPsTip: 'Öffnet ein PowerShell-Fenster und installiert gh über winget',
+    ghManual: 'Manuelle Installation:',
+    ghInstStep1: 'Klick auf [GitHub CLI installieren], um die offizielle Seite zu öffnen, und lade den Windows-Installer (.msi)',
+    ghInstStep2: 'Installer ausführen (Weiter → Weiter → Fertig)',
+    ghInstStep3: 'Hierher zurückkommen und Nochmal drücken — kein Neustart nötig',
+    ghWinget: 'Klick den Knopf unten (GitHub CLI installieren), oder füge diesen Befehl in PowerShell ein:',
+    ghInstallTip: 'Öffnet cli.github.com im Browser. Nach der Installation Nochmal drücken — kein Neustart nötig.',
+    imgRemove: 'Entfernen', imgZoom: 'Klicken zum Vergrößern', histHint: 'Verlauf: Ctrl+↑', winNoT: 'Fenster',
+    dragReorder: 'Ziehen zum Umsortieren', dragMove: 'Ziehen, um dieses Feld zu verschieben',
+    tabBtn: 'In einem normalen Browser-Tab öffnen (den Tab kannst du dann in jedes Chrome-Fenster ziehen)',
+    linkClickOpen: 'Klick → in einem neuen Fenster öffnen',
+    adminPwPrompt: 'Admin-Passwort:', adminPwFail: 'Falsches Passwort.',
+    rebootConfirm: 'Das startet das aktuelle Fenster neu: PowerTerminal startet in der neuesten Version und diese Seite lädt neu. Die Sitzungen bleiben — etwa 10-20 Sekunden. Weitermachen?',
+    rebootIng: 'Startet in der neuesten Version neu…', rebootWait: 'Diese Seite lädt sich von selbst neu.',
+    ghStep1: '1) Diesen Code kopieren  2) GitHub öffnen  3) einfügen und bestätigen',
+    ghOpen: 'GitHub öffnen', ghWaiting: 'Warte auf die Bestätigung…', ghFail: 'Anmeldung fehlgeschlagen — nochmal versuchen',
+    aiPick: 'Die KI dieser Sitzung wechseln', aiChangeAsk: 'Diese Sitzung auf eine andere KI umstellen? Die Sitzung startet neu.',
+    workingT: 'Arbeitet',
+    linksT: 'Links, die in dieser Sitzung erschienen — antippen zum Kopieren', linksHead: '🔗 Links & Pfade — antippen zum Kopieren',
+    linksNone: 'Hier gibt es keine Links', linksOpen: 'In einem neuen Tab öffnen', linksOpenFile: 'Die Datei öffnen (über die Vorschau)',
+    linksPrev: 'Früher', linksConv: 'Runde', linksAll: 'Alle zeigen',
+    fileChip: 'Datei', copied: 'Kopiert',
+    connLost: '⚠ Verbindung weg — vielleicht ist der Server (dein PC) aus, oder das Netz ist abgerissen. Verbinde neu…',
+    pickBtn: 'Auswählen, welche Sitzungen gezeigt werden', quitBtn: 'Beenden — den Server (diesen PC) mit herunterfahren',
+    quitConfirm: 'Das beendet PowerTerminal vollständig — der Server auf diesem PC und alle laufenden Sitzungen stoppen, Handys verlieren den Zugriff. Deine Sitzungsliste wird gespeichert und kommt beim nächsten Start zurück. Weitermachen?',
+    quitBye: 'PowerTerminal ist beendet.',
+    quitByeSub: 'Du kannst diesen Tab schließen. Starte start.bat erneut — deine Sitzungen werden wiederhergestellt.',
+    modelRestartAsk: 'NUR diese Sitzung (‘{t}’) mit {m} neu starten?\n\nEs startet nur diese eine neu — die anderen bleiben unberührt. Das Gespräch geht weiter (über --continue).',
+    ok: 'Diese Sitzung neu starten',
+    verWarn: '⚠ Alte Version v{c} läuft (neueste v{l}). Wenn sie sich nicht aktualisiert, hast du wahrscheinlich mehrere Kopien — schließ alle und starte nur eine.',
+    icOpen: 'Ordner öffnen', icRemove: 'Aus der Liste entfernen',
+    icDup: 'Noch eine Sitzung in diesem Ordner öffnen — ein Git-Repo geht in ein eigenes Worktree, damit sich beide nie in die Quere kommen (Shift+Klick oder Rechtsklick für denselben Ordner)',
+    qrGateWarn: 'Wer diesen QR oder diese Adresse bekommt, kann auf DIESEM Computer Befehle ausführen.',
+    qrGateResp: 'Teile es nur mit Leuten, denen du vertraust. Was bei einem Leck passiert, verantwortest du selbst.',
+    qrGateOk: 'Verstanden — QR anzeigen'
+  },
+  fr: {
+    mPinned: 'Anciennes versions (figées)',
+    numAddT: 'Ouvrir une session de plus sur ce dossier — un dépôt git obtient son propre worktree, donc les deux ne se gênent jamais (Maj+clic = le même dossier tel quel)',
+    flowT: 'Flux — relie cette session à celles qui prennent le relais',
+    flowPickHint: 'Clique sur les sessions qui prennent la suite de ‘{t}’. Reclique pour délier.',
+    flowDone: 'Terminé',
+    wtGroupT: 'Même dépôt — l’original et les worktrees qui en sont issus',
+    cmNewFile: 'Nouveau fichier', cmNewDir: 'Nouveau dossier',
+    cmNewFileT: 'Nouveau fichier dans le dossier racine', cmNewDirT: 'Nouveau dossier dans le dossier racine',
+    cmRefreshT: 'Rafraîchir l’arborescence', cmNewFilePh: 'Nom du nouveau fichier', cmNewDirPh: 'Nom du nouveau dossier',
+    cmBadName: 'Ce nom est impossible.', cmExists: 'Il y a déjà quelque chose avec ce nom.',
+    cmTreeRoot: 'dossier racine', cmEmptyDir: '(dossier vide)',
+    qrToggle: 'Afficher/masquer le QR pour le mobile', infoBtn: 'Adresses d’accès',
+    copyImg: '📋 Copier', saveImg: '💾 Enregistrer',
+    orManual: 'Ou saisis directement un chemin de dossier :', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 Nouveau projet + GitHub', npPh: 'nom-du-projet (lettres/chiffres/-)',
+    fontUp: 'Police plus grande', fontDn: 'Police plus petite',
+    previewPrompt: 'Quelle page ouvrir dans un nouvel onglet ? (ton serveur de dev, p. ex. http://localhost:3000 — PowerTerminal le relaie, donc ça s’ouvre aussi sur le mobile · vide = ouvrir le dossier)',
+    customPrompt: 'Commande à lancer (p. ex. codex, aider, gemini)',
+    tunnelNone: 'Le tunnel démarre, ou cloudflared est absent',
+    urlChanges: '(l’URL change au redémarrage du serveur)', qrLte: 'Partout en 4G : ', qrWifi: 'Même Wi-Fi : ',
+    copyOk: 'Image QR copiée — colle-la dans n’importe quelle discussion.', copyFail: 'Échec de la copie',
+    ghLocal: '(le dossier local et git ont été créés)', feedbackShort: 'Demande',
+    noTunnel: 'L’accès externe se prépare — ce panneau se met à jour tout seul.',
+    aiLabel: 'IA de cette session', updText: 'Mise à jour',
+    updTip: 'Nouvelle version disponible — redémarre PowerTerminal pour qu’il se mette à jour',
+    dupAsk: '‘{t}’ est déjà ouvert. L’ouvrir encore comme session séparée ?',
+    soundBtn: 'Annoncer le numéro de session à la fin (activé/désactivé)',
+    pairTitle: 'Connecter un autre PC — sans taper de long lien',
+    pairStep1: 'Sur l’autre PC, ouvre', pairStep2: 'et saisis ce code :',
+    sessionAdded: 'Session ajoutée', zoomT: 'Mettre cette session en plein écran', zoomExit: '✕ Quitter le plein écran',
+    memoT: 'Bloc-notes de cette session', memoTitle: '📝 Note',
+    memoNewPh: 'Écris ce que tu veux… Entrée pour enregistrer · Maj+Entrée pour une nouvelle ligne',
+    memoSaveBtn: 'Enregistrer', memoSaveTip: 'Enregistrer cette note (Entrée)',
+    themeT: 'Mode clair / sombre (terminal compris)',
+    previewNoIndex: 'Pas d’index.html dans ce dossier, donc rien à prévisualiser directement. Ajoute un index.html à la racine du dossier, ou lance ton serveur de dev et saisis son adresse (p. ex. http://localhost:3000).',
+    mDefaultLong: 'Auto — Opus',
+    memoDoneCol: 'Terminé', memoReqCol: 'Demandes envoyées', memoEmpty: 'Pas encore de note — écris en dessous.',
+    memoDelT: 'Supprimer', memoSend: 'Envoyer',
+    memoSendTip: 'Envoyer cette note au terminal de la session — elle passe dans Terminé quand le travail est fini',
+    reqResendT: 'Renvoyer cette demande au terminal',
+    memoEdit: 'Modifier', memoDelBtn: 'Suppr.', memoDelConfirm: 'Supprimer cette note ?',
+    memoEditSaveT: 'Enregistrer (Entrée)', memoEditCancelT: 'Annuler la modification (Échap)',
+    memoExport: 'Excel', memoExportAllT: 'Télécharger les notes et l’historique de TOUTES les sessions dans un seul Excel',
+    memoNewCol: 'Nouvelles notes', memoCopy: 'Copier', memoCopyT: 'Copier ce texte dans le presse-papiers',
+    copyAll: 'Tout copier', copyAllT: 'Copier tout le contenu de cette colonne',
+    setBtnT: 'Réglages', setTitle: '⚙ Réglages',
+    setSub: 'À l’enregistrement d’une demande, une IA peut y ajouter de courtes notes. Elles s’affichent au survol dans l’historique et dans l’export Excel, et peuvent consommer un peu de tokens IA.',
+    setHintsL: 'Afficher les bulles d’astuces', setHintsHint: 'La visite guidée au premier lancement, plus une astuce aléatoire de 3 secondes après 5 minutes d’inactivité.',
+    setOnboard: '🎈 Revoir la visite guidée',
+    obNext: 'Suivant →', obCloseAll: 'Tout fermer', obNever: 'Ne plus afficher',
+    obAdd: 'Ajouter une session', obAddD: 'Choisis un dossier de travail et lance un terminal IA dedans.',
+    obQR: 'Ouvrir sur le mobile', obQRD: 'Scanne le QR — Wi-Fi à la maison, Externe depuis partout.',
+    obMind: 'Carte mentale', obMindD: 'Organise les idées en branches et exporte en image.',
+    obTheme: 'Clair / sombre', obThemeD: 'Change le thème de toute l’appli, terminal compris.',
+    obFeedback: 'Envoyer une demande', obFeedbackD: 'Envoie au développeur une idée ou un bug.',
+    obMemo: 'Bloc-notes', obMemoD: 'Des notes par dossier et toutes tes demandes — avec export Excel.',
+    obHist: 'Historique des demandes', obHistD: 'Tes demandes passées — un clic t’y emmène dans le terminal.',
+    obInput: 'Champ de demande', obInputD: 'Tape ici et appuie sur Entrée. Commence par ‘question…’ pour garder la réponse dans le bloc-notes.',
+    pvDev: 'Lancer le serveur de dev et prévisualiser', pvRunning: 'Ouvrir le serveur de dev en cours',
+    pvFolder: 'Ouvrir la liste du dossier', pvUrl: 'Saisir une adresse à la main', pvStarting: 'Démarrage du serveur de dev…',
+    pvFail: 'Ce script n’est pas un serveur web de dev (aucune adresse trouvée). Choisis une page ou ouvre le dossier :',
+    dropPick: 'Plusieurs dossiers du même nom — saisis le numéro pour ouvrir :',
+    dropMiss: 'Impossible de retrouver le vrai chemin de ce dossier — passe par [+ Session] → 📂 Parcourir.',
+    ghCopyOpen: 'Copier le code → ouvrir GitHub', ghCopyOpenT: 'Copie le code et ouvre la page d’approbation GitHub',
+    fileOpened: 'Ouvert', modeSwitched: 'mode changé (Maj+Tab)',
+    gbDirty: 'modifications non validées', gbAhead: 'commits à pousser', gbBehind: 'commits à récupérer',
+    gbPrT: 'Ouvrir cette branche sur GitHub (sa pull request, ou une nouvelle)',
+    gbLocal: 'local', gbLocalT: 'Ce dossier n’est pas relié à GitHub',
+    readT: 'Lecture large — remet l’historique (même le travail ancien) sur toute la largeur', readTitle: 'Lecture large',
+    codeT: 'Éditeur de code — parcourir et modifier les fichiers de ce projet',
+    cmSave: 'Enregistrer', cmExit: 'Fermer', cmPreview: 'Aperçu',
+    wtSecTitle: 'Dossiers de travail séparés (worktrees)',
+    wtSecSub: 'Ouvrir une session de plus sur le même dépôt en crée un, pour que les fichiers ne se gênent jamais. Il vit hors du dossier du dépôt, sur le même disque.',
+    wtOpen: 'en cours d’usage', wtDirty: 'a des modifications', wtClean: 'supprimable', wtPrune: '🧹 Nettoyer les inutilisés',
+    wtPruned: '{n} supprimés, {k} gardés (en usage ou avec des modifications)', icOpenShort: '📂',
+    wtTip: 'Dossier de travail séparé (git worktree) — ses fichiers ne heurtent jamais l’autre session. Clique pour fusionner dans la branche d’origine',
+    wtMergeAsk: 'Fusionner le travail de cette session ({b}) dans la branche d’origine ?',
+    wtMerged: '{b} fusionnée dans {base}', wtKept: 'Il reste des modifications non validées — le dossier worktree a été conservé.',
+    micT: 'Dicte ta demande',
+    micInsecure: 'Le micro ne marche qu’en connexion sécurisée — ouvre plutôt l’adresse d’accès externe (QR)',
+    micDenied: 'Le micro est bloqué — autorise-le dans les réglages du navigateur',
+    micNo: 'Ce navigateur n’a pas la saisie vocale', micErr: 'Erreur de saisie vocale',
+    sendQueued: 'Hors ligne pour l’instant — ta demande partira dès le retour de la connexion.',
+    sndTitle: 'Test du son de fin', sndSub: 'Joue tout de suite le son émis quand une demande se termine. Si tu n’entends rien, la ligne en dessous explique pourquoi.',
+    sndTest: '▶ Jouer maintenant',
+    billTitle: 'Renouvellement de l’abonnement',
+    billSub: 'Aucune API ne donne de date de facturation, alors saisis le jour du mois où tu es prélevé. Survole une barre d’usage en haut pour voir le prochain renouvellement. Laisse vide pour masquer.',
+    billUnit: 'de chaque mois', billNext: 'Renouvelle', billToday: 'aujourd’hui', billIn: 'dans {n} jours',
+    gptTip: 'Usage GPT (Codex) — à la dernière exécution de GPT',
+    addNeedPath: 'Saisis un chemin de dossier, ou choisis-en un avec 📂.',
+    setQaDocL: 'Tenir une page questions-réponses — sans tokens',
+    setQaDocHint: 'Les demandes commençant par ‘question’ / ‘질문’ ont déjà la réponse jointe dans l’historique. Avec ceci activé, elles sont aussi écrites dans docs/질문-답변-기록.html de ce dossier — les plus récentes d’abord, une ligne par question. PowerTerminal fabrique la page lui-même et n’appelle jamais l’IA (zéro token) — d’où l’activation par défaut.',
+    phraseDefaults: 'Continue,Fini ?,1,2,3',
+    phTitle: 'Mots de demande fréquents',
+    phSub: 'Chacun devient un bouton juste au-dessus du champ de demande, dans toutes les sessions. Appuyer ne fait que remplir le champ — ça n’envoie pas.',
+    phNone: 'aucun pour l’instant', phraseAdd: '＋ Ajouter un mot', phraseAddShort: 'mot rapide',
+    phrasePrompt: 'Saisis un mot que tu utilises souvent (p. ex. c’est poussé)',
+    phraseUse: 'Appuie pour le mettre dans le champ de demande',
+    phraseDel: 'Clic droit ou appui long pour supprimer', phraseDelAsk: 'Supprimer le bouton ‘{w}’ ?',
+    codeNoSess: 'Ouvre d’abord une session.',
+    admTitle: 'Gestion des bandeaux (dev)',
+    admSub: 'Publier des bandeaux, fixer la dernière version, voir les stats d’installation. Visible uniquement si le compte GitHub de ce PC est celui du développeur.',
+    admShow: 'Ouvrir', admHide: 'Replier', admNewTab: 'Ouvrir dans un nouvel onglet',
+    cmImgs: 'Images', cmImgsHint: '— clic pour agrandir · glisse dans le code', cmVisual: 'Édition visuelle',
+    cmPopOut: 'Nouvelle fenêtre', cmGrep: 'Chercher dans les fichiers', cmGrepCase: 'Aa casse', cmGrepRe: '.* regex',
+    fileDropHint: 'Dépose des fichiers pour les joindre',
+    setIntentL: 'Raison de la demande (intention)', setIntentHint: 'Une ligne sur POURQUOI tu as demandé / quel problème tu veux régler.',
+    setSummaryL: 'Prompt de résumé',
+    setSummaryHint: 'Un prompt court à l’impératif qui capte CE QUE tu as demandé — formulé pour être réutilisé tel quel.',
+    noteReasonL: 'Raison de la demande', noteSummaryL: 'Prompt de résumé',
+    mindBtn: 'Carte mentale', mindTitle: 'Carte mentale', mindRootTitle: 'Carte de {u}', mindRootNoUser: 'Ma carte',
+    mindNewNode: 'Nouvelle branche', mindNewRoot: 'Nouvelle racine', mindAdd: 'Branche', mindDelBtn: 'Supprimer', mindReset: 'Réinitialiser la vue',
+    mindDelConfirm: 'Ceci supprime la branche et tout ce qui est en dessous. Continuer ?',
+    mindHint: 'Survole un nœud pour voir + dans 8 directions · glisse pour déplacer · double-clic/F2/Entrée renomme (Tab valide) · + ajoute une branche · Suppr efface · glisse dans le vide pour sélectionner en cadre, puis Ctrl+C / Ctrl+V pour copier-coller · clic droit dans le vide ajoute une racine · Ctrl+molette zoome · Espace/clic milieu déplace la vue',
+    mindAddBranchT: 'Ajouter une branche sous le nœud sélectionné (touche +)', mindColorT: 'Changer la couleur', mindColorReset: 'Par défaut',
+    mtTodo: 'À faire', mtDone: 'Fait', mtPh: 'Ajoute une tâche, appuie sur Entrée', mtAddT: 'Ajouter',
+    mtDoneBtn: 'Marquer comme fait', mtRestore: 'Remettre à faire', mtEmpty: 'Ajoute une tâche', mtEditT: 'Clic pour modifier',
+    mindMemoT: 'Note de la branche', mindMemoPh: 'Un mot pour celui qui travaillera sur cette branche…',
+    mindProgT: 'Glisse pour régler l’avancement',
+    mtLinkedT: 'Clique pour retrouver cette branche sur la carte', mtProgT: 'Clic/glisser pour régler l’avancement',
+    mtProgLinkedT: 'Avancement de la branche (se règle sur la carte)',
+    mtCollapse: 'Replier le panneau des tâches', mtExpand: 'Afficher le panneau des tâches',
+    mindLinkBtn: 'Relier', mindLinkPick: 'Clique le nœud cible pour relier (Échap pour annuler)',
+    mindLinkNeedSel: 'Sélectionne d’abord un nœud, puis Relier',
+    mindLinkPick1: 'Clique la première branche à relier',
+    mindLinkPick2: 'Clique la deuxième branche · clic dans le vide pour recommencer · Échap pour annuler',
+    mindLinkSelHint: 'Flèche sélectionnée — Suppr pour l’enlever · clique une branche d’extrémité, puis une autre pour relier ailleurs',
+    mindLinkRepick: 'Clique maintenant la branche où rebrancher cette extrémité',
+    mindUndoT: 'Annuler (Ctrl+Z)', mindRedoT: 'Rétablir (Ctrl+Y)',
+    mindCopyBtn: 'Copier', mindPasteBtn: 'Coller',
+    mindCopyBtnT: 'Copier la sélection (Ctrl+C) — glisse dans le vide pour sélectionner branches et flèches',
+    mindPasteBtnT: 'Coller au curseur (Ctrl+V)', mindCopied: 'Copié', mindPasted: 'Collé',
+    mindTabMap: 'Carte', mindTabCal: 'Agenda', mcToday: 'Aujourd’hui', mcTitleFmt: '{m}/{y}',
+    mcWeekdays: 'Dim,Lun,Mar,Mer,Jeu,Ven,Sam', mcAddPh: 'Ajoute un événement, puis Entrée',
+    mcEditPrompt: 'Modifier l’événement (vide = supprimer)',
+    mcEvT: 'Clic : bascule fait · double-clic : modifier (vide supprime)',
+    mcTodoT: 'Tâche (le clic bascule fait — synchronisé avec la liste de gauche)',
+    mcIcsBtn: 'Synchro agenda',
+    mcIcsT: 'Copier l’URL d’abonnement (ICS) — ajoute-la dans Google Agenda via ‘À partir de l’URL’ pour la voir sur le mobile',
+    mcIcsHow: 'URL copiée.\n\nGoogle Agenda (calendar.google.com) › Paramètres › Ajouter un agenda › À partir de l’URL — colle-la là,\net les événements PT et les tâches datées apparaîtront dans l’agenda du mobile.\n\n· Sens unique (PT→agenda), rafraîchi toutes les quelques heures (c’est Google qui décide)\n· À rajouter si l’adresse externe de PT change',
+    mtDateT: 'Date — apparaît dans l’agenda (clic pour changer)',
+    mindDelMultiConfirm: 'Supprimer les {n} branches sélectionnées (leurs sous-branches comprises) ? ',
+    mindCopyEmpty: 'Rien de sélectionné — trace d’abord un cadre sur des branches',
+    mindPasteEmpty: 'Le presse-papiers est vide',
+    mindUnitNode: '', mindUnitLink: ' liens',
+    mindAddRoot: 'Ajouter une racine', mindAddRootT: 'Ajouter une autre carte racine', mindAddRootHere: 'Ajouter une racine ici',
+    mindExport: 'Enregistrer l’image', mindExportT: 'Enregistrer la carte en image PNG', mindExportOne: 'Seulement la racine choisie',
+    mindExportAll: 'Toute la carte', mindExportPick: 'Enregistrer quoi en image ?',
+    mindOneWay: 'Sens unique', mindTwoWay: 'Double sens', mindLeftWay: 'Vers la gauche', mindRightWay: 'Vers la droite',
+    mindNotePh: 'Note sur cette liaison…',
+    memoNoSess: 'Ouvre d’abord une session pour ce dossier, puis envoie.', memoSent: 'Envoyé au terminal',
+    memoJumpT: 'Aller à cette demande dans le terminal', memoJumpNoSess: 'La session de ce dossier n’est pas ouverte',
+    memoJumpMiss: 'Introuvable dans l’historique du terminal (peut-être défilé, ou la session a redémarré)',
+    cancelReqT: 'N’arrête que la demande en cours (envoie Échap) — n’annule pas le travail terminé',
+    cancelLast: 'Arrêter\nla demande\nen cours', toBottomT: 'Aller à la sortie la plus récente',
+    reqHistBtn: 'Demandes', reqHistT: 'Afficher/masquer l’historique à côté de ce terminal — clique une entrée pour y aller',
+    stRun: 'en cours', stDone: 'fait', stStop: 'arrêté', stOff: 'coupé à l’arrêt',
+    bnNewVer: '🔄 Nouvelle version v{v} disponible — clique pour redémarrer et mettre à jour',
+    newFolder: '＋ Nouveau dossier', brwGrid: 'Vue en grille', brwList: 'Liste détaillée (verticale)',
+    newFolderPh: 'Nom du nouveau dossier → Entrée',
+    qrLoading: 'Chargement des adresses…', qrFail: 'Impossible de charger les adresses — vérifie ton réseau.',
+    connLostHint: 'L’adresse a peut-être changé — rescanne le QR sur ton PC pour te reconnecter.',
+    ghId: 'ID', ghNoLogin: 'non connecté', ghSearch: '🔍 Filtrer tes dépôts par nom',
+    ghNeedLogin: 'Pas connecté à GitHub.', ghLoginBtn: 'Se connecter à GitHub',
+    ghNeedCli: 'GitHub CLI (gh) n’est pas installé. Il faut ça pour lister/cloner tes dépôts et créer de nouveaux projets.',
+    ghNeedCliShort: 'GitHub CLI doit être installé.', ghInstallBtn: 'Installer GitHub CLI', ghRetry: 'Réessayer',
+    ghPsBtn: 'Installation auto via PowerShell', ghPsTip: 'Ouvre un terminal PowerShell et installe gh avec winget',
+    ghManual: 'Installation manuelle :',
+    ghInstStep1: 'Clique [Installer GitHub CLI] pour ouvrir le site officiel, puis télécharge l’installateur Windows (.msi)',
+    ghInstStep2: 'Lance l’installateur (Suivant → Suivant → Terminer)',
+    ghInstStep3: 'Reviens ici et appuie sur Réessayer — pas besoin de redémarrer',
+    ghWinget: 'Clique le bouton ci-dessous (Installer GitHub CLI), ou colle cette commande dans PowerShell :',
+    ghInstallTip: 'Ouvre cli.github.com dans ton navigateur. Après l’installation, appuie sur Réessayer — sans redémarrer.',
+    imgRemove: 'Retirer', imgZoom: 'Clic pour agrandir', histHint: 'Historique : Ctrl+↑', winNoT: 'Fenêtre',
+    dragReorder: 'Glisse pour réordonner', dragMove: 'Glisse pour déplacer ce panneau',
+    tabBtn: 'Ouvrir dans un onglet normal (tu pourras le glisser dans n’importe quelle fenêtre Chrome)',
+    linkClickOpen: 'Clic → ouvrir dans une nouvelle fenêtre',
+    adminPwPrompt: 'Mot de passe admin :', adminPwFail: 'Mot de passe incorrect.',
+    rebootConfirm: 'Ceci redémarre la fenêtre actuelle : PowerTerminal repart dans la dernière version et cette page se recharge. Les sessions sont conservées — environ 10-20 secondes. Continuer ?',
+    rebootIng: 'Redémarrage dans la dernière version…', rebootWait: 'Cette page se rechargera toute seule.',
+    ghStep1: '1) Copie ce code  2) ouvre GitHub  3) colle et approuve',
+    ghOpen: 'Ouvrir GitHub', ghWaiting: 'En attente de l’approbation…', ghFail: 'Échec de la connexion — réessaie',
+    aiPick: 'Changer l’IA de cette session', aiChangeAsk: 'Passer cette session à une autre IA ? La session redémarre.',
+    workingT: 'Au travail',
+    linksT: 'Liens apparus dans cette session — touche pour copier', linksHead: '🔗 Liens et chemins — touche pour copier',
+    linksNone: 'Aucun lien ici', linksOpen: 'Ouvrir dans un nouvel onglet', linksOpenFile: 'Ouvrir le fichier (via l’aperçu)',
+    linksPrev: 'Plus tôt', linksConv: 'Tour', linksAll: 'Tout afficher',
+    fileChip: 'Fichier', copied: 'Copié',
+    connLost: '⚠ Déconnecté — le serveur (ton PC) est peut-être éteint, ou le réseau a lâché. Reconnexion…',
+    pickBtn: 'Choisir quelles sessions afficher', quitBtn: 'Quitter — éteindre aussi le serveur (ce PC)',
+    quitConfirm: 'Ceci arrête complètement PowerTerminal — le serveur de ce PC et toutes les sessions en cours s’arrêtent, et les mobiles perdent l’accès. Ta liste de sessions est enregistrée et revient au prochain lancement. Continuer ?',
+    quitBye: 'PowerTerminal est arrêté.',
+    quitByeSub: 'Tu peux fermer cet onglet. Relance start.bat pour revenir — tes sessions seront restaurées.',
+    modelRestartAsk: 'Redémarrer UNIQUEMENT cette session (‘{t}’) avec {m} ?\n\nSeule celle-ci redémarre — les autres ne bougent pas. Sa conversation continue (via --continue).',
+    ok: 'Redémarrer cette session',
+    verWarn: '⚠ Ancienne version v{c} en cours (dernière v{l}). Si elle ne se met pas à jour, tu as sans doute plusieurs copies — ferme-les toutes et n’en lance qu’une.',
+    icOpen: 'Ouvrir le dossier', icRemove: 'Retirer de la liste',
+    icDup: 'Ouvrir une autre session sur ce dossier — un dépôt git s’ouvre dans son propre worktree, donc les deux ne se gênent jamais (Maj+clic ou clic droit pour le même dossier tel quel)',
+    qrGateWarn: 'Quiconque obtient ce QR ou cette adresse peut exécuter des commandes sur CET ordinateur.',
+    qrGateResp: 'Ne le partage qu’avec des gens de confiance. Ce qui arrive en cas de fuite est ta responsabilité.',
+    qrGateOk: 'J’ai compris — afficher le QR'
+  },
+  pt: {
+    mPinned: 'Versões antigas (fixas)',
+    numAddT: 'Abrir mais uma sessão nesta pasta — se for um repo git ganha o próprio worktree, então as duas nunca se atrapalham (Shift+clique = a mesma pasta como está)',
+    flowT: 'Fluxo — liga esta sessão às que assumem o trabalho depois',
+    flowPickHint: 'Clique nas sessões que continuam depois de ‘{t}’. Clique de novo para desligar.',
+    flowDone: 'Pronto',
+    wtGroupT: 'Mesmo repo — o original e os worktrees que saíram dele',
+    cmNewFile: 'Novo arquivo', cmNewDir: 'Nova pasta',
+    cmNewFileT: 'Novo arquivo na pasta raiz', cmNewDirT: 'Nova pasta na pasta raiz',
+    cmRefreshT: 'Atualizar a árvore', cmNewFilePh: 'Nome do novo arquivo', cmNewDirPh: 'Nome da nova pasta',
+    cmBadName: 'Esse nome não pode ser usado.', cmExists: 'Já existe algo com esse nome.',
+    cmTreeRoot: 'pasta raiz', cmEmptyDir: '(pasta vazia)',
+    qrToggle: 'Mostrar/ocultar o QR do celular', infoBtn: 'Endereços de acesso',
+    copyImg: '📋 Copiar', saveImg: '💾 Salvar',
+    orManual: 'Ou digite direto o caminho de uma pasta:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 Novo projeto + GitHub', npPh: 'nome-do-projeto (letras/números/-)',
+    fontUp: 'Fonte maior', fontDn: 'Fonte menor',
+    previewPrompt: 'Qual página abrir em uma aba nova? (seu servidor de dev, ex. http://localhost:3000 — o PowerTerminal repassa, então abre no celular também · vazio = abrir a pasta)',
+    customPrompt: 'Comando para rodar (ex. codex, aider, gemini)',
+    tunnelNone: 'O túnel está subindo, ou falta o cloudflared',
+    urlChanges: '(a URL muda quando o servidor reinicia)', qrLte: 'De qualquer lugar por LTE: ', qrWifi: 'Mesmo Wi-Fi: ',
+    copyOk: 'Imagem do QR copiada — cole em qualquer conversa.', copyFail: 'Falha ao copiar',
+    ghLocal: '(a pasta local e o git foram criados)', feedbackShort: 'Pedido',
+    noTunnel: 'O acesso externo está sendo preparado — este painel atualiza sozinho.',
+    aiLabel: 'IA desta sessão', updText: 'Atualizar',
+    updTip: 'Há uma versão nova — reinicie o PowerTerminal para atualizar sozinho',
+    dupAsk: '‘{t}’ já está aberto. Abrir de novo como sessão separada?',
+    soundBtn: 'Falar o número da sessão quando terminar (liga/desliga)',
+    pairTitle: 'Conectar outro PC — sem digitar link comprido',
+    pairStep1: 'No outro PC abra', pairStep2: 'e digite este código:',
+    sessionAdded: 'Sessão adicionada', zoomT: 'Deixar esta sessão em tela cheia', zoomExit: '✕ Sair da tela cheia',
+    memoT: 'Bloco de notas desta sessão', memoTitle: '📝 Nota',
+    memoNewPh: 'Escreva o que quiser… Enter salva · Shift+Enter quebra linha',
+    memoSaveBtn: 'Salvar', memoSaveTip: 'Salvar esta nota (Enter)',
+    themeT: 'Modo claro / escuro (terminal incluso)',
+    previewNoIndex: 'Não há index.html nesta pasta, então não dá para pré-visualizar direto. Coloque um index.html na raiz da pasta, ou suba seu servidor de dev e informe o endereço dele (ex. http://localhost:3000).',
+    mDefaultLong: 'Auto — Opus',
+    memoDoneCol: 'Concluído', memoReqCol: 'Pedidos que você enviou', memoEmpty: 'Ainda sem notas — escreva abaixo.',
+    memoDelT: 'Excluir', memoSend: 'Enviar',
+    memoSendTip: 'Manda esta nota para o terminal da sessão — vai para Concluído quando o trabalho terminar',
+    reqResendT: 'Mandar este pedido de novo para o terminal',
+    memoEdit: 'Editar', memoDelBtn: 'Excluir', memoDelConfirm: 'Excluir esta nota?',
+    memoEditSaveT: 'Salvar (Enter)', memoEditCancelT: 'Cancelar a edição (Esc)',
+    memoExport: 'Excel', memoExportAllT: 'Baixar as notas e o histórico de pedidos de TODAS as sessões em um Excel só',
+    memoNewCol: 'Notas novas', memoCopy: 'Copiar', memoCopyT: 'Copiar este texto para a área de transferência',
+    copyAll: 'Copiar tudo', copyAllT: 'Copiar tudo desta coluna',
+    setBtnT: 'Configurações', setTitle: '⚙ Configurações',
+    setSub: 'Ao salvar um pedido, uma IA pode acrescentar notas curtas. Elas aparecem ao passar o mouse no histórico e no Excel baixado, e podem gastar alguns tokens de IA.',
+    setHintsL: 'Mostrar balões de dica', setHintsHint: 'O tour de recursos na primeira vez, mais uma dica aleatória de 3 segundos após 5 minutos parado.',
+    setOnboard: '🎈 Ver o tour de recursos de novo',
+    obNext: 'Próximo →', obCloseAll: 'Fechar tudo', obNever: 'Não mostrar mais',
+    obAdd: 'Adicionar uma sessão', obAddD: 'Escolha uma pasta de trabalho e rode um terminal de IA dentro dela.',
+    obQR: 'Abrir no celular', obQRD: 'Escaneie o QR — Wi-Fi em casa, Externo de qualquer lugar.',
+    obMind: 'Mapa mental', obMindD: 'Organize ideias em galhos e exporte como imagem.',
+    obTheme: 'Claro / escuro', obThemeD: 'Troca o tema do app inteiro, terminal incluso.',
+    obFeedback: 'Enviar um pedido', obFeedbackD: 'Mande ao desenvolvedor uma ideia ou um problema.',
+    obMemo: 'Bloco de notas', obMemoD: 'Notas por pasta e todos os pedidos que você mandou — com exportação para Excel.',
+    obHist: 'Histórico de pedidos', obHistD: 'Seus pedidos anteriores — clique em um para pular até ele no terminal.',
+    obInput: 'Campo de pedido', obInputD: 'Digite aqui e aperte Enter. Comece com ‘pergunta…’ para guardar a resposta no bloco de notas.',
+    pvDev: 'Subir o servidor de dev e pré-visualizar', pvRunning: 'Abrir o servidor de dev que está rodando',
+    pvFolder: 'Abrir a listagem da pasta', pvUrl: 'Digitar um endereço à mão', pvStarting: 'Subindo o servidor de dev…',
+    pvFail: 'Esse script não é um servidor web de dev (nenhum endereço encontrado). Escolha uma página ou abra a pasta:',
+    dropPick: 'Achei pastas com o mesmo nome — digite o número para abrir:',
+    dropMiss: 'Não consegui achar o caminho real desta pasta — use [+ Sessão] → 📂 Procurar.',
+    ghCopyOpen: 'Copiar código → abrir GitHub', ghCopyOpenT: 'Copia o código e abre a página de aprovação do GitHub',
+    fileOpened: 'Aberto', modeSwitched: 'modo trocado (Shift+Tab)',
+    gbDirty: 'alterações não commitadas', gbAhead: 'commits para enviar', gbBehind: 'commits para baixar',
+    gbPrT: 'Abrir este branch no GitHub (o pull request dele, ou um novo)',
+    gbLocal: 'local', gbLocalT: 'Esta pasta não está ligada ao GitHub',
+    readT: 'Leitura larga — refaz o histórico (inclusive trabalho antigo) na largura toda', readTitle: 'Leitura larga',
+    codeT: 'Editor de código — ver e editar os arquivos deste projeto',
+    cmSave: 'Salvar', cmExit: 'Fechar', cmPreview: 'Pré-visualizar',
+    wtSecTitle: 'Pastas de trabalho separadas (worktrees)',
+    wtSecSub: 'Abrir mais uma sessão no mesmo repo cria uma dessas, para os arquivos nunca se atrapalharem. Ela fica fora da pasta do repo, no mesmo drive.',
+    wtOpen: 'em uso', wtDirty: 'tem alterações', wtClean: 'pode remover', wtPrune: '🧹 Limpar as sem uso',
+    wtPruned: '{n} removidas, {k} mantidas (em uso ou com alterações)', icOpenShort: '📂',
+    wtTip: 'Pasta de trabalho separada (git worktree) — os arquivos aqui nunca batem com a outra sessão. Clique para juntar no branch original',
+    wtMergeAsk: 'Juntar o trabalho desta sessão ({b}) no branch original?',
+    wtMerged: '{b} juntado em {base}', wtKept: 'Sobraram alterações não commitadas — a pasta do worktree foi mantida.',
+    micT: 'Dite seu pedido',
+    micInsecure: 'O microfone só funciona em conexão segura — abra pelo endereço de acesso externo (QR)',
+    micDenied: 'O microfone está bloqueado — permita nas configurações do navegador',
+    micNo: 'Este navegador não tem entrada de voz', micErr: 'Erro na entrada de voz',
+    sendQueued: 'Sem conexão agora — seu pedido vai quando a conexão voltar.',
+    sndTitle: 'Teste do som de conclusão', sndSub: 'Toca agora o som que sai quando um pedido termina. Se você não ouvir nada, a linha abaixo diz o porquê.',
+    sndTest: '▶ Tocar agora',
+    billTitle: 'Renovação da assinatura',
+    billSub: 'Nenhuma API informa a data de cobrança, então digite o dia do mês em que você é cobrado. Passe o mouse numa barra de uso lá em cima para ver a próxima renovação. Deixe vazio para ocultar.',
+    billUnit: 'de cada mês', billNext: 'Renova', billToday: 'hoje', billIn: 'em {n} dias',
+    gptTip: 'Uso do GPT (Codex) — na última vez que o GPT rodou',
+    addNeedPath: 'Digite o caminho de uma pasta, ou escolha uma com 📂.',
+    setQaDocL: 'Manter uma página de perguntas e respostas — sem tokens',
+    setQaDocHint: 'Pedidos que começam com ‘pergunta’ / ‘질문’ já vêm com a resposta anexada no histórico. Com isto ligado, eles também são gravados em docs/질문-답변-기록.html naquela pasta — mais novos primeiro, uma linha por pergunta. O PowerTerminal monta a página sozinho e nunca chama a IA (zero tokens) — por isso vem ligado.',
+    phraseDefaults: 'Continua,Terminou?,1,2,3',
+    phTitle: 'Palavras de pedido frequentes',
+    phSub: 'Cada uma vira um botão logo acima do campo de pedido, em todas as sessões. Apertar só preenche o campo — não envia.',
+    phNone: 'nenhuma ainda', phraseAdd: '＋ Adicionar palavra', phraseAddShort: 'palavra rápida',
+    phrasePrompt: 'Digite uma palavra que você usa muito (ex. já subi)',
+    phraseUse: 'Aperte para colocar no campo de pedido',
+    phraseDel: 'Clique com o botão direito ou segure para apagar', phraseDelAsk: 'Apagar o botão ‘{w}’?',
+    codeNoSess: 'Abra uma sessão primeiro.',
+    admTitle: 'Admin de banners (dev)',
+    admSub: 'Publicar banners, definir a versão mais nova, ver as estatísticas de instalação. Só aparece quando a conta do GitHub deste PC é a do desenvolvedor.',
+    admShow: 'Abrir', admHide: 'Recolher', admNewTab: 'Abrir em uma aba nova',
+    cmImgs: 'Imagens', cmImgsHint: '— clique para ampliar · arraste para dentro do código', cmVisual: 'Edição visual',
+    cmPopOut: 'Janela nova', cmGrep: 'Procurar nos arquivos', cmGrepCase: 'Aa maiúsculas', cmGrepRe: '.* regex',
+    fileDropHint: 'Solte arquivos para anexar',
+    setIntentL: 'Motivo do pedido (intenção)', setIntentHint: 'Uma linha sobre POR QUE você pediu / que problema quer resolver.',
+    setSummaryL: 'Prompt de resumo',
+    setSummaryHint: 'Um prompt curto no imperativo que capta O QUE você pediu — escrito para dar para reusar igualzinho depois.',
+    noteReasonL: 'Motivo do pedido', noteSummaryL: 'Prompt de resumo',
+    mindBtn: 'Mapa mental', mindTitle: 'Mapa mental', mindRootTitle: 'Mapa de {u}', mindRootNoUser: 'Meu mapa',
+    mindNewNode: 'Galho novo', mindNewRoot: 'Raiz nova', mindAdd: 'Galho', mindDelBtn: 'Excluir', mindReset: 'Redefinir a visão',
+    mindDelConfirm: 'Isto apaga o galho e tudo abaixo dele. Continuar?',
+    mindHint: 'Passe o mouse num nó para ver + em 8 direções · arraste para mover · duplo clique/F2/Enter renomeia (Tab confirma) · + adiciona galho · Delete apaga · arraste no vazio para selecionar por caixa, depois Ctrl+C / Ctrl+V para copiar e colar · botão direito no vazio adiciona uma raiz · Ctrl+roda dá zoom · Espaço/arrastar com o meio move a visão',
+    mindAddBranchT: 'Adicionar um galho sob o nó selecionado (tecla +)', mindColorT: 'Mudar a cor', mindColorReset: 'Padrão',
+    mtTodo: 'A fazer', mtDone: 'Feito', mtPh: 'Escreva uma tarefa e aperte Enter', mtAddT: 'Adicionar',
+    mtDoneBtn: 'Marcar como feito', mtRestore: 'Voltar para a fazer', mtEmpty: 'Adicione uma tarefa', mtEditT: 'Clique para editar',
+    mindMemoT: 'Nota do galho', mindMemoPh: 'Um recado para quem for trabalhar neste galho…',
+    mindProgT: 'Arraste para ajustar o progresso',
+    mtLinkedT: 'Clique para achar este galho no mapa', mtProgT: 'Clique/arraste para ajustar o progresso',
+    mtProgLinkedT: 'Progresso do galho (ajusta-se no mapa)',
+    mtCollapse: 'Recolher o painel de tarefas', mtExpand: 'Mostrar o painel de tarefas',
+    mindLinkBtn: 'Conectar', mindLinkPick: 'Clique no nó de destino para conectar (Esc cancela)',
+    mindLinkNeedSel: 'Selecione um nó primeiro, depois Conectar',
+    mindLinkPick1: 'Clique no primeiro galho a conectar',
+    mindLinkPick2: 'Clique no segundo galho · clique no vazio para recomeçar · Esc cancela',
+    mindLinkSelHint: 'Seta selecionada — Delete remove · clique num galho da ponta, depois em outro para reconectar',
+    mindLinkRepick: 'Agora clique no galho onde esta ponta deve ficar',
+    mindUndoT: 'Desfazer (Ctrl+Z)', mindRedoT: 'Refazer (Ctrl+Y)',
+    mindCopyBtn: 'Copiar', mindPasteBtn: 'Colar',
+    mindCopyBtnT: 'Copiar a seleção (Ctrl+C) — arraste no vazio para selecionar galhos e setas',
+    mindPasteBtnT: 'Colar no cursor (Ctrl+V)', mindCopied: 'Copiado', mindPasted: 'Colado',
+    mindTabMap: 'Mapa', mindTabCal: 'Agenda', mcToday: 'Hoje', mcTitleFmt: '{m}/{y}',
+    mcWeekdays: 'Dom,Seg,Ter,Qua,Qui,Sex,Sáb', mcAddPh: 'Escreva um evento e aperte Enter',
+    mcEditPrompt: 'Editar evento (vazio = excluir)',
+    mcEvT: 'Clique: alterna feito · duplo clique: editar (vazio exclui)',
+    mcTodoT: 'Tarefa (o clique alterna feito — sincronizado com a lista da esquerda)',
+    mcIcsBtn: 'Sincronizar agenda',
+    mcIcsT: 'Copiar a URL de assinatura (ICS) — adicione no Google Agenda por ‘De URL’ para ver no celular',
+    mcIcsHow: 'URL copiada.\n\nGoogle Agenda (calendar.google.com) › Configurações › Adicionar agenda › De URL — cole ali,\ne os eventos do PT e as tarefas com data aparecem na agenda do celular.\n\n· Um sentido só (PT→agenda), atualiza a cada poucas horas (quem decide é o Google)\n· Adicione de novo se o endereço externo do PT mudar',
+    mtDateT: 'Data — aparece no calendário da Agenda (clique para mudar)',
+    mindDelMultiConfirm: 'Excluir os {n} galhos selecionados (com os subgalhos)? ',
+    mindCopyEmpty: 'Nada selecionado — arraste uma caixa sobre os galhos primeiro',
+    mindPasteEmpty: 'A área de transferência está vazia',
+    mindUnitNode: '', mindUnitLink: ' ligações',
+    mindAddRoot: 'Adicionar raiz', mindAddRootT: 'Adicionar mais um mapa raiz', mindAddRootHere: 'Adicionar uma raiz aqui',
+    mindExport: 'Salvar imagem', mindExportT: 'Salvar o mapa como imagem PNG', mindExportOne: 'Só a raiz selecionada',
+    mindExportAll: 'Mapa inteiro', mindExportPick: 'Salvar o quê como imagem?',
+    mindOneWay: 'Um sentido', mindTwoWay: 'Dois sentidos', mindLeftWay: 'Para a esquerda', mindRightWay: 'Para a direita',
+    mindNotePh: 'Nota sobre esta ligação…',
+    memoNoSess: 'Abra uma sessão para esta pasta primeiro, depois envie.', memoSent: 'Enviado para o terminal',
+    memoJumpT: 'Pular para este pedido no terminal', memoJumpNoSess: 'A sessão desta pasta não está aberta',
+    memoJumpMiss: 'Não encontrado no histórico do terminal (pode ter rolado para fora, ou a sessão reiniciou)',
+    cancelReqT: 'Para só o pedido em andamento (manda ESC) — não desfaz o trabalho já pronto',
+    cancelLast: 'Parar\no pedido\natual', toBottomT: 'Pular para a saída mais recente',
+    reqHistBtn: 'Pedidos', reqHistT: 'Mostrar/ocultar o histórico ao lado deste terminal — clique num item para pular até ele',
+    stRun: 'em andamento', stDone: 'pronto', stStop: 'parado', stOff: 'cortado ao desligar',
+    bnNewVer: '🔄 Versão nova v{v} saiu — clique para reiniciar e atualizar',
+    newFolder: '＋ Nova pasta', brwGrid: 'Visão em grade', brwList: 'Lista detalhada (vertical)',
+    newFolderPh: 'Nome da nova pasta → Enter',
+    qrLoading: 'Carregando os endereços…', qrFail: 'Não deu para carregar os endereços — confira sua rede.',
+    connLostHint: 'O endereço pode ter mudado — escaneie o QR de novo no PC para reconectar.',
+    ghId: 'ID', ghNoLogin: 'sem login', ghSearch: '🔍 Filtrar seus repos pelo nome',
+    ghNeedLogin: 'Você não está logado no GitHub.', ghLoginBtn: 'Entrar no GitHub',
+    ghNeedCli: 'O GitHub CLI (gh) não está instalado. Ele é necessário para listar/clonar seus repos e criar projetos novos.',
+    ghNeedCliShort: 'É preciso instalar o GitHub CLI.', ghInstallBtn: 'Instalar o GitHub CLI', ghRetry: 'Tentar de novo',
+    ghPsBtn: 'Instalar sozinho pelo PowerShell', ghPsTip: 'Abre um terminal PowerShell e instala o gh com o winget',
+    ghManual: 'Instalação manual:',
+    ghInstStep1: 'Clique em [Instalar o GitHub CLI] para abrir o site oficial e baixe o instalador do Windows (.msi)',
+    ghInstStep2: 'Rode o instalador (Avançar → Avançar → Concluir)',
+    ghInstStep3: 'Volte aqui e aperte Tentar de novo — não precisa reiniciar',
+    ghWinget: 'Clique no botão abaixo (Instalar o GitHub CLI), ou cole este comando no PowerShell:',
+    ghInstallTip: 'Abre o cli.github.com no navegador. Depois de instalar, aperte Tentar de novo — sem reiniciar.',
+    imgRemove: 'Remover', imgZoom: 'Clique para ampliar', histHint: 'Histórico: Ctrl+↑', winNoT: 'Janela',
+    dragReorder: 'Arraste para reordenar', dragMove: 'Arraste para mover este painel',
+    tabBtn: 'Abrir numa aba normal do navegador (depois é só arrastar para qualquer janela do Chrome)',
+    linkClickOpen: 'Clique → abrir numa janela nova',
+    adminPwPrompt: 'Senha de admin:', adminPwFail: 'Senha errada.',
+    rebootConfirm: 'Isto reinicia a janela atual: o PowerTerminal volta na versão mais nova e esta página recarrega. As sessões continuam — leva uns 10-20 segundos. Continuar?',
+    rebootIng: 'Reiniciando na versão mais nova…', rebootWait: 'Esta página vai recarregar sozinha.',
+    ghStep1: '1) Copie este código  2) abra o GitHub  3) cole e aprove',
+    ghOpen: 'Abrir o GitHub', ghWaiting: 'Esperando a aprovação…', ghFail: 'Falha no login — tente de novo',
+    aiPick: 'Trocar a IA desta sessão', aiChangeAsk: 'Passar esta sessão para outra IA? A sessão reinicia.',
+    workingT: 'Trabalhando',
+    linksT: 'Links que apareceram nesta sessão — toque para copiar', linksHead: '🔗 Links e caminhos — toque para copiar',
+    linksNone: 'Nenhum link aqui', linksOpen: 'Abrir numa aba nova', linksOpenFile: 'Abrir o arquivo (pela pré-visualização)',
+    linksPrev: 'Anteriores', linksConv: 'Rodada', linksAll: 'Mostrar tudo',
+    fileChip: 'Arquivo', copied: 'Copiado',
+    connLost: '⚠ Desconectado — o servidor (seu PC) pode estar desligado, ou a rede caiu. Reconectando…',
+    pickBtn: 'Escolher quais sessões mostrar', quitBtn: 'Sair — desligar também o servidor (este PC)',
+    quitConfirm: 'Isto desliga o PowerTerminal por completo — o servidor deste PC e todas as sessões em andamento param, e os celulares perdem o acesso. Sua lista de sessões fica salva e volta no próximo início. Continuar?',
+    quitBye: 'O PowerTerminal foi desligado.',
+    quitByeSub: 'Pode fechar esta aba. Rode o start.bat de novo para voltar — suas sessões serão restauradas.',
+    modelRestartAsk: 'Reiniciar SÓ esta sessão (‘{t}’) com {m}?\n\nSó esta reinicia — as outras nem são tocadas. A conversa dela continua (via --continue).',
+    ok: 'Reiniciar esta sessão',
+    verWarn: '⚠ Rodando a versão antiga v{c} (a mais nova é v{l}). Se não atualizar, provavelmente há várias cópias — feche todas e abra só uma.',
+    icOpen: 'Abrir pasta', icRemove: 'Tirar da lista',
+    icDup: 'Abrir outra sessão nesta pasta — um repo git abre no próprio worktree, então as duas nunca se atrapalham (Shift+clique ou botão direito para a mesma pasta como está)',
+    qrGateWarn: 'Quem pegar este QR ou este endereço consegue rodar comandos NESTE computador.',
+    qrGateResp: 'Compartilhe só com gente de confiança. O que acontecer se vazar é responsabilidade sua.',
+    qrGateOk: 'Entendi — mostrar o QR'
+  },
+  ru: {
+    mPinned: 'Прежние версии (закреплённые)',
+    numAddT: 'Открыть ещё одну сессию в этой папке — для git-репозитория создаётся свой worktree, чтобы они не мешали друг другу (Shift+клик = та же папка как есть)',
+    flowT: 'Поток — связать эту сессию с теми, что подхватывают работу дальше',
+    flowPickHint: 'Нажмите на сессии, которые продолжают после ‘{t}’. Повторное нажатие снимает связь.',
+    flowDone: 'Готово',
+    wtGroupT: 'Один репозиторий — оригинал и отделившиеся от него worktree',
+    cmNewFile: 'Новый файл', cmNewDir: 'Новая папка',
+    cmNewFileT: 'Новый файл в корневой папке', cmNewDirT: 'Новая папка в корневой папке',
+    cmRefreshT: 'Обновить дерево', cmNewFilePh: 'Имя нового файла', cmNewDirPh: 'Имя новой папки',
+    cmBadName: 'Такое имя использовать нельзя.', cmExists: 'Что-то с таким именем уже есть.',
+    cmTreeRoot: 'корневая папка', cmEmptyDir: '(пустая папка)',
+    qrToggle: 'QR для телефона вкл/выкл', infoBtn: 'Адреса доступа', copyImg: '📋 Копировать', saveImg: '💾 Сохранить',
+    orManual: 'Или введите путь к папке напрямую:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 Новый проект + GitHub', npPh: 'имя-проекта (буквы/цифры/-)',
+    fontUp: 'Шрифт крупнее', fontDn: 'Шрифт мельче',
+    previewPrompt: 'Какую страницу открыть в новой вкладке? (ваш dev-сервер, например http://localhost:3000 — PowerTerminal передаёт его, поэтому откроется и на телефоне · пусто = открыть папку)',
+    customPrompt: 'Команда для запуска (например codex, aider, gemini)',
+    tunnelNone: 'Туннель запускается, или нет cloudflared',
+    urlChanges: '(адрес меняется при перезапуске сервера)', qrLte: 'Откуда угодно по LTE: ', qrWifi: 'Та же сеть Wi-Fi: ',
+    copyOk: 'Картинка QR скопирована — вставьте её в любой чат.', copyFail: 'Не удалось скопировать',
+    ghLocal: '(локальная папка и git созданы)', feedbackShort: 'Пожелание',
+    noTunnel: 'Внешний доступ готовится — эта панель обновится сама.',
+    aiLabel: 'ИИ для этой сессии', updText: 'Обновление',
+    updTip: 'Есть новая версия — перезапустите PowerTerminal, и он обновится сам',
+    dupAsk: '‘{t}’ уже открыт. Открыть его ещё раз отдельной сессией?',
+    soundBtn: 'Произносить номер сессии по завершении (вкл/выкл)',
+    pairTitle: 'Подключить другой ПК — без длинных ссылок',
+    pairStep1: 'На другом ПК откройте', pairStep2: 'и введите этот код:',
+    sessionAdded: 'Сессия добавлена', zoomT: 'Развернуть эту сессию на весь экран', zoomExit: '✕ Выйти из полноэкранного режима',
+    memoT: 'Блокнот этой сессии', memoTitle: '📝 Заметка',
+    memoNewPh: 'Пишите что угодно… Enter сохраняет · Shift+Enter — новая строка',
+    memoSaveBtn: 'Сохранить', memoSaveTip: 'Сохранить эту заметку (Enter)',
+    themeT: 'Светлая / тёмная тема (вместе с терминалом)',
+    previewNoIndex: 'В этой папке нет index.html, поэтому показать напрямую нечего. Либо положите index.html в корень папки, либо запустите свой dev-сервер и введите его адрес (например http://localhost:3000).',
+    mDefaultLong: 'Авто — Opus',
+    memoDoneCol: 'Завершено', memoReqCol: 'Отправленные запросы', memoEmpty: 'Заметок пока нет — напишите ниже.',
+    memoDelT: 'Удалить', memoSend: 'Отправить',
+    memoSendTip: 'Отправить эту заметку в терминал сессии — когда работа закончится, она уйдёт в «Завершено»',
+    reqResendT: 'Отправить этот запрос в терминал ещё раз',
+    memoEdit: 'Изменить', memoDelBtn: 'Удал.', memoDelConfirm: 'Удалить эту заметку?',
+    memoEditSaveT: 'Сохранить (Enter)', memoEditCancelT: 'Отменить правку (Esc)',
+    memoExport: 'Excel', memoExportAllT: 'Скачать заметки и историю запросов ВСЕХ сессий одним файлом Excel',
+    memoNewCol: 'Новые заметки', memoCopy: 'Копировать', memoCopyT: 'Скопировать этот текст в буфер обмена',
+    copyAll: 'Копировать всё', copyAllT: 'Скопировать всё из этого столбца',
+    setBtnT: 'Настройки', setTitle: '⚙ Настройки',
+    setSub: 'При сохранении запроса ИИ может добавить к нему короткие пометки. Они видны при наведении в истории запросов и попадают в выгрузку Excel; на это может уходить немного токенов.',
+    setHintsL: 'Показывать подсказки-облачка', setHintsHint: 'Тур по возможностям при первом запуске и одна случайная подсказка на 3 секунды после 5 минут простоя.',
+    setOnboard: '🎈 Показать тур ещё раз',
+    obNext: 'Дальше →', obCloseAll: 'Закрыть всё', obNever: 'Больше не показывать',
+    obAdd: 'Добавить сессию', obAddD: 'Выберите рабочую папку и запустите в ней ИИ-терминал.',
+    obQR: 'Открыть на телефоне', obQRD: 'Отсканируйте QR — дома по Wi-Fi, вне дома через внешний доступ.',
+    obMind: 'Интеллект-карта', obMindD: 'Раскладывайте идеи по веткам и выгружайте картинкой.',
+    obTheme: 'Светлая / тёмная', obThemeD: 'Переключает тему всего приложения, включая терминал.',
+    obFeedback: 'Отправить пожелание', obFeedbackD: 'Напишите разработчику идею или сообщение об ошибке.',
+    obMemo: 'Блокнот', obMemoD: 'Заметки по папкам и все отправленные запросы — с выгрузкой в Excel.',
+    obHist: 'История запросов', obHistD: 'Ваши прошлые запросы — нажмите, чтобы перейти к нему в терминале.',
+    obInput: 'Поле запроса', obInputD: 'Пишите здесь и нажимайте Enter. Начните со слова «вопрос…», и ответ сохранится в блокнот.',
+    pvDev: 'Запустить dev-сервер и показать', pvRunning: 'Открыть запущенный dev-сервер',
+    pvFolder: 'Открыть список файлов папки', pvUrl: 'Ввести адрес вручную', pvStarting: 'Запускаю dev-сервер…',
+    pvFail: 'Этот скрипт — не веб-сервер разработки (адрес не найден). Выберите страницу или откройте папку:',
+    dropPick: 'Найдено несколько папок с таким именем — введите номер, чтобы открыть:',
+    dropMiss: 'Не удалось определить настоящий путь этой папки — используйте [+ Сессия] → 📂 Обзор.',
+    ghCopyOpen: 'Скопировать код → открыть GitHub', ghCopyOpenT: 'Копирует код и открывает страницу подтверждения GitHub',
+    fileOpened: 'Открыто', modeSwitched: 'режим переключён (Shift+Tab)',
+    gbDirty: 'незакоммиченные изменения', gbAhead: 'коммитов к отправке', gbBehind: 'коммитов к загрузке',
+    gbPrT: 'Открыть эту ветку на GitHub (её pull request или новый)',
+    gbLocal: 'локально', gbLocalT: 'Эта папка не связана с GitHub',
+    readT: 'Широкое чтение — переверстать историю (включая старую работу) на всю ширину', readTitle: 'Широкое чтение',
+    codeT: 'Редактор кода — смотреть и править файлы этого проекта',
+    cmSave: 'Сохранить', cmExit: 'Закрыть', cmPreview: 'Предпросмотр',
+    wtSecTitle: 'Отдельные рабочие папки (worktree)',
+    wtSecSub: 'Когда вы открываете вторую сессию на том же репозитории, создаётся такая папка, чтобы файлы не конфликтовали. Она лежит вне папки репозитория, на том же диске.',
+    wtOpen: 'используется', wtDirty: 'есть изменения', wtClean: 'можно удалить', wtPrune: '🧹 Убрать неиспользуемые',
+    wtPruned: 'Удалено {n}, оставлено {k} (используются или с изменениями)', icOpenShort: '📂',
+    wtTip: 'Отдельная рабочая папка (git worktree) — файлы здесь никогда не конфликтуют с другой сессией. Нажмите, чтобы влить в исходную ветку',
+    wtMergeAsk: 'Влить работу этой сессии ({b}) в исходную ветку?',
+    wtMerged: '{b} влита в {base}', wtKept: 'Остались незакоммиченные изменения — папка worktree сохранена.',
+    micT: 'Продиктовать запрос',
+    micInsecure: 'Микрофон работает только по защищённому соединению — откройте адрес внешнего доступа (QR)',
+    micDenied: 'Микрофон заблокирован — разрешите его в настройках браузера',
+    micNo: 'В этом браузере нет голосового ввода', micErr: 'Ошибка голосового ввода',
+    sendQueued: 'Сейчас нет связи — запрос уйдёт, как только соединение вернётся.',
+    sndTitle: 'Проверка звука завершения', sndSub: 'Прямо сейчас проиграет звук, который вы слышите по окончании запроса. Если ничего не слышно, строка ниже объясняет почему.',
+    sndTest: '▶ Проиграть сейчас',
+    billTitle: 'Продление подписки',
+    billSub: 'Ни один API не сообщает дату списания, поэтому впишите день месяца, когда с вас списывают. Наведите курсор на полоску расхода вверху, чтобы увидеть следующее продление. Оставьте пустым, чтобы скрыть.',
+    billUnit: 'числа каждого месяца', billNext: 'Продление', billToday: 'сегодня', billIn: 'через {n} дн.',
+    gptTip: 'Расход GPT (Codex) — на момент последнего запуска GPT',
+    addNeedPath: 'Введите путь к папке или выберите её через 📂.',
+    setQaDocL: 'Вести страницу вопросов и ответов — без токенов',
+    setQaDocHint: 'Запросы, начинающиеся со слова «вопрос» / «질문», и так получают ответ в истории запросов. С этой галочкой они дополнительно записываются в docs/질문-답변-기록.html в той папке — новые сверху, по строке на вопрос. Страницу собирает сам PowerTerminal и никогда не обращается к ИИ (ноль токенов) — поэтому по умолчанию включено.',
+    phraseDefaults: 'Продолжай,Готово?,1,2,3',
+    phTitle: 'Частые слова для запросов',
+    phSub: 'Каждое становится кнопкой прямо над полем запроса во всех сессиях. Нажатие только подставляет текст в поле — не отправляет.',
+    phNone: 'пока нет', phraseAdd: '＋ Добавить слово', phraseAddShort: 'быстрое слово',
+    phrasePrompt: 'Введите слово, которым часто пользуетесь (например: залил)',
+    phraseUse: 'Нажмите, чтобы подставить в поле запроса',
+    phraseDel: 'Правый клик или долгое нажатие — удалить', phraseDelAsk: 'Удалить кнопку ‘{w}’?',
+    codeNoSess: 'Сначала откройте сессию.',
+    admTitle: 'Управление баннерами (dev)',
+    admSub: 'Публикация баннеров, установка последней версии, статистика установок. Видно, только если аккаунт GitHub на этом ПК — разработчика.',
+    admShow: 'Открыть', admHide: 'Свернуть', admNewTab: 'Открыть в новой вкладке',
+    cmImgs: 'Изображения', cmImgsHint: '— нажмите, чтобы увеличить · перетащите в код', cmVisual: 'Визуальная правка',
+    cmPopOut: 'Новое окно', cmGrep: 'Искать по файлам', cmGrepCase: 'Aa регистр', cmGrepRe: '.* регексп',
+    fileDropHint: 'Перетащите файлы, чтобы прикрепить',
+    setIntentL: 'Причина запроса (замысел)', setIntentHint: 'Одна строка о том, ПОЧЕМУ вы спросили / какую проблему хотите решить.',
+    setSummaryL: 'Промпт-выжимка',
+    setSummaryHint: 'Короткий приказ, который передаёт, ЧТО вы просили — так, чтобы в следующий раз можно было использовать дословно.',
+    noteReasonL: 'Причина запроса', noteSummaryL: 'Промпт-выжимка',
+    mindBtn: 'Интеллект-карта', mindTitle: 'Интеллект-карта', mindRootTitle: 'Карта {u}', mindRootNoUser: 'Моя карта',
+    mindNewNode: 'Новая ветка', mindNewRoot: 'Новый корень', mindAdd: 'Ветка', mindDelBtn: 'Удалить', mindReset: 'Сбросить вид',
+    mindDelConfirm: 'Это удалит ветку и всё, что под ней. Продолжить?',
+    mindHint: 'Наведите на узел — появятся + в 8 направлениях · тащите, чтобы двигать · двойной клик/F2/Enter переименовывают (Tab подтверждает) · + добавляет ветку · Delete удаляет · протяните по пустому месту для рамочного выделения, затем Ctrl+C / Ctrl+V · правый клик по пустому месту добавляет корень · Ctrl+колесо — масштаб · Пробел/средняя кнопка — перетаскивание',
+    mindAddBranchT: 'Добавить ветку под выбранным узлом (клавиша +)', mindColorT: 'Сменить цвет', mindColorReset: 'По умолчанию',
+    mtTodo: 'Задачи', mtDone: 'Сделано', mtPh: 'Впишите задачу и нажмите Enter', mtAddT: 'Добавить',
+    mtDoneBtn: 'Отметить сделанным', mtRestore: 'Вернуть в задачи', mtEmpty: 'Добавьте задачу', mtEditT: 'Нажмите, чтобы изменить',
+    mindMemoT: 'Заметка к ветке', mindMemoPh: 'Записка тому, кто будет работать над этой веткой…',
+    mindProgT: 'Тащите, чтобы задать прогресс',
+    mtLinkedT: 'Нажмите, чтобы найти эту ветку на карте', mtProgT: 'Клик/перетаскивание задаёт прогресс',
+    mtProgLinkedT: 'Прогресс ветки (задаётся на карте)',
+    mtCollapse: 'Свернуть панель задач', mtExpand: 'Показать панель задач',
+    mindLinkBtn: 'Связать', mindLinkPick: 'Нажмите на целевой узел, чтобы связать (Esc — отмена)',
+    mindLinkNeedSel: 'Сначала выберите узел, затем «Связать»',
+    mindLinkPick1: 'Нажмите на первую ветку для связи',
+    mindLinkPick2: 'Нажмите на вторую ветку · клик по пустому месту сбрасывает · Esc — отмена',
+    mindLinkSelHint: 'Стрелка выбрана — Delete удаляет · нажмите на ветку у конца, затем на другую, чтобы перецепить',
+    mindLinkRepick: 'Теперь нажмите на ветку, к которой перецепить этот конец',
+    mindUndoT: 'Отменить (Ctrl+Z)', mindRedoT: 'Вернуть (Ctrl+Y)',
+    mindCopyBtn: 'Копировать', mindPasteBtn: 'Вставить',
+    mindCopyBtnT: 'Скопировать выделенное (Ctrl+C) — протяните по пустому месту, чтобы выделить ветки и стрелки',
+    mindPasteBtnT: 'Вставить у курсора (Ctrl+V)', mindCopied: 'Скопировано', mindPasted: 'Вставлено',
+    mindTabMap: 'Карта', mindTabCal: 'Расписание', mcToday: 'Сегодня', mcTitleFmt: '{m}.{y}',
+    mcWeekdays: 'Вс,Пн,Вт,Ср,Чт,Пт,Сб', mcAddPh: 'Впишите событие и нажмите Enter',
+    mcEditPrompt: 'Изменить событие (пусто = удалить)',
+    mcEvT: 'Клик: отметить сделанным · двойной клик: изменить (пусто удаляет)',
+    mcTodoT: 'Задача (клик отмечает сделанной — синхронно со списком слева)',
+    mcIcsBtn: 'Синхронизация календаря',
+    mcIcsT: 'Скопировать ссылку подписки (ICS) — добавьте её в Google Календарь через «По URL», и увидите всё на телефоне',
+    mcIcsHow: 'Ссылка скопирована.\n\nGoogle Календарь (calendar.google.com) › Настройки › Добавить календарь › По URL — вставьте её туда,\nи события PT вместе с задачами с датами появятся в календаре на телефоне.\n\n· В одну сторону (PT→календарь), обновление раз в несколько часов (решает Google)\n· Добавьте заново, если внешний адрес PT изменится',
+    mtDateT: 'Дата — показывается в календаре расписания (нажмите, чтобы изменить)',
+    mindDelMultiConfirm: 'Удалить выбранные ветки ({n}) вместе с подветками? ',
+    mindCopyEmpty: 'Ничего не выбрано — сначала обведите ветки рамкой',
+    mindPasteEmpty: 'Буфер обмена пуст',
+    mindUnitNode: '', mindUnitLink: ' связей',
+    mindAddRoot: 'Добавить корень', mindAddRootT: 'Добавить ещё одну корневую карту', mindAddRootHere: 'Добавить корень здесь',
+    mindExport: 'Сохранить картинку', mindExportT: 'Сохранить карту как изображение PNG', mindExportOne: 'Только выбранный корень',
+    mindExportAll: 'Всю карту', mindExportPick: 'Что сохранить картинкой?',
+    mindOneWay: 'В одну сторону', mindTwoWay: 'В обе стороны', mindLeftWay: 'Влево', mindRightWay: 'Вправо',
+    mindNotePh: 'Заметка об этой связи…',
+    memoNoSess: 'Сначала откройте сессию для этой папки, затем отправляйте.', memoSent: 'Отправлено в терминал',
+    memoJumpT: 'Перейти к этому запросу в терминале', memoJumpNoSess: 'Сессия этой папки не открыта',
+    memoJumpMiss: 'Не найдено в истории терминала (могло уйти за пределы прокрутки или сессия перезапускалась)',
+    cancelReqT: 'Останавливает только текущий запрос (посылает ESC) — уже сделанную работу не отменяет',
+    cancelLast: 'Остановить\nтекущий\nзапрос', toBottomT: 'Перейти к самому свежему выводу',
+    reqHistBtn: 'Запросы', reqHistT: 'Показать/скрыть историю рядом с этим терминалом — нажмите на запись, чтобы перейти к ней',
+    stRun: 'выполняется', stDone: 'готово', stStop: 'остановлено', stOff: 'прервано выключением',
+    bnNewVer: '🔄 Вышла новая версия v{v} — нажмите, чтобы перезапустить и обновиться',
+    newFolder: '＋ Новая папка', brwGrid: 'Плитка', brwList: 'Подробный список (по вертикали)',
+    newFolderPh: 'Имя новой папки → Enter',
+    qrLoading: 'Загружаю адреса…', qrFail: 'Не удалось загрузить адреса — проверьте сеть.',
+    connLostHint: 'Адрес мог измениться — отсканируйте QR на ПК заново, чтобы переподключиться.',
+    ghId: 'ID', ghNoLogin: 'не выполнен вход', ghSearch: '🔍 Фильтр репозиториев по имени',
+    ghNeedLogin: 'Вы не вошли в GitHub.', ghLoginBtn: 'Войти в GitHub',
+    ghNeedCli: 'GitHub CLI (gh) не установлен. Он нужен, чтобы получать список репозиториев, клонировать их и создавать новые проекты.',
+    ghNeedCliShort: 'Нужно установить GitHub CLI.', ghInstallBtn: 'Установить GitHub CLI', ghRetry: 'Повторить',
+    ghPsBtn: 'Установить автоматически через PowerShell', ghPsTip: 'Откроет PowerShell и установит gh через winget',
+    ghManual: 'Установка вручную:',
+    ghInstStep1: 'Нажмите [Установить GitHub CLI], чтобы открыть официальный сайт, и скачайте установщик для Windows (.msi)',
+    ghInstStep2: 'Запустите установщик (Далее → Далее → Готово)',
+    ghInstStep3: 'Вернитесь сюда и нажмите «Повторить» — перезапуск не нужен',
+    ghWinget: 'Нажмите кнопку ниже (Установить GitHub CLI) или вставьте эту команду в PowerShell:',
+    ghInstallTip: 'Откроет cli.github.com в браузере. После установки нажмите «Повторить» — без перезапуска.',
+    imgRemove: 'Убрать', imgZoom: 'Нажмите, чтобы увеличить', histHint: 'История: Ctrl+↑', winNoT: 'Окно',
+    dragReorder: 'Тащите, чтобы изменить порядок', dragMove: 'Тащите, чтобы переместить эту панель',
+    tabBtn: 'Открыть в обычной вкладке браузера (потом её можно перетащить в любое окно Chrome)',
+    linkClickOpen: 'Клик → открыть в новом окне',
+    adminPwPrompt: 'Пароль администратора:', adminPwFail: 'Неверный пароль.',
+    rebootConfirm: 'Это перезапустит текущее окно: PowerTerminal поднимется в новейшей версии, а страница перезагрузится. Сессии сохранятся — займёт примерно 10-20 секунд. Продолжить?',
+    rebootIng: 'Перезапускаюсь в новейшей версии…', rebootWait: 'Страница перезагрузится сама.',
+    ghStep1: '1) Скопируйте код  2) откройте GitHub  3) вставьте и подтвердите',
+    ghOpen: 'Открыть GitHub', ghWaiting: 'Жду подтверждения…', ghFail: 'Не удалось войти — попробуйте ещё раз',
+    aiPick: 'Сменить ИИ этой сессии', aiChangeAsk: 'Перевести эту сессию на другой ИИ? Сессия перезапустится.',
+    workingT: 'Работает',
+    linksT: 'Ссылки, появившиеся в этой сессии — коснитесь, чтобы скопировать', linksHead: '🔗 Ссылки и пути — коснитесь, чтобы скопировать',
+    linksNone: 'Здесь нет ссылок', linksOpen: 'Открыть в новой вкладке', linksOpenFile: 'Открыть файл (через предпросмотр)',
+    linksPrev: 'Раньше', linksConv: 'Ход', linksAll: 'Показать все',
+    fileChip: 'Файл', copied: 'Скопировано',
+    connLost: '⚠ Связь разорвана — возможно, сервер (ваш ПК) выключен или пропала сеть. Переподключаюсь…',
+    pickBtn: 'Выбрать, какие сессии показывать', quitBtn: 'Выход — выключить и сервер (этот ПК)',
+    quitConfirm: 'Это полностью выключит PowerTerminal — сервер на этом ПК и все запущенные сессии остановятся, а телефоны потеряют доступ. Список сессий сохранится и вернётся при следующем запуске. Продолжить?',
+    quitBye: 'PowerTerminal выключен.',
+    quitByeSub: 'Эту вкладку можно закрыть. Запустите start.bat снова — сессии восстановятся.',
+    modelRestartAsk: 'Перезапустить ТОЛЬКО эту сессию (‘{t}’) на {m}?\n\nПерезапустится лишь она — остальные не тронуты. Её разговор продолжится (через --continue).',
+    ok: 'Перезапустить эту сессию',
+    verWarn: '⚠ Запущена старая версия v{c} (новейшая v{l}). Если обновление не проходит, скорее всего у вас несколько копий — закройте все и запустите одну.',
+    icOpen: 'Открыть папку', icRemove: 'Убрать из списка',
+    icDup: 'Открыть ещё одну сессию в этой папке — git-репозиторий откроется в своём worktree, и они не будут мешать друг другу (Shift+клик или правый клик — та же папка как есть)',
+    qrGateWarn: 'Любой, кто получит этот QR или адрес, сможет выполнять команды на ЭТОМ компьютере.',
+    qrGateResp: 'Делитесь только с теми, кому доверяете. За последствия утечки отвечаете вы.',
+    qrGateOk: 'Понятно — показать QR'
+  },
+  hi: {
+    mPinned: 'पुराने वर्शन (तय किए हुए)',
+    numAddT: 'इसी फ़ोल्डर पर एक और सेशन खोलें — git रिपॉज़िटरी है तो उसका अपना worktree बनता है, इसलिए दोनों कभी टकराते नहीं (Shift+क्लिक = वही फ़ोल्डर जैसा है)',
+    flowT: 'फ़्लो — इस सेशन को उन सेशनों से जोड़ें जो इसके बाद काम संभालते हैं',
+    flowPickHint: '‘{t}’ के बाद जो सेशन काम आगे बढ़ाते हैं उन पर क्लिक करें। दोबारा क्लिक करने पर जोड़ हट जाता है।',
+    flowDone: 'हो गया',
+    wtGroupT: 'वही रिपॉज़िटरी — असली फ़ोल्डर और उससे निकले worktree',
+    cmNewFile: 'नई फ़ाइल', cmNewDir: 'नया फ़ोल्डर',
+    cmNewFileT: 'सबसे ऊपर वाले फ़ोल्डर में नई फ़ाइल', cmNewDirT: 'सबसे ऊपर वाले फ़ोल्डर में नया फ़ोल्डर',
+    cmRefreshT: 'ट्री ताज़ा करें', cmNewFilePh: 'नई फ़ाइल का नाम', cmNewDirPh: 'नए फ़ोल्डर का नाम',
+    cmBadName: 'यह नाम इस्तेमाल नहीं हो सकता।', cmExists: 'इस नाम की कोई चीज़ पहले से मौजूद है।',
+    cmTreeRoot: 'सबसे ऊपर वाला फ़ोल्डर', cmEmptyDir: '(खाली फ़ोल्डर)',
+    qrToggle: 'मोबाइल के लिए QR चालू/बंद', infoBtn: 'पहुँच के पते', copyImg: '📋 कॉपी', saveImg: '💾 सेव',
+    orManual: 'या फ़ोल्डर का पता सीधे लिखें:', agCodex: '🟢 Codex (OpenAI)',
+    npTitle: '🆕 नया प्रोजेक्ट + GitHub', npPh: 'प्रोजेक्ट-नाम (अक्षर/अंक/-)',
+    fontUp: 'अक्षर बड़े', fontDn: 'अक्षर छोटे',
+    previewPrompt: 'नए टैब में कौन-सा पेज खोलें? (आपका dev सर्वर, जैसे http://localhost:3000 — PowerTerminal उसे आगे भेजता है, इसलिए फ़ोन पर भी खुलेगा · खाली छोड़ें तो फ़ोल्डर खुलेगा)',
+    customPrompt: 'चलाने के लिए कमांड (जैसे codex, aider, gemini)',
+    tunnelNone: 'टनल शुरू हो रही है, या cloudflared नहीं है',
+    urlChanges: '(सर्वर दोबारा चालू होने पर पता बदल जाता है)', qrLte: 'LTE से कहीं से भी: ', qrWifi: 'वही Wi-Fi: ',
+    copyOk: 'QR तस्वीर कॉपी हो गई — किसी भी चैट में चिपका दें।', copyFail: 'कॉपी नहीं हो सका',
+    ghLocal: '(लोकल फ़ोल्डर और git बन गए)', feedbackShort: 'सुझाव',
+    noTunnel: 'बाहरी पहुँच तैयार हो रही है — यह पैनल अपने आप ताज़ा होता रहेगा।',
+    aiLabel: 'इस सेशन का AI', updText: 'अपडेट',
+    updTip: 'नया वर्शन आया है — PowerTerminal दोबारा चालू करें, अपने आप अपडेट हो जाएगा',
+    dupAsk: '‘{t}’ पहले से खुला है। इसे अलग सेशन के तौर पर फिर खोलें?',
+    soundBtn: 'काम पूरा होने पर सेशन नंबर बोलकर बताएँ (चालू/बंद)',
+    pairTitle: 'दूसरा PC जोड़ें — लंबा लिंक टाइप किए बिना',
+    pairStep1: 'दूसरे PC पर यह खोलें', pairStep2: 'और यह कोड डालें:',
+    sessionAdded: 'सेशन जुड़ गया', zoomT: 'इस सेशन को पूरी स्क्रीन पर', zoomExit: '✕ पूरी स्क्रीन से बाहर',
+    memoT: 'इस सेशन की नोटबुक', memoTitle: '📝 नोट',
+    memoNewPh: 'कुछ भी लिखें… Enter से सेव · Shift+Enter से नई लाइन',
+    memoSaveBtn: 'सेव', memoSaveTip: 'यह नोट सेव करें (Enter)',
+    themeT: 'हल्का / गहरा मोड (टर्मिनल सहित)',
+    previewNoIndex: 'इस फ़ोल्डर में index.html नहीं है, इसलिए सीधे दिखाने को कुछ नहीं है। या तो फ़ोल्डर की जड़ में index.html रखें, या अपना dev सर्वर चलाकर उसका पता डालें (जैसे http://localhost:3000)।',
+    mDefaultLong: 'अपने आप — Opus',
+    memoDoneCol: 'पूरा हुआ', memoReqCol: 'आपके भेजे अनुरोध', memoEmpty: 'अभी कोई नोट नहीं — नीचे लिखें।',
+    memoDelT: 'हटाएँ', memoSend: 'भेजें',
+    memoSendTip: 'यह नोट सेशन के टर्मिनल पर भेजें — काम पूरा होते ही यह ‘पूरा हुआ’ में चला जाएगा',
+    reqResendT: 'यह अनुरोध टर्मिनल पर दोबारा भेजें',
+    memoEdit: 'बदलें', memoDelBtn: 'हटाएँ', memoDelConfirm: 'यह नोट हटाएँ?',
+    memoEditSaveT: 'सेव (Enter)', memoEditCancelT: 'बदलाव रद्द करें (Esc)',
+    memoExport: 'Excel', memoExportAllT: 'सभी सेशनों के नोट और अनुरोध इतिहास एक ही Excel में डाउनलोड करें',
+    memoNewCol: 'नए नोट', memoCopy: 'कॉपी', memoCopyT: 'यह लिखावट क्लिपबोर्ड पर कॉपी करें',
+    copyAll: 'सब कॉपी', copyAllT: 'इस कॉलम का सारा कुछ कॉपी करें',
+    setBtnT: 'सेटिंग', setTitle: '⚙ सेटिंग',
+    setSub: 'अनुरोध सेव होते समय AI उसमें छोटे नोट जोड़ सकता है। ये नोट अनुरोध इतिहास में माउस ले जाने पर और Excel डाउनलोड में दिखते हैं, और थोड़े AI टोकन लग सकते हैं।',
+    setHintsL: 'फ़ीचर के सुझाव-गुब्बारे दिखाएँ', setHintsHint: 'पहली बार का फ़ीचर टूर, और 5 मिनट खाली रहने पर 3 सेकंड का एक बेतरतीब सुझाव।',
+    setOnboard: '🎈 फ़ीचर टूर फिर से देखें',
+    obNext: 'आगे →', obCloseAll: 'सब बंद करें', obNever: 'दोबारा न दिखाएँ',
+    obAdd: 'सेशन जोड़ें', obAddD: 'काम का फ़ोल्डर चुनें और उसी में AI टर्मिनल चलाएँ।',
+    obQR: 'फ़ोन पर खोलें', obQRD: 'QR स्कैन करें — घर पर Wi-Fi, बाहर से बाहरी पहुँच।',
+    obMind: 'माइंड मैप', obMindD: 'विचारों को शाखाओं में सजाएँ और तस्वीर के रूप में सेव करें।',
+    obTheme: 'हल्का / गहरा', obThemeD: 'पूरे ऐप की थीम बदलता है, टर्मिनल भी।',
+    obFeedback: 'सुझाव भेजें', obFeedbackD: 'डेवलपर को फ़ीचर की माँग या गड़बड़ी बताएँ।',
+    obMemo: 'नोटबुक', obMemoD: 'हर फ़ोल्डर के नोट और आपके भेजे सारे अनुरोध — Excel में निकालने की सुविधा के साथ।',
+    obHist: 'अनुरोध इतिहास', obHistD: 'आपके पुराने अनुरोध — किसी पर क्लिक करें और टर्मिनल में वहीं पहुँच जाएँ।',
+    obInput: 'अनुरोध का खाना', obInputD: 'यहाँ लिखें और Enter दबाएँ। ‘सवाल…’ से शुरू करें तो जवाब नोटबुक में सेव हो जाता है।',
+    pvDev: 'dev सर्वर चलाकर दिखाएँ', pvRunning: 'चल रहा dev सर्वर खोलें',
+    pvFolder: 'फ़ोल्डर की सूची खोलें', pvUrl: 'पता खुद लिखें', pvStarting: 'dev सर्वर चालू हो रहा है…',
+    pvFail: 'यह स्क्रिप्ट वेब dev सर्वर नहीं है (कोई पता नहीं मिला)। कोई पेज चुनें या फ़ोल्डर खोलें:',
+    dropPick: 'एक ही नाम के कई फ़ोल्डर मिले — खोलने के लिए नंबर डालें:',
+    dropMiss: 'इस फ़ोल्डर का असली पता नहीं मिला — [+ सेशन] → 📂 ब्राउज़ का इस्तेमाल करें।',
+    ghCopyOpen: 'कोड कॉपी → GitHub खोलें', ghCopyOpenT: 'कोड कॉपी करता है और GitHub का मंज़ूरी वाला पेज खोलता है',
+    fileOpened: 'खुल गया', modeSwitched: 'मोड बदल गया (Shift+Tab)',
+    gbDirty: 'बिना कमिट किए बदलाव', gbAhead: 'पुश करने बाकी कमिट', gbBehind: 'पुल करने बाकी कमिट',
+    gbPrT: 'इस ब्रांच को GitHub पर खोलें (उसका पुल रिक्वेस्ट, या नया)',
+    gbLocal: 'लोकल', gbLocalT: 'यह फ़ोल्डर GitHub से जुड़ा नहीं है',
+    readT: 'चौड़ा पढ़ना — पुराने काम समेत पूरे इतिहास को पूरी चौड़ाई में दोबारा सजाता है', readTitle: 'चौड़ा पढ़ना',
+    codeT: 'कोड एडिटर — इस प्रोजेक्ट की फ़ाइलें देखें और बदलें',
+    cmSave: 'सेव', cmExit: 'बंद करें', cmPreview: 'झलक',
+    wtSecTitle: 'अलग काम के फ़ोल्डर (worktree)',
+    wtSecSub: 'उसी रिपॉज़िटरी पर एक और सेशन खोलने पर यह अपने आप बनता है, ताकि फ़ाइलें कभी न टकराएँ। यह रिपॉज़िटरी फ़ोल्डर के बाहर, उसी ड्राइव पर रहता है।',
+    wtOpen: 'इस्तेमाल में', wtDirty: 'बदलाव हैं', wtClean: 'हटाया जा सकता है', wtPrune: '🧹 बिना इस्तेमाल वाले साफ़ करें',
+    wtPruned: '{n} हटाए, {k} रखे (इस्तेमाल में या बदलाव वाले)', icOpenShort: '📂',
+    wtTip: 'अलग काम का फ़ोल्डर (git worktree) — यहाँ की फ़ाइलें दूसरे सेशन से कभी नहीं टकरातीं। दबाएँ तो असली ब्रांच में मिला दिया जाएगा',
+    wtMergeAsk: 'इस सेशन का काम ({b}) असली ब्रांच में मिला दें?',
+    wtMerged: '{b} को {base} में मिला दिया', wtKept: 'बिना कमिट किए बदलाव बचे हैं — worktree फ़ोल्डर रहने दिया गया।',
+    micT: 'बोलकर अनुरोध लिखवाएँ',
+    micInsecure: 'माइक सिर्फ़ सुरक्षित कनेक्शन पर चलता है — बाहरी पहुँच (QR) वाला पता खोलें',
+    micDenied: 'माइक रोक दिया गया है — ब्राउज़र की सेटिंग में इसकी इजाज़त दें',
+    micNo: 'इस ब्राउज़र में आवाज़ से लिखने की सुविधा नहीं है', micErr: 'आवाज़ से लिखने में गड़बड़ी',
+    sendQueued: 'अभी कनेक्शन नहीं है — कनेक्शन लौटते ही आपका अनुरोध चला जाएगा।',
+    sndTitle: 'पूरा होने की आवाज़ जाँचें', sndSub: 'अनुरोध पूरा होने पर जो आवाज़ आती है, वही अभी बजाकर दिखाता है। कुछ न सुनाई दे तो नीचे वजह लिखी है।',
+    sndTest: '▶ अभी बजाएँ',
+    billTitle: 'सब्सक्रिप्शन का नवीनीकरण',
+    billSub: 'कोई API बिलिंग की तारीख़ नहीं बताता, इसलिए महीने का वह दिन लिखें जब पैसे कटते हैं। ऊपर किसी उपयोग-पट्टी पर माउस ले जाएँ तो अगला नवीनीकरण दिखेगा। खाली छोड़ें तो छिप जाएगा।',
+    billUnit: 'हर महीने की तारीख़', billNext: 'नवीनीकरण', billToday: 'आज', billIn: '{n} दिन में',
+    gptTip: 'GPT (Codex) का उपयोग — जब GPT आख़िरी बार चला, उस समय तक',
+    addNeedPath: 'फ़ोल्डर का पता लिखें, या 📂 से चुनें।',
+    setQaDocL: 'सवाल-जवाब का पन्ना बनाते रहें — कोई टोकन नहीं लगता',
+    setQaDocHint: 'जो अनुरोध ‘सवाल’ / ‘질문’ से शुरू होते हैं, उनका जवाब वैसे भी अनुरोध इतिहास में जुड़ जाता है। यह चालू रहने पर वे उसी फ़ोल्डर की docs/질문-답변-기록.html में भी लिखे जाते हैं — नए सबसे ऊपर, हर सवाल की एक पंक्ति। यह पन्ना PowerTerminal ख़ुद बनाता है और इसके लिए AI को कभी नहीं बुलाता (शून्य टोकन) — इसीलिए यह डिफ़ॉल्ट रूप से चालू है।',
+    phraseDefaults: 'आगे बढ़ो,हो गया?,1,2,3',
+    phTitle: 'बार-बार काम आने वाले शब्द',
+    phSub: 'हर शब्द सभी सेशनों में अनुरोध खाने के ठीक ऊपर बटन बन जाता है। दबाने पर बस खाने में लिख जाता है — भेजा नहीं जाता।',
+    phNone: 'अभी कोई नहीं', phraseAdd: '＋ शब्द जोड़ें', phraseAddShort: 'झटपट शब्द',
+    phrasePrompt: 'कोई शब्द लिखें जो आप अक्सर इस्तेमाल करते हैं (जैसे: चढ़ा दिया)',
+    phraseUse: 'दबाएँ तो अनुरोध खाने में आ जाएगा',
+    phraseDel: 'हटाने के लिए दायाँ क्लिक या देर तक दबाएँ', phraseDelAsk: '‘{w}’ बटन हटाएँ?',
+    codeNoSess: 'पहले कोई सेशन खोलें।',
+    admTitle: 'बैनर प्रबंधन (dev)',
+    admSub: 'बैनर प्रकाशित करें, नवीनतम वर्शन तय करें, इंस्टॉल के आँकड़े देखें। सिर्फ़ तब दिखता है जब इस PC का GitHub खाता डेवलपर का हो।',
+    admShow: 'खोलें', admHide: 'समेटें', admNewTab: 'नए टैब में खोलें',
+    cmImgs: 'तस्वीरें', cmImgsHint: '— बड़ा करने के लिए क्लिक · कोड में खींचकर डालें', cmVisual: 'दिखने के हिसाब से बदलें',
+    cmPopOut: 'नई विंडो', cmGrep: 'फ़ाइलों में खोजें', cmGrepCase: 'Aa छोटे-बड़े अक्षर', cmGrepRe: '.* रेगेक्स',
+    fileDropHint: 'जोड़ने के लिए फ़ाइलें यहाँ छोड़ें',
+    setIntentL: 'अनुरोध की वजह (मक़सद)', setIntentHint: 'एक पंक्ति में — आपने क्यों पूछा / कौन-सी दिक़्क़त हल करनी है।',
+    setSummaryL: 'सार वाला प्रॉम्प्ट',
+    setSummaryHint: 'छोटा-सा आदेश जो बताए कि आपने क्या माँगा — ऐसा लिखा हो कि अगली बार हूबहू दोबारा काम आए।',
+    noteReasonL: 'अनुरोध की वजह', noteSummaryL: 'सार वाला प्रॉम्प्ट',
+    mindBtn: 'माइंड मैप', mindTitle: 'माइंड मैप', mindRootTitle: '{u} का नक़्शा', mindRootNoUser: 'मेरा नक़्शा',
+    mindNewNode: 'नई शाखा', mindNewRoot: 'नई जड़', mindAdd: 'शाखा', mindDelBtn: 'हटाएँ', mindReset: 'दृश्य रीसेट करें',
+    mindDelConfirm: 'इससे यह शाखा और उसके नीचे का सब कुछ मिट जाएगा। जारी रखें?',
+    mindHint: 'किसी नोड पर माउस ले जाएँ तो 8 दिशाओं में + दिखता है · खींचकर हिलाएँ · डबल क्लिक/F2/Enter से नाम बदलें (Tab पक्का करता है) · + से शाखा जोड़ें · Delete से हटाएँ · खाली जगह पर खींचकर घेरा बनाएँ, फिर Ctrl+C / Ctrl+V से कॉपी-पेस्ट · खाली जगह पर दायाँ क्लिक नई जड़ जोड़ता है · Ctrl+पहिया से ज़ूम · Space/बीच का बटन खींचकर सरकाएँ',
+    mindAddBranchT: 'चुने हुए नोड के नीचे शाखा जोड़ें (+ कुंजी)', mindColorT: 'रंग बदलें', mindColorReset: 'डिफ़ॉल्ट',
+    mtTodo: 'करने हैं', mtDone: 'हो गए', mtPh: 'काम लिखें, फिर Enter', mtAddT: 'जोड़ें',
+    mtDoneBtn: 'हो गया लगाएँ', mtRestore: 'वापस ‘करने हैं’ में', mtEmpty: 'कोई काम जोड़ें', mtEditT: 'बदलने के लिए क्लिक करें',
+    mindMemoT: 'शाखा का नोट', mindMemoPh: 'जो इस शाखा पर काम करेगा, उसके लिए एक नोट…',
+    mindProgT: 'प्रगति तय करने के लिए खींचें',
+    mtLinkedT: 'नक़्शे पर यह शाखा ढूँढ़ने के लिए क्लिक करें', mtProgT: 'प्रगति तय करने के लिए क्लिक/खींचें',
+    mtProgLinkedT: 'शाखा की प्रगति (नक़्शे पर तय होती है)',
+    mtCollapse: 'कामों का पैनल समेटें', mtExpand: 'कामों का पैनल दिखाएँ',
+    mindLinkBtn: 'जोड़ें', mindLinkPick: 'जोड़ने के लिए लक्ष्य नोड पर क्लिक करें (Esc से रद्द)',
+    mindLinkNeedSel: 'पहले कोई नोड चुनें, फिर ‘जोड़ें’',
+    mindLinkPick1: 'जोड़ने के लिए पहली शाखा पर क्लिक करें',
+    mindLinkPick2: 'दूसरी शाखा पर क्लिक करें · खाली जगह पर क्लिक से दोबारा शुरू · Esc से रद्द',
+    mindLinkSelHint: 'तीर चुना गया — Delete से हटाएँ · सिरे वाली शाखा पर क्लिक करें, फिर दूसरी शाखा पर, तो जोड़ बदल जाएगा',
+    mindLinkRepick: 'अब उस शाखा पर क्लिक करें जहाँ यह सिरा जोड़ना है',
+    mindUndoT: 'पहले जैसा (Ctrl+Z)', mindRedoT: 'फिर से करें (Ctrl+Y)',
+    mindCopyBtn: 'कॉपी', mindPasteBtn: 'पेस्ट',
+    mindCopyBtnT: 'चुना हुआ कॉपी करें (Ctrl+C) — शाखाएँ और तीर चुनने के लिए खाली जगह पर खींचें',
+    mindPasteBtnT: 'कर्सर की जगह पेस्ट करें (Ctrl+V)', mindCopied: 'कॉपी हो गया', mindPasted: 'पेस्ट हो गया',
+    mindTabMap: 'नक़्शा', mindTabCal: 'कार्यक्रम', mcToday: 'आज', mcTitleFmt: '{m}/{y}',
+    mcWeekdays: 'रवि,सोम,मंगल,बुध,गुरु,शुक्र,शनि', mcAddPh: 'कार्यक्रम लिखें, फिर Enter',
+    mcEditPrompt: 'कार्यक्रम बदलें (खाली = हटाएँ)',
+    mcEvT: 'क्लिक: हो गया/नहीं बदलें · डबल क्लिक: बदलें (खाली छोड़ने पर हट जाएगा)',
+    mcTodoT: 'काम (क्लिक से हो गया/नहीं बदलता है — बाईं सूची से जुड़ा हुआ)',
+    mcIcsBtn: 'कैलेंडर सिंक',
+    mcIcsT: 'सब्सक्राइब (ICS) पता कॉपी करें — Google Calendar में ‘URL से’ जोड़ें, तो फ़ोन पर भी दिखेगा',
+    mcIcsHow: 'पता कॉपी हो गया।\n\nGoogle Calendar (calendar.google.com) › सेटिंग › कैलेंडर जोड़ें › URL से — वहाँ चिपकाएँ,\nऔर PT के कार्यक्रम तथा तारीख़ वाले काम फ़ोन के कैलेंडर में दिखने लगेंगे।\n\n· एकतरफ़ा (PT→कैलेंडर), कुछ-कुछ घंटों में ताज़ा होता है (यह Google तय करता है)\n· PT का बाहरी पता बदले तो दोबारा जोड़ें',
+    mtDateT: 'तारीख़ — कार्यक्रम कैलेंडर में दिखती है (बदलने के लिए क्लिक करें)',
+    mindDelMultiConfirm: 'चुनी हुई {n} शाखाएँ (उनकी उप-शाखाओं समेत) हटाएँ? ',
+    mindCopyEmpty: 'कुछ नहीं चुना — पहले शाखाओं पर घेरा खींचें',
+    mindPasteEmpty: 'क्लिपबोर्ड खाली है',
+    mindUnitNode: '', mindUnitLink: ' जोड़',
+    mindAddRoot: 'जड़ जोड़ें', mindAddRootT: 'एक और जड़ नक़्शा जोड़ें', mindAddRootHere: 'यहाँ जड़ जोड़ें',
+    mindExport: 'तस्वीर सेव करें', mindExportT: 'नक़्शे को PNG तस्वीर के रूप में सेव करें', mindExportOne: 'सिर्फ़ चुनी हुई जड़',
+    mindExportAll: 'पूरा नक़्शा', mindExportPick: 'किसे तस्वीर के रूप में सेव करें?',
+    mindOneWay: 'एकतरफ़ा', mindTwoWay: 'दोतरफ़ा', mindLeftWay: 'बाईं ओर', mindRightWay: 'दाईं ओर',
+    mindNotePh: 'इस जोड़ के बारे में नोट…',
+    memoNoSess: 'पहले इस फ़ोल्डर का सेशन खोलें, फिर भेजें।', memoSent: 'टर्मिनल पर भेज दिया',
+    memoJumpT: 'टर्मिनल में इस अनुरोध पर जाएँ', memoJumpNoSess: 'इस फ़ोल्डर का सेशन खुला नहीं है',
+    memoJumpMiss: 'टर्मिनल के इतिहास में नहीं मिला (शायद स्क्रॉल होकर निकल गया, या सेशन दोबारा चालू हुआ)',
+    cancelReqT: 'सिर्फ़ चल रहा अनुरोध रोकता है (ESC भेजता है) — पूरा हो चुका काम वापस नहीं लेता',
+    cancelLast: 'चल रहा\nअनुरोध\nरोकें', toBottomT: 'सबसे नए आउटपुट पर जाएँ',
+    reqHistBtn: 'अनुरोध', reqHistT: 'इस टर्मिनल के बगल में अनुरोध इतिहास दिखाएँ/छिपाएँ — किसी पर क्लिक करें और वहीं पहुँचें',
+    stRun: 'चल रहा है', stDone: 'हो गया', stStop: 'रोक दिया', stOff: 'बंद होने से बीच में रुका',
+    bnNewVer: '🔄 नया वर्शन v{v} आ गया — दोबारा चालू करके अपडेट करने के लिए क्लिक करें',
+    newFolder: '＋ नया फ़ोल्डर', brwGrid: 'ग्रिड दृश्य', brwList: 'विस्तृत सूची (खड़ी)',
+    newFolderPh: 'नए फ़ोल्डर का नाम → Enter',
+    qrLoading: 'पते लोड हो रहे हैं…', qrFail: 'पते लोड नहीं हो सके — अपना नेटवर्क देखें।',
+    connLostHint: 'पता बदल गया होगा — दोबारा जुड़ने के लिए PC पर QR फिर से स्कैन करें।',
+    ghId: 'आईडी', ghNoLogin: 'लॉग इन नहीं', ghSearch: '🔍 अपने रिपॉज़िटरी नाम से छाँटें',
+    ghNeedLogin: 'आप GitHub में लॉग इन नहीं हैं।', ghLoginBtn: 'GitHub में लॉग इन करें',
+    ghNeedCli: 'GitHub CLI (gh) इंस्टॉल नहीं है। अपने रिपॉज़िटरी देखने/clone करने और नए प्रोजेक्ट बनाने के लिए यह ज़रूरी है।',
+    ghNeedCliShort: 'GitHub CLI इंस्टॉल करना ज़रूरी है।', ghInstallBtn: 'GitHub CLI इंस्टॉल करें', ghRetry: 'फिर कोशिश करें',
+    ghPsBtn: 'PowerShell से अपने आप इंस्टॉल करें', ghPsTip: 'PowerShell खोलकर winget से gh इंस्टॉल करता है',
+    ghManual: 'खुद इंस्टॉल करना:',
+    ghInstStep1: '[GitHub CLI इंस्टॉल करें] दबाकर आधिकारिक साइट खोलें, फिर Windows का इंस्टॉलर (.msi) डाउनलोड करें',
+    ghInstStep2: 'इंस्टॉलर चलाएँ (आगे → आगे → पूरा)',
+    ghInstStep3: 'यहाँ लौटकर ‘फिर कोशिश करें’ दबाएँ — दोबारा चालू करने की ज़रूरत नहीं',
+    ghWinget: 'नीचे का बटन दबाएँ (GitHub CLI इंस्टॉल करें), या यह कमांड PowerShell में चिपकाएँ:',
+    ghInstallTip: 'ब्राउज़र में cli.github.com खुलेगा। इंस्टॉल के बाद ‘फिर कोशिश करें’ दबाएँ — दोबारा चालू करने की ज़रूरत नहीं।',
+    imgRemove: 'हटाएँ', imgZoom: 'बड़ा करने के लिए क्लिक करें', histHint: 'इतिहास: Ctrl+↑', winNoT: 'विंडो',
+    dragReorder: 'क्रम बदलने के लिए खींचें', dragMove: 'इस पैनल को हिलाने के लिए खींचें',
+    tabBtn: 'सामान्य ब्राउज़र टैब में खोलें (फिर उसे किसी भी Chrome विंडो में खींच सकते हैं)',
+    linkClickOpen: 'क्लिक → नई विंडो में खोलें',
+    adminPwPrompt: 'एडमिन पासवर्ड:', adminPwFail: 'पासवर्ड ग़लत है।',
+    rebootConfirm: 'इससे मौजूदा विंडो दोबारा चालू होगी: PowerTerminal नवीनतम वर्शन में फिर से शुरू होगा और यह पेज दोबारा लोड होगा। सेशन बने रहेंगे — करीब 10-20 सेकंड। जारी रखें?',
+    rebootIng: 'नवीनतम वर्शन में दोबारा चालू हो रहा है…', rebootWait: 'यह पेज अपने आप दोबारा लोड हो जाएगा।',
+    ghStep1: '1) यह कोड कॉपी करें  2) GitHub खोलें  3) चिपकाकर मंज़ूरी दें',
+    ghOpen: 'GitHub खोलें', ghWaiting: 'मंज़ूरी का इंतज़ार…', ghFail: 'लॉग इन नहीं हुआ — फिर कोशिश करें',
+    aiPick: 'इस सेशन का AI बदलें', aiChangeAsk: 'इस सेशन को दूसरे AI पर ले जाएँ? सेशन दोबारा चालू होगा।',
+    workingT: 'काम चल रहा है',
+    linksT: 'इस सेशन में आए लिंक — कॉपी करने के लिए छुएँ', linksHead: '🔗 लिंक और पते — कॉपी करने के लिए छुएँ',
+    linksNone: 'यहाँ कोई लिंक नहीं', linksOpen: 'नए टैब में खोलें', linksOpenFile: 'फ़ाइल खोलें (झलक से)',
+    linksPrev: 'पहले के', linksConv: 'बारी', linksAll: 'सब दिखाएँ',
+    fileChip: 'फ़ाइल', copied: 'कॉपी हो गया',
+    connLost: '⚠ कनेक्शन टूट गया — हो सकता है सर्वर (आपका PC) बंद हो, या नेटवर्क चला गया हो। दोबारा जोड़ रहे हैं…',
+    pickBtn: 'चुनें कि कौन-से सेशन दिखें', quitBtn: 'बंद करें — सर्वर (यह PC) भी बंद कर दें',
+    quitConfirm: 'इससे PowerTerminal पूरी तरह बंद हो जाएगा — इस PC का सर्वर और चल रहे सारे सेशन रुक जाएँगे, और फ़ोन से पहुँच ख़त्म हो जाएगी। आपकी सेशन सूची सेव रहती है और अगली बार लौट आती है। जारी रखें?',
+    quitBye: 'PowerTerminal बंद हो गया।',
+    quitByeSub: 'यह टैब बंद कर सकते हैं। लौटने के लिए start.bat फिर चलाएँ — आपके सेशन बहाल हो जाएँगे।',
+    modelRestartAsk: 'सिर्फ़ यही सेशन (‘{t}’) {m} पर दोबारा चालू करें?\n\nसिर्फ़ यह एक सेशन दोबारा चालू होगा — बाकी को कुछ नहीं होगा। इसकी बातचीत आगे बढ़ती रहेगी (--continue से)।',
+    ok: 'यह सेशन दोबारा चालू करें',
+    verWarn: '⚠ पुराना वर्शन v{c} चल रहा है (नवीनतम v{l})। अगर अपडेट नहीं हो रहा तो शायद कई कॉपियाँ चल रही हैं — सब बंद करके सिर्फ़ एक चलाएँ।',
+    icOpen: 'फ़ोल्डर खोलें', icRemove: 'सूची से हटाएँ',
+    icDup: 'इस फ़ोल्डर पर एक और सेशन खोलें — git रिपॉज़िटरी अपने worktree में खुलती है, इसलिए दोनों कभी नहीं टकराते (Shift+क्लिक या दायाँ क्लिक = वही फ़ोल्डर जैसा है)',
+    qrGateWarn: 'जिसे भी यह QR या पता मिल जाए, वह इसी कंप्यूटर पर कमांड चला सकता है।',
+    qrGateResp: 'इसे सिर्फ़ भरोसे के लोगों से साझा करें। लीक होने पर जो हो, उसकी ज़िम्मेदारी आपकी है।',
+    qrGateOk: 'समझ गया — QR दिखाएँ'
+  }
+};
+for (const l in I18N_MORE) I18N[l] = Object.assign(I18N[l] || {}, I18N_MORE[l]);
+
 let LANG = localStorage.getItem('pt_lang') || langFromCountry() || langFromBrowser() || 'en';
 if (!I18N[LANG]) LANG = 'en';
 try { document.documentElement.lang = LANG; } catch (e) {}   // <html lang> 도 맞춤 (스크린리더·브라우저 번역 제안)
@@ -1833,7 +3557,28 @@ const addDlg = document.getElementById('addDlg');
 // 모델 드롭다운 표시 이름 — 값(alias)은 claude가 항상 최신으로 자동 연결하고, 숫자는 '지금 최신 버전'을 보여줄 뿐.
 // 새 버전(예: Opus 4.9)이 나오면 여기 한 줄만 바꾸면 세션 헤더·[+세션] 창 둘 다 반영됨. (2026-07 기준)
 const MODEL_LABELS = { opus: 'Opus 5', sonnet: 'Sonnet 5', haiku: 'Haiku 4.5', fable: 'Fable 5', opusplan: 'Opus Plan (5)' };
-document.querySelectorAll('#addModel option').forEach(o => { if (MODEL_LABELS[o.value]) o.textContent = MODEL_LABELS[o.value]; });   // [+세션] 창 라벨도 같은 이름으로
+// 📌 지난 버전 고정 — 위의 alias(opus/sonnet/…)는 늘 '지금 최신'으로 붙기 때문에, 예전 버전을 그대로 쓰려면
+//    정식 모델 ID 를 직접 넘겨야 한다. 계정 등급에 따라 못 쓰는 것도 있어(그때는 세션이 그 모델로 안 뜸)
+//    기본 목록과 구분되게 별도 그룹으로 보여준다.
+const MODEL_PINNED = [
+  ['claude-opus-4-8', 'Opus 4.8'], ['claude-opus-4-7', 'Opus 4.7'], ['claude-opus-4-6', 'Opus 4.6'],
+  ['claude-opus-4-5', 'Opus 4.5'], ['claude-opus-4-1', 'Opus 4.1'],
+  ['claude-sonnet-4-6', 'Sonnet 4.6'], ['claude-sonnet-4-5', 'Sonnet 4.5']
+];
+// 세션 헤더와 [+세션] 창이 같은 목록을 쓰도록 옵션을 한 곳에서 만든다.
+function modelOptionsHtml(cur) {
+  const sel = v => (cur === v ? ' selected' : '');
+  const main = [['default', T.mDefault], ['opus', MODEL_LABELS.opus], ['sonnet', MODEL_LABELS.sonnet],
+                ['haiku', MODEL_LABELS.haiku], ['fable', MODEL_LABELS.fable], ['opusplan', MODEL_LABELS.opusplan]];
+  let h = main.map(m => `<option value="${m[0]}"${sel(m[0])}>${esc(m[1])}</option>`).join('');
+  h += `<optgroup label="${escA(T.mPinned || 'Older versions (pinned)')}">`
+     + MODEL_PINNED.map(m => `<option value="${m[0]}"${sel(m[0])}>${esc(m[1])}</option>`).join('');
+  // 저장된 값이 목록에 없으면(직접 지정했거나 새 모델) 그것도 한 줄 넣어 선택이 풀리지 않게 한다.
+  if (cur && cur !== 'default' && !main.some(m => m[0] === cur) && !MODEL_PINNED.some(m => m[0] === cur))
+    h += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`;
+  return h + '</optgroup>';
+}
+document.getElementById('addModel').innerHTML = modelOptionsHtml('default');   // [+세션] 창도 같은 목록으로
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
 // 마지막으로 만졌던(커서가 있던) 세션 id — 헤더 </> 코드편집기가 이 세션을 골라 연다.
 // 없거나 이미 닫힌 세션이면 화면 맨 위 세션으로 폴백.
@@ -1998,19 +3743,21 @@ function buildPane(sess, idx) {
   const aiBadge = `<select class="aiSel" title="${T.aiPick || 'Change the AI for this session'}" style="background:${ai.color}">${AI_LIST.map(a => `<option value="${a[0]}" ${a[0] === aiCur ? 'selected' : ''}>${a[1]}</option>`).join('')}</select>`;
   // 값은 alias(opus/sonnet/…) 그대로 — claude가 항상 최신 버전으로 자동 연결. 라벨의 숫자는 '지금 최신'을 보여줄 뿐이라
   // 새 버전이 나오면 여기 MODEL_LABELS 한 곳만 갱신하면 된다. (2026-07 기준)
-  const modelLabel = m => MODEL_LABELS[m] || m;
-  const models = [['default', T.mDefault], ['opus', modelLabel('opus')], ['sonnet', modelLabel('sonnet')], ['haiku', modelLabel('haiku')], ['fable', modelLabel('fable')], ['opusplan', modelLabel('opusplan')]];
   const modelSel = isClaude ? `<select class="modelSel" title="${T.modelTip}">
-      ${models.map(m => `<option value="${m[0]}" ${((sess.model || 'default') === m[0]) ? 'selected' : ''}>${esc(m[1])}</option>`).join('')}
+      ${modelOptionsHtml(sess.model || 'default')}
     </select>` : '';
   el.innerHTML = `
     <div class="pane-head" draggable="true">
       <div class="ph-top">
-        <span class="numwrap"><span class="num">${idx + 1}</span><span class="donebadge">${esc(T.doneBadge)}</span></span>
+        <span class="numwrap"><span class="num" title="${escA(T.numAddT || '')}">${idx + 1}</span><span class="donebadge">${esc(T.doneBadge)}</span></span>
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         <span class="st"></span>
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
+        <!-- 도구버튼 묶음 — 창이 좁아지면 제목이 먼저 줄고, 그래도 모자라면 이 묶음이 통째로 아랫줄로 내려간다.
+             예전엔 버튼들이 그냥 오른쪽으로 밀려 .pane 의 overflow:hidden 에 잘려 안 보였다. -->
+        <span class="ph-tools">
+        <button class="small btnFlow hv" title="${escA(T.flowT || '')}">◎</button>
         <button class="small btnMemo hv" title="${T.memoT}">📝</button>
         <button class="small btnLinks hv" title="${esc(T.linksT || 'Links printed in this session — tap to copy')}" style="display:none">🔗<span class="lk-badge"></span></button>
         <button class="small btnTasks hv" title="${T.tasksT}" style="display:none">☰</button><!-- 작업목록 토글 — 사용자 요청으로 숨김(Ctrl+T 배선은 유지) -->
@@ -2022,6 +3769,7 @@ function buildPane(sess, idx) {
           ${FONT_SIZES.map(s => `<option value="${s}" ${s === savedFont() ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
         <button class="small btnClose" title="${T.closeT}" style="color:#f87171">✕</button>
+        </span>
       </div>
       <div class="ph-bottom">
         <span class="folder" title="${esc(sess.path)}">${esc(sess.path)}</span>
@@ -2646,8 +4394,34 @@ function buildPane(sess, idx) {
     // 서버가 PTY를 새 모델로 재시작하고 소켓을 닫음 → ws.onclose가 자동 재접속
   };
 
+  // ＋ (마우스 올렸을 때의 번호 자리) — 같은 폴더로 세션 하나 더. git 레포면 서버가 worktree 로 분리해
+  //   두 세션이 같은 파일을 동시에 건드려 충돌하는 일이 없다. Shift·우클릭 = 같은 폴더 그대로.
+  const numEl = el.querySelector('.num');
+  const addSibling = async same => {
+    numEl.style.opacity = '.45';                                   // 서버 왕복이 1~2초 걸려 '먹통' 처럼 보이던 것 방지
+    // extra 는 Object.assign 의 마지막이라 model 을 여기서 덮어써야 새 세션이 '자동'으로 리셋되지 않고
+    // 원본과 같은 모델로 뜬다 (4번째 인자는 model 이 아니라 cmd 다 — 빈 문자열이 맞다)
+    const extra = Object.assign({ model: sess.model || 'default' }, same ? { dupSame: true } : {});
+    try { await addSession(sess.path, sess.title, sess.agent, '', true, extra); }
+    finally { numEl.style.opacity = ''; }
+    applyLayout(); renumber();
+  };
+  numEl.onclick = ev => { ev.stopPropagation(); addSibling(ev.shiftKey === true); };
+  numEl.oncontextmenu = ev => { ev.preventDefault(); ev.stopPropagation(); addSibling(true); };
+
   // 📝 메모장 — 이 세션(폴더)의 메모·완료·요청내역
   el.querySelector('.btnMemo').onclick = ev => { ev.stopPropagation(); openMemo(sess); };
+
+  // ◎ 플로우 — 이 세션에서 다른 세션으로 '작업이 넘어가는 흐름'을 화살표로 이어 둔다.
+  el.querySelector('.btnFlow').onclick = ev => { ev.stopPropagation(); flowStartPick(sess.id); };
+  // 칸 폭에 따라 헤더 도구를 '띄움' 모드로 — 버튼 묶음이 한 줄에 안 들어가는 폭(≈440px 미만)이 기준
+  try {
+    new ResizeObserver(es => { for (const e of es) e.target.classList.toggle('tight', e.contentRect.width < 440); }).observe(el);
+  } catch (e) { if (el.clientWidth < 440) el.classList.add('tight'); }
+
+  // 이 창에 마우스를 올리면 이 세션이 낀 흐름 전체를 보여주고, 벗어나면 잠깐 뒤 지운다.
+  el.addEventListener('mouseenter', () => { if (!flowPick) flowDraw(sess.id); });
+  el.addEventListener('mouseleave', () => flowClear(220));
 
   // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
   el.querySelector('.btnTasks').onclick = ev => {
@@ -2766,6 +4540,8 @@ function buildPane(sess, idx) {
     if (sb) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); }
     sendBlip();   // 경쾌한 전송음
     if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    // ◎ 요청을 넣는 순간 이 세션이 낀 흐름을 잠깐 띄운다 — "이 다음은 어디로 넘어가는 일이었지" 를 바로 보게
+    flowDraw(sess.id); flowClear(3500);
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
@@ -3444,6 +5220,146 @@ function renumber() {
   [...grid.children].forEach((el, i) => el.querySelector('.num').textContent = i + 1);
   renderMinimap();
 }
+
+/* ---------- ◎ 세션 플로우 — "이 세션 다음엔 저 세션" 을 화살표로 이어 두는 흐름도 ----------
+   화살표는 평소엔 하나도 안 보인다. 어떤 세션에 마우스를 올리거나 그 세션에 요청을 보낼 때만,
+   그 세션이 속한 연결 덩어리(직접 이은 것뿐 아니라 그 너머까지)를 통째로 그려 준다.
+   저장은 세션의 flowTo(다음 세션 id 목록) — sessions.json 에 같이 남아 껐다 켜도 유지된다. */
+let flowPick = null;              // 지금 '연결 대상 고르는 중' 인 출발 세션 id
+let flowShown = null;             // 지금 화살표를 보여주고 있는 기준 세션 id
+let flowHideT = null;
+
+function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess.flowTo)) ? p.sess.flowTo : []; }
+// 이 세션과 (방향 무관하게) 이어져 있는 세션 전부 — 흐름의 앞뒤를 다 보여주기 위해
+function flowComponent(id) {
+  const seen = new Set([id]), queue = [id];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const to of flowOf(cur)) if (!seen.has(to)) { seen.add(to); queue.push(to); }
+    for (const [pid] of panes) if (!seen.has(pid) && flowOf(pid).includes(cur)) { seen.add(pid); queue.push(pid); }
+  }
+  return seen;
+}
+function flowLayer() {
+  let svg = document.getElementById('flowLayer');
+  if (svg) return svg;
+  svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'flowLayer';
+  svg.innerHTML = '<defs><marker id="flowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
+                + '<path d="M0,0 L10,5 L0,10 z" fill="#f472b6"/></marker></defs><g></g>';
+  document.body.appendChild(svg);
+  return svg;
+}
+// 사각형 중심에서 목표 쪽으로 나가다 테두리와 만나는 점 — 화살표가 창 위에 겹쳐 시작하지 않게
+function flowEdge(r, tx, ty) {
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return { x: cx, y: cy };
+  const sx = dx ? (r.width / 2) / Math.abs(dx) : Infinity;
+  const sy = dy ? (r.height / 2) / Math.abs(dy) : Infinity;
+  const s = Math.min(sx, sy);
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+function flowInset(r, p) {
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  return { x: cx + (p.x - cx) * 0.55, y: cy + (p.y - cy) * 0.55 };
+}
+function flowClearNow() {
+  const svg = document.getElementById('flowLayer');
+  if (svg) { svg.querySelector('g').innerHTML = ''; svg.classList.remove('on'); }
+  flowShown = null;
+}
+function flowClear(delay) {
+  clearTimeout(flowHideT);
+  if (flowPick) return;                       // 고르는 중엔 계속 보여준다
+  if (!delay) return flowClearNow();
+  flowHideT = setTimeout(flowClearNow, delay);
+}
+function flowDraw(rootId) {
+  clearTimeout(flowHideT);
+  if (!panes.has(rootId)) return;
+  const ids = flowComponent(rootId);
+  const edges = [];
+  for (const from of ids) for (const to of flowOf(from)) if (panes.has(to)) edges.push([from, to]);
+  if (!edges.length) { if (!flowPick) flowClearNow(); return; }
+  const svg = flowLayer(), g = svg.querySelector('g');
+  g.innerHTML = '';
+  svg.classList.add('on');
+  const NS = 'http://www.w3.org/2000/svg';
+  for (const [from, to] of edges) {
+    const a = panes.get(from).el.getBoundingClientRect();
+    const b = panes.get(to).el.getBoundingClientRect();
+    // 테두리에 딱 붙이면 나란히 붙은 두 창 사이에선 선이 10px 짜리가 돼 화살표가 안 보인다.
+    // 중심과 테두리 사이(55%) 지점을 쓰면 창 안쪽까지 들어와 길이가 나온다 — 층은 클릭을 막지 않으므로 겹쳐도 무해.
+    const p1 = flowInset(a, flowEdge(a, b.left + b.width / 2, b.top + b.height / 2));
+    const p2 = flowInset(b, flowEdge(b, a.left + a.width / 2, a.top + a.height / 2));
+    // 살짝 휘게 — 두 창이 서로 마주 보고 있을 때 선이 겹쳐 하나로 보이지 않게
+    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
+    const cx = mx - dy / len * len * 0.09, cy = my + dx / len * len * 0.09;
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`);
+    path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : ''));
+    path.setAttribute('marker-end', 'url(#flowHead)');
+    g.appendChild(path);
+  }
+  flowShown = rootId;
+}
+// 창 크기·스크롤이 바뀌면 좌표가 어긋나므로 보이는 동안에는 다시 그린다
+window.addEventListener('resize', () => { if (flowShown) flowDraw(flowShown); });
+window.addEventListener('scroll', () => { if (flowShown) flowDraw(flowShown); }, true);
+
+// --- 연결 만들기 ---
+function flowStartPick(fromId) {
+  if (flowPick === fromId) return flowEndPick();
+  flowPick = fromId;
+  document.body.classList.add('flowpicking');
+  flowRenderTargets();
+  flowDraw(fromId);
+  flowHintBar(true);
+}
+function flowEndPick() {
+  flowPick = null;
+  document.body.classList.remove('flowpicking');
+  document.querySelectorAll('.flow-target').forEach(x => x.remove());
+  flowHintBar(false);
+  flowClearNow();
+}
+function flowHintBar(on) {
+  let bar = document.getElementById('flowHint');
+  if (!on) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'flowHint'; document.body.appendChild(bar); }
+  const from = panes.get(flowPick);
+  bar.innerHTML = '<span>◎ ' + esc((T.flowPickHint || 'Click the sessions this one hands work to.').replace('{t}', (from && from.sess.title) || '')) + '</span>'
+                + '<button class="small">' + esc(T.flowDone || 'Done') + '</button>';
+  bar.querySelector('button').onclick = flowEndPick;
+}
+function flowRenderTargets() {
+  document.querySelectorAll('.flow-target').forEach(x => x.remove());
+  if (!flowPick) return;
+  const cur = new Set(flowOf(flowPick));
+  for (const [id, p] of panes) {
+    if (id === flowPick) continue;
+    const ov = document.createElement('div');
+    ov.className = 'flow-target' + (cur.has(id) ? ' on' : '');
+    ov.innerHTML = '<span>' + (cur.has(id) ? '✓ ' : '→ ') + esc(p.sess.title || '') + '</span>';
+    ov.onclick = ev => { ev.stopPropagation(); flowToggle(flowPick, id); };
+    p.el.appendChild(ov);
+  }
+}
+async function flowToggle(fromId, toId) {
+  const from = panes.get(fromId); if (!from) return;
+  const list = flowOf(fromId).slice();
+  const i = list.indexOf(toId);
+  if (i >= 0) list.splice(i, 1); else list.push(toId);
+  from.sess.flowTo = list;
+  flowRenderTargets();
+  flowDraw(fromId);
+  if (typeof cmRenderSessions === 'function' && codeModal.classList.contains('on')) cmRenderSessions();
+  await api('PATCH', '/api/sessions/' + fromId, { flowTo: list });
+}
+// Esc = 연결 고르기 그만 (덮개가 떠 있는 채로 갇히지 않게). capture 로 받아 터미널이 먼저 먹는 걸 피한다.
+window.addEventListener('keydown', ev => { if (ev.key === 'Escape' && flowPick) { ev.stopPropagation(); flowEndPick(); } }, true);
 // ---- 화면 배열(순서) 기억 — 재시작해도 같은 배열로 복원 ----
 const normPath = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
 function saveOrder() {
@@ -3547,15 +5463,23 @@ function cardIcons(path, onRemove, onDup) {
 }
 // 터미널 출력에서 실제 모델 감지 ("Set model to Fable 5", "Kept model as Opus 4.8" 등)
 function detectModel(text) {
-  const m = text.match(/(?:Set model to|Kept model as|Model set to|Using model:?)\s+([A-Za-z]+(?:\s*Plan)?)/i);
+  const m = text.match(/(?:Set model to|Kept model as|Model set to|Using model:?)\s+([A-Za-z]+(?:\s*Plan)?)(\s+[0-9]+(?:\.[0-9]+)?)?/i);
   if (!m) return null;
   const w = m[1].toLowerCase();
   if (w.includes('plan')) return 'opusplan';
-  if (w.startsWith('opus')) return 'opus';
-  if (w.startsWith('sonnet')) return 'sonnet';
-  if (w.startsWith('haiku')) return 'haiku';
-  if (w.startsWith('fable')) return 'fable';
-  return null;
+  let fam = null;
+  if (w.startsWith('opus')) fam = 'opus';
+  else if (w.startsWith('sonnet')) fam = 'sonnet';
+  else if (w.startsWith('haiku')) fam = 'haiku';
+  else if (w.startsWith('fable')) fam = 'fable';
+  if (!fam) return null;
+  // 버전 숫자까지 읽혔고 그게 '고정 버전' 목록에 있으면 그 ID 로 — 안 그러면 Opus 4.8 로 돌던 세션이
+  // 화면상 'Opus 5'(alias) 로 뒤바뀌어 저장돼, 껐다 켜면 다른 모델로 뜬다.
+  if (m[2]) {
+    const id = 'claude-' + fam + '-' + m[2].trim().replace('.', '-');
+    if (MODEL_PINNED.some(p => p[0] === id)) return id;
+  }
+  return fam;
 }
 
 // 폰 상단 미니맵: PC와 같은 배치로 제목만 표시, 탭하면 그 작업창으로 스크롤
@@ -3640,9 +5564,16 @@ function animateMax(applyFn) {
 }
 
 // PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
+// 헤더 도구를 '띄움' 모드로 둘지 — ResizeObserver 가 못 도는 상황(백그라운드 탭 등)에도 맞도록 배치 때마다 한 번 더.
+function markTight() {
+  [...grid.children].forEach(el => { const w = el.clientWidth; if (w) el.classList.toggle('tight', w < 440); });
+}
+window.addEventListener('resize', () => setTimeout(markTight, 60));
+
 function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
+  setTimeout(markTight, 60);
   if (typeof scheduleRefit === 'function') scheduleRefit();   // 배치 바뀌면 곧 모든 터미널 재fit
   // 확대 대상이 이미 닫혔으면 초기화
   if (maxedId && !els.some(el => el.dataset.id === maxedId)) maxedId = null;
@@ -4359,11 +6290,14 @@ async function loadBilling() {
       PHRASES = s.phrases; renderAllPhrases();
       // 기본값을 그대로 두고 쓰던 설치에는 새로 추가된 기본 단어를 한 번 얹어준다.
       // 손대지 않은 목록일 때만 — 직접 고른 목록을 건드리면 안 된다.
+      // 어느 언어의 기본 목록이든 그대로면 '손 안 댄 것'으로 보고 지금 언어의 기본값으로 갈아끼운다.
+      // (독일어로 바꿨는데 버튼만 한국어로 남아 있던 문제 — 직접 고친 목록은 그대로 둔다)
+      const langDefaults = Object.keys(I18N).map(l => String((I18N[l] || {}).phraseDefaults || '').split(',').map(x => x.trim()).filter(Boolean));
       const OLD_DEFAULTS = [['진행', '1', '2', '3'], ['Continue', '1', '2', '3'],
-                            ['진행', '다했어?', '1', '2', '3'], ['Continue', 'Done?', '1', '2', '3']];
-      if (OLD_DEFAULTS.some(d => d.length === PHRASES.length && d.every((v, i) => v === PHRASES[i]))) {
-        await savePhrases(defaultPhrases());
-      }
+                            ['진행', '다했어?', '1', '2', '3'], ['Continue', 'Done?', '1', '2', '3']].concat(langDefaults);
+      const cur = defaultPhrases();
+      const same = d => d.length === PHRASES.length && d.every((v, i) => v === PHRASES[i]);
+      if (!same(cur) && OLD_DEFAULTS.some(same)) await savePhrases(cur);
     }
     else if (s && s.phrases === null) { await savePhrases(defaultPhrases()); }
   } catch (e) {}
@@ -6885,7 +8819,20 @@ async function cmRenderTree() {
   }
   await walk('', 0);
   box.innerHTML = '';
-  if (!rows.length) { box.innerHTML = '<div class="cm-empty">(빈 폴더)</div>'; return; }
+  // 상단 고정 줄 — 우클릭을 모르는 사람도 바로 만들 수 있게 버튼으로도 둔다 (대상 = 최상위 폴더)
+  const bar = document.createElement('div');
+  bar.className = 'cm-treebar';
+  bar.innerHTML = '<button class="ctb-file" title="' + escA(T.cmNewFileT || '') + '">📄＋</button>'
+                + '<button class="ctb-dir" title="' + escA(T.cmNewDirT || '') + '">📁＋</button>'
+                + '<span class="ctb-sp"></span>'
+                + '<button class="ctb-ref" title="' + escA(T.cmRefreshT || '') + '">↻</button>';
+  bar.querySelector('.ctb-file').onclick = () => cmNewEntry('', false);
+  bar.querySelector('.ctb-dir').onclick = () => cmNewEntry('', true);
+  bar.querySelector('.ctb-ref').onclick = () => cmRenderTree();
+  box.appendChild(bar);
+  // 빈 곳 우클릭 = 최상위에 만들기
+  box.oncontextmenu = ev => { if (ev.target === box) cmTreeMenu(ev, ''); };
+  if (!rows.length) { box.appendChild(Object.assign(document.createElement('div'), { className: 'cm-empty', textContent: T.cmEmptyDir || '(empty folder)' })); return; }
   for (const row of rows) {
     const el = document.createElement('div');
     el.className = 'cm-node' + (row.dim ? ' dim' : '') + (row.type === 'file' && row.rel === cmPath ? ' on' : '');
@@ -6897,8 +8844,45 @@ async function cmRenderTree() {
       if (row.type === 'dir') { cmOpenDirs.has(row.rel) ? cmOpenDirs.delete(row.rel) : cmOpenDirs.add(row.rel); cmRenderTree(); }
       else cmOpenFile(row.rel);
     };
+    // 우클릭 — 폴더 위면 그 안에, 파일 위면 그 파일이 있는 폴더에 만든다
+    el.oncontextmenu = ev => cmTreeMenu(ev, row.type === 'dir' ? row.rel : row.rel.split('/').slice(0, -1).join('/'));
     box.appendChild(el);
   }
+}
+// 트리 우클릭 메뉴 — 새 파일 / 새 폴더 (대상 폴더는 dir, 빈 문자열이면 최상위)
+function cmTreeMenu(ev, dir) {
+  ev.preventDefault(); ev.stopPropagation();
+  let m = document.getElementById('cmCtx');
+  if (!m) { m = document.createElement('div'); m.id = 'cmCtx'; document.body.appendChild(m); }
+  const where = dir || (T.cmTreeRoot || 'top folder');
+  m.innerHTML = '<div class="cx-head">' + esc(where) + '</div>'
+              + '<div class="cx-it" data-a="file">📄 ' + esc(T.cmNewFile || 'New file') + '</div>'
+              + '<div class="cx-it" data-a="dir">📁 ' + esc(T.cmNewDir || 'New folder') + '</div>';
+  m.querySelectorAll('.cx-it').forEach(it => {
+    it.onclick = () => { cmCtxHide(); cmNewEntry(dir, it.dataset.a === 'dir'); };
+  });
+  m.style.display = 'block';
+  // 화면 밖으로 나가지 않게 — 오른쪽 끝 트리에서 열리므로 대개 왼쪽으로 눕는다
+  const w = m.offsetWidth || 160, h = m.offsetHeight || 80;
+  m.style.left = Math.max(4, Math.min(ev.clientX, window.innerWidth - w - 6)) + 'px';
+  m.style.top = Math.max(4, Math.min(ev.clientY, window.innerHeight - h - 6)) + 'px';
+  setTimeout(() => {
+    document.addEventListener('click', cmCtxHide, { once: true });
+    document.addEventListener('contextmenu', cmCtxHide, { once: true });
+  }, 0);
+}
+function cmCtxHide() { const m = document.getElementById('cmCtx'); if (m) m.style.display = 'none'; }
+async function cmNewEntry(dir, isDir) {
+  const name = (prompt(isDir ? (T.cmNewDirPh || 'New folder name') : (T.cmNewFilePh || 'New file name'), '') || '').trim();
+  if (!name) return;
+  if (/[\\:*?"<>|]/.test(name)) return alert(T.cmBadName || 'That name cannot be used.');
+  const rel = (dir ? dir + '/' : '') + name;
+  const r = await cmApi(isDir ? '/mkdir' : '/newfile', { method: 'POST', body: { path: rel } });
+  if (!r || r.error) return alert(r && r.error === 'exists' ? (T.cmExists || 'Already exists.') : ((r && r.error) || 'failed'));
+  if (dir) cmOpenDirs.add(dir);                 // 만든 곳이 접혀 있으면 결과가 안 보인다
+  if (isDir) cmOpenDirs.add(rel);
+  await cmRenderTree();
+  if (!isDir) cmOpenFile(rel);                  // 새 파일은 바로 편집기로
 }
 
 // ---------- 🔎 여러 파일에서 찾기 (Ctrl+Shift+F) ----------
@@ -6997,24 +8981,69 @@ function cmEnhanceSearchPanel(panel) {
   setTimeout(upd, 30);
 }
 
-// 좌측 세션 목록 (비활성 포함) — 클릭하면 그 세션으로 통째로 전환
+// 좌측 세션 목록 (비활성 포함) — 클릭하면 그 세션으로 통째로 전환.
+// 같은 레포에서 갈라져 나온 worktree 세션들은 붙여서 놓고 왼쪽 세로선으로 한 묶음임을 표시하고,
+// ◎ 버튼으로 세션끼리 '작업이 넘어가는 순서'를 이어 화살표로 볼 수 있다.
+let cmFlowRows = new Map();      // 세션 id → 목록 행 (화살표 좌표 계산용)
 async function cmRenderSessions() {
   const box = document.getElementById('cmSessions');
   let list = [];
   try { list = await api('GET', '/api/sessions'); } catch (e) {}
   if (!Array.isArray(list)) list = [];
   box.innerHTML = '';
+  cmFlowRows = new Map();
   const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
   const have = new Set(list.map(s => nrm(s.path)));
-  // 열려있는(활성/비활성) 세션들
-  for (const s of list) {
+
+  const mkRow = s => {
     const el = document.createElement('div');
-    el.className = 'cm-sess' + (cmSess && s.id === cmSess.id ? ' on' : '') + (s.alive ? '' : ' idle');
-    el.innerHTML = '<span class="dot"></span><span>' + esc(s.title || '') + '</span>';
+    el.className = 'cm-sess' + (cmSess && s.id === cmSess.id ? ' on' : '') + (s.alive ? '' : ' idle')
+                 + (flowPick === s.id ? ' flowfrom' : '')
+                 + (flowPick && cmFlowOf(list, flowPick).includes(s.id) ? ' flowon' : '');
+    el.innerHTML = '<span class="dot"></span>'
+                 + (s.worktree ? '<span class="cs-wt" title="' + escA((T.wtTip || '') + '\n' + (s.repo || '')) + '">🌿</span>' : '')
+                 + '<span class="cs-t">' + esc(s.title || '') + '</span>'
+                 + '<button class="cs-flow" title="' + escA(T.flowT || '') + '">◎</button>';
     el.title = s.path || '';
-    el.onclick = () => { if (!cmSess || s.id !== cmSess.id) cmSwitch(s); };
-    box.appendChild(el);
+    el.querySelector('.cs-flow').onclick = ev => {
+      ev.stopPropagation();
+      if (flowPick && flowPick !== s.id) return cmFlowToggle(list, flowPick, s.id);
+      flowPick = (flowPick === s.id) ? null : s.id;
+      cmRenderSessions();
+    };
+    el.onclick = () => {
+      if (flowPick && flowPick !== s.id) return cmFlowToggle(list, flowPick, s.id);   // 연결 고르는 중엔 전환 대신 연결
+      if (flowPick === s.id) { flowPick = null; return cmRenderSessions(); }
+      if (!cmSess || s.id !== cmSess.id) cmSwitch(s);
+    };
+    el.addEventListener('mouseenter', () => cmFlowDraw(list, s.id));
+    el.addEventListener('mouseleave', () => { if (!flowPick) cmFlowDraw(list, null); });
+    cmFlowRows.set(s.id, el);
+    return el;
+  };
+
+  // 같은 레포(원본 + 그 worktree들)끼리 묶기 — 원본이 목록에 없어도 worktree끼리는 묶인다
+  const groups = new Map();
+  for (const s of list) {
+    const key = nrm(s.repo || s.path);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
   }
+  const done = new Set();
+  for (const s of list) {
+    const key = nrm(s.repo || s.path);
+    if (done.has(key)) continue;
+    done.add(key);
+    const mem = groups.get(key);
+    if (mem.length > 1) {
+      const g = document.createElement('div');
+      g.className = 'cm-grp';
+      g.title = (T.wtGroupT || '') + '\n' + (mem[0].repo || mem[0].path || '');
+      mem.forEach(m => g.appendChild(mkRow(m)));
+      box.appendChild(g);
+    } else box.appendChild(mkRow(mem[0]));
+  }
+  if (flowPick) cmFlowDraw(list, flowPick); else cmFlowDraw(list, null);
   // 닫힌(비활성) 프로젝트들도 회색으로 — 클릭하면 그 세션을 열어 전환
   let known = [];
   try { known = await api('GET', '/api/known-projects'); } catch (e) {}
@@ -7031,6 +9060,60 @@ async function cmRenderSessions() {
     };
     box.appendChild(el);
   });
+}
+// 코드모드 목록 쪽 플로우 — 세션 배열은 방금 받아온 list 를 그대로 쓴다(이 창에 안 열린 세션도 포함).
+function cmFlowOf(list, id) { const s = list.find(x => x.id === id); return (s && Array.isArray(s.flowTo)) ? s.flowTo : []; }
+async function cmFlowToggle(list, fromId, toId) {
+  const s = list.find(x => x.id === fromId); if (!s) return;
+  const cur = Array.isArray(s.flowTo) ? s.flowTo.slice() : [];
+  const i = cur.indexOf(toId);
+  if (i >= 0) cur.splice(i, 1); else cur.push(toId);
+  s.flowTo = cur;
+  const p = panes.get(fromId); if (p) p.sess.flowTo = cur;         // 본 화면 세션창과 값이 어긋나지 않게
+  await api('PATCH', '/api/sessions/' + fromId, { flowTo: cur });
+  cmRenderSessions();
+}
+// 목록 오른쪽 여백에 행과 행을 잇는 곡선. 기준 행이 없으면(null) 지운다.
+function cmFlowDraw(list, rootId) {
+  const box = document.getElementById('cmSessions');
+  let svg = document.getElementById('cmFlowSvg');
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'cmFlowSvg';
+    svg.innerHTML = '<defs><marker id="cmFlowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">'
+                  + '<path d="M0,0 L10,5 L0,10 z" fill="#f472b6"/></marker></defs><g></g>';
+    box.appendChild(svg);
+  }
+  const g = svg.querySelector('g');
+  g.innerHTML = '';
+  if (!rootId) { svg.style.display = 'none'; return; }
+  // 이 세션이 낀 연결 덩어리 전체 (방향 무관)
+  const seen = new Set([rootId]), q = [rootId];
+  while (q.length) {
+    const cur = q.shift();
+    for (const to of cmFlowOf(list, cur)) if (!seen.has(to)) { seen.add(to); q.push(to); }
+    for (const s of list) if (!seen.has(s.id) && cmFlowOf(list, s.id).includes(cur)) { seen.add(s.id); q.push(s.id); }
+  }
+  const W = box.clientWidth;
+  // offsetTop 은 못 쓴다 — worktree 묶음(.cm-grp)이 position:relative 라 묶음 안의 행은 '묶음 기준' 값이 나와
+  // 화살표가 목록 맨 위에 그려졌다. 화면 좌표 차이 + 스크롤로 목록 기준 y 를 직접 구한다.
+  const top0 = box.getBoundingClientRect().top - box.scrollTop;
+  const midY = el => el.getBoundingClientRect().top - top0 + el.offsetHeight / 2;
+  let drew = 0;
+  for (const from of seen) for (const to of cmFlowOf(list, from)) {
+    const a = cmFlowRows.get(from), b = cmFlowRows.get(to);
+    if (!a || !b) continue;
+    const y1 = midY(a), y2 = midY(b);
+    const bulge = Math.min(48, 16 + Math.abs(y2 - y1) * 0.22);
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', `M${W - 11},${y1} Q${W - 11 - bulge},${(y1 + y2) / 2} ${W - 11},${y2}`);
+    p.setAttribute('class', 'cmflow-line' + (from === rootId ? ' from-here' : ''));
+    p.setAttribute('marker-end', 'url(#cmFlowHead)');
+    g.appendChild(p); drew++;
+  }
+  svg.style.width = W + 'px';
+  svg.style.height = box.scrollHeight + 'px';
+  svg.style.display = drew ? 'block' : 'none';
 }
 
 // 라이브 터미널 — 같은 세션 소켓에 하나 더 붙음 (서버가 버퍼 재생)

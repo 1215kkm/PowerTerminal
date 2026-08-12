@@ -1441,6 +1441,13 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (!s) return res.status(404).json({});
   if (typeof req.body.title === 'string') s.title = req.body.title;
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
+  // ◎ 플로우 — 이 세션에서 작업이 넘어가는 다음 세션들의 id. 화살표를 그리는 데만 쓰고 실행에는 관여 안 함.
+  if (Array.isArray(req.body.flowTo)) {
+    const alive = new Set(sessions.map(x => x.id));
+    s.flowTo = [...new Set(req.body.flowTo.filter(x => typeof x === 'string' && x !== s.id && alive.has(x)))].slice(0, 20);
+    saveSessions();
+    return res.json(s);
+  }
   // 세션에 연결된 AI(agent) 변경 — 실행 중이면 새 AI로 세션 재시작
   if (typeof req.body.agent === 'string') {
     s.agent = req.body.agent;
@@ -1662,6 +1669,31 @@ app.post('/api/sessions/:id/file', (req, res) => {
     fs.writeFileSync(full, req.body.content, 'utf8');
     res.json({ ok: true, path: rel, bytes: Buffer.byteLength(req.body.content, 'utf8') });
   } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
+});
+
+// 📁 새 폴더 — 파일 트리 우클릭/상단 버튼용. 이미 있으면 그냥 성공으로 본다(recursive).
+app.post('/api/sessions/:id/mkdir', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const rel = (req.body && req.body.path || '').toString();
+  const full = underRoot(s.path, rel);
+  if (!full || !rel) return res.status(400).json({ error: 'bad path' });
+  try { fs.mkdirSync(full, { recursive: true }); res.json({ ok: true, path: rel }); }
+  catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
+});
+// 📄 새 빈 파일 — 'wx' 라서 같은 이름이 이미 있으면 덮어쓰지 않고 실패한다(작업 유실 방지).
+app.post('/api/sessions/:id/newfile', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const rel = (req.body && req.body.path || '').toString();
+  const full = underRoot(s.path, rel);
+  if (!full || !rel) return res.status(400).json({ error: 'bad path' });
+  try {
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, '', { flag: 'wx' });
+    res.json({ ok: true, path: rel });
+  } catch (e) {
+    const msg = (e && e.code === 'EEXIST') ? 'exists' : String((e && e.message) || e);
+    res.status(400).json({ error: msg });
+  }
 });
 
 // 🔎 전체 파일 검색 (편집기 Ctrl+Shift+F) — 세션 폴더를 훑어 글자가 들어있는 파일·줄을 돌려준다.
@@ -2053,6 +2085,8 @@ app.delete('/api/sessions/:id', (req, res) => {
   const gone = sessions.find(x => x.id === req.params.id);
   if (gone) addRecent(gone);   // 닫아도 최근 목록엔 남겨 회색으로 다시 켤 수 있게
   sessions = sessions.filter(x => x.id !== req.params.id);
+  // 사라진 세션으로 향하던 플로우 화살표도 같이 정리 — 안 지우면 대상 없는 선이 계속 남는다.
+  for (const s of sessions) if (Array.isArray(s.flowTo) && s.flowTo.includes(req.params.id)) s.flowTo = s.flowTo.filter(x => x !== req.params.id);
   // 그 폴더에 다른 세션이 안 남았으면 스탬프: 일 끝난 상태로 닫힘=완료 · 작업 중 닫힘=종료로 중단
   if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, wasBusy ? 'off' : 'done');
   saveSessions();
