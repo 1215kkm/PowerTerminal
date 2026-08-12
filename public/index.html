@@ -157,6 +157,26 @@
   #flowLayer .flow-line.dragging { stroke: #22d3ee; stroke-width: 3; }        /* 끌고 있는 화살표 (실선) */
   .pane.flow-hover { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.35) inset; } /* 드롭 대상 */
   .pane.flow-hover-del { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,.35) inset; } /* 여기 놓으면 삭제 */
+  /* 화살표 위 단계 이름 */
+  #flowLayer .flow-label { font: 700 11.5px system-ui, sans-serif; fill: #fbcfe8;
+                           paint-order: stroke; stroke: rgba(0,0,0,.75); stroke-width: 3.5px; stroke-linejoin: round; }
+  #flowLayer .flow-label.auto { fill: #fde68a; }        /* ⚡ = 자동 전송 켜짐 */
+  /* 화살표 바로 아래 단계 선택판 */
+  #flowPanel { position: fixed; z-index: 55; display: block; padding: 5px; border-radius: 10px;
+               background: #111827; border: 1px solid var(--violet); box-shadow: 0 6px 20px rgba(0,0,0,.55); }
+  html.light #flowPanel { background: #fff; }
+  #flowPanel .fp-row { display: flex; gap: 3px; }
+  #flowPanel .fp-st { padding: 3px 9px; font-size: 11.5px; border-radius: 999px; cursor: pointer;
+                      border: 1px solid var(--line); background: #1f2937; color: var(--fg); white-space: nowrap; }
+  html.light #flowPanel .fp-st { background: #f3f4f6; }
+  #flowPanel .fp-st:hover { border-color: var(--pink); color: var(--pink); }
+  #flowPanel .fp-st.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  #flowPanel .fp-auto { display: flex; align-items: center; gap: 5px; margin-top: 5px; padding: 0 3px;
+                        font-size: 11px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  #flowPanel .fp-auto input { accent-color: var(--violet); cursor: pointer; }
+  /* 인계받은 세션 — 4초간 테두리가 반짝여 '여기로 넘어왔다'를 알린다 */
+  .pane.flow-incoming { border-color: #22d3ee; animation: flowIn 1s ease-in-out 4; }
+  @keyframes flowIn { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); } 50% { box-shadow: 0 0 0 4px rgba(34,211,238,.45); } }
   /* 연결 대상 고르는 중 — 다른 세션들 위에 덮이는 클릭판 */
   .flow-target { position: absolute; inset: 0; z-index: 46; cursor: pointer; display: flex;
                  align-items: center; justify-content: center; text-align: center; padding: 10px;
@@ -1901,6 +1921,13 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    fs_build: "Build", fs_review: "Review", fs_test: "Test", fs_fix: "Fix", fs_ship: "Ship",
+    fsp_build: "Carry on with the work handed over from “{t}”. Read what is already there first, then continue.",
+    fsp_review: "Review what “{t}” just changed. Read the git diff and point out only real bugs, missing error handling, and anything that should be reverted — do not edit the code.",
+    fsp_test: "Actually run what “{t}” just changed and check it works. If something fails, report how to reproduce it with the exact output.",
+    fsp_fix: "Fix the problems found in the previous step. Keep the change as small as it can be, and say what you changed and why.",
+    fsp_ship: "Wrap up what has been verified: summarize the change, commit it, and push. Ask before anything irreversible.",
+    flowAuto: "Auto-send", flowAutoT: "Send it to this session by itself. Off by default — with it on, an AI starts working the moment the previous session finishes.",
     numAddT: 'Open one more session on this folder — a git repo gets its own worktree so the two never clash (Shift-click = same folder as-is)',
     flowT: 'Flow — drag out an arrow onto another session to link it (click = pick mode). Click an arrow, then press Delete to remove it',
     flowPickHint: 'Click the sessions that ‘{t}’ hands work to. Click again to unlink.',
@@ -1915,6 +1942,13 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    fs_build: "구현", fs_review: "검토", fs_test: "테스트", fs_fix: "수정", fs_ship: "배포",
+    fsp_build: "“{t}” 에서 넘어온 작업을 이어서 해줘. 먼저 지금까지 된 걸 읽고 나서 이어가.",
+    fsp_review: "“{t}” 가 방금 바꾼 걸 검토해줘. git diff 를 읽고 진짜 버그·빠진 예외처리·되돌려야 할 부분만 짚어줘. 코드는 고치지 마.",
+    fsp_test: "“{t}” 가 방금 바꾼 부분을 실제로 실행해서 동작하는지 확인해줘. 실패하면 재현 방법과 실제 출력을 그대로 알려줘.",
+    fsp_fix: "앞 단계에서 나온 문제들을 고쳐줘. 변경은 최소로 하고, 무엇을 왜 바꿨는지 알려줘.",
+    fsp_ship: "확인된 내용을 마무리해줘 — 변경 요약하고 커밋한 다음 푸시. 되돌리기 어려운 건 먼저 물어봐.",
+    flowAuto: "자동 전송", flowAutoT: "사람이 누르지 않아도 이 세션으로 바로 보냅니다. 기본은 꺼짐 — 켜면 앞 세션이 끝나는 순간 AI 가 스스로 작업을 시작합니다.",
     numAddT: '이 폴더로 세션 하나 더 열기 — git 레포면 worktree 로 분리돼 서로 안 겹칩니다 (Shift+클릭 = 같은 폴더 그대로)',
     flowT: '플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션과 연결됩니다 (클릭 = 고르기 모드) · 화살표 클릭 후 Delete = 삭제',
     flowPickHint: '‘{t}’ 다음으로 이어질 세션들을 클릭하세요. 다시 누르면 연결이 풀립니다.',
@@ -1929,6 +1963,13 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    fs_build: "実装", fs_review: "レビュー", fs_test: "テスト", fs_fix: "修正", fs_ship: "リリース",
+    fsp_build: "「{t}」から引き継いだ作業を続けてください。まず今までの内容を読んでから進めてください。",
+    fsp_review: "「{t}」が今変更した内容をレビューしてください。git diff を読み、本当のバグ・抜けている例外処理・戻すべき箇所だけ指摘してください。コードは直さないでください。",
+    fsp_test: "「{t}」が今変更した部分を実際に動かして確認してください。失敗したら再現手順と実際の出力をそのまま教えてください。",
+    fsp_fix: "前の段階で出た問題を直してください。変更は最小限にして、何をなぜ変えたか教えてください。",
+    fsp_ship: "確認できた内容をまとめてください — 変更を要約し、コミットしてプッシュ。戻せない操作は先に確認してください。",
+    flowAuto: "自動送信", flowAutoT: "人が押さなくてもこのセッションへそのまま送ります。既定はオフ — オンにすると前のセッションが終わった瞬間に AI が動き出します。",
     numAddT: 'このフォルダでもう1つセッションを開く — gitリポジトリなら worktree に分かれて衝突しません (Shift+クリック = 同じフォルダのまま)',
     flowT: 'フロー — ドラッグで矢印を引き出して他のセッションへ接続 (クリック = 選択モード) · 矢印をクリックして Delete で削除',
     flowPickHint: '「{t}」の次に続くセッションをクリックしてください。もう一度押すと解除されます。',
@@ -2127,6 +2168,13 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    fs_build: "实现", fs_review: "审查", fs_test: "测试", fs_fix: "修复", fs_ship: "发布",
+    fsp_build: "接着做从「{t}」交接过来的工作。先读一遍已经完成的部分，再继续。",
+    fsp_review: "审查「{t}」刚才改动的内容。读 git diff，只指出真正的 bug、遗漏的异常处理和应该回退的地方 —— 不要改代码。",
+    fsp_test: "实际运行「{t}」刚才改动的部分，确认能正常工作。如果失败，把复现步骤和真实输出原样告诉我。",
+    fsp_fix: "修复上一步发现的问题。改动尽量小，并说明改了什么、为什么改。",
+    fsp_ship: "把已确认的内容收尾：总结改动、提交、推送。不可逆的操作先问一下。",
+    flowAuto: "自动发送", flowAutoT: "不用人点也会直接发到这个会话。默认关闭 —— 打开后，上一个会话一结束 AI 就会自己开始干活。",
     numAddT: '在这个文件夹再开一个会话 — 若是 git 仓库会自动分到独立 worktree，互不冲突 (Shift+点击 = 保持同一文件夹)',
     flowT: '流程 — 拖动会拉出一条箭头，放到目标会话上即可连接 (点击 = 选择模式) · 点箭头后按 Delete 删除',
     flowPickHint: '点击「{t}」之后接手的会话。再点一次即可取消连接。',
@@ -2325,6 +2373,13 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    fs_build: "Construir", fs_review: "Revisar", fs_test: "Probar", fs_fix: "Corregir", fs_ship: "Publicar",
+    fsp_build: "Continúa el trabajo que viene de ‘{t}’. Lee primero lo que ya está hecho y sigue desde ahí.",
+    fsp_review: "Revisa lo que ‘{t}’ acaba de cambiar. Lee el git diff y señala solo errores reales, manejo de errores que falte y lo que habría que revertir — no toques el código.",
+    fsp_test: "Ejecuta de verdad lo que ‘{t}’ acaba de cambiar y comprueba que funciona. Si algo falla, di cómo reproducirlo con la salida exacta.",
+    fsp_fix: "Corrige los problemas del paso anterior. Que el cambio sea lo más pequeño posible, y di qué cambiaste y por qué.",
+    fsp_ship: "Cierra lo que ya está verificado: resume el cambio, haz commit y sube. Pregunta antes de cualquier cosa irreversible.",
+    flowAuto: "Envío automático", flowAutoT: "Lo manda a esta sesión por su cuenta. Desactivado por defecto — con esto activado, una IA se pone a trabajar en cuanto termina la sesión anterior.",
     numAddT: 'Abre otra sesión en esta carpeta — si es un repo git se separa en su propio worktree y nunca chocan (Shift+clic = la misma carpeta tal cual)',
     flowT: 'Flujo — arrastra y sale una flecha: suéltala sobre otra sesión para enlazar (clic = modo selección) · clic en una flecha y Supr para quitarla',
     flowPickHint: 'Haz clic en las sesiones que continúan después de ‘{t}’. Vuelve a hacer clic para desenlazar.',
@@ -2530,6 +2585,13 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    fs_build: "Bauen", fs_review: "Prüfen", fs_test: "Testen", fs_fix: "Beheben", fs_ship: "Ausliefern",
+    fsp_build: "Mach mit der Arbeit weiter, die von ‘{t}’ übergeben wurde. Lies erst, was schon da ist, und setz dann fort.",
+    fsp_review: "Prüfe, was ‘{t}’ gerade geändert hat. Lies den git diff und nenne nur echte Fehler, fehlende Fehlerbehandlung und was zurückgenommen gehört — ändere den Code nicht.",
+    fsp_test: "Führe wirklich aus, was ‘{t}’ gerade geändert hat, und prüfe, ob es funktioniert. Wenn etwas scheitert, sag wie man es nachstellt, mit der genauen Ausgabe.",
+    fsp_fix: "Behebe die Probleme aus dem vorigen Schritt. Halte die Änderung so klein wie möglich und sag, was du geändert hast und warum.",
+    fsp_ship: "Schließ ab, was geprüft ist: fass die Änderung zusammen, committe und pushe. Frag vor allem Unumkehrbaren nach.",
+    flowAuto: "Automatisch senden", flowAutoT: "Schickt es von selbst an diese Sitzung. Standardmäßig aus — eingeschaltet legt eine KI los, sobald die vorige Sitzung fertig ist.",
     numAddT: 'Noch eine Sitzung in diesem Ordner öffnen — bei einem Git-Repo entsteht ein eigenes Worktree, damit sich beide nie in die Quere kommen (Shift+Klick = derselbe Ordner)',
     flowT: 'Ablauf — beim Ziehen kommt ein Pfeil heraus: auf einer anderen Sitzung loslassen verbindet (Klick = Auswahlmodus) · Pfeil anklicken und Entf löscht ihn',
     flowPickHint: 'Klicke die Sitzungen an, die nach ‘{t}’ weitermachen. Nochmal klicken löst die Verbindung.',
@@ -2731,6 +2793,13 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    fs_build: "Construire", fs_review: "Relire", fs_test: "Tester", fs_fix: "Corriger", fs_ship: "Livrer",
+    fsp_build: "Poursuis le travail transmis par « {t} ». Lis d’abord ce qui est déjà fait, puis continue.",
+    fsp_review: "Relis ce que « {t} » vient de changer. Lis le git diff et signale seulement les vrais bugs, la gestion d’erreur manquante et ce qu’il faudrait annuler — ne modifie pas le code.",
+    fsp_test: "Exécute vraiment ce que « {t} » vient de changer et vérifie que ça marche. Si ça échoue, dis comment le reproduire avec la sortie exacte.",
+    fsp_fix: "Corrige les problèmes de l’étape précédente. Garde le changement aussi petit que possible et dis ce que tu as changé et pourquoi.",
+    fsp_ship: "Termine ce qui est vérifié : résume le changement, commit et push. Demande avant toute action irréversible.",
+    flowAuto: "Envoi automatique", flowAutoT: "L’envoie tout seul à cette session. Désactivé par défaut — activé, une IA se met au travail dès que la session précédente a fini.",
     numAddT: 'Ouvrir une session de plus sur ce dossier — un dépôt git obtient son propre worktree, donc les deux ne se gênent jamais (Maj+clic = le même dossier tel quel)',
     flowT: 'Flux — glisse et une flèche sort : lâche-la sur une autre session pour relier (clic = mode choix) · clique une flèche puis Suppr pour l’enlever',
     flowPickHint: 'Clique sur les sessions qui prennent la suite de ‘{t}’. Reclique pour délier.',
@@ -2935,6 +3004,13 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    fs_build: "Construir", fs_review: "Revisar", fs_test: "Testar", fs_fix: "Corrigir", fs_ship: "Publicar",
+    fsp_build: "Continue o trabalho que veio de ‘{t}’. Leia primeiro o que já está feito e siga daí.",
+    fsp_review: "Revise o que ‘{t}’ acabou de mudar. Leia o git diff e aponte só bugs de verdade, tratamento de erro que faltou e o que deveria voltar atrás — não mexa no código.",
+    fsp_test: "Rode de verdade o que ‘{t}’ acabou de mudar e confira se funciona. Se falhar, diga como reproduzir com a saída exata.",
+    fsp_fix: "Corrija os problemas do passo anterior. Deixe a mudança o menor possível e diga o que mudou e por quê.",
+    fsp_ship: "Feche o que já foi verificado: resuma a mudança, faça commit e suba. Pergunte antes de qualquer coisa irreversível.",
+    flowAuto: "Envio automático", flowAutoT: "Manda para esta sessão sozinho. Vem desligado — ligado, uma IA começa a trabalhar assim que a sessão anterior termina.",
     numAddT: 'Abrir mais uma sessão nesta pasta — se for um repo git ganha o próprio worktree, então as duas nunca se atrapalham (Shift+clique = a mesma pasta como está)',
     flowT: 'Fluxo — arraste e sai uma seta: solte em outra sessão para ligar (clique = modo de escolha) · clique numa seta e Delete para remover',
     flowPickHint: 'Clique nas sessões que continuam depois de ‘{t}’. Clique de novo para desligar.',
@@ -3139,6 +3215,13 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    fs_build: "Реализация", fs_review: "Проверка", fs_test: "Тест", fs_fix: "Исправление", fs_ship: "Выпуск",
+    fsp_build: "Продолжи работу, переданную из «{t}». Сначала прочитай, что уже сделано, потом продолжай.",
+    fsp_review: "Проверь то, что «{t}» только что изменил. Прочитай git diff и назови только настоящие ошибки, пропущенную обработку ошибок и то, что стоит откатить — код не правь.",
+    fsp_test: "Реально запусти то, что «{t}» только что изменил, и убедись, что работает. Если падает — опиши, как воспроизвести, и приведи точный вывод.",
+    fsp_fix: "Исправь проблемы из предыдущего шага. Правку делай как можно меньше и скажи, что и почему изменил.",
+    fsp_ship: "Заверши проверенное: опиши изменение, сделай коммит и запушь. Обо всём необратимом спроси заранее.",
+    flowAuto: "Отправлять автоматически", flowAutoT: "Отправит в эту сессию само, без нажатия. По умолчанию выключено — с включённым ИИ начнёт работать сразу, как закончит предыдущая сессия.",
     numAddT: 'Открыть ещё одну сессию в этой папке — для git-репозитория создаётся свой worktree, чтобы они не мешали друг другу (Shift+клик = та же папка как есть)',
     flowT: 'Поток — потяните, и вытянется стрелка: отпустите на другой сессии, чтобы связать (клик = режим выбора) · нажмите на стрелку и Delete, чтобы удалить',
     flowPickHint: 'Нажмите на сессии, которые продолжают после ‘{t}’. Повторное нажатие снимает связь.',
@@ -3342,6 +3425,13 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    fs_build: "बनाना", fs_review: "जाँच", fs_test: "टेस्ट", fs_fix: "सुधार", fs_ship: "रिलीज़",
+    fsp_build: "‘{t}’ से आया काम आगे बढ़ाएँ। पहले जो हो चुका है उसे पढ़ें, फिर आगे बढ़ें।",
+    fsp_review: "‘{t}’ ने अभी जो बदला उसकी जाँच करें। git diff पढ़ें और सिर्फ़ असली बग, छूटी हुई एरर हैंडलिंग और जो वापस लेना चाहिए वही बताएँ — कोड मत बदलें।",
+    fsp_test: "‘{t}’ ने अभी जो बदला उसे सचमुच चलाकर देखें कि काम करता है या नहीं। कुछ फेल हो तो दोबारा करने का तरीका और असली आउटपुट बताएँ।",
+    fsp_fix: "पिछले चरण में मिली दिक़्क़तें ठीक करें। बदलाव जितना छोटा हो सके उतना रखें, और बताएँ कि क्या और क्यों बदला।",
+    fsp_ship: "जो जाँचा जा चुका है उसे पूरा करें: बदलाव का सार लिखें, कमिट करें और पुश करें। जो वापस न हो सके, उससे पहले पूछ लें।",
+    flowAuto: "अपने आप भेजें", flowAutoT: "बिना दबाए ही इस सेशन को भेज देता है। डिफ़ॉल्ट रूप से बंद — चालू करने पर पिछला सेशन ख़त्म होते ही AI अपने आप काम शुरू कर देता है।",
     numAddT: 'इसी फ़ोल्डर पर एक और सेशन खोलें — git रिपॉज़िटरी है तो उसका अपना worktree बनता है, इसलिए दोनों कभी टकराते नहीं (Shift+क्लिक = वही फ़ोल्डर जैसा है)',
     flowT: 'फ़्लो — खींचने पर तीर निकलता है: दूसरी सेशन पर छोड़ें तो जुड़ जाता है (क्लिक = चुनने का मोड) · तीर पर क्लिक करके Delete से हटाएँ',
     flowPickHint: '‘{t}’ के बाद जो सेशन काम आगे बढ़ाते हैं उन पर क्लिक करें। दोबारा क्लिक करने पर जोड़ हट जाता है।',
@@ -5228,6 +5318,8 @@ function setState(el, done, busy, announce) {
           el._lastAnn = annNow;
           speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
         } else soundDiag = '15초 안에 이미 울려서 건너뜀';
+        // ◎ 플로우 인계 — 이 세션에서 나가는 화살표 중 단계가 정해진 것들에 대해 다음 세션으로 넘긴다
+        flowHandoff(el.dataset.id);
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
         if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); });
@@ -5267,6 +5359,24 @@ let flowDragEdge = null;          // 이미 있는 화살표를 잡아당기는 
 let flowClickSquelch = false;     // 드래그로 끝난 mouseup 뒤에 따라오는 click 무시용
 
 function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess.flowTo)) ? p.sess.flowTo : []; }
+/* 화살표에 붙는 '단계' — 앞 세션 작업이 끝나면 그 단계의 요청문이 다음 세션 입력칸에 채워진다.
+   자동 전송은 화살표마다 따로 켠다(기본 꺼짐) — 잘못 이어둔 화살표 하나로 AI 가 연쇄로 파일을 고치면 되돌리기 어렵다. */
+const FLOW_STAGES = ['build', 'review', 'test', 'fix', 'ship'];
+const flowStageLabel = k => (T['fs_' + k] || k);
+const flowStagePrompt = k => (T['fsp_' + k] || '');
+function flowMeta(fromId, toId) {
+  const p = panes.get(fromId);
+  const m = p && p.sess.flowMeta && p.sess.flowMeta[toId];
+  return { stage: (m && m.stage) || '', auto: !!(m && m.auto) };
+}
+async function flowSetMeta(fromId, toId, patch) {
+  const p = panes.get(fromId); if (!p) return;
+  const all = Object.assign({}, p.sess.flowMeta || {});
+  all[toId] = Object.assign(flowMeta(fromId, toId), patch);
+  p.sess.flowMeta = all;
+  flowDraw(flowShown || fromId);
+  await api('PATCH', '/api/sessions/' + fromId, { flowTo: flowOf(fromId), flowMeta: all });
+}
 // 이 세션과 (방향 무관하게) 이어져 있는 세션 전부 — 흐름의 앞뒤를 다 보여주기 위해
 function flowComponent(id) {
   const seen = new Set([id]), queue = [id];
@@ -5307,9 +5417,12 @@ function flowClearNow() {
   const svg = document.getElementById('flowLayer');
   if (svg) { svg.querySelector('g').innerHTML = ''; svg.classList.remove('on'); }
   flowShown = null;
+  flowPanelHide();
 }
 function flowClear(delay) {
   clearTimeout(flowHideT);
+  const panel = document.getElementById('flowPanel');
+  if (panel && panel.matches(':hover')) return;       // 단계 고르는 중엔 안 사라지게
   if (flowPick || flowDragFrom || flowSel) return;   // 고르는 중·드래그 중·화살표 선택 중엔 계속 보여준다
   if (!delay) return flowClearNow();
   flowHideT = setTimeout(flowClearNow, delay);
@@ -5361,11 +5474,68 @@ function flowDraw(rootId) {
       ev.preventDefault(); ev.stopPropagation();
       flowDragStart(from, ev, to);
     });
-    hit.onmouseenter = () => clearTimeout(flowHideT);        // 화살표 위에 있는 동안엔 안 사라지게
+    hit.onmouseenter = () => { clearTimeout(flowHideT); flowPanel(from, to, path); };   // 단계 고르는 판을 화살표 밑에
     hit.onmouseleave = () => flowClear(260);
     g.appendChild(hit);
+    // 화살표 위에 단계 이름 — 골라 둔 게 있으면 항상 보인다
+    const meta = flowMeta(from, to);
+    if (meta.stage) {
+      const mid = path.getPointAtLength(path.getTotalLength() / 2);
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', mid.x); t.setAttribute('y', mid.y - 7);
+      t.setAttribute('class', 'flow-label' + (meta.auto ? ' auto' : ''));
+      t.setAttribute('text-anchor', 'middle');
+      t.textContent = (meta.auto ? '⚡ ' : '') + flowStageLabel(meta.stage);
+      g.appendChild(t);
+    }
   }
   flowShown = rootId;
+  if (flowPanelKey && !edges.some(e => e[0] + '>' + e[1] === flowPanelKey)) flowPanelHide();
+}
+
+/* --- 화살표 아래 붙는 단계 선택판 ---
+   고른 단계가 없으면 5개 버튼이 다 보이고, 하나 고르면 그것만 남는다. 그걸 다시 누르면 선택이 풀려 5개가 다시 나온다.
+   맨 아래 줄이 '자동 전송' 체크. */
+let flowPanelKey = null, flowPanelT = null;
+function flowPanelHide() {
+  const el = document.getElementById('flowPanel');
+  if (el) el.remove();
+  flowPanelKey = null;
+}
+function flowPanel(from, to, pathEl) {
+  clearTimeout(flowPanelT);
+  const key = from + '>' + to;
+  let el = document.getElementById('flowPanel');
+  if (el && flowPanelKey === key) return;          // 같은 화살표면 다시 만들지 않는다 (체크 상태 유지)
+  if (!el) { el = document.createElement('div'); el.id = 'flowPanel'; document.body.appendChild(el); }
+  flowPanelKey = key;
+  const meta = flowMeta(from, to);
+  const btns = meta.stage ? [meta.stage] : FLOW_STAGES;
+  el.innerHTML = '<div class="fp-row">'
+    + btns.map(s => `<button class="fp-st${meta.stage === s ? ' on' : ''}" data-s="${s}" title="${escA(flowStagePrompt(s))}">${esc(flowStageLabel(s))}</button>`).join('')
+    + '</div>'
+    + `<label class="fp-auto" title="${escA(T.flowAutoT || '')}"><input type="checkbox"${meta.auto ? ' checked' : ''}> ${esc(T.flowAuto || 'Auto-send')}</label>`;
+  el.querySelectorAll('.fp-st').forEach(b => {
+    b.onclick = async ev => {
+      ev.stopPropagation();
+      const s = b.dataset.s;
+      await flowSetMeta(from, to, { stage: meta.stage === s ? '' : s });   // 고른 걸 다시 누르면 해제 → 5개 다시 표시
+      flowPanelKey = null; flowPanel(from, to, pathEl);
+    };
+  });
+  el.querySelector('.fp-auto input').onchange = async ev => {
+    ev.stopPropagation();
+    await flowSetMeta(from, to, { auto: ev.target.checked });
+  };
+  // 화살표 가운데 바로 아래에 놓는다 (화면 밖으로는 안 나가게)
+  const mid = pathEl.getPointAtLength(pathEl.getTotalLength() / 2);
+  el.style.visibility = 'hidden'; el.style.display = 'block';
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = Math.max(6, Math.min(mid.x - w / 2, window.innerWidth - w - 6)) + 'px';
+  el.style.top = Math.min(mid.y + 10, window.innerHeight - h - 6) + 'px';
+  el.style.visibility = '';
+  el.onmouseenter = () => { clearTimeout(flowPanelT); clearTimeout(flowHideT); };
+  el.onmouseleave = () => { flowPanelT = setTimeout(flowPanelHide, 260); flowClear(300); };
 }
 // 화살표 선택 — 빨갛게 바뀌고, Delete 를 누르면 그 연결만 지워진다
 function flowSelect(from, to) {
@@ -5460,6 +5630,32 @@ function flowDragStart(fromId, ev, existingTo) {
   };
   document.addEventListener('mousemove', move, true);
   document.addEventListener('mouseup', up, true);
+}
+/* --- 인계 --- 앞 세션 작업이 끝나면, 단계가 정해진 화살표를 따라 다음 세션 입력칸에 그 단계의 요청문을 넣는다.
+   자동 전송을 켜 둔 화살표만 실제로 보내고, 나머지는 채워만 두고 사람이 [전송]을 누르게 한다. */
+function flowHandoff(fromId) {
+  const src = panes.get(fromId); if (!src) return;
+  for (const to of flowOf(fromId)) {
+    const meta = flowMeta(fromId, to);
+    if (!meta.stage) continue;                       // 단계를 안 정한 화살표는 표시 전용 — 아무 것도 안 넘긴다
+    const dst = panes.get(to);
+    if (!dst || !dst.el.isConnected) continue;
+    const ta = dst.el.querySelector('.quick textarea');
+    if (!ta) continue;
+    const text = (flowStagePrompt(meta.stage) || '').replace('{t}', src.sess.title || '');
+    if (!text) continue;
+    if (meta.auto) {
+      if (dst.el.classList.contains('busy')) continue;   // 이미 뭔가 돌고 있으면 끼워넣지 않는다
+      dst.sendText(text);                                 // 요청내역에도 기록되고 터미널로 바로 들어간다
+    } else {
+      // 사람이 쓰던 글이 있으면 덮어쓰지 않고 아래에 붙인다
+      ta.value = ta.value.trim() ? ta.value.replace(/\s*$/, '') + '\n' + text : text;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    dst.el.classList.add('flow-incoming');
+    setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
+    flowDraw(fromId); flowClear(4000);                // 어디로 넘어갔는지 화살표로 같이 보여준다
+  }
 }
 // 화살표의 대상 바꾸기 (newTo 가 null 이면 삭제). 순서를 지켜 원래 자리에 그대로 넣는다.
 async function flowRetarget(fromId, oldTo, newTo) {

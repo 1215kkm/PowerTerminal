@@ -1442,9 +1442,20 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (typeof req.body.title === 'string') s.title = req.body.title;
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
   // ◎ 플로우 — 이 세션에서 작업이 넘어가는 다음 세션들의 id. 화살표를 그리는 데만 쓰고 실행에는 관여 안 함.
-  if (Array.isArray(req.body.flowTo)) {
+  if (Array.isArray(req.body.flowTo) || (req.body.flowMeta && typeof req.body.flowMeta === 'object')) {
     const alive = new Set(sessions.map(x => x.id));
-    s.flowTo = [...new Set(req.body.flowTo.filter(x => typeof x === 'string' && x !== s.id && alive.has(x)))].slice(0, 20);
+    if (Array.isArray(req.body.flowTo))
+      s.flowTo = [...new Set(req.body.flowTo.filter(x => typeof x === 'string' && x !== s.id && alive.has(x)))].slice(0, 20);
+    // 화살표별 설정 — { 대상id: { stage: '검토', auto: true } }. 지금 이어진 대상만 남긴다.
+    if (req.body.flowMeta && typeof req.body.flowMeta === 'object') {
+      const keep = new Set(s.flowTo || []);
+      const out = {};
+      for (const [k, v] of Object.entries(req.body.flowMeta)) {
+        if (!keep.has(k) || !v || typeof v !== 'object') continue;
+        out[k] = { stage: typeof v.stage === 'string' ? v.stage.slice(0, 20) : '', auto: !!v.auto };
+      }
+      s.flowMeta = out;
+    }
     saveSessions();
     return res.json(s);
   }
@@ -2086,7 +2097,10 @@ app.delete('/api/sessions/:id', (req, res) => {
   if (gone) addRecent(gone);   // 닫아도 최근 목록엔 남겨 회색으로 다시 켤 수 있게
   sessions = sessions.filter(x => x.id !== req.params.id);
   // 사라진 세션으로 향하던 플로우 화살표도 같이 정리 — 안 지우면 대상 없는 선이 계속 남는다.
-  for (const s of sessions) if (Array.isArray(s.flowTo) && s.flowTo.includes(req.params.id)) s.flowTo = s.flowTo.filter(x => x !== req.params.id);
+  for (const s of sessions) {
+    if (Array.isArray(s.flowTo) && s.flowTo.includes(req.params.id)) s.flowTo = s.flowTo.filter(x => x !== req.params.id);
+    if (s.flowMeta && s.flowMeta[req.params.id]) delete s.flowMeta[req.params.id];
+  }
   // 그 폴더에 다른 세션이 안 남았으면 스탬프: 일 끝난 상태로 닫힘=완료 · 작업 중 닫힘=종료로 중단
   if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, wasBusy ? 'off' : 'done');
   saveSessions();
