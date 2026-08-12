@@ -147,6 +147,11 @@
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
+  /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
+  #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+  #flowLayer .flow-line.sel { stroke: #ef4444; stroke-width: 3.6; }          /* 선택됨 — Delete 로 삭제 */
+  #flowLayer .flow-line.dragging { stroke: #22d3ee; stroke-width: 3; stroke-dasharray: 7 5; }  /* ◎ 에서 뽑는 중 */
+  .pane.flow-hover { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.35) inset; } /* 드롭 대상 */
   /* 연결 대상 고르는 중 — 다른 세션들 위에 덮이는 클릭판 */
   .flow-target { position: absolute; inset: 0; z-index: 46; cursor: pointer; display: flex;
                  align-items: center; justify-content: center; text-align: center; padding: 10px;
@@ -440,6 +445,8 @@
   #cmFlowSvg { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; display: none; }
   #cmFlowSvg .cmflow-line { fill: none; stroke: #f472b6; stroke-width: 2; stroke-linecap: round; }
   #cmFlowSvg .cmflow-line.from-here { stroke: #22d3ee; stroke-width: 2.6; }
+  #cmFlowSvg .cmflow-line.sel { stroke: #ef4444; stroke-width: 2.8; }
+  #cmFlowSvg .cmflow-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
   /* 우측 파일 트리 */
   .cm-node { display: flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer;
              font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1889,7 +1896,7 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     numAddT: 'Open one more session on this folder — a git repo gets its own worktree so the two never clash (Shift-click = same folder as-is)',
-    flowT: 'Flow — link this session to the ones it hands work to',
+    flowT: 'Flow — drag out an arrow onto another session to link it (click = pick mode). Click an arrow, then press Delete to remove it',
     flowPickHint: 'Click the sessions that ‘{t}’ hands work to. Click again to unlink.',
     flowDone: 'Done',
     wtGroupT: 'Same repo — the original and the worktrees split off from it',
@@ -1902,7 +1909,7 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     numAddT: '이 폴더로 세션 하나 더 열기 — git 레포면 worktree 로 분리돼 서로 안 겹칩니다 (Shift+클릭 = 같은 폴더 그대로)',
-    flowT: '플로우 — 이 세션 다음으로 이어지는 세션을 화살표로 연결',
+    flowT: '플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션과 연결됩니다 (클릭 = 고르기 모드) · 화살표 클릭 후 Delete = 삭제',
     flowPickHint: '‘{t}’ 다음으로 이어질 세션들을 클릭하세요. 다시 누르면 연결이 풀립니다.',
     flowDone: '완료',
     wtGroupT: '같은 레포 — 원본과 거기서 갈라져 나온 worktree 들',
@@ -1915,7 +1922,7 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     numAddT: 'このフォルダでもう1つセッションを開く — gitリポジトリなら worktree に分かれて衝突しません (Shift+クリック = 同じフォルダのまま)',
-    flowT: 'フロー — このセッションの次に続くセッションを矢印でつなぐ',
+    flowT: 'フロー — ドラッグで矢印を引き出して他のセッションへ接続 (クリック = 選択モード) · 矢印をクリックして Delete で削除',
     flowPickHint: '「{t}」の次に続くセッションをクリックしてください。もう一度押すと解除されます。',
     flowDone: '完了',
     wtGroupT: '同じリポジトリ — 元のフォルダと、そこから分かれた worktree',
@@ -2112,7 +2119,7 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     numAddT: '在这个文件夹再开一个会话 — 若是 git 仓库会自动分到独立 worktree，互不冲突 (Shift+点击 = 保持同一文件夹)',
-    flowT: '流程 — 用箭头连到这个会话之后接手的会话',
+    flowT: '流程 — 拖动会拉出一条箭头，放到目标会话上即可连接 (点击 = 选择模式) · 点箭头后按 Delete 删除',
     flowPickHint: '点击「{t}」之后接手的会话。再点一次即可取消连接。',
     flowDone: '完成',
     wtGroupT: '同一个仓库 — 原始文件夹和从它分出的 worktree',
@@ -2309,7 +2316,7 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     numAddT: 'Abre otra sesión en esta carpeta — si es un repo git se separa en su propio worktree y nunca chocan (Shift+clic = la misma carpeta tal cual)',
-    flowT: 'Flujo — enlaza esta sesión con las que recogen el trabajo después',
+    flowT: 'Flujo — arrastra y sale una flecha: suéltala sobre otra sesión para enlazar (clic = modo selección) · clic en una flecha y Supr para quitarla',
     flowPickHint: 'Haz clic en las sesiones que continúan después de ‘{t}’. Vuelve a hacer clic para desenlazar.',
     flowDone: 'Listo',
     wtGroupT: 'Mismo repo — el original y los worktrees que salieron de él',
@@ -2513,7 +2520,7 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     numAddT: 'Noch eine Sitzung in diesem Ordner öffnen — bei einem Git-Repo entsteht ein eigenes Worktree, damit sich beide nie in die Quere kommen (Shift+Klick = derselbe Ordner)',
-    flowT: 'Ablauf — verbindet diese Sitzung mit denen, die danach übernehmen',
+    flowT: 'Ablauf — beim Ziehen kommt ein Pfeil heraus: auf einer anderen Sitzung loslassen verbindet (Klick = Auswahlmodus) · Pfeil anklicken und Entf löscht ihn',
     flowPickHint: 'Klicke die Sitzungen an, die nach ‘{t}’ weitermachen. Nochmal klicken löst die Verbindung.',
     flowDone: 'Fertig',
     wtGroupT: 'Gleiches Repo — das Original und die daraus abgezweigten Worktrees',
@@ -2713,7 +2720,7 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     numAddT: 'Ouvrir une session de plus sur ce dossier — un dépôt git obtient son propre worktree, donc les deux ne se gênent jamais (Maj+clic = le même dossier tel quel)',
-    flowT: 'Flux — relie cette session à celles qui prennent le relais',
+    flowT: 'Flux — glisse et une flèche sort : lâche-la sur une autre session pour relier (clic = mode choix) · clique une flèche puis Suppr pour l’enlever',
     flowPickHint: 'Clique sur les sessions qui prennent la suite de ‘{t}’. Reclique pour délier.',
     flowDone: 'Terminé',
     wtGroupT: 'Même dépôt — l’original et les worktrees qui en sont issus',
@@ -2916,7 +2923,7 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     numAddT: 'Abrir mais uma sessão nesta pasta — se for um repo git ganha o próprio worktree, então as duas nunca se atrapalham (Shift+clique = a mesma pasta como está)',
-    flowT: 'Fluxo — liga esta sessão às que assumem o trabalho depois',
+    flowT: 'Fluxo — arraste e sai uma seta: solte em outra sessão para ligar (clique = modo de escolha) · clique numa seta e Delete para remover',
     flowPickHint: 'Clique nas sessões que continuam depois de ‘{t}’. Clique de novo para desligar.',
     flowDone: 'Pronto',
     wtGroupT: 'Mesmo repo — o original e os worktrees que saíram dele',
@@ -3119,7 +3126,7 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     numAddT: 'Открыть ещё одну сессию в этой папке — для git-репозитория создаётся свой worktree, чтобы они не мешали друг другу (Shift+клик = та же папка как есть)',
-    flowT: 'Поток — связать эту сессию с теми, что подхватывают работу дальше',
+    flowT: 'Поток — потяните, и вытянется стрелка: отпустите на другой сессии, чтобы связать (клик = режим выбора) · нажмите на стрелку и Delete, чтобы удалить',
     flowPickHint: 'Нажмите на сессии, которые продолжают после ‘{t}’. Повторное нажатие снимает связь.',
     flowDone: 'Готово',
     wtGroupT: 'Один репозиторий — оригинал и отделившиеся от него worktree',
@@ -3321,7 +3328,7 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     numAddT: 'इसी फ़ोल्डर पर एक और सेशन खोलें — git रिपॉज़िटरी है तो उसका अपना worktree बनता है, इसलिए दोनों कभी टकराते नहीं (Shift+क्लिक = वही फ़ोल्डर जैसा है)',
-    flowT: 'फ़्लो — इस सेशन को उन सेशनों से जोड़ें जो इसके बाद काम संभालते हैं',
+    flowT: 'फ़्लो — खींचने पर तीर निकलता है: दूसरी सेशन पर छोड़ें तो जुड़ जाता है (क्लिक = चुनने का मोड) · तीर पर क्लिक करके Delete से हटाएँ',
     flowPickHint: '‘{t}’ के बाद जो सेशन काम आगे बढ़ाते हैं उन पर क्लिक करें। दोबारा क्लिक करने पर जोड़ हट जाता है।',
     flowDone: 'हो गया',
     wtGroupT: 'वही रिपॉज़िटरी — असली फ़ोल्डर और उससे निकले worktree',
@@ -4412,15 +4419,26 @@ function buildPane(sess, idx) {
   // 📝 메모장 — 이 세션(폴더)의 메모·완료·요청내역
   el.querySelector('.btnMemo').onclick = ev => { ev.stopPropagation(); openMemo(sess); };
 
-  // ◎ 플로우 — 이 세션에서 다른 세션으로 '작업이 넘어가는 흐름'을 화살표로 이어 둔다.
-  el.querySelector('.btnFlow').onclick = ev => { ev.stopPropagation(); flowStartPick(sess.id); };
+  // ◎ 플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션으로 연결. 그냥 클릭 = 고르기 모드(터치 기기용).
+  const flowBtn = el.querySelector('.btnFlow');
+  flowBtn.onclick = ev => {
+    ev.stopPropagation();
+    if (flowClickSquelch) { flowClickSquelch = false; return; }   // 방금 드래그로 연결했으면 클릭은 무시
+    flowStartPick(sess.id);
+  };
+  flowBtn.addEventListener('mousedown', ev => {
+    if (ev.button !== 0) return;
+    ev.preventDefault(); ev.stopPropagation();
+    flowDragStart(sess.id, el, ev);
+  });
   // 칸 폭에 따라 헤더 도구를 '띄움' 모드로 — 버튼 묶음이 한 줄에 안 들어가는 폭(≈440px 미만)이 기준
   try {
     new ResizeObserver(es => { for (const e of es) e.target.classList.toggle('tight', e.contentRect.width < 440); }).observe(el);
   } catch (e) { if (el.clientWidth < 440) el.classList.add('tight'); }
 
   // 이 창에 마우스를 올리면 이 세션이 낀 흐름 전체를 보여주고, 벗어나면 잠깐 뒤 지운다.
-  el.addEventListener('mouseenter', () => { if (!flowPick) flowDraw(sess.id); });
+  // (드래그로 화살표를 뽑는 중에는 다시 그리지 않는다 — 그리면 임시 화살표가 지워진다)
+  el.addEventListener('mouseenter', () => { if (!flowPick && !flowDragFrom) flowDraw(sess.id); });
   el.addEventListener('mouseleave', () => flowClear(220));
 
   // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
@@ -5228,6 +5246,9 @@ function renumber() {
 let flowPick = null;              // 지금 '연결 대상 고르는 중' 인 출발 세션 id
 let flowShown = null;             // 지금 화살표를 보여주고 있는 기준 세션 id
 let flowHideT = null;
+let flowSel = null;               // 클릭으로 고른 화살표 {from, to} — Delete 로 지운다
+let flowDragFrom = null;          // ◎ 를 드래그해서 화살표를 뽑아내는 중인 출발 세션 id
+let flowClickSquelch = false;     // 드래그로 끝난 mouseup 뒤에 따라오는 click 무시용
 
 function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess.flowTo)) ? p.sess.flowTo : []; }
 // 이 세션과 (방향 무관하게) 이어져 있는 세션 전부 — 흐름의 앞뒤를 다 보여주기 위해
@@ -5245,8 +5266,9 @@ function flowLayer() {
   if (svg) return svg;
   svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.id = 'flowLayer';
-  svg.innerHTML = '<defs><marker id="flowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
-                + '<path d="M0,0 L10,5 L0,10 z" fill="#f472b6"/></marker></defs><g></g>';
+  const mk = (id, color) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
+                          + '<path d="M0,0 L10,5 L0,10 z" fill="' + color + '"/></marker>';
+  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadSel', '#ef4444') + mk('flowHeadDrag', '#22d3ee') + '</defs><g></g>';
   document.body.appendChild(svg);
   return svg;
 }
@@ -5271,7 +5293,7 @@ function flowClearNow() {
 }
 function flowClear(delay) {
   clearTimeout(flowHideT);
-  if (flowPick) return;                       // 고르는 중엔 계속 보여준다
+  if (flowPick || flowDragFrom || flowSel) return;   // 고르는 중·드래그 중·화살표 선택 중엔 계속 보여준다
   if (!delay) return flowClearNow();
   flowHideT = setTimeout(flowClearNow, delay);
 }
@@ -5297,13 +5319,100 @@ function flowDraw(rootId) {
     const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
     const cx = mx - dy / len * len * 0.09, cy = my + dx / len * len * 0.09;
+    const d = `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`;
+    const sel = flowSel && flowSel.from === from && flowSel.to === to;
     const path = document.createElementNS(NS, 'path');
-    path.setAttribute('d', `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`);
-    path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : ''));
-    path.setAttribute('marker-end', 'url(#flowHead)');
+    path.setAttribute('d', d);
+    path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : ''));
+    path.setAttribute('marker-end', sel ? 'url(#flowHeadSel)' : 'url(#flowHead)');
     g.appendChild(path);
+    // 2.5px 짜리 선은 마우스로 못 집는다 — 같은 경로에 투명한 16px '집기용' 선을 겹쳐 클릭을 받는다
+    const hit = document.createElementNS(NS, 'path');
+    hit.setAttribute('d', d);
+    hit.setAttribute('class', 'flow-hit');
+    hit.onclick = ev => { ev.stopPropagation(); flowSelect(from, to); };
+    hit.onmouseenter = () => clearTimeout(flowHideT);        // 화살표 위에 있는 동안엔 안 사라지게
+    hit.onmouseleave = () => flowClear(260);
+    g.appendChild(hit);
   }
   flowShown = rootId;
+}
+// 화살표 선택 — 빨갛게 바뀌고, Delete 를 누르면 그 연결만 지워진다
+function flowSelect(from, to) {
+  flowSel = (flowSel && flowSel.from === from && flowSel.to === to) ? null : { from, to };
+  // 터미널이 포커스를 쥐고 있으면 Delete 가 터미널로 들어간다 — 화살표를 고른 순간엔 포커스를 뺏어온다
+  if (flowSel) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
+  clearTimeout(flowHideT);
+  flowDraw(flowShown || from);
+  if (!flowSel) flowClear(600);
+}
+async function flowDeleteSel() {
+  if (!flowSel) return;
+  const { from, to } = flowSel;
+  flowSel = null;
+  const p = panes.get(from);
+  if (p) p.sess.flowTo = flowOf(from).filter(x => x !== to);
+  flowDraw(from); flowClear(1200);
+  if (typeof cmRenderSessions === 'function' && codeModal.classList.contains('on')) cmRenderSessions();
+  await api('PATCH', '/api/sessions/' + from, { flowTo: flowOf(from) });
+}
+window.addEventListener('keydown', ev => {
+  if (!flowSel) return;
+  if (ev.key === 'Delete' || ev.key === 'Backspace') {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)) return;   // 글 쓰는 중이면 건드리지 않음
+    ev.preventDefault(); ev.stopPropagation();
+    flowDeleteSel();
+  } else if (ev.key === 'Escape') { flowSel = null; flowDraw(flowShown); flowClear(300); }
+}, true);
+// 화살표 밖을 클릭하면 선택 해제
+document.addEventListener('click', ev => {
+  if (flowSel && !(ev.target.closest && ev.target.closest('#flowLayer'))) { flowSel = null; flowDraw(flowShown); flowClear(600); }
+});
+
+// --- ◎ 드래그로 화살표 뽑아 연결하기 ---
+function flowDragStart(fromId, paneEl, ev) {
+  const head = paneEl.querySelector('.pane-head');
+  const wasDraggable = head ? head.draggable : false;
+  if (head) head.draggable = false;                 // 창 이동 드래그와 충돌 방지
+  flowDragFrom = fromId;
+  flowDraw(fromId);                                  // 기존 연결도 같이 보여주며 시작
+  const svg = flowLayer(), g = svg.querySelector('g');
+  svg.classList.add('on');
+  const temp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  temp.setAttribute('class', 'flow-line dragging');
+  temp.setAttribute('marker-end', 'url(#flowHeadDrag)');
+  g.appendChild(temp);
+  const r0 = paneEl.getBoundingClientRect();
+  let target = null, moved = false;
+  const setHover = tid => {
+    if (target && target !== tid) { const tp = panes.get(target); if (tp) tp.el.classList.remove('flow-hover'); }
+    target = tid;
+    if (target) panes.get(target).el.classList.add('flow-hover');
+  };
+  const move = e => {
+    moved = true;
+    const p1 = flowInset(r0, flowEdge(r0, e.clientX, e.clientY));
+    temp.setAttribute('d', `M${p1.x},${p1.y} L${e.clientX},${e.clientY}`);
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const pane = under && under.closest ? under.closest('.pane') : null;
+    const tid = pane ? pane.dataset.id : null;
+    setHover((tid && tid !== fromId && panes.has(tid)) ? tid : null);
+  };
+  const up = async () => {
+    document.removeEventListener('mousemove', move, true);
+    document.removeEventListener('mouseup', up, true);
+    if (head) head.draggable = wasDraggable;
+    temp.remove();
+    const dropped = target;
+    setHover(null);
+    flowDragFrom = null;
+    if (moved) flowClickSquelch = true;               // 이 뒤에 오는 click 이 고르기 모드를 열지 않게
+    if (dropped && !flowOf(fromId).includes(dropped)) await flowToggle(fromId, dropped);
+    flowDraw(fromId); flowClear(1800);
+  };
+  document.addEventListener('mousemove', move, true);
+  document.addEventListener('mouseup', up, true);
 }
 // 창 크기·스크롤이 바뀌면 좌표가 어긋나므로 보이는 동안에는 다시 그린다
 window.addEventListener('resize', () => { if (flowShown) flowDraw(flowShown); });
@@ -9063,6 +9172,18 @@ async function cmRenderSessions() {
 }
 // 코드모드 목록 쪽 플로우 — 세션 배열은 방금 받아온 list 를 그대로 쓴다(이 창에 안 열린 세션도 포함).
 function cmFlowOf(list, id) { const s = list.find(x => x.id === id); return (s && Array.isArray(s.flowTo)) ? s.flowTo : []; }
+let cmFlowSel = null;   // 코드모드에서 클릭으로 고른 화살표 {from, to, list}
+window.addEventListener('keydown', async ev => {
+  if (!cmFlowSel || !codeModal.classList.contains('on')) return;
+  if (ev.key === 'Escape') { cmFlowSel = null; cmRenderSessions(); return; }
+  if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const { from, to, list } = cmFlowSel;
+  cmFlowSel = null;
+  await cmFlowToggle(list, from, to);        // 이미 있는 연결이므로 토글 = 삭제 (본 화면 세션과도 동기화됨)
+}, true);
 async function cmFlowToggle(list, fromId, toId) {
   const s = list.find(x => x.id === fromId); if (!s) return;
   const cur = Array.isArray(s.flowTo) ? s.flowTo.slice() : [];
@@ -9073,7 +9194,8 @@ async function cmFlowToggle(list, fromId, toId) {
   await api('PATCH', '/api/sessions/' + fromId, { flowTo: cur });
   cmRenderSessions();
 }
-// 목록 오른쪽 여백에 행과 행을 잇는 곡선. 기준 행이 없으면(null) 지운다.
+// 목록 오른쪽 여백에 행과 행을 잇는 곡선.
+// 기준 행이 없으면(null) — 본 화면과 달리 여기선 *모든* 연결을 처음부터 보여준다 (행에 올리면 그 덩어리만 강조).
 function cmFlowDraw(list, rootId) {
   const box = document.getElementById('cmSessions');
   let svg = document.getElementById('cmFlowSvg');
@@ -9086,13 +9208,17 @@ function cmFlowDraw(list, rootId) {
   }
   const g = svg.querySelector('g');
   g.innerHTML = '';
-  if (!rootId) { svg.style.display = 'none'; return; }
-  // 이 세션이 낀 연결 덩어리 전체 (방향 무관)
-  const seen = new Set([rootId]), q = [rootId];
-  while (q.length) {
-    const cur = q.shift();
-    for (const to of cmFlowOf(list, cur)) if (!seen.has(to)) { seen.add(to); q.push(to); }
-    for (const s of list) if (!seen.has(s.id) && cmFlowOf(list, s.id).includes(cur)) { seen.add(s.id); q.push(s.id); }
+  let seen;
+  if (!rootId) {
+    seen = new Set(list.map(s => s.id));           // 기준 없음 = 전체 연결을 그린다
+  } else {
+    // 이 세션이 낀 연결 덩어리 전체 (방향 무관)
+    seen = new Set([rootId]); const q = [rootId];
+    while (q.length) {
+      const cur = q.shift();
+      for (const to of cmFlowOf(list, cur)) if (!seen.has(to)) { seen.add(to); q.push(to); }
+      for (const s of list) if (!seen.has(s.id) && cmFlowOf(list, s.id).includes(cur)) { seen.add(s.id); q.push(s.id); }
+    }
   }
   const W = box.clientWidth;
   // offsetTop 은 못 쓴다 — worktree 묶음(.cm-grp)이 position:relative 라 묶음 안의 행은 '묶음 기준' 값이 나와
@@ -9100,16 +9226,31 @@ function cmFlowDraw(list, rootId) {
   const top0 = box.getBoundingClientRect().top - box.scrollTop;
   const midY = el => el.getBoundingClientRect().top - top0 + el.offsetHeight / 2;
   let drew = 0;
+  const NS = 'http://www.w3.org/2000/svg';
   for (const from of seen) for (const to of cmFlowOf(list, from)) {
     const a = cmFlowRows.get(from), b = cmFlowRows.get(to);
     if (!a || !b) continue;
     const y1 = midY(a), y2 = midY(b);
     const bulge = Math.min(48, 16 + Math.abs(y2 - y1) * 0.22);
-    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', `M${W - 11},${y1} Q${W - 11 - bulge},${(y1 + y2) / 2} ${W - 11},${y2}`);
-    p.setAttribute('class', 'cmflow-line' + (from === rootId ? ' from-here' : ''));
+    const d = `M${W - 11},${y1} Q${W - 11 - bulge},${(y1 + y2) / 2} ${W - 11},${y2}`;
+    const sel = cmFlowSel && cmFlowSel.from === from && cmFlowSel.to === to;
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('class', 'cmflow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : ''));
     p.setAttribute('marker-end', 'url(#cmFlowHead)');
-    g.appendChild(p); drew++;
+    g.appendChild(p);
+    // 본 화면과 같은 방식 — 투명한 굵은 선이 클릭을 받아 선택, Delete 로 삭제
+    const hit = document.createElementNS(NS, 'path');
+    hit.setAttribute('d', d);
+    hit.setAttribute('class', 'cmflow-hit');
+    hit.onclick = ev => {
+      ev.stopPropagation();
+      cmFlowSel = sel ? null : { from, to, list };
+      if (cmFlowSel) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
+      cmFlowDraw(list, rootId);
+    };
+    g.appendChild(hit);
+    drew++;
   }
   svg.style.width = W + 'px';
   svg.style.height = box.scrollHeight + 'px';
