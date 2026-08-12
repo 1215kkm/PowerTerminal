@@ -68,6 +68,10 @@
     .pane:hover .ph-top .hv, .pane:focus-within .ph-top .hv { display: inline-block; }
     /* 입력영역(글칸+버튼) 위에 마우스가 있을 땐 — 헤더 버튼은 숨긴 채 유지 (포커스만으론 안 숨김) */
     .pane:has(.quick:hover) .ph-top .hv { display: none; }
+    /* ◎ 플로우만 예외 — 연결이 하나라도 걸린 창(.hasflow)에서는 계속 자리를 지킨다.
+       화살표가 이 버튼에서 출발하기 때문에, 숨어 있으면 시작점을 잴 수 없다(폭 0). 평소엔 흐리게. */
+    .pane.hasflow .ph-top .btnFlow { display: inline-block !important; opacity: .38; }
+    .pane.hasflow:hover .ph-top .btnFlow, .pane.hasflow:focus-within .ph-top .btnFlow { opacity: 1; }
   }
   /* 번호 밑 '완료' 초록 배지 */
   .numwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
@@ -150,8 +154,9 @@
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
   #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
   #flowLayer .flow-line.sel { stroke: #ef4444; stroke-width: 3.6; }          /* 선택됨 — Delete 로 삭제 */
-  #flowLayer .flow-line.dragging { stroke: #22d3ee; stroke-width: 3; stroke-dasharray: 7 5; }  /* ◎ 에서 뽑는 중 */
+  #flowLayer .flow-line.dragging { stroke: #22d3ee; stroke-width: 3; }        /* 끌고 있는 화살표 (실선) */
   .pane.flow-hover { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.35) inset; } /* 드롭 대상 */
+  .pane.flow-hover-del { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,.35) inset; } /* 여기 놓으면 삭제 */
   /* 연결 대상 고르는 중 — 다른 세션들 위에 덮이는 클릭판 */
   .flow-target { position: absolute; inset: 0; z-index: 46; cursor: pointer; display: flex;
                  align-items: center; justify-content: center; text-align: center; padding: 10px;
@@ -4439,7 +4444,7 @@ function buildPane(sess, idx) {
   flowBtn.addEventListener('mousedown', ev => {
     if (ev.button !== 0) return;
     ev.preventDefault(); ev.stopPropagation();
-    flowDragStart(sess.id, el, ev);
+    flowDragStart(sess.id, ev);
   });
   // 칸 폭에 따라 헤더 도구를 '띄움' 모드로 — 버튼 묶음이 한 줄에 안 들어가는 폭(≈440px 미만)이 기준
   try {
@@ -5258,6 +5263,7 @@ let flowShown = null;             // 지금 화살표를 보여주고 있는 기
 let flowHideT = null;
 let flowSel = null;               // 클릭으로 고른 화살표 {from, to} — Delete 로 지운다
 let flowDragFrom = null;          // ◎ 를 드래그해서 화살표를 뽑아내는 중인 출발 세션 id
+let flowDragEdge = null;          // 이미 있는 화살표를 잡아당기는 중이면 {from, to} — 그 선은 다시 안 그린다
 let flowClickSquelch = false;     // 드래그로 끝난 mouseup 뒤에 따라오는 click 무시용
 
 function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess.flowTo)) ? p.sess.flowTo : []; }
@@ -5282,19 +5288,20 @@ function flowLayer() {
   document.body.appendChild(svg);
   return svg;
 }
-// 사각형 중심에서 목표 쪽으로 나가다 테두리와 만나는 점 — 화살표가 창 위에 겹쳐 시작하지 않게
-function flowEdge(r, tx, ty) {
-  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  const dx = tx - cx, dy = ty - cy;
-  if (!dx && !dy) return { x: cx, y: cy };
-  const sx = dx ? (r.width / 2) / Math.abs(dx) : Infinity;
-  const sy = dy ? (r.height / 2) / Math.abs(dy) : Infinity;
-  const s = Math.min(sx, sy);
-  return { x: cx + dx * s, y: cy + dy * s };
+// 화살표가 걸린 창은 ◎ 버튼을 계속 띄워 둔다 — 시작점을 그 버튼에서 재기 때문에 숨으면 좌표를 못 구한다.
+function flowMarkAnchors() {
+  const live = new Set();
+  for (const [id] of panes) for (const to of flowOf(id)) { live.add(id); if (panes.has(to)) live.add(to); }
+  for (const [id, p] of panes) p.el.classList.toggle('hasflow', live.has(id));
 }
-function flowInset(r, p) {
-  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  return { x: cx + (p.x - cx) * 0.55, y: cy + (p.y - cy) * 0.55 };
+// 화살표의 양 끝 = 그 세션의 ◎ 버튼 자리
+function flowAnchor(id) {
+  const p = panes.get(id); if (!p) return null;
+  const b = p.el.querySelector('.btnFlow');
+  const r = b && b.getBoundingClientRect();
+  if (r && r.width) return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  const h = (p.el.querySelector('.ph-top') || p.el).getBoundingClientRect();   // 아직 안 그려진 순간의 대비책
+  return { x: h.right - 20, y: h.top + 12 };
 }
 function flowClearNow() {
   const svg = document.getElementById('flowLayer');
@@ -5307,40 +5314,53 @@ function flowClear(delay) {
   if (!delay) return flowClearNow();
   flowHideT = setTimeout(flowClearNow, delay);
 }
+// 두 점을 잇는 살짝 휜 곡선 — 마주 본 두 창 사이에서 선이 겹쳐 하나로 보이지 않게
+function flowCurve(p1, p2) {
+  const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+  const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
+  const cx = mx - dy * 0.09, cy = my + dx * 0.09;
+  return `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`;
+}
 function flowDraw(rootId) {
   clearTimeout(flowHideT);
+  flowMarkAnchors();
   if (!panes.has(rootId)) return;
   const ids = flowComponent(rootId);
   const edges = [];
-  for (const from of ids) for (const to of flowOf(from)) if (panes.has(to)) edges.push([from, to]);
-  if (!edges.length) { if (!flowPick) flowClearNow(); return; }
+  for (const from of ids) for (const to of flowOf(from)) {
+    if (!panes.has(to)) continue;
+    if (flowDragEdge && flowDragEdge.from === from && flowDragEdge.to === to) continue;   // 지금 끌고 있는 화살표는 임시선이 대신 그린다
+    edges.push([from, to]);
+  }
   const svg = flowLayer(), g = svg.querySelector('g');
   g.innerHTML = '';
+  if (!edges.length && !flowDragFrom) { if (!flowPick) flowClearNow(); return; }
   svg.classList.add('on');
   const NS = 'http://www.w3.org/2000/svg';
   for (const [from, to] of edges) {
-    const a = panes.get(from).el.getBoundingClientRect();
-    const b = panes.get(to).el.getBoundingClientRect();
-    // 테두리에 딱 붙이면 나란히 붙은 두 창 사이에선 선이 10px 짜리가 돼 화살표가 안 보인다.
-    // 중심과 테두리 사이(55%) 지점을 쓰면 창 안쪽까지 들어와 길이가 나온다 — 층은 클릭을 막지 않으므로 겹쳐도 무해.
-    const p1 = flowInset(a, flowEdge(a, b.left + b.width / 2, b.top + b.height / 2));
-    const p2 = flowInset(b, flowEdge(b, a.left + a.width / 2, a.top + a.height / 2));
-    // 살짝 휘게 — 두 창이 서로 마주 보고 있을 때 선이 겹쳐 하나로 보이지 않게
-    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-    const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
-    const cx = mx - dy / len * len * 0.09, cy = my + dx / len * len * 0.09;
-    const d = `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`;
+    const p1 = flowAnchor(from), p2 = flowAnchor(to);
+    if (!p1 || !p2) continue;
+    const d = flowCurve(p1, p2);
     const sel = flowSel && flowSel.from === from && flowSel.to === to;
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', d);
     path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : ''));
     path.setAttribute('marker-end', sel ? 'url(#flowHeadSel)' : 'url(#flowHead)');
     g.appendChild(path);
-    // 2.5px 짜리 선은 마우스로 못 집는다 — 같은 경로에 투명한 16px '집기용' 선을 겹쳐 클릭을 받는다
+    // 2.5px 짜리 선은 마우스로 못 집는다 — 같은 경로에 투명한 16px '집기용' 선을 겹쳐 클릭·드래그를 받는다
     const hit = document.createElementNS(NS, 'path');
     hit.setAttribute('d', d);
     hit.setAttribute('class', 'flow-hit');
-    hit.onclick = ev => { ev.stopPropagation(); flowSelect(from, to); };
+    hit.onclick = ev => {
+      ev.stopPropagation();
+      if (flowClickSquelch) { flowClickSquelch = false; return; }   // 방금 끌어서 옮긴 거면 선택하지 않음
+      flowSelect(from, to);
+    };
+    hit.addEventListener('mousedown', ev => {   // 이미 있는 화살표를 잡아당겨 다른 세션으로 옮기기
+      if (ev.button !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      flowDragStart(from, ev, to);
+    });
     hit.onmouseenter = () => clearTimeout(flowHideT);        // 화살표 위에 있는 동안엔 안 사라지게
     hit.onmouseleave = () => flowClear(260);
     g.appendChild(hit);
@@ -5380,49 +5400,80 @@ document.addEventListener('click', ev => {
   if (flowSel && !(ev.target.closest && ev.target.closest('#flowLayer'))) { flowSel = null; flowDraw(flowShown); flowClear(600); }
 });
 
-// --- ◎ 드래그로 화살표 뽑아 연결하기 ---
-function flowDragStart(fromId, paneEl, ev) {
+/* --- 화살표 끌기 ---
+   existingTo 가 없으면: ◎ 에서 새 화살표를 뽑아 다른 세션에 놓아 연결.
+   existingTo 가 있으면: 이미 있는 화살표의 끝을 잡아당겨 다른 세션으로 옮긴다.
+     · 다른 세션에 놓기 = 대상 변경   · 출발한 자기 세션에 놓기 = 그 연결 삭제   · 빈 곳 = 그대로 둠 */
+function flowDragStart(fromId, ev, existingTo) {
+  const paneEl = panes.get(fromId) && panes.get(fromId).el;
+  if (!paneEl) return;
   const head = paneEl.querySelector('.pane-head');
   const wasDraggable = head ? head.draggable : false;
   if (head) head.draggable = false;                 // 창 이동 드래그와 충돌 방지
   flowDragFrom = fromId;
-  flowDraw(fromId);                                  // 기존 연결도 같이 보여주며 시작
+  flowDragEdge = existingTo ? { from: fromId, to: existingTo } : null;
+  flowSel = null;
+  flowDraw(fromId);                                  // 나머지 연결은 그대로 보여주며 시작
   const svg = flowLayer(), g = svg.querySelector('g');
   svg.classList.add('on');
   const temp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   temp.setAttribute('class', 'flow-line dragging');
   temp.setAttribute('marker-end', 'url(#flowHeadDrag)');
   g.appendChild(temp);
-  const r0 = paneEl.getBoundingClientRect();
-  let target = null, moved = false;
-  const setHover = tid => {
-    if (target && target !== tid) { const tp = panes.get(target); if (tp) tp.el.classList.remove('flow-hover'); }
-    target = tid;
-    if (target) panes.get(target).el.classList.add('flow-hover');
+  let target = null, delMode = false, moved = false;
+  const setHover = (tid, isDel) => {
+    if (target && target !== tid) { const tp = panes.get(target); if (tp) tp.el.classList.remove('flow-hover', 'flow-hover-del'); }
+    target = tid; delMode = !!isDel;
+    if (target) {
+      const cl = panes.get(target).el.classList;
+      cl.toggle('flow-hover', !isDel);
+      cl.toggle('flow-hover-del', !!isDel);
+    }
   };
   const move = e => {
     moved = true;
-    const p1 = flowInset(r0, flowEdge(r0, e.clientX, e.clientY));
-    temp.setAttribute('d', `M${p1.x},${p1.y} L${e.clientX},${e.clientY}`);
+    const p1 = flowAnchor(fromId);
+    temp.setAttribute('d', flowCurve(p1, { x: e.clientX, y: e.clientY }));
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const pane = under && under.closest ? under.closest('.pane') : null;
-    const tid = pane ? pane.dataset.id : null;
-    setHover((tid && tid !== fromId && panes.has(tid)) ? tid : null);
+    const tid = pane && panes.has(pane.dataset.id) ? pane.dataset.id : null;
+    if (!tid) setHover(null);
+    else if (tid === fromId) setHover(existingTo ? tid : null, true);   // 자기 세션 = (기존 화살표일 때만) 삭제 자리
+    else setHover(tid, false);
   };
   const up = async () => {
     document.removeEventListener('mousemove', move, true);
     document.removeEventListener('mouseup', up, true);
     if (head) head.draggable = wasDraggable;
     temp.remove();
-    const dropped = target;
+    const dropped = target, wasDel = delMode;
     setHover(null);
-    flowDragFrom = null;
-    if (moved) flowClickSquelch = true;               // 이 뒤에 오는 click 이 고르기 모드를 열지 않게
-    if (dropped && !flowOf(fromId).includes(dropped)) await flowToggle(fromId, dropped);
+    flowDragFrom = null; flowDragEdge = null;
+    if (moved) flowClickSquelch = true;               // 이 뒤에 따라오는 click 이 선택·고르기 모드를 열지 않게
+    if (existingTo) {
+      if (wasDel && dropped === fromId) await flowRetarget(fromId, existingTo, null);        // 삭제
+      else if (dropped && dropped !== fromId && dropped !== existingTo) await flowRetarget(fromId, existingTo, dropped);
+    } else if (dropped && dropped !== fromId && !flowOf(fromId).includes(dropped)) {
+      await flowToggle(fromId, dropped);
+    }
     flowDraw(fromId); flowClear(1800);
   };
   document.addEventListener('mousemove', move, true);
   document.addEventListener('mouseup', up, true);
+}
+// 화살표의 대상 바꾸기 (newTo 가 null 이면 삭제). 순서를 지켜 원래 자리에 그대로 넣는다.
+async function flowRetarget(fromId, oldTo, newTo) {
+  const p = panes.get(fromId); if (!p) return;
+  let list = flowOf(fromId).slice();
+  const i = list.indexOf(oldTo);
+  if (i < 0) return;
+  if (!newTo) list.splice(i, 1);
+  else if (list.includes(newTo)) list.splice(i, 1);   // 이미 그 세션과 이어져 있으면 중복 대신 옛 선만 없앤다
+  else list[i] = newTo;
+  p.sess.flowTo = list;
+  flowDraw(fromId);
+  if (typeof cmRenderSessions === 'function' && codeModal.classList.contains('on')) cmRenderSessions();
+  await api('PATCH', '/api/sessions/' + fromId, { flowTo: list });
 }
 // 창 크기·스크롤이 바뀌면 좌표가 어긋나므로 보이는 동안에는 다시 그린다
 window.addEventListener('resize', () => { if (flowShown) flowDraw(flowShown); });
@@ -5693,6 +5744,7 @@ function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
   setTimeout(markTight, 60);
+  setTimeout(() => { if (typeof flowMarkAnchors === 'function') flowMarkAnchors(); }, 80);   // 연결 걸린 창의 ◎ 유지
   if (typeof scheduleRefit === 'function') scheduleRefit();   // 배치 바뀌면 곧 모든 터미널 재fit
   // 확대 대상이 이미 닫혔으면 초기화
   if (maxedId && !els.some(el => el.dataset.id === maxedId)) maxedId = null;
