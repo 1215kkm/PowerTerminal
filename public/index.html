@@ -1616,6 +1616,13 @@
       <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
     </div>
   </div>
+  <!-- 🔤 터미널 글꼴 — ①②③ 같은 기호가 글꼴에 따라 아주 작게 그려져 안 보이는 걸 바꿀 수 있게 -->
+  <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">🔤 <span id="tfTitle"></span></div>
+    <div id="tfSub" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
+    <select id="termFont" style="background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:7px 10px;font-family:inherit"></select>
+    <div id="tfPreview" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#000;color:#e5e7eb;font-size:14px"></div>
+  </div>
   <!-- 💬 자주 쓰는 요청 단어 — 각 세션 요청칸 바로 위에 버튼으로 나온다 -->
   <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
     <div style="font-size:14px;font-weight:700;margin-bottom:4px">💬 <span id="phTitle"></span></div>
@@ -2022,6 +2029,9 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    tfTitle: "Terminal font",
+    tfSub: "Consolas squeezes circled numbers like ①②③ into one cell and draws them tiny — at 13px the ring is 7px and the digit inside is about 4px. D2Coding and Cascadia draw them roughly twice that size without making the rest of the text bigger. Their circled glyphs are two cells wide, so they may overlap the next character slightly. Applies to every open session at once.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "Note, no reply needed: the work you just finished has been handed to the “{t}” session for {s}. Do not redo it or check it yourself, and leave those files alone until the result comes back. Just wait.",
     memberT: "Who handles this session — a subagent defined in this repo (.claude/agents). Handovers into this session are addressed to them.",
     memberNone: "👤 nobody",
@@ -2071,6 +2081,9 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    tfTitle: "터미널 글꼴",
+    tfSub: "Consolas 는 ①②③ 같은 원문자를 한 칸에 우겨넣느라 아주 작게 그립니다 — 13px 기준 동그라미가 7px, 그 안의 숫자는 4px 남짓이라 사실상 안 보여요. D2Coding·Cascadia 는 같은 글자 크기에서 두 배 가까이 크게 그립니다. 대신 이 글꼴들의 원문자는 두 칸 폭이라 옆 글자와 살짝 겹칠 수 있어요. 고르면 열려 있는 모든 세션에 바로 적용됩니다.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "알림이야, 답 안 해도 돼: 방금 끝낸 작업을 “{t}” 세션에 {s}(으)로 넘겼어. 같은 걸 또 하거나 직접 확인하지 말고, 결과가 돌아올 때까지 그 파일들은 건드리지 마. 그냥 대기해.",
     memberT: "이 세션의 담당 — 이 레포에 정의된 서브에이전트(.claude/agents)예요. 이 세션으로 넘어오는 인계가 그 담당에게 전달됩니다.",
     memberNone: "👤 담당 없음",
@@ -2120,6 +2133,9 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    tfTitle: "ターミナルの書体",
+    tfSub: "Consolas は①②③のような丸数字を1マスに詰めるため非常に小さく描きます（13px で丸が7px、中の数字は4px ほどでほぼ見えません）。D2Coding・Cascadia は同じ文字サイズで倍近く大きく描きます。ただしこれらの丸数字は2マス幅なので隣の文字と少し重なることがあります。選ぶと開いているすべてのセッションにすぐ反映されます。",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "お知らせです、返事は不要: いま終わった作業を「{t}」セッションに{s}として渡しました。同じことをやり直したり自分で確認したりせず、結果が戻るまでそのファイルには触れないでください。待機のままで大丈夫です。",
     memberT: "このセッションの担当 — このリポジトリで定義されたサブエージェント(.claude/agents)です。このセッションへの引き継ぎがその担当に渡されます。",
     memberNone: "👤 担当なし",
@@ -2351,6 +2367,9 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    tfTitle: "终端字体",
+    tfSub: "Consolas 把①②③这类带圈数字挤进一个字符格，画得非常小（13px 时圆圈只有 7px，里面的数字约 4px，基本看不清）。D2Coding 和 Cascadia 在同样字号下画得几乎大一倍。不过这些字体的带圈数字宽两格，可能会和后面的字略微重叠。选择后立刻应用到所有打开的会话。",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "通知，不用回复：你刚完成的工作已经交给「{t}」会话做{s}了。不要重做，也不要自己再检查一遍，在结果回来之前别动那些文件。等着就行。",
     memberT: "这个会话的负责人 —— 本仓库中定义的子代理(.claude/agents)。交接到这个会话的工作会转给它。",
     memberNone: "👤 无负责人",
@@ -2582,6 +2601,9 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    tfTitle: "Fuente del terminal",
+    tfSub: "Consolas mete los números en círculo como ①②③ en una sola celda y los dibuja diminutos: a 13px el círculo mide 7px y la cifra de dentro unos 4px. D2Coding y Cascadia los dibujan casi el doble de grandes sin agrandar el resto del texto. En esas fuentes ocupan dos celdas, así que pueden solaparse un poco con el carácter siguiente. Se aplica a todas las sesiones abiertas a la vez.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "Aviso, no hace falta responder: el trabajo que acabas de terminar ha pasado a la sesión “{t}” para {s}. No lo rehagas ni lo compruebes tú, y no toques esos archivos hasta que vuelva el resultado. Solo espera.",
     memberT: "Quién lleva esta sesión — un subagente definido en este repo (.claude/agents). Lo que se entregue a esta sesión va dirigido a él.",
     memberNone: "👤 nadie",
@@ -2820,6 +2842,9 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    tfTitle: "Terminal-Schrift",
+    tfSub: "Consolas quetscht Kreiszahlen wie ①②③ in eine Zelle und zeichnet sie winzig — bei 13px ist der Ring 7px und die Ziffer darin etwa 4px. D2Coding und Cascadia zeichnen sie fast doppelt so groß, ohne den übrigen Text zu vergrößern. Dort sind sie zwei Zellen breit und können das nächste Zeichen leicht überlappen. Gilt sofort für alle offenen Sitzungen.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "Nur zur Info, keine Antwort nötig: Die Arbeit, die du gerade fertig hast, ist an die Sitzung „{t}“ zum {s} gegangen. Mach sie nicht noch einmal, prüf sie nicht selbst und lass die Dateien in Ruhe, bis das Ergebnis zurückkommt. Einfach warten.",
     memberT: "Wer diese Sitzung übernimmt — ein in diesem Repo definierter Subagent (.claude/agents). Übergaben an diese Sitzung gehen an ihn.",
     memberNone: "👤 niemand",
@@ -3054,6 +3079,9 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    tfTitle: "Police du terminal",
+    tfSub: "Consolas tasse les chiffres cerclés comme ①②③ dans une seule cellule et les dessine minuscules : à 13px le cercle fait 7px et le chiffre dedans environ 4px. D2Coding et Cascadia les dessinent presque deux fois plus grands sans agrandir le reste. Chez elles ils font deux cellules de large et peuvent légèrement chevaucher le caractère suivant. S’applique d’un coup à toutes les sessions ouvertes.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "Pour info, pas besoin de répondre : le travail que tu viens de finir est passé à la session « {t} » pour {s}. Ne le refais pas, ne le vérifie pas toi-même, et ne touche pas à ces fichiers jusqu’au retour du résultat. Attends, c’est tout.",
     memberT: "Qui s’occupe de cette session — un sous-agent défini dans ce dépôt (.claude/agents). Ce qui est transmis à cette session lui est adressé.",
     memberNone: "👤 personne",
@@ -3291,6 +3319,9 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    tfTitle: "Fonte do terminal",
+    tfSub: "O Consolas espreme números em círculo como ①②③ numa célula só e os desenha minúsculos — a 13px o círculo tem 7px e o dígito dentro uns 4px. D2Coding e Cascadia desenham quase o dobro do tamanho sem aumentar o resto do texto. Nelas ocupam duas células, então podem sobrepor um pouco o caractere seguinte. Vale para todas as sessões abertas de uma vez.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "Aviso, não precisa responder: o trabalho que você acabou de terminar foi para a sessão “{t}” para {s}. Não refaça nem confira você mesmo, e não mexa nesses arquivos até o resultado voltar. É só esperar.",
     memberT: "Quem cuida desta sessão — um subagente definido neste repo (.claude/agents). O que for entregue a esta sessão vai para ele.",
     memberNone: "👤 ninguém",
@@ -3528,6 +3559,9 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    tfTitle: "Шрифт терминала",
+    tfSub: "Consolas втискивает кружочные цифры вроде ①②③ в одну ячейку и рисует их крошечными — при 13px кружок 7px, а цифра внутри около 4px. D2Coding и Cascadia рисуют их почти вдвое крупнее, не увеличивая остальной текст. У них такие знаки шириной в две ячейки, поэтому могут слегка перекрывать следующий символ. Применяется сразу ко всем открытым сессиям.",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "Просто уведомление, отвечать не нужно: работа, которую вы только что закончили, ушла в сессию «{t}» на {s}. Не переделывайте и не проверяйте её сами, и не трогайте эти файлы, пока не вернётся результат. Просто ждите.",
     memberT: "Кто ведёт эту сессию — субагент, описанный в этом репозитории (.claude/agents). Передачи в эту сессию адресуются ему.",
     memberNone: "👤 никто",
@@ -3764,6 +3798,9 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    tfTitle: "टर्मिनल का फ़ॉन्ट",
+    tfSub: "Consolas ①②③ जैसे गोले वाले अंकों को एक ही ख़ाने में ठूँसकर बहुत छोटा बनाता है — 13px पर गोला 7px का और उसके अंदर का अंक लगभग 4px, यानी दिखता ही नहीं। D2Coding और Cascadia उसी आकार में इन्हें क़रीब दोगुना बड़ा बनाते हैं। इन फ़ॉन्ट में ये दो ख़ाने चौड़े होते हैं, इसलिए अगले अक्षर से थोड़ा ओवरलैप हो सकता है। चुनते ही सभी खुले सेशन पर लागू।",
+    tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
     flowSentNote: "सिर्फ़ सूचना है, जवाब देने की ज़रूरत नहीं: आपने अभी जो काम पूरा किया, वह “{t}” सेशन को {s} के लिए दे दिया गया है। उसे दोबारा मत कीजिए, ख़ुद जाँचिए भी मत, और नतीजा वापस आने तक उन फ़ाइलों को मत छेड़िए। बस इंतज़ार कीजिए।",
     memberT: "इस सेशन का ज़िम्मेदार — इस रिपॉज़िटरी में तय किया गया सबएजेंट (.claude/agents)। इस सेशन को मिलने वाला काम उसी को जाता है।",
     memberNone: "👤 कोई नहीं",
@@ -4074,6 +4111,24 @@ let _zoomSlot = null;      // 원래 자리로 되돌릴 위치 표시자
 // 터미널 글자 크기 — 고른 값을 이 브라우저에 저장한다. 예전엔 저장을 안 해서 새로고침·업데이트마다
 // 매번 기본값으로 돌아갔다("업데이트하면 항상 15로 바뀜"). 기본은 13.
 const FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22];
+/* 터미널 글꼴 — Consolas 는 ①②③ 같은 원문자를 한 칸에 우겨넣느라 아주 작게 그린다
+   (13px 기준: 보통 숫자 8px 인데 ③ 은 7px, 그 안의 숫자는 4px 남짓이라 사실상 안 보인다).
+   D2Coding·Cascadia 는 같은 크기에서 ③ 을 12~13px 로 그려서 글자 크기를 키우지 않고도 읽힌다.
+   대신 이 글꼴들의 원문자는 두 칸 폭이라 옆 글자와 살짝 겹칠 수 있다 — 그래서 기본은 그대로 두고 고르게 한다. */
+const TERM_FONTS = [
+  ['Consolas, D2Coding, monospace', 'Consolas'],
+  ['D2Coding, Consolas, monospace', 'D2Coding'],
+  ['"Cascadia Mono", Consolas, monospace', 'Cascadia Mono'],
+  ['"Nanum Gothic Coding", Consolas, monospace', 'Nanum Gothic Coding']
+];
+function savedTermFont() {
+  const v = localStorage.getItem('pt_termfont') || '';
+  return TERM_FONTS.some(f => f[0] === v) ? v : TERM_FONTS[0][0];
+}
+function applyTermFont(v) {
+  try { localStorage.setItem('pt_termfont', v); } catch (e) {}
+  panes.forEach(p => { try { p.term.options.fontFamily = v; fitPane(p); } catch (e) {} });
+}
 const DEFAULT_FONT = 13;
 function savedFont() {
   const v = Math.floor(Number(localStorage.getItem('pt_fontsize')));
@@ -4289,7 +4344,7 @@ function buildPane(sess, idx) {
 
   // 터미널 — 색은 현재 테마(라이트/다크)에 맞춰 시작, 토글 시 applyTheme()가 실시간 교체
   const term = new Terminal({
-    fontSize: savedFont(), fontFamily: 'Consolas, D2Coding, monospace',
+    fontSize: savedFont(), fontFamily: savedTermFont(),
     theme: themeLight ? TERM_THEME_LIGHT : TERM_THEME_DARK, convertEol: false, scrollback: 5000
   });
   const fit = new FitAddon.FitAddon();
@@ -7526,6 +7581,16 @@ async function openSettings() {
   tag('setStepsL', T.setStepsL, 'haiku');
   document.getElementById('setStepsHint').textContent = T.setStepsHint || '';
   cp.onchange = () => api('POST', '/api/settings', { nextSteps: cp.checked });
+  // 🔤 터미널 글꼴 — 고르면 열려 있는 모든 세션에 바로 반영되고, 아래 미리보기로 원문자 크기를 비교할 수 있다
+  {
+    const tf = document.getElementById('termFont'), pv = document.getElementById('tfPreview');
+    document.getElementById('tfTitle').textContent = T.tfTitle || '';
+    document.getElementById('tfSub').textContent = T.tfSub || '';
+    tf.innerHTML = TERM_FONTS.map(f => `<option value="${escA(f[0])}"${savedTermFont() === f[0] ? ' selected' : ''}>${esc(f[1])}</option>`).join('');
+    const paintPv = () => { pv.style.fontFamily = tf.value; pv.textContent = (T.tfSample || ''); };
+    paintPv();
+    tf.onchange = () => { applyTermFont(tf.value); paintPv(); };
+  }
   phraseRefreshUI();   // 💬 자주 쓰는 요청 단어 관리
   wtRefresh();     // 🌿 worktree 목록
   // 🔔 완료 소리 점검 — 실제 완료음과 똑같은 경로(speakNum)를 태워보고 상태를 그대로 보여준다
