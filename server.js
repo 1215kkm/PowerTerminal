@@ -228,7 +228,7 @@ function stampReqs(dir, st) {
   if (st === 'done') stamped.forEach(r => {
     const wantA = r.q && !r.answer;
     const wantS = config.nextSteps !== false && !r.steps;
-    if (wantA || wantS) genReqNotes(dir, r.id, r.text, wantA, wantS);
+    if (wantA || wantS) genReqOutcome(dir, r.id, r.text, wantA, wantS);
   });
 }
 // 지난 실행에서 '진행중'으로 남은 요청 = 서버가 그대로 꺼졌던 것 → 종료로 중단 표시
@@ -1957,7 +1957,8 @@ function writeQaDoc(dir) {
   if (config.qaDoc === false) return;              // 설정에서 끈 사람만 제외 (기본은 켜짐)
   try {
     const m = memos[memoKey(dir)];
-    const list = ((m && m.reqs) || []).filter(r => r.q && r.answer);
+    // 답을 못 뽑은 질문도 남긴다 — 예전엔 답이 있는 것만 실어서, 추출이 실패하면 물어본 사실 자체가 사라졌다.
+    const list = ((m && m.reqs) || []).filter(r => r.q);
     const todo = ((m && m.reqs) || []).filter(r => Array.isArray(r.steps) && r.steps.length);
     if (!list.length && !todo.length) return;
     // 최신이 위로. 날짜별로 묶고 각 줄은 시각·질문·답.
@@ -1987,7 +1988,8 @@ function writeQaDoc(dir) {
     for (const [day, rows] of byDay) {
       body += '<h2>' + qaEsc(day) + '</h2>\n<table>\n<thead><tr><th class="t">시각</th><th class="q">질문</th><th>답</th></tr></thead>\n<tbody>\n';
       for (const r of rows) {
-        body += '<tr><td class="t">' + qaEsc(r.time) + '</td><td class="q">' + qaEsc(r.q) + '</td><td>' + qaEsc(r.a) + '</td></tr>\n';
+        const a = r.a ? qaEsc(r.a) : '<span class="noans">답을 못 뽑았습니다 (세션이 닫혀 있었거나 추출 실패)</span>';
+        body += '<tr><td class="t">' + qaEsc(r.time) + '</td><td class="q">' + qaEsc(r.q) + '</td><td>' + a + '</td></tr>\n';
       }
       body += '</tbody>\n</table>\n';
     }
@@ -2002,6 +2004,7 @@ function writeQaDoc(dir) {
       + 'td.t,th.t{width:64px;color:#6b7280;white-space:nowrap} td.q,th.q{width:34%;font-weight:600}\n'
       + 'h2.todo{color:#b45309;border-bottom-color:#fcd34d}\n'
       + 'ol.steps{margin:0;padding-left:20px} ol.steps li{margin:2px 0}\n'
+      + '.noans{color:#9ca3af;font-style:italic}\n'
       + '@media(max-width:640px){td.q,th.q{width:auto} table,thead,tbody,tr,td,th{display:block} thead{display:none}\n'
       + ' tr{border-bottom:1px solid #e5e7eb;padding:8px 0} td{border:0;padding:3px 0}}\n'
       + '</style></head><body>\n'
@@ -2015,7 +2018,8 @@ function writeQaDoc(dir) {
     fs.writeFileSync(out, html);
   } catch (e) {}
 }
-function genReqNotes(dir, reqId, question, wantAnswer, wantSteps) {
+// ⚠ 위쪽의 genReqNotes(요청 이유·요약 뽑기)와 이름이 겹치면 나중 선언이 이겨 그 기능이 통째로 죽는다 — 이름을 따로 둔다.
+function genReqOutcome(dir, reqId, question, wantAnswer, wantSteps) {
   try {
     const cands = sessions.filter(s => memoKey(s.path) === memoKey(dir)).map(s => ptys.get(s.id)).filter(p => p && !p.dead);
     if (!cands.length) return;

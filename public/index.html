@@ -896,6 +896,13 @@
   /* ❓ 질문 답변 — "질문~"으로 시작한 요청이 끝나면 답변이 질문 밑에 항상 표시 */
   .memo-row .mans { display: block; margin-top: 5px; font-size: 12px; line-height: 1.55; color: #065f46;
                     background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 7px; padding: 5px 8px; white-space: pre-wrap; }
+  /* ⚙ 설정 항목 옆 비용 배지 — 켜기 전에 토큰이 드는 기능인지 알 수 있게 */
+  .settag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; vertical-align: 1px;
+            font-size: 10.5px; font-weight: 700; letter-spacing: .2px;
+            background: #422006; color: #fbbf24; border: 1px solid #78350f; }
+  .settag.free { background: #052e16; color: #4ade80; border-color: #166534; }
+  html.light .settag { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+  html.light .settag.free { background: #dcfce7; color: #166534; border-color: #86efac; }
   /* 🙋 내가 직접 할 일 — 요청글 밑에 항상 표시 (AI 가 끝낸 뒤 사람이 손으로 해야 하는 순서) */
   .memo-row .msteps { display: block; margin-top: 5px; font-size: 12px; line-height: 1.55; color: #7c2d12;
                       background: #fff7ed; border: 1px solid #fed7aa; border-radius: 7px; padding: 5px 8px; }
@@ -1950,6 +1957,7 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    tagHaiku: "🪶 uses a little Haiku", tagNoCost: "🪶 no extra tokens",
     stepsHead: "Do this yourself",
     setStepsL: "Collect what I have to do myself",
     setStepsHint: "When a request finishes, the things the AI left for you to do by hand — run this, open that page and check it, restart something — are pulled out of the terminal and listed in order, in the memo pad and at the top of docs/질문-답변-기록.html. Uses one short Haiku call per finished request.",
@@ -1984,6 +1992,7 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    tagHaiku: "🪶 Haiku 소량 사용", tagNoCost: "🪶 추가 토큰 없음",
     stepsHead: "내가 직접 할 일",
     setStepsL: "내가 직접 할 일 모으기",
     setStepsHint: "요청이 끝나면 AI 가 사람 몫으로 남긴 것들 — 이거 실행해라, 저 페이지 열어서 확인해라, 뭘 재시작해라 — 을 터미널에서 뽑아 순서대로 정리합니다. 메모장과 docs/질문-답변-기록.html 맨 위에 나옵니다. 끝난 요청 하나마다 짧은 Haiku 호출이 한 번 들어갑니다.",
@@ -2018,6 +2027,7 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    tagHaiku: "🪶 Haiku を少量使用", tagNoCost: "🪶 追加トークンなし",
     stepsHead: "自分でやること",
     setStepsL: "自分でやることを集める",
     setStepsHint: "リクエストが終わると、AI が人の手に残したこと — これを実行、あのページを開いて確認、何かを再起動 — をターミナルから取り出して順番に並べます。メモ帳と docs/질문-답변-기록.html の一番上に出ます。終わったリクエスト1件につき短い Haiku 呼び出しが1回入ります。",
@@ -2234,6 +2244,7 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    tagHaiku: "🪶 少量使用 Haiku", tagNoCost: "🪶 不额外花 token",
     stepsHead: "我要自己做的事",
     setStepsL: "收集我要自己做的事",
     setStepsHint: "请求结束后，把 AI 留给人做的事 —— 运行这个、打开那个页面确认、重启什么 —— 从终端里提取出来按顺序列好。会出现在记事本和 docs/질문-답변-기록.html 的最上面。每个完成的请求会用一次简短的 Haiku 调用。",
@@ -2450,6 +2461,7 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    tagHaiku: "🪶 usa un poco de Haiku", tagNoCost: "🪶 sin tokens extra",
     stepsHead: "Lo que tengo que hacer yo",
     setStepsL: "Recoger lo que tengo que hacer yo",
     setStepsHint: "Cuando una petición termina, lo que la IA te dejó para hacer a mano — ejecuta esto, abre esa página y compruébala, reinicia algo — se saca de la terminal y se lista en orden, en el bloc de notas y arriba del todo en docs/질문-답변-기록.html. Usa una llamada corta a Haiku por petición terminada.",
@@ -2673,6 +2685,7 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    tagHaiku: "🪶 nutzt etwas Haiku", tagNoCost: "🪶 keine extra Tokens",
     stepsHead: "Was ich selbst tun muss",
     setStepsL: "Sammeln, was ich selbst tun muss",
     setStepsHint: "Wenn eine Anfrage fertig ist, wird das, was die KI dir von Hand überlässt — das ausführen, jene Seite öffnen und prüfen, etwas neu starten — aus dem Terminal gezogen und der Reihe nach aufgelistet: im Notizblock und ganz oben in docs/질문-답변-기록.html. Kostet einen kurzen Haiku-Aufruf je fertiger Anfrage.",
@@ -2892,6 +2905,7 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    tagHaiku: "🪶 utilise un peu de Haiku", tagNoCost: "🪶 pas de tokens en plus",
     stepsHead: "À faire moi-même",
     setStepsL: "Rassembler ce que je dois faire moi-même",
     setStepsHint: "Quand une demande se termine, ce que l’IA te laisse à faire à la main — lance ceci, ouvre cette page et vérifie, redémarre quelque chose — est extrait du terminal et listé dans l’ordre, dans le bloc-notes et tout en haut de docs/질문-답변-기록.html. Coûte un court appel Haiku par demande terminée.",
@@ -3114,6 +3128,7 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    tagHaiku: "🪶 usa um pouco de Haiku", tagNoCost: "🪶 sem tokens extra",
     stepsHead: "O que eu tenho que fazer",
     setStepsL: "Juntar o que eu tenho que fazer",
     setStepsHint: "Quando um pedido termina, o que a IA deixou para você fazer na mão — rode isto, abra aquela página e confira, reinicie alguma coisa — é tirado do terminal e listado em ordem, no bloco de notas e no topo de docs/질문-답변-기록.html. Usa uma chamada curta ao Haiku por pedido concluído.",
@@ -3336,6 +3351,7 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    tagHaiku: "🪶 немного Haiku", tagNoCost: "🪶 без лишних токенов",
     stepsHead: "Что мне сделать самому",
     setStepsL: "Собирать то, что мне делать самому",
     setStepsHint: "Когда запрос завершён, то, что ИИ оставил вам сделать руками — запустить это, открыть ту страницу и проверить, что-то перезапустить — вытаскивается из терминала и выкладывается по порядку: в блокноте и в самом верху docs/질문-답변-기록.html. Стоит один короткий вызов Haiku на завершённый запрос.",
@@ -3557,6 +3573,7 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    tagHaiku: "🪶 थोड़ा Haiku लगता है", tagNoCost: "🪶 अतिरिक्त टोकन नहीं",
     stepsHead: "जो मुझे ख़ुद करना है",
     setStepsL: "जो मुझे ख़ुद करना है, वह इकट्ठा करें",
     setStepsHint: "अनुरोध पूरा होने पर, AI ने जो आपके हाथ के लिए छोड़ा है — यह चलाओ, वह पेज खोलकर देखो, कुछ दोबारा चालू करो — उसे टर्मिनल से निकालकर क्रम से लिख दिया जाता है। नोटबुक में और docs/질문-답변-기록.html के सबसे ऊपर दिखता है। हर पूरे हुए अनुरोध पर एक छोटा Haiku कॉल लगता है।",
@@ -7087,10 +7104,16 @@ function codeTargetSess() {
 async function openSettings() {
   document.getElementById('setTitle').textContent = T.setTitle || '⚙ Settings';
   document.getElementById('setSub').textContent = T.setSub || '';
-  document.getElementById('setIntentL').textContent = T.setIntentL || '';
   document.getElementById('setIntentHint').textContent = T.setIntentHint || '';
-  document.getElementById('setSummaryL').textContent = T.setSummaryL || '';
   document.getElementById('setSummaryHint').textContent = T.setSummaryHint || '';
+  // 토큰이 드는 항목인지 라벨 옆에 배지로 — 체크 전에 비용을 알 수 있게
+  const tag = (id, label, kind) => {
+    const el = document.getElementById(id); if (!el) return;
+    const t = kind === 'free' ? (T.tagNoCost || '') : (T.tagHaiku || '');
+    el.innerHTML = esc(label || '') + (t ? ` <span class="settag ${kind === 'free' ? 'free' : ''}">${esc(t)}</span>` : '');
+  };
+  tag('setIntentL', T.setIntentL, 'haiku');
+  tag('setSummaryL', T.setSummaryL, 'haiku');
   document.getElementById('setClose').textContent = T.close || 'Close';
   const ci = document.getElementById('setIntent'), cs = document.getElementById('setSummary');
   const bc = document.getElementById('billClaude'), bg = document.getElementById('billGpt');
@@ -7106,12 +7129,12 @@ async function openSettings() {
   cs.onchange = () => api('POST', '/api/settings', { summaryNotes: cs.checked });
   // ❓ 질문 답변 기록 HTML
   const cq = document.getElementById('setQaDoc');
-  document.getElementById('setQaDocL').textContent = T.setQaDocL || '질문 답변 기록 만들기 (docs/질문-답변-기록.html)';
+  tag('setQaDocL', T.setQaDocL || '질문 답변 기록 만들기', 'free');   // 페이지 자체엔 추가 비용이 없다
   document.getElementById('setQaDocHint').textContent = T.setQaDocHint || '';
   cq.onchange = () => api('POST', '/api/settings', { qaDoc: cq.checked });
   // 🙋 내가 직접 할 일
   const cp = document.getElementById('setSteps');
-  document.getElementById('setStepsL').textContent = T.setStepsL || '';
+  tag('setStepsL', T.setStepsL, 'haiku');
   document.getElementById('setStepsHint').textContent = T.setStepsHint || '';
   cp.onchange = () => api('POST', '/api/settings', { nextSteps: cp.checked });
   phraseRefreshUI();   // 💬 자주 쓰는 요청 단어 관리
