@@ -117,6 +117,12 @@
   .pane:hover .pane-head .num:hover { filter: brightness(1.2); }
   @media (hover: none) { .pane:hover .pane-head .num { font-size: 12px; background: linear-gradient(135deg, var(--violet), var(--pink)); }
                          .pane:hover .pane-head .num::after { content: none; } }
+  /* 🌿 worktree 만드는 중 — git worktree add 는 몇 초 걸린다. 그동안 헤더에 상태를 띄워 멈춘 게 아님을 알린다 */
+  .pane .ph-top .wtnote { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; white-space: nowrap;
+                          padding: 2px 8px; border-radius: 999px; background: #14532d; color: #bbf7d0;
+                          border: 1px solid #166534; animation: wtPulse 1s ease-in-out infinite; }
+  @keyframes wtPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  .pane.wtmaking .pane-head .num { cursor: progress; }
   .pane-head .title { font-weight: 700; font-size: 14px; cursor: text; padding: 2px 4px; border-radius: 4px;
                       flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pane-head .title:hover { background: #374151; }
@@ -152,20 +158,26 @@
      그 밖으로 나간 선은 통째로 잘려 아무것도 안 보인다 — 크기를 명시해야 한다. */
   #flowLayer { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
                z-index: 45; pointer-events: none; opacity: 0; transition: opacity .18s; }
-  #flowLayer.on { opacity: 1; }
+  #flowLayer.on { opacity: 1; }                                  /* 연결이 하나라도 있으면 늘 보인다 */
+  /* 세션 창에 마우스를 올리면 = 그 세션을 보는 중 → 선이 글자를 가리지 않게 10% 로 물러난다.
+     단, 선 자체를 집고 있거나 단계 판을 쓰는 중이면 그대로 진하게 둔다(.keep). */
+  body.flowdim #flowLayer.on { opacity: .1; }
+  body.flowdim #flowLayer.on.keep, #flowLayer.on.keep { opacity: 1; }
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
   #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
-  #flowLayer .flow-line.sel { stroke: #ef4444; stroke-width: 3.6; }          /* 선택됨 — Delete 로 삭제 */
+  /* 선택됨 — Delete 로 삭제. 고른 상태에서도 점선이 흘러 '지금 이 화살표를 쓰는 중' 이 유지된다 */
+  #flowLayer .flow-line.sel { stroke: #ef4444; stroke-width: 3.6; stroke-dasharray: 11 8;
+                              animation: flowDash .55s linear infinite; }
   /* 마우스를 올린 화살표 — 점선이 진행 방향으로 흐른다 (어느 선인지 + 어느 쪽으로 가는지 한 번에) */
   #flowLayer .flow-line.hovered { stroke: #fde047; stroke-width: 4.5; stroke-dasharray: 11 8;
                                   animation: flowDash .55s linear infinite;
                                   filter: drop-shadow(0 0 5px rgba(253,224,71,.65)); }
   @keyframes flowDash { to { stroke-dashoffset: -19; } }
   @media (prefers-reduced-motion: reduce) {   /* 움직임을 줄이는 설정이면 굵기·색으로만 표시 */
-    #flowLayer .flow-line.hovered { animation: none; stroke-dasharray: none; }
+    #flowLayer .flow-line.hovered, #flowLayer .flow-line.sel { animation: none; stroke-dasharray: none; }
   }
   #flowLayer .flow-line.dragging { stroke: #22d3ee; stroke-width: 3; }        /* 끌고 있는 화살표 (실선) */
   .pane.flow-hover { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.35) inset; } /* 드롭 대상 */
@@ -513,10 +525,11 @@
   #cmFlowSvg { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; display: none; }
   #cmFlowSvg .cmflow-line { fill: none; stroke: #f472b6; stroke-width: 2; stroke-linecap: round; }
   #cmFlowSvg .cmflow-line.from-here { stroke: #22d3ee; stroke-width: 2.6; }
-  #cmFlowSvg .cmflow-line.sel { stroke: #ef4444; stroke-width: 2.8; }
+  #cmFlowSvg .cmflow-line.sel { stroke: #ef4444; stroke-width: 2.8; stroke-dasharray: 9 6;
+                                animation: flowDash .55s linear infinite; }
   #cmFlowSvg .cmflow-line.hovered { stroke: #fde047; stroke-width: 3.2; stroke-dasharray: 9 6;
                                     animation: flowDash .55s linear infinite; }
-  @media (prefers-reduced-motion: reduce) { #cmFlowSvg .cmflow-line.hovered { animation: none; stroke-dasharray: none; } }
+  @media (prefers-reduced-motion: reduce) { #cmFlowSvg .cmflow-line.hovered, #cmFlowSvg .cmflow-line.sel { animation: none; stroke-dasharray: none; } }
   #cmFlowSvg .cmflow-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
   /* 우측 파일 트리 */
   .cm-node { display: flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer;
@@ -1987,6 +2000,7 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    wtMaking: "making a separate folder…",
     qRestartT: "Restart just this session’s AI — the folder and the conversation stay (it resumes with --continue). Use it when the AI dropped out and left a bare shell prompt, e.g. after Codex updated itself.",
     qRestartBusy: "This session is still working. Restarting stops it. Continue?",
     flowMax: "Auto at most",
@@ -2031,6 +2045,7 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    wtMaking: "작업 폴더 만드는 중…",
     qRestartT: "이 세션의 AI 만 다시 시작 — 폴더와 대화는 그대로예요(--continue 로 이어집니다). Codex 자기 업데이트처럼 AI 가 빠져나가 셸 프롬프트만 남았을 때 쓰세요.",
     qRestartBusy: "이 세션은 아직 작업 중이에요. 다시 시작하면 멈춥니다. 계속할까요?",
     flowMax: "자동 최대",
@@ -2075,6 +2090,7 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    wtMaking: "作業フォルダを作成中…",
     qRestartT: "このセッションの AI だけ再起動 — フォルダと会話はそのまま(--continue で続きます)。Codex の自動更新のように AI が抜けてシェルのプロンプトだけ残ったときに使ってください。",
     qRestartBusy: "このセッションはまだ作業中です。再起動すると止まります。続けますか?",
     flowMax: "自動は最大",
@@ -2301,6 +2317,7 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    wtMaking: "正在创建工作文件夹…",
     qRestartT: "只重启这个会话的 AI —— 文件夹和对话都保留(用 --continue 接着)。适合 AI 自己退出、只剩下 shell 提示符的情况，比如 Codex 自我更新之后。",
     qRestartBusy: "这个会话还在工作。重启会中断它。要继续吗?",
     flowMax: "自动最多",
@@ -2527,6 +2544,7 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    wtMaking: "creando la carpeta…",
     qRestartT: "Reinicia solo la IA de esta sesión — la carpeta y la conversación se mantienen (sigue con --continue). Úsalo cuando la IA se cayó y dejó solo el prompt del shell, por ejemplo tras actualizarse Codex.",
     qRestartBusy: "Esta sesión sigue trabajando. Reiniciar la detiene. ¿Continuar?",
     flowMax: "Auto máx.",
@@ -2760,6 +2778,7 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    wtMaking: "Arbeitsordner wird angelegt…",
     qRestartT: "Startet nur die KI dieser Sitzung neu — Ordner und Gespräch bleiben (es geht mit --continue weiter). Für den Fall, dass die KI ausgestiegen ist und nur eine Shell-Eingabe übrig blieb, etwa nachdem Codex sich selbst aktualisiert hat.",
     qRestartBusy: "Diese Sitzung arbeitet noch. Ein Neustart bricht sie ab. Weitermachen?",
     flowMax: "Auto höchstens",
@@ -2989,6 +3008,7 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    wtMaking: "création du dossier…",
     qRestartT: "Redémarre seulement l’IA de cette session — le dossier et la conversation restent (elle reprend avec --continue). À utiliser quand l’IA a quitté et laissé une simple invite shell, par exemple après une mise à jour de Codex.",
     qRestartBusy: "Cette session travaille encore. Redémarrer l’interrompt. Continuer ?",
     flowMax: "Auto au plus",
@@ -3221,6 +3241,7 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    wtMaking: "criando a pasta…",
     qRestartT: "Reinicia só a IA desta sessão — a pasta e a conversa continuam (retoma com --continue). Use quando a IA saiu e deixou só o prompt do shell, por exemplo depois de o Codex se atualizar.",
     qRestartBusy: "Esta sessão ainda está trabalhando. Reiniciar interrompe. Continuar?",
     flowMax: "Auto no máx.",
@@ -3453,6 +3474,7 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    wtMaking: "создаю рабочую папку…",
     qRestartT: "Перезапускает только ИИ этой сессии — папка и разговор остаются (продолжится через --continue). Пригодится, когда ИИ вышел и остался лишь ввод оболочки, например после самообновления Codex.",
     qRestartBusy: "Эта сессия ещё работает. Перезапуск её прервёт. Продолжить?",
     flowMax: "Авто не более",
@@ -3684,6 +3706,7 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    wtMaking: "फ़ोल्डर बना रहे हैं…",
     qRestartT: "सिर्फ़ इस सेशन का AI दोबारा चालू करें — फ़ोल्डर और बातचीत वैसी ही रहती है (--continue से आगे बढ़ती है)। जब AI बाहर निकल जाए और सिर्फ़ शेल का प्रॉम्प्ट बचे, जैसे Codex के ख़ुद अपडेट होने के बाद, तब इस्तेमाल करें।",
     qRestartBusy: "यह सेशन अभी काम कर रहा है। दोबारा चालू करने पर वह रुक जाएगा। जारी रखें?",
     flowMax: "ऑटो अधिकतम",
@@ -4790,12 +4813,20 @@ function buildPane(sess, idx) {
   //   두 세션이 같은 파일을 동시에 건드려 충돌하는 일이 없다. Shift·우클릭 = 같은 폴더 그대로.
   const numEl = el.querySelector('.num');
   const addSibling = async same => {
+    if (el.classList.contains('wtmaking')) return;                 // 만드는 중에 또 누르면 worktree 가 두 개 생긴다
+    // git worktree add 는 레포 크기에 따라 몇 초 걸린다 — 그 사이 아무 표시가 없어 멈춘 것처럼 보였다.
+    el.classList.add('wtmaking');
+    const note = document.createElement('span');
+    note.className = 'wtnote';
+    note.textContent = '🌿 ' + (T.wtMaking || '');
+    el.querySelector('.ph-top').appendChild(note);
+    const done = () => { el.classList.remove('wtmaking'); note.remove(); };
     numEl.style.opacity = '.45';                                   // 서버 왕복이 1~2초 걸려 '먹통' 처럼 보이던 것 방지
     // extra 는 Object.assign 의 마지막이라 model 을 여기서 덮어써야 새 세션이 '자동'으로 리셋되지 않고
     // 원본과 같은 모델로 뜬다 (4번째 인자는 model 이 아니라 cmd 다 — 빈 문자열이 맞다)
     const extra = Object.assign({ model: sess.model || 'default' }, same ? { dupSame: true } : {});
     try { await addSession(sess.path, sess.title, sess.agent, '', true, extra); }
-    finally { numEl.style.opacity = ''; }
+    finally { numEl.style.opacity = ''; done(); }
     applyLayout(); renumber();
   };
   numEl.onclick = ev => { ev.stopPropagation(); addSibling(ev.shiftKey === true); };
@@ -4818,8 +4849,9 @@ function buildPane(sess, idx) {
   });
   // 이 창에 마우스를 올리면 이 세션이 낀 흐름 전체를 보여주고, 벗어나면 잠깐 뒤 지운다.
   // (드래그로 화살표를 뽑는 중에는 다시 그리지 않는다 — 그리면 임시 화살표가 지워진다)
-  el.addEventListener('mouseenter', () => { if (!flowPick && !flowDragFrom) flowDraw(sess.id); });
-  el.addEventListener('mouseleave', () => flowClear(220));
+  // 화살표는 늘 떠 있으므로, 세션을 보고 있을 땐 오히려 방해가 된다 — 그 창에 마우스를 올리면 10%로 흐려진다.
+  el.addEventListener('mouseenter', () => document.body.classList.add('flowdim'));
+  el.addEventListener('mouseleave', () => document.body.classList.remove('flowdim'));
 
   // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
   el.querySelector('.btnTasks').onclick = ev => {
@@ -5744,19 +5776,17 @@ function flowAnchor(id, towardX) {
   const h = (p.el.querySelector('.ph-top') || p.el).getBoundingClientRect();   // 아직 안 그려진 순간의 대비책
   return { x: h.right - 20, y: h.top + 22 };
 }
-function flowClearNow() {
-  const svg = document.getElementById('flowLayer');
-  if (svg) { svg.querySelector('g').innerHTML = ''; svg.classList.remove('on'); }
-  flowShown = null;
-  flowPanelHide();
-}
+/* 화살표는 이제 늘 떠 있다 — 지웠다 그렸다 하지 않는다.
+   그래서 예전의 '숨기기' 는 강조(from-here)만 푸는 일이 되었고, 선 자체는 그대로 남는다.
+   화면을 가리는 문제는 '세션에 마우스를 올리면 10%로 흐려지는' 쪽으로 해결한다(아래 flowdim). */
 function flowClear(delay) {
   clearTimeout(flowHideT);
-  const panel = document.getElementById('flowPanel');
-  if (panel && panel.matches(':hover')) return;       // 단계 고르는 중엔 안 사라지게
-  if (flowPick || flowDragFrom || flowSel) return;   // 고르는 중·드래그 중·화살표 선택 중엔 계속 보여준다
-  if (!delay) return flowClearNow();
-  flowHideT = setTimeout(flowClearNow, delay);
+  if (flowPick || flowDragFrom || flowSel) return;
+  const un = () => { const svg = document.getElementById('flowLayer'); if (!svg) return;
+                     svg.querySelectorAll('.flow-line.from-here').forEach(x => x.classList.remove('from-here'));
+                     flowShown = null; };
+  if (!delay) return un();
+  flowHideT = setTimeout(un, delay);
 }
 // 두 점을 잇는 곡선 — 항상 *아래로* 볼록하게, 거리에 비례해 크게.
 // 예전엔 수직 방향으로 휘게 해서 오른쪽→왼쪽 화살표(마지막→처음 되돌아가기)가 위로 솟구쳐
@@ -5770,20 +5800,19 @@ function flowCurve(p1, p2) {
   if (p2.x < p1.x) bulge = Math.max(80, Math.min(bulge * 2.4, 520));
   return `M${p1.x},${p1.y} Q${mx},${my + bulge} ${p2.x},${p2.y}`;
 }
+// 열려 있는 모든 연결을 그린다. rootId 를 주면 그 세션에서 나가는 선만 하늘색으로 강조한다.
 function flowDraw(rootId) {
   clearTimeout(flowHideT);
   flowMarkAnchors();
-  if (!panes.has(rootId)) return;
-  const ids = flowComponent(rootId);
   const edges = [];
-  for (const from of ids) for (const to of flowOf(from)) {
+  for (const [from] of panes) for (const to of flowOf(from)) {
     if (!panes.has(to)) continue;
     if (flowDragEdge && flowDragEdge.from === from && flowDragEdge.to === to) continue;   // 지금 끌고 있는 화살표는 임시선이 대신 그린다
     edges.push([from, to]);
   }
   const svg = flowLayer(), g = svg.querySelector('g');
   g.innerHTML = '';
-  if (!edges.length && !flowDragFrom) { if (!flowPick) flowClearNow(); return; }
+  if (!edges.length && !flowDragFrom) { svg.classList.remove('on'); flowPanelHide(); return; }
   svg.classList.add('on');
   const NS = 'http://www.w3.org/2000/svg';
   for (const [from, to] of edges) {
@@ -5792,10 +5821,13 @@ function flowDraw(rootId) {
     const p1 = flowAnchor(from, rb.left + rb.width / 2), p2 = flowAnchor(to, ra.left + ra.width / 2);
     if (!p1 || !p2) continue;
     const d = flowCurve(p1, p2);
+    const key = from + '>' + to;
     const sel = flowSel && flowSel.from === from && flowSel.to === to;
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', d);
-    path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : ''));
+    // 다시 그려도 '지금 쓰고 있는 화살표'(단계 판이 열려 있는 것)의 표시는 유지된다
+    path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : '')
+                             + (flowPanelKey === key ? ' hovered' : ''));
     path.setAttribute('marker-end', sel ? 'url(#flowHeadSel)' : 'url(#flowHead)');
     g.appendChild(path);
     // 2.5px 짜리 선은 마우스로 못 집는다 — 같은 경로에 투명한 16px '집기용' 선을 겹쳐 클릭·드래그를 받는다
@@ -5817,9 +5849,15 @@ function flowDraw(rootId) {
       clearTimeout(flowHideT);
       g.querySelectorAll('.flow-line.hovered').forEach(x => x.classList.remove('hovered'));
       path.classList.add('hovered');
+      svg.classList.add('keep');                                                        // 선을 집는 동안엔 흐려지지 않게
       flowPanel(from, to, path);                                                        // 단계 고르는 판을 화살표 밑에
     };
-    hit.onmouseleave = () => { path.classList.remove('hovered'); flowClear(260); };
+    // 화살표에서 그 밑 단계 판으로 마우스를 옮기는 동안에도 표시가 꺼지면 안 된다 —
+    // 판이 이 화살표 것으로 열려 있는 한 계속 흐르게 두고, 판이 닫힐 때 flowPanelHide 가 정리한다.
+    hit.onmouseleave = () => {
+      if (flowPanelKey !== key) { path.classList.remove('hovered'); svg.classList.remove('keep'); }
+      flowClear(260);
+    };
     g.appendChild(hit);
     // 화살표 위에 단계 이름 — 골라 둔 게 있으면 항상 보인다
     const meta = flowMeta(from, to);
@@ -5846,6 +5884,8 @@ function flowPanelHide() {
   const el = document.getElementById('flowPanel');
   if (el) el.remove();
   flowPanelKey = null;
+  document.querySelectorAll('#flowLayer .flow-line.hovered').forEach(x => x.classList.remove('hovered'));
+  const svg = document.getElementById('flowLayer'); if (svg) svg.classList.remove('keep');
 }
 function flowPanel(from, to, pathEl) {
   clearTimeout(flowPanelT);
@@ -6093,8 +6133,9 @@ async function flowRetarget(fromId, oldTo, newTo) {
   await api('PATCH', '/api/sessions/' + fromId, { flowTo: list });
 }
 // 창 크기·스크롤이 바뀌면 좌표가 어긋나므로 보이는 동안에는 다시 그린다
-window.addEventListener('resize', () => { if (flowShown) flowDraw(flowShown); });
-window.addEventListener('scroll', () => { if (flowShown) flowDraw(flowShown); }, true);
+// 늘 떠 있는 선이라 창 크기·스크롤이 바뀌면 매번 좌표를 다시 잡아야 한다
+window.addEventListener('resize', () => flowDraw(flowShown));
+window.addEventListener('scroll', () => flowDraw(flowShown), true);
 
 // --- 연결 만들기 ---
 function flowStartPick(fromId) {
@@ -6110,7 +6151,7 @@ function flowEndPick() {
   document.body.classList.remove('flowpicking');
   document.querySelectorAll('.flow-target').forEach(x => x.remove());
   flowHintBar(false);
-  flowClearNow();
+  flowDraw(null);            // 선은 그대로 두고 강조만 푼다
 }
 function flowHintBar(on) {
   let bar = document.getElementById('flowHint');
@@ -6354,7 +6395,7 @@ function animateMax(applyFn) {
 function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
-  setTimeout(() => { if (typeof flowMarkAnchors === 'function') flowMarkAnchors(); }, 80);   // 연결 걸린 창의 ◎ 유지
+  setTimeout(() => { if (typeof flowDraw === 'function') flowDraw(null); }, 90);   // 배치가 바뀌면 선도 새 좌표로 (◎ 유지 포함)
   if (typeof scheduleRefit === 'function') scheduleRefit();   // 배치 바뀌면 곧 모든 터미널 재fit
   // 확대 대상이 이미 닫혔으면 초기화
   if (maxedId && !els.some(el => el.dataset.id === maxedId)) maxedId = null;
