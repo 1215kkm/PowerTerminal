@@ -1696,6 +1696,22 @@ app.post('/api/sessions/:id/file', (req, res) => {
   } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
 });
 
+// ↻ 세션 다시 시작 — AI 프로세스만 새로 띄운다. 세션·폴더·대화(--continue)는 그대로.
+//   Codex 자동 업데이트처럼 AI 가 스스로 빠져나가 셸 프롬프트만 남았을 때 되살리는 용도.
+//   PTY 를 죽이고 소켓을 닫으면 클라이언트가 자동 재접속하면서 새 PTY 가 생긴다 (모델 변경과 같은 경로).
+app.post('/api/sessions/:id/restart', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  killDev(s.id);                                   // 이 세션이 띄운 dev 서버도 같이 정리
+  const p = ptys.get(s.id);
+  if (p && !p.dead) {
+    try { p.proc.kill(); } catch (e) {}
+    ptys.delete(s.id);
+    for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }
+  }
+  res.json({ ok: true, id: s.id });
+});
+
 // 📁 새 폴더 — 파일 트리 우클릭/상단 버튼용. 이미 있으면 그냥 성공으로 본다(recursive).
 app.post('/api/sessions/:id/mkdir', (req, res) => {
   const s = codeSession(req, res); if (!s) return;

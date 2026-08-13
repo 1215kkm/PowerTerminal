@@ -272,6 +272,12 @@
                             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .quick .qPhrases button:hover { background: #374151; border-color: var(--violet); }
   .quick .qPhrases button.qpEdit { background: transparent; color: var(--muted); border-style: dashed; }
+  /* ↻ 이 세션만 다시 시작 — 단어 버튼들과 헷갈리지 않게 오른쪽 끝으로 밀고 색을 달리 */
+  .quick .qPhrases button.qpRestart { margin-left: auto; background: transparent; color: var(--muted);
+                                      border-color: var(--line); font-size: 13px; line-height: 1; padding: 3px 8px; }
+  .quick .qPhrases button.qpRestart:hover { color: var(--sky); border-color: var(--sky); }
+  .quick .qPhrases button.qpRestart.spin { animation: qpSpin .9s linear infinite; }
+  @keyframes qpSpin { to { transform: rotate(360deg); } }
   html.light .quick .qPhrases button { background: #f3f4f6; }
   /* flex:0 0 auto — 칸이 짧아도 입력줄과 전송 버튼은 절대 안 줄고 안 잘린다 (줄어드는 건 터미널 쪽) */
   .quick { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: #111827; position: relative; }
@@ -1965,6 +1971,8 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    qRestartT: "Restart just this session’s AI — the folder and the conversation stay (it resumes with --continue). Use it when the AI dropped out and left a bare shell prompt, e.g. after Codex updated itself.",
+    qRestartBusy: "This session is still working. Restarting stops it. Continue?",
     flowMax: "Auto at most",
     flowMaxUnit: "times",
     flowMaxT: "How many times in a row this arrow may send by itself. 0 = no limit. Past the limit it still hands over, but only fills the box so you press Send — that is what stops a fix↔test loop from running all night. Counting restarts when you send a request into this flow yourself.",
@@ -2007,6 +2015,8 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    qRestartT: "이 세션의 AI 만 다시 시작 — 폴더와 대화는 그대로예요(--continue 로 이어집니다). Codex 자기 업데이트처럼 AI 가 빠져나가 셸 프롬프트만 남았을 때 쓰세요.",
+    qRestartBusy: "이 세션은 아직 작업 중이에요. 다시 시작하면 멈춥니다. 계속할까요?",
     flowMax: "자동 최대",
     flowMaxUnit: "회",
     flowMaxT: "이 화살표가 연달아 자동 전송할 수 있는 횟수. 0 = 무제한. 넘어가면 넘기기는 하되 요청창에 채워만 두고 사람이 [전송]을 누르게 합니다 — 수정↔테스트 순환이 밤새 도는 걸 막는 장치예요. 이 흐름에 직접 요청을 보내면 횟수는 다시 0부터.",
@@ -2049,6 +2059,8 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    qRestartT: "このセッションの AI だけ再起動 — フォルダと会話はそのまま(--continue で続きます)。Codex の自動更新のように AI が抜けてシェルのプロンプトだけ残ったときに使ってください。",
+    qRestartBusy: "このセッションはまだ作業中です。再起動すると止まります。続けますか?",
     flowMax: "自動は最大",
     flowMaxUnit: "回",
     flowMaxT: "この矢印が続けて自動送信できる回数。0 = 無制限。超えると渡しはしますが入力欄に入れるだけで、[送信] は人が押します — 修正↔テストの循環が一晩中回るのを防ぐ仕組みです。この流れに自分でリクエストを送ると回数は 0 に戻ります。",
@@ -2273,6 +2285,8 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    qRestartT: "只重启这个会话的 AI —— 文件夹和对话都保留(用 --continue 接着)。适合 AI 自己退出、只剩下 shell 提示符的情况，比如 Codex 自我更新之后。",
+    qRestartBusy: "这个会话还在工作。重启会中断它。要继续吗?",
     flowMax: "自动最多",
     flowMaxUnit: "次",
     flowMaxT: "这条箭头可以连续自动发送的次数。0 = 不限。超过后仍会交接，但只填进输入框，由你按 [发送] —— 这是防止修复↔测试的循环整夜空转的机制。你自己往这个流程发一次请求，计数就归零。",
@@ -2497,6 +2511,8 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    qRestartT: "Reinicia solo la IA de esta sesión — la carpeta y la conversación se mantienen (sigue con --continue). Úsalo cuando la IA se cayó y dejó solo el prompt del shell, por ejemplo tras actualizarse Codex.",
+    qRestartBusy: "Esta sesión sigue trabajando. Reiniciar la detiene. ¿Continuar?",
     flowMax: "Auto máx.",
     flowMaxUnit: "veces",
     flowMaxT: "Cuántas veces seguidas puede enviar sola esta flecha. 0 = sin límite. Pasado el límite sigue entregando, pero solo rellena el campo para que pulses Enviar — así un bucle corregir↔probar no se pasa la noche girando. La cuenta vuelve a cero cuando tú mismo mandas una petición a este flujo.",
@@ -2728,6 +2744,8 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    qRestartT: "Startet nur die KI dieser Sitzung neu — Ordner und Gespräch bleiben (es geht mit --continue weiter). Für den Fall, dass die KI ausgestiegen ist und nur eine Shell-Eingabe übrig blieb, etwa nachdem Codex sich selbst aktualisiert hat.",
+    qRestartBusy: "Diese Sitzung arbeitet noch. Ein Neustart bricht sie ab. Weitermachen?",
     flowMax: "Auto höchstens",
     flowMaxUnit: "mal",
     flowMaxT: "Wie oft hintereinander dieser Pfeil von selbst senden darf. 0 = ohne Grenze. Danach übergibt er weiter, füllt aber nur das Feld, damit du Senden drückst — so dreht eine Beheben↔Testen-Schleife nicht die ganze Nacht. Die Zählung beginnt neu, sobald du selbst eine Anfrage in diesen Ablauf schickst.",
@@ -2955,6 +2973,8 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    qRestartT: "Redémarre seulement l’IA de cette session — le dossier et la conversation restent (elle reprend avec --continue). À utiliser quand l’IA a quitté et laissé une simple invite shell, par exemple après une mise à jour de Codex.",
+    qRestartBusy: "Cette session travaille encore. Redémarrer l’interrompt. Continuer ?",
     flowMax: "Auto au plus",
     flowMaxUnit: "fois",
     flowMaxT: "Combien de fois de suite cette flèche peut envoyer toute seule. 0 = sans limite. Au-delà elle transmet quand même, mais se contente de remplir le champ pour que tu appuies sur Envoyer — c’est ce qui empêche une boucle corriger↔tester de tourner toute la nuit. Le compte repart à zéro dès que tu envoies toi-même une demande dans ce flux.",
@@ -3185,6 +3205,8 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    qRestartT: "Reinicia só a IA desta sessão — a pasta e a conversa continuam (retoma com --continue). Use quando a IA saiu e deixou só o prompt do shell, por exemplo depois de o Codex se atualizar.",
+    qRestartBusy: "Esta sessão ainda está trabalhando. Reiniciar interrompe. Continuar?",
     flowMax: "Auto no máx.",
     flowMaxUnit: "vezes",
     flowMaxT: "Quantas vezes seguidas esta seta pode enviar sozinha. 0 = sem limite. Passando disso ela ainda entrega, mas só preenche o campo para você apertar Enviar — é o que impede um ciclo corrigir↔testar de rodar a noite toda. A contagem zera quando você mesmo manda um pedido para este fluxo.",
@@ -3415,6 +3437,8 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    qRestartT: "Перезапускает только ИИ этой сессии — папка и разговор остаются (продолжится через --continue). Пригодится, когда ИИ вышел и остался лишь ввод оболочки, например после самообновления Codex.",
+    qRestartBusy: "Эта сессия ещё работает. Перезапуск её прервёт. Продолжить?",
     flowMax: "Авто не более",
     flowMaxUnit: "раз",
     flowMaxT: "Сколько раз подряд эта стрелка может отправлять сама. 0 = без ограничения. Дальше она всё равно передаёт, но только заполняет поле, чтобы вы нажали «Отправить» — это и не даёт циклу исправление↔тест крутиться всю ночь. Счёт обнуляется, когда вы сами отправляете запрос в этот поток.",
@@ -3644,6 +3668,8 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    qRestartT: "सिर्फ़ इस सेशन का AI दोबारा चालू करें — फ़ोल्डर और बातचीत वैसी ही रहती है (--continue से आगे बढ़ती है)। जब AI बाहर निकल जाए और सिर्फ़ शेल का प्रॉम्प्ट बचे, जैसे Codex के ख़ुद अपडेट होने के बाद, तब इस्तेमाल करें।",
+    qRestartBusy: "यह सेशन अभी काम कर रहा है। दोबारा चालू करने पर वह रुक जाएगा। जारी रखें?",
     flowMax: "ऑटो अधिकतम",
     flowMaxUnit: "बार",
     flowMaxT: "यह तीर लगातार कितनी बार अपने आप भेज सकता है। 0 = कोई सीमा नहीं। सीमा के बाद भी काम आगे जाता है, पर सिर्फ़ खाने में भर जाता है और [भेजें] आप दबाते हैं — इसी से सुधार↔टेस्ट का चक्र रात भर नहीं घूमता। जब आप ख़ुद इस क्रम में अनुरोध भेजते हैं, गिनती फिर शून्य से शुरू होती है।",
@@ -7368,6 +7394,22 @@ function renderPhrases(el) {
   add.title = T.phraseAdd || '자주 쓰는 단어 추가';
   add.onclick = ev => { ev.stopPropagation(); addPhrasePrompt(); };
   box.appendChild(add);
+  // ↻ 이 세션만 다시 시작 — AI 가 스스로 빠져나가 셸 프롬프트만 남았을 때(예: Codex 자기 업데이트) 되살린다.
+  //   대화는 --continue 로 이어지므로 지금까지 한 얘기는 안 날아간다.
+  const rs = document.createElement('button');
+  rs.className = 'qpRestart';
+  rs.textContent = '↻';
+  rs.title = T.qRestartT || '';
+  rs.onclick = async ev => {
+    ev.stopPropagation();
+    const p = [...panes.values()].find(x => x.el === el);
+    if (!p) return;
+    if (p.el.classList.contains('busy') && !confirm(T.qRestartBusy || '')) return;   // 작업 중이면 한 번 확인
+    rs.disabled = true; rs.classList.add('spin');
+    try { await api('POST', '/api/sessions/' + p.sess.id + '/restart', {}); } catch (e) {}
+    setTimeout(() => { rs.disabled = false; rs.classList.remove('spin'); }, 2500);
+  };
+  box.appendChild(rs);
 }
 function renderAllPhrases() { panes.forEach(p => renderPhrases(p.el)); }
 // ⚙ 설정창 쪽 목록 — 여기서도 추가·삭제할 수 있게 (세션이 하나도 안 열려 있어도 관리 가능)
