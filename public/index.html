@@ -178,7 +178,7 @@
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   /* 진행 방향으로 색을 나눈다 — 왼쪽에서 오른쪽으로 가는(앞으로 나아가는) 선은 파랑, 되돌아오는 선은 분홍 */
-  #flowLayer .flow-line.fwd { stroke: #93c5fd; stroke-width: 3.2;
+  #flowLayer .flow-line.fwd { stroke: #93c5fd; stroke-width: 4.8;
                              filter: drop-shadow(0 0 3px rgba(147,197,253,.5)) drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
@@ -2022,6 +2022,7 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    flowSentNote: "Note, no reply needed: the work you just finished has been handed to the “{t}” session for {s}. Do not redo it or check it yourself, and leave those files alone until the result comes back. Just wait.",
     memberT: "Who handles this session — a subagent defined in this repo (.claude/agents). Handovers into this session are addressed to them.",
     memberNone: "👤 nobody",
     flowAgentLine: "Handle this with the ‘{a}’ subagent — call it with the Agent tool, do not answer as {n} yourself.",
@@ -2070,6 +2071,7 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    flowSentNote: "알림이야, 답 안 해도 돼: 방금 끝낸 작업을 “{t}” 세션에 {s}(으)로 넘겼어. 같은 걸 또 하거나 직접 확인하지 말고, 결과가 돌아올 때까지 그 파일들은 건드리지 마. 그냥 대기해.",
     memberT: "이 세션의 담당 — 이 레포에 정의된 서브에이전트(.claude/agents)예요. 이 세션으로 넘어오는 인계가 그 담당에게 전달됩니다.",
     memberNone: "👤 담당 없음",
     flowAgentLine: "이건 ‘{a}’ 서브에이전트로 처리해줘 — Agent 툴로 직접 호출하고, {n}인 척 네가 답하지 마.",
@@ -2118,6 +2120,7 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    flowSentNote: "お知らせです、返事は不要: いま終わった作業を「{t}」セッションに{s}として渡しました。同じことをやり直したり自分で確認したりせず、結果が戻るまでそのファイルには触れないでください。待機のままで大丈夫です。",
     memberT: "このセッションの担当 — このリポジトリで定義されたサブエージェント(.claude/agents)です。このセッションへの引き継ぎがその担当に渡されます。",
     memberNone: "👤 担当なし",
     flowAgentLine: "これは「{a}」サブエージェントで処理してください — Agent ツールで実際に呼び出し、{n} のふりをして自分で答えないでください。",
@@ -2348,6 +2351,7 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    flowSentNote: "通知，不用回复：你刚完成的工作已经交给「{t}」会话做{s}了。不要重做，也不要自己再检查一遍，在结果回来之前别动那些文件。等着就行。",
     memberT: "这个会话的负责人 —— 本仓库中定义的子代理(.claude/agents)。交接到这个会话的工作会转给它。",
     memberNone: "👤 无负责人",
     flowAgentLine: "这件事请用「{a}」子代理处理 —— 用 Agent 工具真正调用它，不要自己假装成 {n} 回答。",
@@ -2578,6 +2582,7 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    flowSentNote: "Aviso, no hace falta responder: el trabajo que acabas de terminar ha pasado a la sesión “{t}” para {s}. No lo rehagas ni lo compruebes tú, y no toques esos archivos hasta que vuelva el resultado. Solo espera.",
     memberT: "Quién lleva esta sesión — un subagente definido en este repo (.claude/agents). Lo que se entregue a esta sesión va dirigido a él.",
     memberNone: "👤 nadie",
     flowAgentLine: "Ocúpate de esto con el subagente ‘{a}’ — llámalo con la herramienta Agent, no respondas tú haciéndote pasar por {n}.",
@@ -2815,6 +2820,7 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    flowSentNote: "Nur zur Info, keine Antwort nötig: Die Arbeit, die du gerade fertig hast, ist an die Sitzung „{t}“ zum {s} gegangen. Mach sie nicht noch einmal, prüf sie nicht selbst und lass die Dateien in Ruhe, bis das Ergebnis zurückkommt. Einfach warten.",
     memberT: "Wer diese Sitzung übernimmt — ein in diesem Repo definierter Subagent (.claude/agents). Übergaben an diese Sitzung gehen an ihn.",
     memberNone: "👤 niemand",
     flowAgentLine: "Erledige das mit dem Subagenten „{a}“ — ruf ihn mit dem Agent-Werkzeug wirklich auf und antworte nicht selbst als {n}.",
@@ -3048,6 +3054,7 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    flowSentNote: "Pour info, pas besoin de répondre : le travail que tu viens de finir est passé à la session « {t} » pour {s}. Ne le refais pas, ne le vérifie pas toi-même, et ne touche pas à ces fichiers jusqu’au retour du résultat. Attends, c’est tout.",
     memberT: "Qui s’occupe de cette session — un sous-agent défini dans ce dépôt (.claude/agents). Ce qui est transmis à cette session lui est adressé.",
     memberNone: "👤 personne",
     flowAgentLine: "Traite ça avec le sous-agent « {a} » — appelle-le vraiment avec l’outil Agent, ne réponds pas toi-même en te faisant passer pour {n}.",
@@ -3284,6 +3291,7 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    flowSentNote: "Aviso, não precisa responder: o trabalho que você acabou de terminar foi para a sessão “{t}” para {s}. Não refaça nem confira você mesmo, e não mexa nesses arquivos até o resultado voltar. É só esperar.",
     memberT: "Quem cuida desta sessão — um subagente definido neste repo (.claude/agents). O que for entregue a esta sessão vai para ele.",
     memberNone: "👤 ninguém",
     flowAgentLine: "Resolva isto com o subagente “{a}” — chame-o de verdade com a ferramenta Agent, não responda você mesmo fingindo ser {n}.",
@@ -3520,6 +3528,7 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    flowSentNote: "Просто уведомление, отвечать не нужно: работа, которую вы только что закончили, ушла в сессию «{t}» на {s}. Не переделывайте и не проверяйте её сами, и не трогайте эти файлы, пока не вернётся результат. Просто ждите.",
     memberT: "Кто ведёт эту сессию — субагент, описанный в этом репозитории (.claude/agents). Передачи в эту сессию адресуются ему.",
     memberNone: "👤 никто",
     flowAgentLine: "Сделай это субагентом «{a}» — вызови его инструментом Agent по-настоящему, не отвечай сам, изображая {n}.",
@@ -3755,6 +3764,7 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    flowSentNote: "सिर्फ़ सूचना है, जवाब देने की ज़रूरत नहीं: आपने अभी जो काम पूरा किया, वह “{t}” सेशन को {s} के लिए दे दिया गया है। उसे दोबारा मत कीजिए, ख़ुद जाँचिए भी मत, और नतीजा वापस आने तक उन फ़ाइलों को मत छेड़िए। बस इंतज़ार कीजिए।",
     memberT: "इस सेशन का ज़िम्मेदार — इस रिपॉज़िटरी में तय किया गया सबएजेंट (.claude/agents)। इस सेशन को मिलने वाला काम उसी को जाता है।",
     memberNone: "👤 कोई नहीं",
     flowAgentLine: "इसे ‘{a}’ सबएजेंट से कराएँ — Agent टूल से सचमुच बुलाएँ, {n} बनकर ख़ुद जवाब न दें।",
@@ -5050,6 +5060,9 @@ function buildPane(sess, idx) {
     // ◎ 요청을 넣는 순간 이 세션이 낀 흐름을 잠깐 띄운다 — "이 다음은 어디로 넘어가는 일이었지" 를 바로 보게
     flowDraw(sess.id); flowClear(3500);
     flowResetCount(sess.id);   // 사람이 직접 넣은 요청 = 새 라운드 → 자동 반복 횟수를 0으로
+    // '일 넘겼다' 알림용 한 번 건너뛰기 표식도 여기서 푼다 — 알림에 AI 가 응답하지 않고 넘어간 경우
+    // 그 표식이 남아 있다가 사람이 시킨 다음 작업의 인계를 대신 삼켜버린다.
+    el._flowNotified = false;
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
@@ -6177,6 +6190,8 @@ function flowSend(fromId, toId, text, auto) {
    같은 세션에서 나가는 화살표가 여럿이면 '지금이 어느 시점인지' 는 사람만 안다. */
 function flowHandoff(fromId) {
   const src = panes.get(fromId); if (!src) return;
+  // 방금 끝난 게 '너 일 넘겼다' 알림에 대한 응답이면 인계를 또 내보내지 않는다 (알림 → 완료 → 인계 → 알림 … 고리 방지)
+  if (src.el._flowNotified) { src.el._flowNotified = false; return; }
   const opts = [];
   // ① 부탁받고 하던 일이었으면 '돌려보내기' 가 첫 후보
   const ret = flowReturns.get(fromId);
@@ -6205,11 +6220,28 @@ function flowHandoff(fromId) {
     const cap = o.ret ? FLOW_MAX_DEFAULT : ((o.meta && o.meta.max) || 0);
     const capped = o.auto && cap > 0 && (flowFired.get(k) || 0) >= cap;
     const how = flowSend(fromId, o.to, o.text, o.auto && !capped);
-    if (how === 'auto') flowFired.set(k, (flowFired.get(k) || 0) + 1);
+    if (how === 'auto') {
+      flowFired.set(k, (flowFired.get(k) || 0) + 1);
+      flowNotifySource(fromId, o);        // 자동으로 넘겼다 = 맡긴다는 뜻 → 앞 세션에도 알려 준다
+    }
     if (capped) flashToast((T.flowMaxHit || '').replace('{n}', cap).replace('{t}', (panes.get(o.to) || { sess: {} }).sess.title || ''));
   };
   if (opts.length === 1) return go(opts[0]);
   flowPickNext(src.el, opts, go);
+}
+/* 자동 전송으로 넘긴 경우에만, 넘긴 쪽에도 한 줄 알린다 —
+   '자동' 을 켰다는 건 그 단계를 통째로 맡긴다는 뜻이라, 앞 세션이 같은 일을 또 하거나
+   검토가 도는 사이 같은 파일을 건드리는 걸 막아야 한다. (수동일 땐 사람이 보고 있으니 안 보낸다) */
+function flowNotifySource(fromId, o) {
+  const src = panes.get(fromId), dst = panes.get(o.to);
+  if (!src || !dst || !src.sendText) return;
+  if (src.el.classList.contains('busy')) return;
+  const stage = o.ret ? (T.flowBack || '') : flowStageLabel((o.meta && o.meta.stage) || '');
+  const txt = (T.flowSentNote || '').replace(/\{t\}/g, dst.sess.title || '').replace(/\{s\}/g, stage);
+  if (!txt) return;
+  // 이 알림 때문에 앞 세션이 다시 '작업 → 완료' 를 타는데, 그 완료로 인계가 또 나가면 안 된다.
+  src.el._flowNotified = true;
+  src.sendText(txt);
 }
 // 갈림길 — 세션 아래쪽에 뜨는 작은 선택줄. 고르기 전엔 아무 데도 안 넘어간다.
 function flowPickNext(paneEl, opts, go) {
