@@ -1465,7 +1465,8 @@ app.patch('/api/sessions/:id', (req, res) => {
         if (!keep.has(k) || !v || typeof v !== 'object') continue;
         out[k] = { stage: typeof v.stage === 'string' ? v.stage.slice(0, 20) : '', auto: !!v.auto,
                    back: !!v.back, msg: typeof v.msg === 'string' ? v.msg.slice(0, 2000) : '',
-                   briefed: typeof v.briefed === 'string' ? v.briefed.slice(0, 20) : '' };
+                   briefed: typeof v.briefed === 'string' ? v.briefed.slice(0, 20) : '',
+                   max: Math.max(0, Math.min(99, Math.floor(Number(v.max) || 0))) };   // 0 = 무제한
       }
       s.flowMeta = out;
     }

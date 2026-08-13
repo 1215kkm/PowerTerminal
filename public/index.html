@@ -183,6 +183,9 @@
                        font-size: 11.5px; font-family: inherit; border-radius: 7px; border: 1px solid var(--line);
                        background: var(--bg); color: var(--fg); min-width: 250px; }
   #flowPanel .fp-msg:focus { outline: none; border-color: var(--violet); }
+  #flowPanel .fp-max { width: 46px; padding: 1px 4px; font-size: 11px; font-family: inherit; text-align: center;
+                       border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  #flowPanel .fp-max:focus { outline: none; border-color: var(--violet); }
   /* 갈림길 선택줄 — 세션 아래쪽에 뜬다 */
   .flow-next { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 20;
                display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px 9px;
@@ -1962,6 +1965,10 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    flowMax: "Auto at most",
+    flowMaxUnit: "times",
+    flowMaxT: "How many times in a row this arrow may send by itself. 0 = no limit. Past the limit it still hands over, but only fills the box so you press Send — that is what stops a fix↔test loop from running all night. Counting restarts when you send a request into this flow yourself.",
+    flowMaxHit: "Auto-send stopped after {n} times — “{t}” is filled in, press Send yourself.",
     flowSrcLine: "(Previous session: “{t}” — its folder is {p}. Look there for what it changed.)",
     flowBriefMsg: "Heads-up about your place in this workflow: you are the “{s}” step. The step before you is “{t}”, working in {p}. After you: {n}. Do nothing for now — wait until the actual request arrives, then start.",
     flowBriefEnd: "nothing (you are the last step)",
@@ -2000,6 +2007,10 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    flowMax: "자동 최대",
+    flowMaxUnit: "회",
+    flowMaxT: "이 화살표가 연달아 자동 전송할 수 있는 횟수. 0 = 무제한. 넘어가면 넘기기는 하되 요청창에 채워만 두고 사람이 [전송]을 누르게 합니다 — 수정↔테스트 순환이 밤새 도는 걸 막는 장치예요. 이 흐름에 직접 요청을 보내면 횟수는 다시 0부터.",
+    flowMaxHit: "{n}회를 넘어서 자동 전송을 멈췄어요 — “{t}” 에 채워뒀으니 직접 [전송] 하세요.",
     flowSrcLine: "(앞 세션: “{t}” — 그 폴더는 {p} 입니다. 무엇이 바뀌었는지는 거기서 확인하세요.)",
     flowBriefMsg: "이 작업 흐름에서 네 자리를 미리 알려줄게. 너는 “{s}” 담당이야. 네 앞은 “{t}” 이고 {p} 에서 작업해. 네 다음은 {n}. 지금은 아무것도 하지 말고 대기해 — 실제 요청이 오면 그때 시작하면 돼.",
     flowBriefEnd: "없음 (네가 마지막 단계야)",
@@ -2038,6 +2049,10 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    flowMax: "自動は最大",
+    flowMaxUnit: "回",
+    flowMaxT: "この矢印が続けて自動送信できる回数。0 = 無制限。超えると渡しはしますが入力欄に入れるだけで、[送信] は人が押します — 修正↔テストの循環が一晩中回るのを防ぐ仕組みです。この流れに自分でリクエストを送ると回数は 0 に戻ります。",
+    flowMaxHit: "{n}回を超えたので自動送信を止めました — 「{t}」に入れてあるので自分で [送信] してください。",
     flowSrcLine: "(前のセッション: 「{t}」 — そのフォルダは {p} です。何が変わったかはそこで確認してください。)",
     flowBriefMsg: "この作業の流れでのあなたの位置をお知らせします。あなたは「{s}」担当です。前は「{t}」で、{p} で作業しています。次は {n}。今は何もせず待機してください — 実際のリクエストが来たら始めてください。",
     flowBriefEnd: "なし (あなたが最後の段階です)",
@@ -2258,6 +2273,10 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    flowMax: "自动最多",
+    flowMaxUnit: "次",
+    flowMaxT: "这条箭头可以连续自动发送的次数。0 = 不限。超过后仍会交接，但只填进输入框，由你按 [发送] —— 这是防止修复↔测试的循环整夜空转的机制。你自己往这个流程发一次请求，计数就归零。",
+    flowMaxHit: "超过 {n} 次，已停止自动发送 —— 已填进「{t}」，请自己按 [发送]。",
     flowSrcLine: "（上一个会话：「{t}」—— 它的文件夹是 {p}。改了什么请到那里看。）",
     flowBriefMsg: "先告诉你在这个流程里的位置：你负责「{s}」。你前面是「{t}」，在 {p} 里工作。你后面是 {n}。现在什么都别做，等真正的请求来了再开始。",
     flowBriefEnd: "没有（你是最后一步）",
@@ -2478,6 +2497,10 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    flowMax: "Auto máx.",
+    flowMaxUnit: "veces",
+    flowMaxT: "Cuántas veces seguidas puede enviar sola esta flecha. 0 = sin límite. Pasado el límite sigue entregando, pero solo rellena el campo para que pulses Enviar — así un bucle corregir↔probar no se pasa la noche girando. La cuenta vuelve a cero cuando tú mismo mandas una petición a este flujo.",
+    flowMaxHit: "Envío automático detenido tras {n} veces — está puesto en “{t}”, pulsa Enviar tú.",
     flowSrcLine: "(Sesión anterior: “{t}” — su carpeta es {p}. Mira ahí lo que cambió.)",
     flowBriefMsg: "Para que sepas tu sitio en este flujo: tú eres el paso “{s}”. Antes de ti está “{t}”, que trabaja en {p}. Después de ti: {n}. Por ahora no hagas nada — espera a que llegue la petición de verdad y entonces empieza.",
     flowBriefEnd: "nada (eres el último paso)",
@@ -2705,6 +2728,10 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    flowMax: "Auto höchstens",
+    flowMaxUnit: "mal",
+    flowMaxT: "Wie oft hintereinander dieser Pfeil von selbst senden darf. 0 = ohne Grenze. Danach übergibt er weiter, füllt aber nur das Feld, damit du Senden drückst — so dreht eine Beheben↔Testen-Schleife nicht die ganze Nacht. Die Zählung beginnt neu, sobald du selbst eine Anfrage in diesen Ablauf schickst.",
+    flowMaxHit: "Automatisches Senden nach {n} Mal gestoppt — steht in „{t}“, drück selbst Senden.",
     flowSrcLine: "(Vorige Sitzung: „{t}“ — ihr Ordner ist {p}. Was geändert wurde, steht dort.)",
     flowBriefMsg: "Damit du deinen Platz in diesem Ablauf kennst: du bist der Schritt „{s}“. Vor dir steht „{t}“ und arbeitet in {p}. Nach dir: {n}. Tu vorerst nichts — warte, bis die eigentliche Anfrage kommt, und fang dann an.",
     flowBriefEnd: "nichts (du bist der letzte Schritt)",
@@ -2928,6 +2955,10 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    flowMax: "Auto au plus",
+    flowMaxUnit: "fois",
+    flowMaxT: "Combien de fois de suite cette flèche peut envoyer toute seule. 0 = sans limite. Au-delà elle transmet quand même, mais se contente de remplir le champ pour que tu appuies sur Envoyer — c’est ce qui empêche une boucle corriger↔tester de tourner toute la nuit. Le compte repart à zéro dès que tu envoies toi-même une demande dans ce flux.",
+    flowMaxHit: "Envoi automatique arrêté après {n} fois — c’est rempli dans « {t} », appuie sur Envoyer.",
     flowSrcLine: "(Session précédente : « {t} » — son dossier est {p}. Ce qui a changé est là-bas.)",
     flowBriefMsg: "Pour situer ta place dans ce flux : tu es l’étape « {s} ». Avant toi il y a « {t} », qui travaille dans {p}. Après toi : {n}. Ne fais rien pour l’instant — attends la vraie demande, puis commence.",
     flowBriefEnd: "rien (tu es la dernière étape)",
@@ -3154,6 +3185,10 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    flowMax: "Auto no máx.",
+    flowMaxUnit: "vezes",
+    flowMaxT: "Quantas vezes seguidas esta seta pode enviar sozinha. 0 = sem limite. Passando disso ela ainda entrega, mas só preenche o campo para você apertar Enviar — é o que impede um ciclo corrigir↔testar de rodar a noite toda. A contagem zera quando você mesmo manda um pedido para este fluxo.",
+    flowMaxHit: "Envio automático parado depois de {n} vezes — está preenchido em “{t}”, aperte Enviar você.",
     flowSrcLine: "(Sessão anterior: “{t}” — a pasta dela é {p}. Veja lá o que mudou.)",
     flowBriefMsg: "Só para situar o seu lugar neste fluxo: você é a etapa “{s}”. Antes de você está “{t}”, trabalhando em {p}. Depois de você: {n}. Por enquanto não faça nada — espere o pedido de verdade chegar e então comece.",
     flowBriefEnd: "nada (você é a última etapa)",
@@ -3380,6 +3415,10 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    flowMax: "Авто не более",
+    flowMaxUnit: "раз",
+    flowMaxT: "Сколько раз подряд эта стрелка может отправлять сама. 0 = без ограничения. Дальше она всё равно передаёт, но только заполняет поле, чтобы вы нажали «Отправить» — это и не даёт циклу исправление↔тест крутиться всю ночь. Счёт обнуляется, когда вы сами отправляете запрос в этот поток.",
+    flowMaxHit: "Автоотправка остановлена после {n} раз — вставлено в «{t}», нажмите «Отправить» сами.",
     flowSrcLine: "(Предыдущая сессия: «{t}» — её папка {p}. Что изменилось, смотрите там.)",
     flowBriefMsg: "Чтобы ты знал своё место в этом потоке: ты — этап «{s}». Перед тобой «{t}», он работает в {p}. После тебя: {n}. Пока ничего не делай — дождись самого запроса и тогда начинай.",
     flowBriefEnd: "ничего (ты последний этап)",
@@ -3605,6 +3644,10 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    flowMax: "ऑटो अधिकतम",
+    flowMaxUnit: "बार",
+    flowMaxT: "यह तीर लगातार कितनी बार अपने आप भेज सकता है। 0 = कोई सीमा नहीं। सीमा के बाद भी काम आगे जाता है, पर सिर्फ़ खाने में भर जाता है और [भेजें] आप दबाते हैं — इसी से सुधार↔टेस्ट का चक्र रात भर नहीं घूमता। जब आप ख़ुद इस क्रम में अनुरोध भेजते हैं, गिनती फिर शून्य से शुरू होती है।",
+    flowMaxHit: "{n} बार के बाद ऑटो भेजना रोक दिया — “{t}” में भर दिया है, आप ख़ुद [भेजें] दबाएँ।",
     flowSrcLine: "(पिछला सेशन: “{t}” — उसका फ़ोल्डर {p} है। क्या बदला, वहीं देखें।)",
     flowBriefMsg: "इस काम के क्रम में आपकी जगह बता दूँ: आप “{s}” वाला चरण हैं। आपसे पहले “{t}” है, जो {p} में काम करता है। आपके बाद: {n}। अभी कुछ मत कीजिए — असली अनुरोध आने का इंतज़ार कीजिए, तभी शुरू कीजिए।",
     flowBriefEnd: "कुछ नहीं (आप आख़िरी चरण हैं)",
@@ -4855,6 +4898,7 @@ function buildPane(sess, idx) {
     if (isTouch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     // ◎ 요청을 넣는 순간 이 세션이 낀 흐름을 잠깐 띄운다 — "이 다음은 어디로 넘어가는 일이었지" 를 바로 보게
     flowDraw(sess.id); flowClear(3500);
+    flowResetCount(sess.id);   // 사람이 직접 넣은 요청 = 새 라운드 → 자동 반복 횟수를 0으로
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
@@ -5561,7 +5605,19 @@ function flowMeta(fromId, toId) {
   const st = (m && m.stage) || '';
   // 목록에서 사라진 단계('구현' 등)가 저장돼 있으면 '안 고른 것'으로 본다 — 고를 수 없는 값이 남아 굳는 걸 막는다
   return { stage: FLOW_STAGES.includes(st) ? st : '', auto: !!(m && m.auto),
-           back: !!(m && m.back), msg: (m && m.msg) || '', briefed: (m && m.briefed) || '' };
+           back: !!(m && m.back), msg: (m && m.msg) || '', briefed: (m && m.briefed) || '',
+           max: m && m.max != null ? (Number(m.max) || 0) : FLOW_MAX_DEFAULT };
+}
+/* 자동 전송 반복 제한 — 순환(수정↔테스트)을 만들고 양쪽에 자동을 켜두면 사람 손 없이 끝없이 돈다.
+   화살표마다 '자동으로 몇 번까지' 를 두고, 그 수를 넘으면 넘기기는 하되 *수동으로 강등* 한다
+   (요청창에 채워만 두고 사람이 [전송]). 일이 사라지지 않으면서 토큰만 계속 타는 건 멈춘다.
+   센 횟수는 화면에만 두어 새로고침하면 리셋되고, 사람이 그 흐름에 직접 요청을 보내면 그때도 리셋된다. */
+const FLOW_MAX_DEFAULT = 3;
+const flowFired = new Map();                       // 'from>to' → 자동으로 넘어간 횟수
+function flowResetCount(id) {                      // 사람이 개입 = 새 라운드 → 이 흐름 전체를 0으로
+  for (const sid of flowComponent(id)) for (const k of [...flowFired.keys()]) {
+    if (k.startsWith(sid + '>') || k.endsWith('>' + sid)) flowFired.delete(k);
+  }
 }
 // 이 화살표로 넘길 때 실제로 보낼 글 — 직접 쓴 말이 있으면 그게 우선.
 // 앞 세션의 *폴더 경로*를 반드시 붙인다: worktree 로 갈라진 세션은 서로 다른 폴더라
@@ -5722,7 +5778,8 @@ function flowDraw(rootId) {
       t.setAttribute('x', mid.x); t.setAttribute('y', mid.y - 7);
       t.setAttribute('class', 'flow-label' + (meta.auto ? ' auto' : ''));
       t.setAttribute('text-anchor', 'middle');
-      t.textContent = (meta.auto ? '⚡ ' : '') + flowStageLabel(meta.stage) + (meta.back ? ' ↩' : '');
+      t.textContent = (meta.auto ? '⚡ ' : '') + flowStageLabel(meta.stage) + (meta.back ? ' ↩' : '')
+                    + (meta.auto && meta.max > 0 ? ' ≤' + meta.max : '');
       g.appendChild(t);
     }
   }
@@ -5755,6 +5812,8 @@ function flowPanel(from, to, pathEl) {
         ? `<input class="fp-msg" placeholder="${escA(T.flowMsgPh || '')}" title="${escA(T.flowMsgT || '')}" value="${escA(meta.msg)}">`
           + `<label class="fp-auto" title="${escA(T.flowBackT || '')}"><input type="checkbox" class="fp-back"${meta.back ? ' checked' : ''}> ↩ ${esc(T.flowBack || 'Come back')}</label>`
           + `<label class="fp-auto" title="${escA(T.flowAutoT || '')}"><input type="checkbox" class="fp-autoc"${meta.auto ? ' checked' : ''}> ⚡ ${esc(T.flowAuto || 'Auto-send')}</label>`
+          + `<label class="fp-auto" title="${escA(T.flowMaxT || '')}">↻ ${esc(T.flowMax || 'Auto at most')}`
+            + `<input type="number" class="fp-max" min="0" max="99" value="${meta.max}"> ${esc(T.flowMaxUnit || '')}</label>`
         : '');
   el.querySelectorAll('.fp-st').forEach(b => {
     b.onclick = async ev => {
@@ -5776,6 +5835,18 @@ function flowPanel(from, to, pathEl) {
   if (back) back.onchange = async ev => { ev.stopPropagation(); await flowSetMeta(from, to, { back: ev.target.checked }); };
   const autoc = el.querySelector('.fp-autoc');
   if (autoc) autoc.onchange = async ev => { ev.stopPropagation(); await flowSetMeta(from, to, { auto: ev.target.checked }); };
+  const mx = el.querySelector('.fp-max');
+  if (mx) {
+    mx.onclick = ev => ev.stopPropagation();
+    mx.onkeydown = ev => ev.stopPropagation();
+    mx.onchange = async ev => {
+      ev.stopPropagation();
+      const v = Math.max(0, Math.min(99, Math.floor(Number(ev.target.value) || 0)));
+      ev.target.value = v;
+      flowFired.delete(from + '>' + to);                 // 한도를 손대면 지금까지 센 것도 리셋
+      await flowSetMeta(from, to, { max: v });
+    };
+  }
   // 화살표 가운데 바로 아래에 놓는다 (화면 밖으로는 안 나가게)
   const mid = pathEl.getPointAtLength(pathEl.getTotalLength() / 2);
   el.style.visibility = 'hidden'; el.style.display = 'block';
@@ -5884,13 +5955,14 @@ function flowDragStart(fromId, ev, existingTo) {
    자동 전송을 켜 둔 화살표만 실제로 보내고, 나머지는 채워만 두고 사람이 [전송]을 누르게 한다. */
 // 왕복(↩) 화살표로 일을 받은 세션 → 끝나면 돌려보낼 곳. 대상id → 부탁한 세션id
 const flowReturns = new Map();
-// 실제로 한 건 넘기기
+// 실제로 한 건 넘기기. 정말 자동 전송까지 갔으면 'auto', 요청창에 채워만 뒀으면 'manual' 을 돌려준다.
 function flowSend(fromId, toId, text, auto) {
   const dst = panes.get(toId);
   if (!dst || !dst.el.isConnected || !text) return false;
   const ta = dst.el.querySelector('.quick textarea');
   if (!ta) return false;
-  if (auto && !dst.el.classList.contains('busy')) {
+  const sent = auto && !dst.el.classList.contains('busy');
+  if (sent) {
     dst.sendText(text);                                 // 요청내역에도 기록되고 터미널로 바로 들어간다
   } else {
     // 사람이 쓰던 글이 있으면 덮어쓰지 않고 아래에 붙인다
@@ -5900,7 +5972,7 @@ function flowSend(fromId, toId, text, auto) {
   dst.el.classList.add('flow-incoming');
   setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
   flowDraw(fromId); flowClear(4000);                    // 어디로 넘어갔는지 화살표로 같이 보여준다
-  return true;
+  return sent ? 'auto' : 'manual';
 }
 /* 세션 하나가 끝났을 때 어디로 넘길지 정한다.
    갈 곳이 하나면 바로 넘기고, 여러 곳이면 사람에게 고르게 한다 —
@@ -5922,13 +5994,21 @@ function flowHandoff(fromId) {
     const text = flowText(fromId, to);
     if (!text) continue;
     opts.push({ to, meta, label: flowStageLabel(meta.stage) + ' → ' + (panes.get(to).sess.title || ''),
-                text, auto: meta.auto, back: meta.back });
+                text, auto: meta.auto, back: meta.back, max: meta.max });
   }
   if (!opts.length) return;
   const go = o => {
     if (o.ret) flowReturns.delete(fromId);
     else if (o.back) flowReturns.set(o.to, fromId);    // 이 세션이 끝나면 나에게 돌아오도록 예약
-    flowSend(fromId, o.to, o.text, o.auto);
+    // 자동 전송은 정해진 횟수까지만 — 넘으면 수동으로 강등하고 왜 멈췄는지 알린다.
+    // 횟수는 *실제로 자동 전송된 것* 만 센다 — 상대가 작업 중이라 채워만 둔 것까지 세면
+    // 아무것도 자동으로 안 갔는데 한도부터 차버린다.
+    const k = fromId + '>' + o.to;
+    const cap = o.ret ? FLOW_MAX_DEFAULT : ((o.meta && o.meta.max) || 0);
+    const capped = o.auto && cap > 0 && (flowFired.get(k) || 0) >= cap;
+    const how = flowSend(fromId, o.to, o.text, o.auto && !capped);
+    if (how === 'auto') flowFired.set(k, (flowFired.get(k) || 0) + 1);
+    if (capped) flashToast((T.flowMaxHit || '').replace('{n}', cap).replace('{t}', (panes.get(o.to) || { sess: {} }).sess.title || ''));
   };
   if (opts.length === 1) return go(opts[0]);
   flowPickNext(src.el, opts, go);
