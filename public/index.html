@@ -6029,12 +6029,15 @@ function flowAnchor(id, towardX) {
   const h = (p.el.querySelector('.ph-top') || p.el).getBoundingClientRect();   // 아직 안 그려진 순간의 대비책
   return { x: h.right - 20, y: h.top + 22 };
 }
-// 왼쪽 → 오른쪽으로 가는 화살표가 도착하는 자리 = 그 세션 창의 위쪽 한가운데.
-// 번호 박스 모서리에 꽂으면 헤더 글자와 겹쳐 보여서, 창 머리 정중앙으로 들어오게 했다.
+// 왼쪽 → 오른쪽으로 가는 화살표가 도착하는 자리 = 가로는 창의 한가운데, 세로는 세션 번호 박스의 아래쪽.
+// (창 맨 위 선에 꽂으면 테두리에 걸쳐 보이고, 번호 모서리에 꽂으면 헤더 글자와 겹친다 — 그 사이)
 function flowTopAnchor(id) {
   const p = panes.get(id); if (!p) return null;
   const r = p.el.getBoundingClientRect();
-  return r.width ? { x: r.left + r.width / 2, y: r.top } : null;
+  if (!r.width) return null;
+  const n = p.el.querySelector('.num');
+  const nr = n && n.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: (nr && nr.height) ? nr.bottom : r.top + 24 };
 }
 /* 화살표는 이제 늘 떠 있다 — 지웠다 그렸다 하지 않는다.
    그래서 예전의 '숨기기' 는 강조(from-here)만 푸는 일이 되었고, 선 자체는 그대로 남는다.
