@@ -5722,7 +5722,10 @@ function flowClear(delay) {
 function flowCurve(p1, p2) {
   const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
   const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
-  const bulge = Math.max(30, Math.min(len * 0.3, 300));
+  let bulge = Math.max(30, Math.min(len * 0.3, 300));
+  // 오른쪽→왼쪽(되돌아오는) 화살표는 더 깊게 판다. A→B 와 B→A 는 붙는 지점이 같은 두 점이라
+  // 휘는 정도까지 같으면 선이 정확히 포개져 한 줄로 보인다.
+  if (p2.x < p1.x) bulge = Math.max(80, Math.min(bulge * 2.4, 520));
   return `M${p1.x},${p1.y} Q${mx},${my + bulge} ${p2.x},${p2.y}`;
 }
 function flowDraw(rootId) {
