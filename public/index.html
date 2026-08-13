@@ -5633,14 +5633,18 @@ function flowMarkAnchors() {
   for (const [id] of panes) for (const to of flowOf(id)) { live.add(id); if (panes.has(to)) live.add(to); }
   for (const [id, p] of panes) p.el.classList.toggle('hasflow', live.has(id));
 }
-// 화살표의 양 끝 = 그 세션의 ◎ 버튼 자리
-function flowAnchor(id) {
+// 화살표의 양 끝 = 그 세션 ◎ 버튼의 *아래 모서리*. 상대가 오른쪽에 있으면 우측하단, 왼쪽이면 좌측하단에
+// 바짝 붙여서 나가고 들어온다 — 버튼 한가운데서 뽑으면 선이 버튼을 가로질러 지저분하다.
+function flowAnchor(id, towardX) {
   const p = panes.get(id); if (!p) return null;
   const b = p.el.querySelector('.btnFlow');
   const r = b && b.getBoundingClientRect();
-  if (r && r.width) return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  if (r && r.width) {
+    const right = towardX == null ? true : towardX >= r.left + r.width / 2;
+    return { x: right ? r.right : r.left, y: r.bottom };
+  }
   const h = (p.el.querySelector('.ph-top') || p.el).getBoundingClientRect();   // 아직 안 그려진 순간의 대비책
-  return { x: h.right - 20, y: h.top + 12 };
+  return { x: h.right - 20, y: h.top + 22 };
 }
 function flowClearNow() {
   const svg = document.getElementById('flowLayer');
@@ -5656,12 +5660,14 @@ function flowClear(delay) {
   if (!delay) return flowClearNow();
   flowHideT = setTimeout(flowClearNow, delay);
 }
-// 두 점을 잇는 살짝 휜 곡선 — 마주 본 두 창 사이에서 선이 겹쳐 하나로 보이지 않게
+// 두 점을 잇는 곡선 — 항상 *아래로* 볼록하게, 거리에 비례해 크게.
+// 예전엔 수직 방향으로 휘게 해서 오른쪽→왼쪽 화살표(마지막→처음 되돌아가기)가 위로 솟구쳐
+// 헤더 위 화면 밖으로 나가 아예 안 보였다.
 function flowCurve(p1, p2) {
   const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-  const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
-  const cx = mx - dy * 0.09, cy = my + dx * 0.09;
-  return `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`;
+  const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+  const bulge = Math.max(30, Math.min(len * 0.3, 300));
+  return `M${p1.x},${p1.y} Q${mx},${my + bulge} ${p2.x},${p2.y}`;
 }
 function flowDraw(rootId) {
   clearTimeout(flowHideT);
@@ -5680,7 +5686,9 @@ function flowDraw(rootId) {
   svg.classList.add('on');
   const NS = 'http://www.w3.org/2000/svg';
   for (const [from, to] of edges) {
-    const p1 = flowAnchor(from), p2 = flowAnchor(to);
+    // 상대 창의 가로 중심을 기준으로 버튼의 어느 쪽 모서리에서 나가고 들어올지 정한다
+    const ra = panes.get(from).el.getBoundingClientRect(), rb = panes.get(to).el.getBoundingClientRect();
+    const p1 = flowAnchor(from, rb.left + rb.width / 2), p2 = flowAnchor(to, ra.left + ra.width / 2);
     if (!p1 || !p2) continue;
     const d = flowCurve(p1, p2);
     const sel = flowSel && flowSel.from === from && flowSel.to === to;
@@ -5843,7 +5851,7 @@ function flowDragStart(fromId, ev, existingTo) {
   };
   const move = e => {
     moved = true;
-    const p1 = flowAnchor(fromId);
+    const p1 = flowAnchor(fromId, e.clientX);
     temp.setAttribute('d', flowCurve(p1, { x: e.clientX, y: e.clientY }));
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const pane = under && under.closest ? under.closest('.pane') : null;
