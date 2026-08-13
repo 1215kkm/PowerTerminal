@@ -2029,13 +2029,14 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    flowQueued: "Handed to “{t}” — it is still working, so it goes out the moment it finishes.",
     fs_report: "Report",
     fsp_report: "The other sessions in this flow have finished their part. Go through each of their folders, read the git log and diff, and put together one summary: what changed, what was found, and what is still open. Do not edit any code and do not merge anything yet — this step only gathers.",
     flowChainHead: "Sessions in this flow (folder is where each one worked):",
     tfTitle: "Terminal font",
     tfSub: "Consolas squeezes circled numbers like ①②③ into one cell and draws them tiny — at 13px the ring is 7px and the digit inside is about 4px. D2Coding and Cascadia draw them roughly twice that size without making the rest of the text bigger. Their circled glyphs are two cells wide, so they may overlap the next character slightly. Applies to every open session at once.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "Note, no reply needed: the work you just finished has been handed to the “{t}” session for {s}. Do not redo it or check it yourself, and leave those files alone until the result comes back. Just wait.",
+    flowSentNote: "Note, no reply needed: the work you just finished has been handed to the “{t}” session for {s}. Do not redo it or check it yourself, and leave those files alone until the result comes back. If you have other work left, carry on with that.",
     memberT: "Who handles this session — a subagent defined in this repo (.claude/agents). Handovers into this session are addressed to them.",
     memberNone: "👤 nobody",
     flowAgentLine: "Handle this with the ‘{a}’ subagent — call it with the Agent tool, do not answer as {n} yourself.",
@@ -2084,13 +2085,14 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    flowQueued: "“{t}” 로 넘겼어요 — 지금 작업 중이라 끝나는 대로 들어갑니다.",
     fs_report: "보고",
     fsp_report: "이 흐름의 다른 세션들이 각자 맡은 걸 끝냈어. 그 세션들 폴더를 하나씩 들어가서 git log 와 git diff 를 읽고, 무엇이 바뀌었고 무엇이 발견됐고 무엇이 남았는지 한 장으로 정리해줘. 코드는 고치지 말고 아직 합치지도 마 — 이 단계는 모으기만 하는 거야.",
     flowChainHead: "이 흐름에 참여한 세션 (폴더가 각자 작업한 곳):",
     tfTitle: "터미널 글꼴",
     tfSub: "Consolas 는 ①②③ 같은 원문자를 한 칸에 우겨넣느라 아주 작게 그립니다 — 13px 기준 동그라미가 7px, 그 안의 숫자는 4px 남짓이라 사실상 안 보여요. D2Coding·Cascadia 는 같은 글자 크기에서 두 배 가까이 크게 그립니다. 대신 이 글꼴들의 원문자는 두 칸 폭이라 옆 글자와 살짝 겹칠 수 있어요. 고르면 열려 있는 모든 세션에 바로 적용됩니다.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "알림이야, 답 안 해도 돼: 방금 끝낸 작업을 “{t}” 세션에 {s}(으)로 넘겼어. 같은 걸 또 하거나 직접 확인하지 말고, 결과가 돌아올 때까지 그 파일들은 건드리지 마. 그냥 대기해.",
+    flowSentNote: "알림이야, 답 안 해도 돼: 방금 끝낸 작업을 “{t}” 세션에 {s}(으)로 넘겼어. 같은 걸 또 하거나 직접 확인하지 말고, 결과가 돌아올 때까지 그 파일들은 건드리지 마. 다른 할 일이 남아 있으면 그건 계속 진행해도 돼.",
     memberT: "이 세션의 담당 — 이 레포에 정의된 서브에이전트(.claude/agents)예요. 이 세션으로 넘어오는 인계가 그 담당에게 전달됩니다.",
     memberNone: "👤 담당 없음",
     flowAgentLine: "이건 ‘{a}’ 서브에이전트로 처리해줘 — Agent 툴로 직접 호출하고, {n}인 척 네가 답하지 마.",
@@ -2139,13 +2141,14 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    flowQueued: "「{t}」へ渡しました — いま作業中なので、終わり次第送られます。",
     fs_report: "報告",
     fsp_report: "この流れの他のセッションが担当分を終えました。それぞれのフォルダに入って git log と git diff を読み、何が変わり、何が見つかり、何が残っているかを一つにまとめてください。コードは直さず、まだマージもしないでください — この段階は集めるだけです。",
     flowChainHead: "この流れに参加したセッション (フォルダが各自の作業場所):",
     tfTitle: "ターミナルの書体",
     tfSub: "Consolas は①②③のような丸数字を1マスに詰めるため非常に小さく描きます（13px で丸が7px、中の数字は4px ほどでほぼ見えません）。D2Coding・Cascadia は同じ文字サイズで倍近く大きく描きます。ただしこれらの丸数字は2マス幅なので隣の文字と少し重なることがあります。選ぶと開いているすべてのセッションにすぐ反映されます。",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "お知らせです、返事は不要: いま終わった作業を「{t}」セッションに{s}として渡しました。同じことをやり直したり自分で確認したりせず、結果が戻るまでそのファイルには触れないでください。待機のままで大丈夫です。",
+    flowSentNote: "お知らせです、返事は不要: いま終わった作業を「{t}」セッションに{s}として渡しました。同じことをやり直したり自分で確認したりせず、結果が戻るまでそのファイルには触れないでください。他にやることが残っていれば、それは続けて構いません。",
     memberT: "このセッションの担当 — このリポジトリで定義されたサブエージェント(.claude/agents)です。このセッションへの引き継ぎがその担当に渡されます。",
     memberNone: "👤 担当なし",
     flowAgentLine: "これは「{a}」サブエージェントで処理してください — Agent ツールで実際に呼び出し、{n} のふりをして自分で答えないでください。",
@@ -2376,13 +2379,14 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    flowQueued: "已交给「{t}」—— 它还在忙，一结束就会发过去。",
     fs_report: "汇报",
     fsp_report: "这个流程里的其他会话都完成了各自的部分。请逐个进入它们的文件夹，读 git log 和 git diff，把改了什么、发现了什么、还剩什么整理成一份汇总。不要改代码，也先别合并 —— 这一步只负责收集。",
     flowChainHead: "参与这个流程的会话（文件夹是各自工作的地方）:",
     tfTitle: "终端字体",
     tfSub: "Consolas 把①②③这类带圈数字挤进一个字符格，画得非常小（13px 时圆圈只有 7px，里面的数字约 4px，基本看不清）。D2Coding 和 Cascadia 在同样字号下画得几乎大一倍。不过这些字体的带圈数字宽两格，可能会和后面的字略微重叠。选择后立刻应用到所有打开的会话。",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "通知，不用回复：你刚完成的工作已经交给「{t}」会话做{s}了。不要重做，也不要自己再检查一遍，在结果回来之前别动那些文件。等着就行。",
+    flowSentNote: "通知，不用回复：你刚完成的工作已经交给「{t}」会话做{s}了。不要重做，也不要自己再检查一遍，在结果回来之前别动那些文件。如果还有别的事要做，那个可以继续。",
     memberT: "这个会话的负责人 —— 本仓库中定义的子代理(.claude/agents)。交接到这个会话的工作会转给它。",
     memberNone: "👤 无负责人",
     flowAgentLine: "这件事请用「{a}」子代理处理 —— 用 Agent 工具真正调用它，不要自己假装成 {n} 回答。",
@@ -2613,13 +2617,14 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    flowQueued: "Pasado a “{t}” — sigue trabajando, así que saldrá en cuanto termine.",
     fs_report: "Informe",
     fsp_report: "Las demás sesiones de este flujo ya terminaron su parte. Entra en la carpeta de cada una, lee el git log y el git diff, y reúne un solo resumen: qué cambió, qué se encontró y qué queda pendiente. No edites código ni fusiones nada todavía — este paso solo recopila.",
     flowChainHead: "Sesiones de este flujo (la carpeta es donde trabajó cada una):",
     tfTitle: "Fuente del terminal",
     tfSub: "Consolas mete los números en círculo como ①②③ en una sola celda y los dibuja diminutos: a 13px el círculo mide 7px y la cifra de dentro unos 4px. D2Coding y Cascadia los dibujan casi el doble de grandes sin agrandar el resto del texto. En esas fuentes ocupan dos celdas, así que pueden solaparse un poco con el carácter siguiente. Se aplica a todas las sesiones abiertas a la vez.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "Aviso, no hace falta responder: el trabajo que acabas de terminar ha pasado a la sesión “{t}” para {s}. No lo rehagas ni lo compruebes tú, y no toques esos archivos hasta que vuelva el resultado. Solo espera.",
+    flowSentNote: "Aviso, no hace falta responder: el trabajo que acabas de terminar ha pasado a la sesión “{t}” para {s}. No lo rehagas ni lo compruebes tú, y no toques esos archivos hasta que vuelva el resultado. Si te queda otro trabajo, sigue con eso.",
     memberT: "Quién lleva esta sesión — un subagente definido en este repo (.claude/agents). Lo que se entregue a esta sesión va dirigido a él.",
     memberNone: "👤 nadie",
     flowAgentLine: "Ocúpate de esto con el subagente ‘{a}’ — llámalo con la herramienta Agent, no respondas tú haciéndote pasar por {n}.",
@@ -2857,13 +2862,14 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    flowQueued: "An „{t}“ übergeben — sie arbeitet noch, es geht raus, sobald sie fertig ist.",
     fs_report: "Bericht",
     fsp_report: "Die anderen Sitzungen in diesem Ablauf sind mit ihrem Teil fertig. Geh in jeden ihrer Ordner, lies git log und git diff und stell eine einzige Zusammenfassung auf: was geändert wurde, was gefunden wurde und was offen bleibt. Ändere keinen Code und merge noch nichts — dieser Schritt sammelt nur.",
     flowChainHead: "Sitzungen in diesem Ablauf (der Ordner ist, wo jede gearbeitet hat):",
     tfTitle: "Terminal-Schrift",
     tfSub: "Consolas quetscht Kreiszahlen wie ①②③ in eine Zelle und zeichnet sie winzig — bei 13px ist der Ring 7px und die Ziffer darin etwa 4px. D2Coding und Cascadia zeichnen sie fast doppelt so groß, ohne den übrigen Text zu vergrößern. Dort sind sie zwei Zellen breit und können das nächste Zeichen leicht überlappen. Gilt sofort für alle offenen Sitzungen.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "Nur zur Info, keine Antwort nötig: Die Arbeit, die du gerade fertig hast, ist an die Sitzung „{t}“ zum {s} gegangen. Mach sie nicht noch einmal, prüf sie nicht selbst und lass die Dateien in Ruhe, bis das Ergebnis zurückkommt. Einfach warten.",
+    flowSentNote: "Nur zur Info, keine Antwort nötig: Die Arbeit, die du gerade fertig hast, ist an die Sitzung „{t}“ zum {s} gegangen. Mach sie nicht noch einmal, prüf sie nicht selbst und lass die Dateien in Ruhe, bis das Ergebnis zurückkommt. Wenn noch andere Arbeit ansteht, mach damit weiter.",
     memberT: "Wer diese Sitzung übernimmt — ein in diesem Repo definierter Subagent (.claude/agents). Übergaben an diese Sitzung gehen an ihn.",
     memberNone: "👤 niemand",
     flowAgentLine: "Erledige das mit dem Subagenten „{a}“ — ruf ihn mit dem Agent-Werkzeug wirklich auf und antworte nicht selbst als {n}.",
@@ -3097,13 +3103,14 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    flowQueued: "Transmis à « {t} » — elle travaille encore, ça partira dès qu’elle aura fini.",
     fs_report: "Rapport",
     fsp_report: "Les autres sessions de ce flux ont fini leur part. Entre dans le dossier de chacune, lis le git log et le git diff, et rassemble un seul résumé : ce qui a changé, ce qui a été trouvé et ce qui reste. Ne modifie aucun code et ne fusionne rien pour l’instant — cette étape ne fait que rassembler.",
     flowChainHead: "Sessions de ce flux (le dossier est là où chacune a travaillé) :",
     tfTitle: "Police du terminal",
     tfSub: "Consolas tasse les chiffres cerclés comme ①②③ dans une seule cellule et les dessine minuscules : à 13px le cercle fait 7px et le chiffre dedans environ 4px. D2Coding et Cascadia les dessinent presque deux fois plus grands sans agrandir le reste. Chez elles ils font deux cellules de large et peuvent légèrement chevaucher le caractère suivant. S’applique d’un coup à toutes les sessions ouvertes.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "Pour info, pas besoin de répondre : le travail que tu viens de finir est passé à la session « {t} » pour {s}. Ne le refais pas, ne le vérifie pas toi-même, et ne touche pas à ces fichiers jusqu’au retour du résultat. Attends, c’est tout.",
+    flowSentNote: "Pour info, pas besoin de répondre : le travail que tu viens de finir est passé à la session « {t} » pour {s}. Ne le refais pas, ne le vérifie pas toi-même, et ne touche pas à ces fichiers jusqu’au retour du résultat. S’il te reste un autre travail, continue dessus.",
     memberT: "Qui s’occupe de cette session — un sous-agent défini dans ce dépôt (.claude/agents). Ce qui est transmis à cette session lui est adressé.",
     memberNone: "👤 personne",
     flowAgentLine: "Traite ça avec le sous-agent « {a} » — appelle-le vraiment avec l’outil Agent, ne réponds pas toi-même en te faisant passer pour {n}.",
@@ -3340,13 +3347,14 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    flowQueued: "Passado para “{t}” — ainda está trabalhando, vai assim que terminar.",
     fs_report: "Relatório",
     fsp_report: "As outras sessões deste fluxo terminaram a parte delas. Entre na pasta de cada uma, leia o git log e o git diff, e junte um único resumo: o que mudou, o que foi encontrado e o que ficou em aberto. Não edite código nem faça merge ainda — esta etapa só reúne.",
     flowChainHead: "Sessões deste fluxo (a pasta é onde cada uma trabalhou):",
     tfTitle: "Fonte do terminal",
     tfSub: "O Consolas espreme números em círculo como ①②③ numa célula só e os desenha minúsculos — a 13px o círculo tem 7px e o dígito dentro uns 4px. D2Coding e Cascadia desenham quase o dobro do tamanho sem aumentar o resto do texto. Nelas ocupam duas células, então podem sobrepor um pouco o caractere seguinte. Vale para todas as sessões abertas de uma vez.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "Aviso, não precisa responder: o trabalho que você acabou de terminar foi para a sessão “{t}” para {s}. Não refaça nem confira você mesmo, e não mexa nesses arquivos até o resultado voltar. É só esperar.",
+    flowSentNote: "Aviso, não precisa responder: o trabalho que você acabou de terminar foi para a sessão “{t}” para {s}. Não refaça nem confira você mesmo, e não mexa nesses arquivos até o resultado voltar. Se sobrou outro trabalho, siga com ele.",
     memberT: "Quem cuida desta sessão — um subagente definido neste repo (.claude/agents). O que for entregue a esta sessão vai para ele.",
     memberNone: "👤 ninguém",
     flowAgentLine: "Resolva isto com o subagente “{a}” — chame-o de verdade com a ferramenta Agent, não responda você mesmo fingindo ser {n}.",
@@ -3583,13 +3591,14 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    flowQueued: "Передано в «{t}» — сессия ещё занята, уйдёт сразу как освободится.",
     fs_report: "Сводка",
     fsp_report: "Остальные сессии этого потока закончили свою часть. Зайдите в папку каждой, прочитайте git log и git diff и соберите одну сводку: что изменилось, что нашли и что осталось. Код не правьте и пока ничего не сливайте — этот шаг только собирает.",
     flowChainHead: "Сессии этого потока (папка — где каждая работала):",
     tfTitle: "Шрифт терминала",
     tfSub: "Consolas втискивает кружочные цифры вроде ①②③ в одну ячейку и рисует их крошечными — при 13px кружок 7px, а цифра внутри около 4px. D2Coding и Cascadia рисуют их почти вдвое крупнее, не увеличивая остальной текст. У них такие знаки шириной в две ячейки, поэтому могут слегка перекрывать следующий символ. Применяется сразу ко всем открытым сессиям.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "Просто уведомление, отвечать не нужно: работа, которую вы только что закончили, ушла в сессию «{t}» на {s}. Не переделывайте и не проверяйте её сами, и не трогайте эти файлы, пока не вернётся результат. Просто ждите.",
+    flowSentNote: "Просто уведомление, отвечать не нужно: работа, которую вы только что закончили, ушла в сессию «{t}» на {s}. Не переделывайте и не проверяйте её сами, и не трогайте эти файлы, пока не вернётся результат. Если осталась другая работа, продолжайте её.",
     memberT: "Кто ведёт эту сессию — субагент, описанный в этом репозитории (.claude/agents). Передачи в эту сессию адресуются ему.",
     memberNone: "👤 никто",
     flowAgentLine: "Сделай это субагентом «{a}» — вызови его инструментом Agent по-настоящему, не отвечай сам, изображая {n}.",
@@ -3825,13 +3834,14 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    flowQueued: "“{t}” को दे दिया — वह अभी काम कर रही है, ख़त्म होते ही चला जाएगा।",
     fs_report: "रिपोर्ट",
     fsp_report: "इस क्रम की बाक़ी सेशनों ने अपना-अपना हिस्सा पूरा कर लिया है। उनमें से हर एक के फ़ोल्डर में जाकर git log और git diff पढ़ें, और एक ही सारांश बनाएँ: क्या बदला, क्या मिला, और क्या बचा है। कोड मत बदलिए और अभी मर्ज भी मत कीजिए — यह चरण सिर्फ़ इकट्ठा करता है।",
     flowChainHead: "इस क्रम में शामिल सेशन (फ़ोल्डर यानी हर एक ने जहाँ काम किया):",
     tfTitle: "टर्मिनल का फ़ॉन्ट",
     tfSub: "Consolas ①②③ जैसे गोले वाले अंकों को एक ही ख़ाने में ठूँसकर बहुत छोटा बनाता है — 13px पर गोला 7px का और उसके अंदर का अंक लगभग 4px, यानी दिखता ही नहीं। D2Coding और Cascadia उसी आकार में इन्हें क़रीब दोगुना बड़ा बनाते हैं। इन फ़ॉन्ट में ये दो ख़ाने चौड़े होते हैं, इसलिए अगले अक्षर से थोड़ा ओवरलैप हो सकता है। चुनते ही सभी खुले सेशन पर लागू।",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
-    flowSentNote: "सिर्फ़ सूचना है, जवाब देने की ज़रूरत नहीं: आपने अभी जो काम पूरा किया, वह “{t}” सेशन को {s} के लिए दे दिया गया है। उसे दोबारा मत कीजिए, ख़ुद जाँचिए भी मत, और नतीजा वापस आने तक उन फ़ाइलों को मत छेड़िए। बस इंतज़ार कीजिए।",
+    flowSentNote: "सिर्फ़ सूचना है, जवाब देने की ज़रूरत नहीं: आपने अभी जो काम पूरा किया, वह “{t}” सेशन को {s} के लिए दे दिया गया है। उसे दोबारा मत कीजिए, ख़ुद जाँचिए भी मत, और नतीजा वापस आने तक उन फ़ाइलों को मत छेड़िए। अगर कोई और काम बचा है तो वह जारी रखिए।",
     memberT: "इस सेशन का ज़िम्मेदार — इस रिपॉज़िटरी में तय किया गया सबएजेंट (.claude/agents)। इस सेशन को मिलने वाला काम उसी को जाता है।",
     memberNone: "👤 कोई नहीं",
     flowAgentLine: "इसे ‘{a}’ सबएजेंट से कराएँ — Agent टूल से सचमुच बुलाएँ, {n} बनकर ख़ुद जवाब न दें।",
@@ -5791,6 +5801,8 @@ function setState(el, done, busy, announce) {
       upd(); el._workTick = setInterval(upd, 1000);
     }
   } else {
+    // 한가해졌으니, 작업 중이라 들고 있던 인계가 있으면 이제 보낸다
+    if (wasBusy) setTimeout(() => flowFlushPending(el.dataset.id), 400);
     if (el._workTick) { clearInterval(el._workTick); el._workTick = null; }
     el._workStart = 0;
   }
@@ -5799,6 +5811,17 @@ function setState(el, done, busy, announce) {
   //   (반복 재생 기능은 없음 — 완료당 1회. 여러 번 들렸다면 감지 깜빡임이 원인이라 유지시간을 넉넉히 둠.)
   // announce=false 면 사용자가 시킨 작업의 완료가 아니다(세션 기동 직후 등) — 소리·완료 스탬프 모두 건너뜀.
   if (nowBusy && el._doneTimer) { clearTimeout(el._doneTimer); el._doneTimer = null; }
+  /* ◎ 인계는 완료음보다 훨씬 오래 기다린다. 한 요청 안에서도 '완료'가 여러 번 깜빡이는데,
+     소리는 한 번 잘못 울려도 그만이지만 인계는 다른 AI 를 깨우고 이쪽엔 손 떼라고 말하는 일이라
+     "세 가지 중 하나 끝났을 때" 나가버리면 남은 두 가지가 통째로 멈춘다. 계속 조용할 때만 넘긴다. */
+  if (nowBusy && el._flowTimer) { clearTimeout(el._flowTimer); el._flowTimer = null; }
+  if (!!done && !wasDone && wasBusy && announce) {
+    if (el._flowTimer) clearTimeout(el._flowTimer);
+    el._flowTimer = setTimeout(() => {
+      el._flowTimer = null;
+      if (el.isConnected && el.classList.contains('done') && !el.classList.contains('busy')) flowHandoff(el.dataset.id);
+    }, FLOW_SETTLE_MS);
+  }
   if (!!done && !wasDone && wasBusy && !announce) soundDiag = '완료는 왔지만 서버가 announce=false (요청 없이 끝난 완료로 판단)';
   if (!!done && !wasDone && !wasBusy) soundDiag = '완료 직전에 작업중 상태를 못 봄 (busy→done 전환이 아님)';
   if (!!done && !wasDone && wasBusy && announce) {
@@ -5814,8 +5837,7 @@ function setState(el, done, busy, announce) {
           el._lastAnn = annNow;
           speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
         } else soundDiag = '15초 안에 이미 울려서 건너뜀';
-        // ◎ 플로우 인계 — 이 세션에서 나가는 화살표 중 단계가 정해진 것들에 대해 다음 세션으로 넘긴다
-        flowHandoff(el.dataset.id);
+        // ◎ 플로우 인계는 여기서 하지 않는다 — 아래에서 훨씬 길게 기다린 뒤에 (FLOW_SETTLE_MS)
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
         if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); });
@@ -5886,6 +5908,8 @@ function flowMeta(fromId, toId) {
    (요청창에 채워만 두고 사람이 [전송]). 일이 사라지지 않으면서 토큰만 계속 타는 건 멈춘다.
    센 횟수는 화면에만 두어 새로고침하면 리셋되고, 사람이 그 흐름에 직접 요청을 보내면 그때도 리셋된다. */
 const FLOW_MAX_DEFAULT = 1;
+// 인계를 내보내기 전에 '완료' 가 이만큼 계속 유지돼야 한다 (완료음의 6초보다 훨씬 길게)
+const FLOW_SETTLE_MS = 30000;
 const flowFired = new Map();                       // 'from>to' → 자동으로 넘어간 횟수
 function flowResetCount(id) {                      // 사람이 개입 = 새 라운드 → 이 흐름 전체를 0으로
   for (const sid of flowComponent(id)) for (const k of [...flowFired.keys()]) {
@@ -6005,13 +6029,12 @@ function flowAnchor(id, towardX) {
   const h = (p.el.querySelector('.ph-top') || p.el).getBoundingClientRect();   // 아직 안 그려진 순간의 대비책
   return { x: h.right - 20, y: h.top + 22 };
 }
-// 왼쪽 → 오른쪽으로 가는 화살표가 도착하는 자리 = 그 세션 번호 박스의 좌측 하단.
-// 흐름이 '앞 세션의 끝' 에서 '다음 세션의 머리' 로 들어가는 모양이 된다.
-function flowNumAnchor(id) {
+// 왼쪽 → 오른쪽으로 가는 화살표가 도착하는 자리 = 그 세션 창의 위쪽 한가운데.
+// 번호 박스 모서리에 꽂으면 헤더 글자와 겹쳐 보여서, 창 머리 정중앙으로 들어오게 했다.
+function flowTopAnchor(id) {
   const p = panes.get(id); if (!p) return null;
-  const n = p.el.querySelector('.num');
-  const r = n && n.getBoundingClientRect();
-  return (r && r.width) ? { x: r.left, y: r.bottom } : null;
+  const r = p.el.getBoundingClientRect();
+  return r.width ? { x: r.left + r.width / 2, y: r.top } : null;
 }
 /* 화살표는 이제 늘 떠 있다 — 지웠다 그렸다 하지 않는다.
    그래서 예전의 '숨기기' 는 강조(from-here)만 푸는 일이 되었고, 선 자체는 그대로 남는다.
@@ -6057,8 +6080,8 @@ function flowDraw(rootId) {
     const ra = panes.get(from).el.getBoundingClientRect(), rb = panes.get(to).el.getBoundingClientRect();
     const rightward = (rb.left + rb.width / 2) >= (ra.left + ra.width / 2);
     const p1 = flowAnchor(from, rb.left + rb.width / 2);
-    // 오른쪽으로 갈 땐 대상 세션의 번호 박스 좌측 하단에 꽂고, 왼쪽으로 되돌아올 땐 ◎ 버튼으로 (예전 그대로)
-    const p2 = (rightward && flowNumAnchor(to)) || flowAnchor(to, ra.left + ra.width / 2);
+    // 오른쪽으로 갈 땐 대상 세션 창의 위쪽 한가운데로 꽂고, 왼쪽으로 되돌아올 땐 ◎ 버튼으로 (예전 그대로)
+    const p2 = (rightward && flowTopAnchor(to)) || flowAnchor(to, ra.left + ra.width / 2);
     if (!p1 || !p2) continue;
     const d = flowCurve(p1, p2);
     const key = from + '>' + to;
@@ -6296,13 +6319,37 @@ function flowDragStart(fromId, ev, existingTo) {
    자동 전송을 켜 둔 화살표만 실제로 보내고, 나머지는 채워만 두고 사람이 [전송]을 누르게 한다. */
 // 왕복(↩) 화살표로 일을 받은 세션 → 끝나면 돌려보낼 곳. 대상id → 부탁한 세션id
 const flowReturns = new Map();
+// 받는 세션이 작업 중이라 아직 못 보낸 인계. 대상id → {fromId, text}
+const flowPending = new Map();
+// 그 세션이 한가해지면 들고 있던 인계를 보낸다 (setState 에서 busy 가 풀릴 때 호출)
+function flowFlushPending(toId) {
+  const q = flowPending.get(toId); if (!q) return;
+  const dst = panes.get(toId);
+  if (!dst || !dst.el.isConnected) { flowPending.delete(toId); return; }
+  if (dst.el.classList.contains('busy')) return;
+  flowPending.delete(toId);
+  dst.sendText(q.text);
+  dst.el.classList.add('flow-incoming');
+  setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
+}
 // 실제로 한 건 넘기기. 정말 자동 전송까지 갔으면 'auto', 요청창에 채워만 뒀으면 'manual' 을 돌려준다.
 function flowSend(fromId, toId, text, auto) {
   const dst = panes.get(toId);
   if (!dst || !dst.el.isConnected || !text) return false;
   const ta = dst.el.querySelector('.quick textarea');
   if (!ta) return false;
-  const sent = auto && !dst.el.classList.contains('busy');
+  const busy = dst.el.classList.contains('busy');
+  // 받는 세션이 작업 중이면 예전엔 조용히 '요청창에 채우기' 로 내려앉아, 자동을 켜 뒀는데도 아무 일이 안 일어난 것처럼 보였다.
+  // (단계를 고르는 순간 그 세션에 역할 브리핑이 가므로, 설정 직후엔 십중팔구 작업 중이다.)
+  // 이제는 끝날 때까지 들고 있다가 한가해지면 보낸다.
+  if (auto && busy) {
+    flowPending.set(toId, { fromId, text });
+    dst.el.classList.add('flow-incoming');
+    setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
+    flashToast((T.flowQueued || '').replace('{t}', dst.sess.title || ''));
+    return 'queued';
+  }
+  const sent = auto && !busy;
   if (sent) {
     dst.sendText(text);                                 // 요청내역에도 기록되고 터미널로 바로 들어간다
   } else {
@@ -6350,7 +6397,7 @@ function flowHandoff(fromId) {
     const cap = o.ret ? FLOW_MAX_DEFAULT : ((o.meta && o.meta.max) || 0);
     const capped = o.auto && cap > 0 && (flowFired.get(k) || 0) >= cap;
     const how = flowSend(fromId, o.to, o.text, o.auto && !capped);
-    if (how === 'auto') {
+    if (how === 'auto' || how === 'queued') {          // 대기시킨 것도 결국 자동으로 나간다
       flowFired.set(k, (flowFired.get(k) || 0) + 1);
       flowNotifySource(fromId, o);        // 자동으로 넘겼다 = 맡긴다는 뜻 → 앞 세션에도 알려 준다
     }
