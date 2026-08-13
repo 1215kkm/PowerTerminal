@@ -5855,6 +5855,14 @@ function flowAnchor(id, towardX) {
   const h = (p.el.querySelector('.ph-top') || p.el).getBoundingClientRect();   // 아직 안 그려진 순간의 대비책
   return { x: h.right - 20, y: h.top + 22 };
 }
+// 왼쪽 → 오른쪽으로 가는 화살표가 도착하는 자리 = 그 세션 번호 박스의 좌측 하단.
+// 흐름이 '앞 세션의 끝' 에서 '다음 세션의 머리' 로 들어가는 모양이 된다.
+function flowNumAnchor(id) {
+  const p = panes.get(id); if (!p) return null;
+  const n = p.el.querySelector('.num');
+  const r = n && n.getBoundingClientRect();
+  return (r && r.width) ? { x: r.left, y: r.bottom } : null;
+}
 /* 화살표는 이제 늘 떠 있다 — 지웠다 그렸다 하지 않는다.
    그래서 예전의 '숨기기' 는 강조(from-here)만 푸는 일이 되었고, 선 자체는 그대로 남는다.
    화면을 가리는 문제는 '세션에 마우스를 올리면 10%로 흐려지는' 쪽으로 해결한다(아래 flowdim). */
@@ -5897,7 +5905,10 @@ function flowDraw(rootId) {
   for (const [from, to] of edges) {
     // 상대 창의 가로 중심을 기준으로 버튼의 어느 쪽 모서리에서 나가고 들어올지 정한다
     const ra = panes.get(from).el.getBoundingClientRect(), rb = panes.get(to).el.getBoundingClientRect();
-    const p1 = flowAnchor(from, rb.left + rb.width / 2), p2 = flowAnchor(to, ra.left + ra.width / 2);
+    const rightward = (rb.left + rb.width / 2) >= (ra.left + ra.width / 2);
+    const p1 = flowAnchor(from, rb.left + rb.width / 2);
+    // 오른쪽으로 갈 땐 대상 세션의 번호 박스 좌측 하단에 꽂고, 왼쪽으로 되돌아올 땐 ◎ 버튼으로 (예전 그대로)
+    const p2 = (rightward && flowNumAnchor(to)) || flowAnchor(to, ra.left + ra.width / 2);
     if (!p1 || !p2) continue;
     const d = flowCurve(p1, p2);
     const key = from + '>' + to;
