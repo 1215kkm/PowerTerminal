@@ -117,10 +117,13 @@
   .pane:hover .pane-head .num:hover { filter: brightness(1.2); }
   @media (hover: none) { .pane:hover .pane-head .num { font-size: 12px; background: linear-gradient(135deg, var(--violet), var(--pink)); }
                          .pane:hover .pane-head .num::after { content: none; } }
-  /* 🌿 worktree 만드는 중 — git worktree add 는 몇 초 걸린다. 그동안 헤더에 상태를 띄워 멈춘 게 아님을 알린다 */
-  .pane .ph-top .wtnote { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  /* 🌿 worktree 만드는 중 — git worktree add 는 몇 초 걸린다. 그동안 상태를 띄워 멈춘 게 아님을 알린다.
+     흐름에 두면 제목·버튼을 밀어내며 헤더가 출렁이므로, 번호 옆에서 제목 위에 겹쳐 띄운다. */
+  .pane .ph-top .wtnote { position: absolute; left: 28px; top: 0; z-index: 7;
+                          font-size: 10.5px; font-weight: 700; white-space: nowrap;
                           padding: 2px 8px; border-radius: 999px; background: #14532d; color: #bbf7d0;
-                          border: 1px solid #166534; animation: wtPulse 1s ease-in-out infinite; }
+                          border: 1px solid #166534; box-shadow: 0 2px 8px rgba(0,0,0,.5);
+                          animation: wtPulse 1s ease-in-out infinite; }
   @keyframes wtPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
   .pane.wtmaking .pane-head .num { cursor: progress; }
   .pane-head .title { font-weight: 700; font-size: 14px; cursor: text; padding: 2px 4px; border-radius: 4px;
@@ -146,6 +149,14 @@
   .pane-head .btnLinks .lk-badge:not(:empty) { position: absolute; top: -5px; right: -5px; min-width: 15px; height: 15px;
         padding: 0 3px; border-radius: 8px; background: #2563eb; color: #fff; font-size: 9px; font-weight: 800;
         line-height: 15px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  /* 👤 담당(강팀 등 서브에이전트) — 고르기 전엔 눈에 안 띄게, 고르면 색이 붙는다 */
+  .pane-head .memberSel { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; border-radius: 999px;
+                          padding: 2px 7px; cursor: pointer; font-family: inherit;
+                          background: transparent; color: var(--muted); border: 1px dashed var(--line);
+                          -webkit-appearance: none; appearance: none; }
+  .pane-head .memberSel.has { background: #3b0764; color: #e9d5ff; border: 1px solid #7e22ce; border-style: solid; }
+  .pane-head .memberSel option { background: #1f2937; color: #fff; }
+  html.light .pane-head .memberSel.has { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
   .pane-head .aiSel { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #fff; border: 0; border-radius: 4px; padding: 3px 6px; letter-spacing: .3px; cursor: pointer; -webkit-appearance: none; appearance: none; }
   .pane-head .aiSel option { background: #1f2937; color: #fff; }
   /* 🌿 worktree 배지 — 분리된 작업폴더임을 한눈에 */
@@ -508,6 +519,11 @@
                        font-size: 10px; font-weight: 700; letter-spacing: .2px; white-space: nowrap;
                        background: rgba(244,114,182,.18); color: #f9a8d4; border: 1px solid rgba(244,114,182,.45); }
   .cm-sess.on .cs-stage { background: rgba(255,255,255,.22); color: #fff; border-color: rgba(255,255,255,.5); }
+  /* 👤 담당(강팀 등) */
+  .cm-sess .cs-member { flex: 0 0 auto; margin-left: 4px; padding: 0 6px; border-radius: 999px;
+                        font-size: 10px; font-weight: 700; white-space: nowrap;
+                        background: rgba(168,85,247,.2); color: #d8b4fe; border: 1px solid rgba(168,85,247,.5); }
+  .cm-sess.on .cs-member { background: rgba(255,255,255,.22); color: #fff; border-color: rgba(255,255,255,.5); }
   /* ◎ 플로우 연결 버튼 — 마우스를 올린 행에만 나타난다 (터치 기기는 항상) */
   .cm-sess .cs-flow { display: none; flex: 0 0 auto; margin-left: auto; padding: 0 5px; line-height: 18px;
                       border: 1px solid var(--line); border-radius: 6px; background: transparent;
@@ -2001,6 +2017,9 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    memberT: "Who handles this session — a subagent defined in this repo (.claude/agents). Handovers into this session are addressed to them.",
+    memberNone: "👤 nobody",
+    flowAgentLine: "Handle this with the ‘{a}’ subagent — call it with the Agent tool, do not answer as {n} yourself.",
     wtMaking: "making a separate folder…",
     qRestartT: "Restart just this session’s AI — the folder and the conversation stay (it resumes with --continue). Use it when the AI dropped out and left a bare shell prompt, e.g. after Codex updated itself.",
     qRestartBusy: "This session is still working. Restarting stops it. Continue?",
@@ -2046,6 +2065,9 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    memberT: "이 세션의 담당 — 이 레포에 정의된 서브에이전트(.claude/agents)예요. 이 세션으로 넘어오는 인계가 그 담당에게 전달됩니다.",
+    memberNone: "👤 담당 없음",
+    flowAgentLine: "이건 ‘{a}’ 서브에이전트로 처리해줘 — Agent 툴로 직접 호출하고, {n}인 척 네가 답하지 마.",
     wtMaking: "작업 폴더 만드는 중…",
     qRestartT: "이 세션의 AI 만 다시 시작 — 폴더와 대화는 그대로예요(--continue 로 이어집니다). Codex 자기 업데이트처럼 AI 가 빠져나가 셸 프롬프트만 남았을 때 쓰세요.",
     qRestartBusy: "이 세션은 아직 작업 중이에요. 다시 시작하면 멈춥니다. 계속할까요?",
@@ -2091,6 +2113,9 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    memberT: "このセッションの担当 — このリポジトリで定義されたサブエージェント(.claude/agents)です。このセッションへの引き継ぎがその担当に渡されます。",
+    memberNone: "👤 担当なし",
+    flowAgentLine: "これは「{a}」サブエージェントで処理してください — Agent ツールで実際に呼び出し、{n} のふりをして自分で答えないでください。",
     wtMaking: "作業フォルダを作成中…",
     qRestartT: "このセッションの AI だけ再起動 — フォルダと会話はそのまま(--continue で続きます)。Codex の自動更新のように AI が抜けてシェルのプロンプトだけ残ったときに使ってください。",
     qRestartBusy: "このセッションはまだ作業中です。再起動すると止まります。続けますか?",
@@ -2318,6 +2343,9 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    memberT: "这个会话的负责人 —— 本仓库中定义的子代理(.claude/agents)。交接到这个会话的工作会转给它。",
+    memberNone: "👤 无负责人",
+    flowAgentLine: "这件事请用「{a}」子代理处理 —— 用 Agent 工具真正调用它，不要自己假装成 {n} 回答。",
     wtMaking: "正在创建工作文件夹…",
     qRestartT: "只重启这个会话的 AI —— 文件夹和对话都保留(用 --continue 接着)。适合 AI 自己退出、只剩下 shell 提示符的情况，比如 Codex 自我更新之后。",
     qRestartBusy: "这个会话还在工作。重启会中断它。要继续吗?",
@@ -2545,6 +2573,9 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    memberT: "Quién lleva esta sesión — un subagente definido en este repo (.claude/agents). Lo que se entregue a esta sesión va dirigido a él.",
+    memberNone: "👤 nadie",
+    flowAgentLine: "Ocúpate de esto con el subagente ‘{a}’ — llámalo con la herramienta Agent, no respondas tú haciéndote pasar por {n}.",
     wtMaking: "creando la carpeta…",
     qRestartT: "Reinicia solo la IA de esta sesión — la carpeta y la conversación se mantienen (sigue con --continue). Úsalo cuando la IA se cayó y dejó solo el prompt del shell, por ejemplo tras actualizarse Codex.",
     qRestartBusy: "Esta sesión sigue trabajando. Reiniciar la detiene. ¿Continuar?",
@@ -2779,6 +2810,9 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    memberT: "Wer diese Sitzung übernimmt — ein in diesem Repo definierter Subagent (.claude/agents). Übergaben an diese Sitzung gehen an ihn.",
+    memberNone: "👤 niemand",
+    flowAgentLine: "Erledige das mit dem Subagenten „{a}“ — ruf ihn mit dem Agent-Werkzeug wirklich auf und antworte nicht selbst als {n}.",
     wtMaking: "Arbeitsordner wird angelegt…",
     qRestartT: "Startet nur die KI dieser Sitzung neu — Ordner und Gespräch bleiben (es geht mit --continue weiter). Für den Fall, dass die KI ausgestiegen ist und nur eine Shell-Eingabe übrig blieb, etwa nachdem Codex sich selbst aktualisiert hat.",
     qRestartBusy: "Diese Sitzung arbeitet noch. Ein Neustart bricht sie ab. Weitermachen?",
@@ -3009,6 +3043,9 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    memberT: "Qui s’occupe de cette session — un sous-agent défini dans ce dépôt (.claude/agents). Ce qui est transmis à cette session lui est adressé.",
+    memberNone: "👤 personne",
+    flowAgentLine: "Traite ça avec le sous-agent « {a} » — appelle-le vraiment avec l’outil Agent, ne réponds pas toi-même en te faisant passer pour {n}.",
     wtMaking: "création du dossier…",
     qRestartT: "Redémarre seulement l’IA de cette session — le dossier et la conversation restent (elle reprend avec --continue). À utiliser quand l’IA a quitté et laissé une simple invite shell, par exemple après une mise à jour de Codex.",
     qRestartBusy: "Cette session travaille encore. Redémarrer l’interrompt. Continuer ?",
@@ -3242,6 +3279,9 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    memberT: "Quem cuida desta sessão — um subagente definido neste repo (.claude/agents). O que for entregue a esta sessão vai para ele.",
+    memberNone: "👤 ninguém",
+    flowAgentLine: "Resolva isto com o subagente “{a}” — chame-o de verdade com a ferramenta Agent, não responda você mesmo fingindo ser {n}.",
     wtMaking: "criando a pasta…",
     qRestartT: "Reinicia só a IA desta sessão — a pasta e a conversa continuam (retoma com --continue). Use quando a IA saiu e deixou só o prompt do shell, por exemplo depois de o Codex se atualizar.",
     qRestartBusy: "Esta sessão ainda está trabalhando. Reiniciar interrompe. Continuar?",
@@ -3475,6 +3515,9 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    memberT: "Кто ведёт эту сессию — субагент, описанный в этом репозитории (.claude/agents). Передачи в эту сессию адресуются ему.",
+    memberNone: "👤 никто",
+    flowAgentLine: "Сделай это субагентом «{a}» — вызови его инструментом Agent по-настоящему, не отвечай сам, изображая {n}.",
     wtMaking: "создаю рабочую папку…",
     qRestartT: "Перезапускает только ИИ этой сессии — папка и разговор остаются (продолжится через --continue). Пригодится, когда ИИ вышел и остался лишь ввод оболочки, например после самообновления Codex.",
     qRestartBusy: "Эта сессия ещё работает. Перезапуск её прервёт. Продолжить?",
@@ -3707,6 +3750,9 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    memberT: "इस सेशन का ज़िम्मेदार — इस रिपॉज़िटरी में तय किया गया सबएजेंट (.claude/agents)। इस सेशन को मिलने वाला काम उसी को जाता है।",
+    memberNone: "👤 कोई नहीं",
+    flowAgentLine: "इसे ‘{a}’ सबएजेंट से कराएँ — Agent टूल से सचमुच बुलाएँ, {n} बनकर ख़ुद जवाब न दें।",
     wtMaking: "फ़ोल्डर बना रहे हैं…",
     qRestartT: "सिर्फ़ इस सेशन का AI दोबारा चालू करें — फ़ोल्डर और बातचीत वैसी ही रहती है (--continue से आगे बढ़ती है)। जब AI बाहर निकल जाए और सिर्फ़ शेल का प्रॉम्प्ट बचे, जैसे Codex के ख़ुद अपडेट होने के बाद, तब इस्तेमाल करें।",
     qRestartBusy: "यह सेशन अभी काम कर रहा है। दोबारा चालू करने पर वह रुक जाएगा। जारी रखें?",
@@ -4193,6 +4239,8 @@ function buildPane(sess, idx) {
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         ${aiBadge}
         ${modelSel}
+        <!-- 👤 담당 — .claude/agents 가 있는 레포에서만 채워지고, 없으면 이 자리는 비어 있다 -->
+        <select class="small memberSel" title="${escA(T.memberT || '')}" style="display:none"></select>
       </div>
     </div>
     <div class="pane-body">
@@ -4835,6 +4883,28 @@ function buildPane(sess, idx) {
 
   // 📝 메모장 — 이 세션(폴더)의 메모·완료·요청내역
   el.querySelector('.btnMemo').onclick = ev => { ev.stopPropagation(); openMemo(sess); };
+
+  // 👤 담당 — 이 폴더에 정의된 서브에이전트(강팀 등)가 있을 때만 고를 수 있게 채운다.
+  //    고르면 이 세션으로 넘어오는 인계 문구 앞에 "그 에이전트를 Agent 툴로 불러서 처리해줘" 가 붙는다.
+  (async () => {
+    const sel = el.querySelector('.memberSel');
+    if (!sel) return;
+    let list = [];
+    try { list = await api('GET', '/api/sessions/' + sess.id + '/agents'); } catch (e) {}
+    if (!Array.isArray(list) || !list.length) return;                 // 강팀이 없는 레포면 자리 자체를 안 만든다
+    sel.innerHTML = `<option value="">${esc(T.memberNone || '')}</option>`
+                  + list.map(a => `<option value="${escA(a.id)}"${sess.member === a.id ? ' selected' : ''}>${esc(a.label)}</option>`).join('');
+    sel.style.display = '';
+    const paint = () => sel.classList.toggle('has', !!sel.value);
+    paint();
+    sel.onchange = async () => {
+      const a = list.find(x => x.id === sel.value);
+      sess.member = sel.value; sess.memberLabel = a ? a.label : '';
+      paint();
+      await api('PATCH', '/api/sessions/' + sess.id, { member: sess.member, memberLabel: sess.memberLabel });
+      if (typeof cmRenderSessions === 'function' && codeModal.classList.contains('on')) cmRenderSessions();
+    };
+  })();
 
   // ◎ 플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션으로 연결. 그냥 클릭 = 고르기 모드(터치 기기용).
   const flowBtn = el.querySelector('.btnFlow');
@@ -5697,13 +5767,20 @@ function flowResetCount(id) {                      // 사람이 개입 = 새 라
 // 이 화살표로 넘길 때 실제로 보낼 글 — 직접 쓴 말이 있으면 그게 우선.
 // 앞 세션의 *폴더 경로*를 반드시 붙인다: worktree 로 갈라진 세션은 서로 다른 폴더라
 // 그 경로를 모르면 앞 세션이 만든 변경을 볼 방법이 아예 없다.
+// 받는 세션에 담당(서브에이전트)이 지정돼 있으면 그 앞에 붙일 한 줄 — 메인 AI 가 흉내내지 않고 진짜로 호출하게
+function flowMemberLine(toId) {
+  const d = (panes.get(toId) || { sess: {} }).sess;
+  if (!d.member) return '';
+  return (T.flowAgentLine || '').replace(/\{a\}/g, d.member).replace(/\{n\}/g, d.memberLabel || d.member);
+}
 function flowText(fromId, toId) {
   const m = flowMeta(fromId, toId);
   const src = (panes.get(fromId) || { sess: {} }).sess;
   const body = (m.msg || flowStagePrompt(m.stage) || '').replace(/\{t\}/g, src.title || '');
   if (!body) return '';
   const line = (T.flowSrcLine || '').replace(/\{t\}/g, src.title || '').replace(/\{p\}/g, src.path || '');
-  return line ? body + '\n' + line : body;
+  const who = flowMemberLine(toId);
+  return (who ? who + '\n' : '') + body + (line ? '\n' + line : '');
 }
 // 단계를 고르면 대상 세션에게 "너는 이 흐름에서 무슨 담당" 인지 한 번 알려 준다.
 // 단계를 고른 것 자체가 그래도 된다는 뜻 — 같은 단계로는 다시 보내지 않는다(briefed 에 기록).
@@ -5719,7 +5796,8 @@ async function flowBrief(fromId, toId, stage) {
     .replace(/\{n\}/g, nexts.length ? nexts.join(', ') : (T.flowBriefEnd || ''));
   if (!txt) return false;
   if (dst.el.classList.contains('busy')) return false;   // 작업 중인 세션에 끼어들지 않는다
-  dst.sendText(txt);
+  const who = flowMemberLine(toId);
+  dst.sendText((who ? who + '\n' : '') + txt);
   dst.el.classList.add('flow-incoming');
   setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
   return true;
@@ -9859,6 +9937,7 @@ async function cmRenderSessions() {
     el.innerHTML = '<span class="dot"></span>'
                  + (s.worktree ? '<span class="cs-wt" title="' + escA((T.wtTip || '') + '\n' + (s.repo || '')) + '">🌿</span>' : '')
                  + '<span class="cs-t">' + esc(s.title || '') + '</span>'
+                 + (s.member ? '<span class="cs-member">' + esc(s.memberLabel || s.member) + '</span>' : '')
                  + inStages.map(st => '<span class="cs-stage">' + esc(flowStageLabel(st)) + '</span>').join('')
                  + '<button class="cs-flow" title="' + escA(T.flowT || '') + '">◎</button>';
     el.title = s.path || '';

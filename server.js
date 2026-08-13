@@ -1452,6 +1452,13 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (!s) return res.status(404).json({});
   if (typeof req.body.title === 'string') s.title = req.body.title;
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
+  // 👤 이 세션의 담당(서브에이전트 id). 인계 문구 앞에 "이 에이전트로 처리해줘" 가 붙는다.
+  if (typeof req.body.member === 'string') {
+    s.member = req.body.member.slice(0, 40);
+    s.memberLabel = typeof req.body.memberLabel === 'string' ? req.body.memberLabel.slice(0, 40) : '';
+    saveSessions();
+    return res.json(s);
+  }
   // ◎ 플로우 — 이 세션에서 작업이 넘어가는 다음 세션들의 id. 화살표를 그리는 데만 쓰고 실행에는 관여 안 함.
   if (Array.isArray(req.body.flowTo) || (req.body.flowMeta && typeof req.body.flowMeta === 'object')) {
     const alive = new Set(sessions.map(x => x.id));
@@ -1694,6 +1701,35 @@ app.post('/api/sessions/:id/file', (req, res) => {
     fs.writeFileSync(full, req.body.content, 'utf8');
     res.json({ ok: true, path: rel, bytes: Buffer.byteLength(req.body.content, 'utf8') });
   } catch (e) { res.status(400).json({ error: String((e && e.message) || e) }); }
+});
+
+/* 👤 이 폴더에 있는 서브에이전트 목록 — .claude/agents/*.md 의 앞머리(frontmatter)에서 이름·설명을 읽는다.
+   강팀처럼 팀원이 정의된 레포에서만 '담당' 을 고를 수 있게 하려는 것이라, 없으면 빈 배열을 준다. */
+app.get('/api/sessions/:id/agents', (req, res) => {
+  const s = codeSession(req, res); if (!s) return;
+  const out = [];
+  for (const base of [s.path, s.repo].filter(Boolean)) {   // worktree 면 원본 레포도 같이 본다
+    const dir = path.join(base, '.claude', 'agents');
+    let ents = []; try { ents = fs.readdirSync(dir).filter(f => /\.md$/i.test(f)); } catch (e) { continue; }
+    for (const f of ents) {
+      const id = f.replace(/\.md$/i, '');
+      if (out.some(a => a.id === id)) continue;
+      let name = id, desc = '';
+      try {
+        const head = fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 1500);
+        const fm = head.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (fm) {
+          const n = fm[1].match(/^name:\s*(.+)$/m); if (n) name = n[1].trim().replace(/^["']|["']$/g, '');
+          const d = fm[1].match(/^description:\s*(.+)$/m); if (d) desc = d[1].trim().replace(/^["']|["']$/g, '');
+        }
+      } catch (e) {}
+      // 설명 앞머리에 별명(강체크·아뱅 등)이 있으면 그걸 표시 이름으로 — 사람이 부르는 이름이 알아보기 쉽다
+      const nick = (desc.match(/(강[가-힣]{1,3}|아뱅)/) || [])[1] || '';
+      out.push({ id, name, nick, label: nick || name });
+    }
+    if (out.length) break;
+  }
+  res.json(out.slice(0, 20));
 });
 
 // ↻ 세션 다시 시작 — AI 프로세스만 새로 띄운다. 세션·폴더·대화(--continue)는 그대로.
