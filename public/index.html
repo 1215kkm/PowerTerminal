@@ -5736,6 +5736,14 @@ function toggleSound() {
 }
 updateSoundBtn();
 
+/* 작업 경과 시간 표시 — 예전엔 초만 세서 904s 처럼 나왔다. 몇 분인지 암산해야 해서 길어질수록 못 읽는다.
+   1분 미만은 그대로 초, 그 위는 분:초, 한 시간을 넘기면 시:분:초. */
+function fmtWorkTime(s) {
+  if (s < 60) return s + 's';
+  const p = n => (n < 10 ? '0' + n : '' + n);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return h ? h + ':' + p(m) + ':' + p(r) : m + ':' + p(r);
+}
 function setState(el, done, busy, announce) {
   const wasDone = el.classList.contains('done');
   const wasBusy = el.classList.contains('busy');
@@ -5749,7 +5757,7 @@ function setState(el, done, busy, announce) {
     if (!el._workStart) el._workStart = Date.now();
     if (!el._workTick) {
       const sec = el.querySelector('.ws-sec');
-      const upd = () => { if (sec) sec.textContent = Math.round((Date.now() - el._workStart) / 1000) + 's'; };
+      const upd = () => { if (sec) sec.textContent = fmtWorkTime(Math.round((Date.now() - el._workStart) / 1000)); };
       upd(); el._workTick = setInterval(upd, 1000);
     }
   } else {
