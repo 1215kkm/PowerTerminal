@@ -1452,7 +1452,8 @@ app.patch('/api/sessions/:id', (req, res) => {
       const out = {};
       for (const [k, v] of Object.entries(req.body.flowMeta)) {
         if (!keep.has(k) || !v || typeof v !== 'object') continue;
-        out[k] = { stage: typeof v.stage === 'string' ? v.stage.slice(0, 20) : '', auto: !!v.auto };
+        out[k] = { stage: typeof v.stage === 'string' ? v.stage.slice(0, 20) : '', auto: !!v.auto,
+                   back: !!v.back, msg: typeof v.msg === 'string' ? v.msg.slice(0, 2000) : '' };
       }
       s.flowMeta = out;
     }
