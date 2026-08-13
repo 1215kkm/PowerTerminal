@@ -177,6 +177,8 @@
   body.flowdim #flowLayer.on.keep, #flowLayer.on.keep { opacity: 1; }
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
+  /* 진행 방향으로 색을 나눈다 — 왼쪽에서 오른쪽으로 가는(앞으로 나아가는) 선은 파랑, 되돌아오는 선은 분홍 */
+  #flowLayer .flow-line.fwd { stroke: #60a5fa; }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
   #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
@@ -5832,7 +5834,8 @@ function flowLayer() {
   svg.id = 'flowLayer';
   const mk = (id, color) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
                           + '<path d="M0,0 L10,5 L0,10 z" fill="' + color + '"/></marker>';
-  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadSel', '#ef4444') + mk('flowHeadDrag', '#22d3ee') + '</defs><g></g>';
+  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadFwd', '#60a5fa') + mk('flowHeadSel', '#ef4444')
+                + mk('flowHeadDrag', '#22d3ee') + mk('flowHeadHov', '#fde047') + '</defs><g></g>';
   document.body.appendChild(svg);
   return svg;
 }
@@ -5916,9 +5919,11 @@ function flowDraw(rootId) {
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', d);
     // 다시 그려도 '지금 쓰고 있는 화살표'(단계 판이 열려 있는 것)의 표시는 유지된다
-    path.setAttribute('class', 'flow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : '')
-                             + (flowPanelKey === key ? ' hovered' : ''));
-    path.setAttribute('marker-end', sel ? 'url(#flowHeadSel)' : 'url(#flowHead)');
+    path.setAttribute('class', 'flow-line' + (rightward ? ' fwd' : '') + (from === rootId ? ' from-here' : '')
+                             + (sel ? ' sel' : '') + (flowPanelKey === key ? ' hovered' : ''));
+    // 원래 화살촉을 적어 둔다 — 호버로 노랗게 바꿨다가 되돌릴 때 이 값을 쓴다
+    path.dataset.head = sel ? 'url(#flowHeadSel)' : (rightward ? 'url(#flowHeadFwd)' : 'url(#flowHead)');
+    path.setAttribute('marker-end', path.dataset.head);
     g.appendChild(path);
     // 2.5px 짜리 선은 마우스로 못 집는다 — 같은 경로에 투명한 16px '집기용' 선을 겹쳐 클릭·드래그를 받는다
     const hit = document.createElementNS(NS, 'path');
@@ -5939,13 +5944,17 @@ function flowDraw(rootId) {
       clearTimeout(flowHideT);
       g.querySelectorAll('.flow-line.hovered').forEach(x => x.classList.remove('hovered'));
       path.classList.add('hovered');
+      path.setAttribute('marker-end', 'url(#flowHeadHov)');                             // 화살촉도 같이 노랗게
       svg.classList.add('keep');                                                        // 선을 집는 동안엔 흐려지지 않게
       flowPanel(from, to, path);                                                        // 단계 고르는 판을 화살표 밑에
     };
     // 화살표에서 그 밑 단계 판으로 마우스를 옮기는 동안에도 표시가 꺼지면 안 된다 —
     // 판이 이 화살표 것으로 열려 있는 한 계속 흐르게 두고, 판이 닫힐 때 flowPanelHide 가 정리한다.
     hit.onmouseleave = () => {
-      if (flowPanelKey !== key) { path.classList.remove('hovered'); svg.classList.remove('keep'); }
+      if (flowPanelKey !== key) {
+        path.classList.remove('hovered'); svg.classList.remove('keep');
+        path.setAttribute('marker-end', path.dataset.head);
+      }
       flowClear(260);
     };
     g.appendChild(hit);
@@ -5974,7 +5983,11 @@ function flowPanelHide() {
   const el = document.getElementById('flowPanel');
   if (el) el.remove();
   flowPanelKey = null;
-  document.querySelectorAll('#flowLayer .flow-line.hovered').forEach(x => x.classList.remove('hovered'));
+  // 판이 닫힐 때 강조를 푼다 — 화살촉도 원래 색으로 (안 되돌리면 노란 촉이 그대로 남는다)
+  document.querySelectorAll('#flowLayer .flow-line.hovered').forEach(x => {
+    x.classList.remove('hovered');
+    if (x.dataset.head) x.setAttribute('marker-end', x.dataset.head);
+  });
   const svg = document.getElementById('flowLayer'); if (svg) svg.classList.remove('keep');
 }
 function flowPanel(from, to, pathEl) {
