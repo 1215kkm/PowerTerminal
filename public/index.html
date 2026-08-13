@@ -90,13 +90,18 @@
   /* 묶음 자체도 줄바꿈된다 — 아주 좁은 칸에서도 버튼이 접히면서 전부 보인다 */
   .ph-tools { flex: 0 1 auto; margin-left: auto; display: flex; align-items: center;
               flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-  /* 칸이 좁으면(.tight) 묶음을 헤더 위에 띄운다. 그냥 접히게 두면 마우스를 올릴 때마다 헤더가
-     30~60px 씩 커졌다 작아지며 터미널이 출렁인다 — 띄우면 자리 차지가 없어 흔들리지 않는다. */
-  .pane.tight .ph-top { position: relative; }
-  .pane.tight .ph-tools { position: absolute; right: 0; top: -3px; z-index: 6; max-width: calc(100% - 26px);
-                          padding: 3px 5px; border-radius: 9px; background: #111827; border: 1px solid var(--line);
-                          box-shadow: 0 5px 16px rgba(0,0,0,.5); }
-  html.light .pane.tight .ph-tools { background: #eef0f4; }
+  /* 도구 묶음은 항상 헤더 위에 떠 있다. 흐름에 두면 제목이 길 때 아랫줄로 밀려나고,
+     마우스를 올릴 때마다 헤더가 커졌다 작아지며 터미널이 출렁였다. 떠 있으면 자리를 안 차지해
+     제목이 아무리 길어도 버튼은 늘 같은 자리(우상단)에 있고, 겹치는 쪽은 제목이다. */
+  .pane .ph-top { position: relative; }
+  .pane .ph-tools { position: absolute; right: 0; top: -3px; z-index: 6; max-width: calc(100% - 26px);
+                    padding: 3px 5px; border-radius: 9px; background: #111827; border: 1px solid var(--line);
+                    box-shadow: 0 5px 16px rgba(0,0,0,.5); }
+  html.light .pane .ph-tools { background: #eef0f4; }
+  /* 버튼이 안 보이는 평소엔 배경·테두리도 없어야 헤더가 깔끔하다 (✕·⛶ 만 떠 있는 상태) */
+  @media (hover: hover) and (pointer: fine) {
+    .pane:not(:hover):not(:focus-within) .ph-tools { background: none; border-color: transparent; box-shadow: none; }
+  }
   .ph-bottom { display: flex; align-items: center; gap: 8px; }
   .ph-bottom .folder { flex: 0 1 auto; }
   /* 제목/경로 옆 빈 공간 = 손바닥(grab) 드래그 영역 (pane-head가 draggable이라 여기 잡고 옮김) */
@@ -1957,6 +1962,9 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    flowSrcLine: "(Previous session: “{t}” — its folder is {p}. Look there for what it changed.)",
+    flowBriefMsg: "Heads-up about your place in this workflow: you are the “{s}” step. The step before you is “{t}”, working in {p}. After you: {n}. Do nothing for now — wait until the actual request arrives, then start.",
+    flowBriefEnd: "nothing (you are the last step)",
     tagHaiku: "🪶 uses a little Haiku", tagNoCost: "🪶 no extra tokens",
     stepsHead: "Do this yourself",
     setStepsL: "Collect what I have to do myself",
@@ -1992,6 +2000,9 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    flowSrcLine: "(앞 세션: “{t}” — 그 폴더는 {p} 입니다. 무엇이 바뀌었는지는 거기서 확인하세요.)",
+    flowBriefMsg: "이 작업 흐름에서 네 자리를 미리 알려줄게. 너는 “{s}” 담당이야. 네 앞은 “{t}” 이고 {p} 에서 작업해. 네 다음은 {n}. 지금은 아무것도 하지 말고 대기해 — 실제 요청이 오면 그때 시작하면 돼.",
+    flowBriefEnd: "없음 (네가 마지막 단계야)",
     tagHaiku: "🪶 Haiku 소량 사용", tagNoCost: "🪶 추가 토큰 없음",
     stepsHead: "내가 직접 할 일",
     setStepsL: "내가 직접 할 일 모으기",
@@ -2027,6 +2038,9 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    flowSrcLine: "(前のセッション: 「{t}」 — そのフォルダは {p} です。何が変わったかはそこで確認してください。)",
+    flowBriefMsg: "この作業の流れでのあなたの位置をお知らせします。あなたは「{s}」担当です。前は「{t}」で、{p} で作業しています。次は {n}。今は何もせず待機してください — 実際のリクエストが来たら始めてください。",
+    flowBriefEnd: "なし (あなたが最後の段階です)",
     tagHaiku: "🪶 Haiku を少量使用", tagNoCost: "🪶 追加トークンなし",
     stepsHead: "自分でやること",
     setStepsL: "自分でやることを集める",
@@ -2244,6 +2258,9 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    flowSrcLine: "（上一个会话：「{t}」—— 它的文件夹是 {p}。改了什么请到那里看。）",
+    flowBriefMsg: "先告诉你在这个流程里的位置：你负责「{s}」。你前面是「{t}」，在 {p} 里工作。你后面是 {n}。现在什么都别做，等真正的请求来了再开始。",
+    flowBriefEnd: "没有（你是最后一步）",
     tagHaiku: "🪶 少量使用 Haiku", tagNoCost: "🪶 不额外花 token",
     stepsHead: "我要自己做的事",
     setStepsL: "收集我要自己做的事",
@@ -2461,6 +2478,9 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    flowSrcLine: "(Sesión anterior: “{t}” — su carpeta es {p}. Mira ahí lo que cambió.)",
+    flowBriefMsg: "Para que sepas tu sitio en este flujo: tú eres el paso “{s}”. Antes de ti está “{t}”, que trabaja en {p}. Después de ti: {n}. Por ahora no hagas nada — espera a que llegue la petición de verdad y entonces empieza.",
+    flowBriefEnd: "nada (eres el último paso)",
     tagHaiku: "🪶 usa un poco de Haiku", tagNoCost: "🪶 sin tokens extra",
     stepsHead: "Lo que tengo que hacer yo",
     setStepsL: "Recoger lo que tengo que hacer yo",
@@ -2685,6 +2705,9 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    flowSrcLine: "(Vorige Sitzung: „{t}“ — ihr Ordner ist {p}. Was geändert wurde, steht dort.)",
+    flowBriefMsg: "Damit du deinen Platz in diesem Ablauf kennst: du bist der Schritt „{s}“. Vor dir steht „{t}“ und arbeitet in {p}. Nach dir: {n}. Tu vorerst nichts — warte, bis die eigentliche Anfrage kommt, und fang dann an.",
+    flowBriefEnd: "nichts (du bist der letzte Schritt)",
     tagHaiku: "🪶 nutzt etwas Haiku", tagNoCost: "🪶 keine extra Tokens",
     stepsHead: "Was ich selbst tun muss",
     setStepsL: "Sammeln, was ich selbst tun muss",
@@ -2905,6 +2928,9 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    flowSrcLine: "(Session précédente : « {t} » — son dossier est {p}. Ce qui a changé est là-bas.)",
+    flowBriefMsg: "Pour situer ta place dans ce flux : tu es l’étape « {s} ». Avant toi il y a « {t} », qui travaille dans {p}. Après toi : {n}. Ne fais rien pour l’instant — attends la vraie demande, puis commence.",
+    flowBriefEnd: "rien (tu es la dernière étape)",
     tagHaiku: "🪶 utilise un peu de Haiku", tagNoCost: "🪶 pas de tokens en plus",
     stepsHead: "À faire moi-même",
     setStepsL: "Rassembler ce que je dois faire moi-même",
@@ -3128,6 +3154,9 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    flowSrcLine: "(Sessão anterior: “{t}” — a pasta dela é {p}. Veja lá o que mudou.)",
+    flowBriefMsg: "Só para situar o seu lugar neste fluxo: você é a etapa “{s}”. Antes de você está “{t}”, trabalhando em {p}. Depois de você: {n}. Por enquanto não faça nada — espere o pedido de verdade chegar e então comece.",
+    flowBriefEnd: "nada (você é a última etapa)",
     tagHaiku: "🪶 usa um pouco de Haiku", tagNoCost: "🪶 sem tokens extra",
     stepsHead: "O que eu tenho que fazer",
     setStepsL: "Juntar o que eu tenho que fazer",
@@ -3351,6 +3380,9 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    flowSrcLine: "(Предыдущая сессия: «{t}» — её папка {p}. Что изменилось, смотрите там.)",
+    flowBriefMsg: "Чтобы ты знал своё место в этом потоке: ты — этап «{s}». Перед тобой «{t}», он работает в {p}. После тебя: {n}. Пока ничего не делай — дождись самого запроса и тогда начинай.",
+    flowBriefEnd: "ничего (ты последний этап)",
     tagHaiku: "🪶 немного Haiku", tagNoCost: "🪶 без лишних токенов",
     stepsHead: "Что мне сделать самому",
     setStepsL: "Собирать то, что мне делать самому",
@@ -3573,6 +3605,9 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    flowSrcLine: "(पिछला सेशन: “{t}” — उसका फ़ोल्डर {p} है। क्या बदला, वहीं देखें।)",
+    flowBriefMsg: "इस काम के क्रम में आपकी जगह बता दूँ: आप “{s}” वाला चरण हैं। आपसे पहले “{t}” है, जो {p} में काम करता है। आपके बाद: {n}। अभी कुछ मत कीजिए — असली अनुरोध आने का इंतज़ार कीजिए, तभी शुरू कीजिए।",
+    flowBriefEnd: "कुछ नहीं (आप आख़िरी चरण हैं)",
     tagHaiku: "🪶 थोड़ा Haiku लगता है", tagNoCost: "🪶 अतिरिक्त टोकन नहीं",
     stepsHead: "जो मुझे ख़ुद करना है",
     setStepsL: "जो मुझे ख़ुद करना है, वह इकट्ठा करें",
@@ -4696,11 +4731,6 @@ function buildPane(sess, idx) {
     ev.preventDefault(); ev.stopPropagation();
     flowDragStart(sess.id, ev);
   });
-  // 칸 폭에 따라 헤더 도구를 '띄움' 모드로 — 버튼 묶음이 한 줄에 안 들어가는 폭(≈440px 미만)이 기준
-  try {
-    new ResizeObserver(es => { for (const e of es) e.target.classList.toggle('tight', e.contentRect.width < 440); }).observe(el);
-  } catch (e) { if (el.clientWidth < 440) el.classList.add('tight'); }
-
   // 이 창에 마우스를 올리면 이 세션이 낀 흐름 전체를 보여주고, 벗어나면 잠깐 뒤 지운다.
   // (드래그로 화살표를 뽑는 중에는 다시 그리지 않는다 — 그리면 임시 화살표가 지워진다)
   el.addEventListener('mouseenter', () => { if (!flowPick && !flowDragFrom) flowDraw(sess.id); });
@@ -5531,18 +5561,47 @@ function flowMeta(fromId, toId) {
   const st = (m && m.stage) || '';
   // 목록에서 사라진 단계('구현' 등)가 저장돼 있으면 '안 고른 것'으로 본다 — 고를 수 없는 값이 남아 굳는 걸 막는다
   return { stage: FLOW_STAGES.includes(st) ? st : '', auto: !!(m && m.auto),
-           back: !!(m && m.back), msg: (m && m.msg) || '' };
+           back: !!(m && m.back), msg: (m && m.msg) || '', briefed: (m && m.briefed) || '' };
 }
-// 이 화살표로 넘길 때 실제로 보낼 글 — 직접 쓴 말이 있으면 그게 우선
+// 이 화살표로 넘길 때 실제로 보낼 글 — 직접 쓴 말이 있으면 그게 우선.
+// 앞 세션의 *폴더 경로*를 반드시 붙인다: worktree 로 갈라진 세션은 서로 다른 폴더라
+// 그 경로를 모르면 앞 세션이 만든 변경을 볼 방법이 아예 없다.
 function flowText(fromId, toId) {
   const m = flowMeta(fromId, toId);
-  const title = (panes.get(fromId) || { sess: {} }).sess.title || '';
-  return (m.msg || flowStagePrompt(m.stage) || '').replace(/\{t\}/g, title);
+  const src = (panes.get(fromId) || { sess: {} }).sess;
+  const body = (m.msg || flowStagePrompt(m.stage) || '').replace(/\{t\}/g, src.title || '');
+  if (!body) return '';
+  const line = (T.flowSrcLine || '').replace(/\{t\}/g, src.title || '').replace(/\{p\}/g, src.path || '');
+  return line ? body + '\n' + line : body;
+}
+// 단계를 고르면 대상 세션에게 "너는 이 흐름에서 무슨 담당" 인지 한 번 알려 준다.
+// 단계를 고른 것 자체가 그래도 된다는 뜻 — 같은 단계로는 다시 보내지 않는다(briefed 에 기록).
+async function flowBrief(fromId, toId, stage) {
+  const dst = panes.get(toId), src = panes.get(fromId);
+  if (!dst || !src || !dst.sendText) return false;
+  const nexts = flowOf(toId).filter(x => panes.has(x))
+    .map(x => panes.get(x).sess.title + ' (' + flowStageLabel(flowMeta(toId, x).stage || '') + ')')
+    .filter(Boolean);
+  const txt = (T.flowBriefMsg || '')
+    .replace(/\{s\}/g, flowStageLabel(stage))
+    .replace(/\{t\}/g, src.sess.title || '').replace(/\{p\}/g, src.sess.path || '')
+    .replace(/\{n\}/g, nexts.length ? nexts.join(', ') : (T.flowBriefEnd || ''));
+  if (!txt) return false;
+  if (dst.el.classList.contains('busy')) return false;   // 작업 중인 세션에 끼어들지 않는다
+  dst.sendText(txt);
+  dst.el.classList.add('flow-incoming');
+  setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
+  return true;
 }
 async function flowSetMeta(fromId, toId, patch) {
   const p = panes.get(fromId); if (!p) return;
   const all = Object.assign({}, p.sess.flowMeta || {});
-  all[toId] = Object.assign(flowMeta(fromId, toId), patch);
+  const next = Object.assign(flowMeta(fromId, toId), patch);
+  // 단계를 새로 골랐으면 대상 세션에 역할을 한 번 알려 주고, 알린 단계를 기록해 중복을 막는다
+  if (next.stage && next.stage !== next.briefed) {
+    if (await flowBrief(fromId, toId, next.stage)) next.briefed = next.stage;
+  }
+  all[toId] = next;
   p.sess.flowMeta = all;
   flowDraw(flowShown || fromId);
   await api('PATCH', '/api/sessions/' + fromId, { flowTo: flowOf(fromId), flowMeta: all });
@@ -6153,16 +6212,9 @@ function animateMax(applyFn) {
 }
 
 // PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
-// 헤더 도구를 '띄움' 모드로 둘지 — ResizeObserver 가 못 도는 상황(백그라운드 탭 등)에도 맞도록 배치 때마다 한 번 더.
-function markTight() {
-  [...grid.children].forEach(el => { const w = el.clientWidth; if (w) el.classList.toggle('tight', w < 440); });
-}
-window.addEventListener('resize', () => setTimeout(markTight, 60));
-
 function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
-  setTimeout(markTight, 60);
   setTimeout(() => { if (typeof flowMarkAnchors === 'function') flowMarkAnchors(); }, 80);   // 연결 걸린 창의 ◎ 유지
   if (typeof scheduleRefit === 'function') scheduleRefit();   // 배치 바뀌면 곧 모든 터미널 재fit
   // 확대 대상이 이미 닫혔으면 초기화

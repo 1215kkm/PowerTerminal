@@ -142,14 +142,14 @@ async function makeWorktree(repoTop) {
   const base = path.basename(repoTop).replace(/[^\w가-힣.-]/g, '_');
   const root = path.join(path.dirname(repoTop), '.pt-worktrees');
   for (let n = 2; n <= 30; n++) {
-    const dir = path.join(root, base + '-' + n);
-    const branch = 'pt/' + base + '-' + n;
+    const dir = path.join(root, base + '-tree' + n);
+    const branch = 'pt/' + base + '-tree' + n;
     if (fs.existsSync(dir)) continue;
     try {
       await git(repoTop, ['worktree', 'add', dir, '-b', branch], 60000);
       wtMap[dir.toLowerCase()] = { dir, repo: repoTop, branch };   // dir = 원래 대소문자 (목록 표시용)
       saveWtMap();
-      return { dir, branch };
+      return { dir, branch, n };
     } catch (e) {
       // 브랜치 이름이 이미 있으면 다음 번호로. 그 외(레포 아님 등)는 포기하고 같은 폴더로 폴백.
       if (!/already exists|이미 존재/i.test(e.stderr || e.message || '')) return null;
@@ -778,6 +778,9 @@ app.get('/api/known-projects', (req, res) => {
   }
   for (const r of recent) {
     const k = norm(r.path); if (seen.has(k)) continue; seen.add(k);
+    // 사라진 폴더는 목록에 올리지 않는다 — 닫으면서 정리된 worktree 가 계속 남아 있다가
+    // 눌러도 '없는 폴더' 라며 안 열리던 문제. (한 번 걸러 두면 지운 프로젝트에도 같이 통한다)
+    try { if (!fs.existsSync(r.path)) continue; } catch (e) { continue; }
     out.push({ ...r, active: false });
   }
   try {
@@ -1400,7 +1403,8 @@ app.post('/api/sessions', async (req, res) => {
     }
   }
   const id = crypto.randomBytes(4).toString('hex');
-  const sess = { id, title: wt ? wantTitle + ' · ' + wt.branch.replace(/^pt\//, '') : wantTitle,
+  // worktree 제목은 '원본-tree2' — 예전엔 '원본 · 원본-2' 라 같은 이름이 두 번 나와 헤더만 길어졌다
+  const sess = { id, title: wt ? wantTitle + '-tree' + wt.n : wantTitle,
                  path: dir, previewUrl: '',
                  agent: agent || 'claude', model: (model && String(model)) || 'default', cmd: cmd || '' };
   if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
@@ -1460,7 +1464,8 @@ app.patch('/api/sessions/:id', (req, res) => {
       for (const [k, v] of Object.entries(req.body.flowMeta)) {
         if (!keep.has(k) || !v || typeof v !== 'object') continue;
         out[k] = { stage: typeof v.stage === 'string' ? v.stage.slice(0, 20) : '', auto: !!v.auto,
-                   back: !!v.back, msg: typeof v.msg === 'string' ? v.msg.slice(0, 2000) : '' };
+                   back: !!v.back, msg: typeof v.msg === 'string' ? v.msg.slice(0, 2000) : '',
+                   briefed: typeof v.briefed === 'string' ? v.briefed.slice(0, 20) : '' };
       }
       s.flowMeta = out;
     }
@@ -2157,7 +2162,13 @@ app.delete('/api/sessions/:id', (req, res) => {
     git(dir, ['status', '--porcelain'], 8000).then(out => {
       if (String(out).trim()) return { kept: true };                    // 변경 있음 → 보존
       return git(gone.repo, ['worktree', 'remove', dir], 20000)
-        .then(() => { delete wtMap[dir.toLowerCase()]; saveWtMap(); return { kept: false }; });
+        .then(() => {
+          delete wtMap[dir.toLowerCase()]; saveWtMap();
+          // 폴더를 지웠으면 '최근 닫은 세션' 에서도 뺀다 — 안 그러면 목록에 남아 눌러도 안 열린다
+          recent = recent.filter(r => String(r.path || '').toLowerCase() !== dir.toLowerCase());
+          saveRecent();
+          return { kept: false };
+        });
     }).catch(() => {});
     return res.json({ ok: true, worktree: dir, branch: gone.branch });
   }
