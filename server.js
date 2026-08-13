@@ -2285,7 +2285,9 @@ function findHtmls(root) {
     for (const e of ents) {
       if (e.name.startsWith('.') && e.name !== '.') continue;
       const r = rel ? rel + '/' + e.name : e.name;
-      if (e.isFile() && /\.html?$/i.test(e.name)) out.push(r);
+      // PT 가 스스로 써 두는 기록 파일은 '이 프로젝트의 페이지' 가 아니다 — index.html 이 없는 폴더에서
+      // 이게 유일한 후보가 되는 바람에 👁 미리보기가 질문-답변 기록을 열어 버렸다.
+      if (e.isFile() && /\.html?$/i.test(e.name) && r !== QA_REL.replace(/\\/g, '/')) out.push(r);
       else if (e.isDirectory() && depth > 0 && !SKIP.has(e.name)) scan(path.join(dir, e.name), r, depth - 1);
       if (out.length > 40) return;
     }

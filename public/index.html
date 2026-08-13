@@ -159,6 +159,14 @@
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
   #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
   #flowLayer .flow-line.sel { stroke: #ef4444; stroke-width: 3.6; }          /* 선택됨 — Delete 로 삭제 */
+  /* 마우스를 올린 화살표 — 점선이 진행 방향으로 흐른다 (어느 선인지 + 어느 쪽으로 가는지 한 번에) */
+  #flowLayer .flow-line.hovered { stroke: #fde047; stroke-width: 4.5; stroke-dasharray: 11 8;
+                                  animation: flowDash .55s linear infinite;
+                                  filter: drop-shadow(0 0 5px rgba(253,224,71,.65)); }
+  @keyframes flowDash { to { stroke-dashoffset: -19; } }
+  @media (prefers-reduced-motion: reduce) {   /* 움직임을 줄이는 설정이면 굵기·색으로만 표시 */
+    #flowLayer .flow-line.hovered { animation: none; stroke-dasharray: none; }
+  }
   #flowLayer .flow-line.dragging { stroke: #22d3ee; stroke-width: 3; }        /* 끌고 있는 화살표 (실선) */
   .pane.flow-hover { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.35) inset; } /* 드롭 대상 */
   .pane.flow-hover-del { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,.35) inset; } /* 여기 놓으면 삭제 */
@@ -482,6 +490,11 @@
   .cm-sess.idle .dot { background: #6b7280; }
   .cm-sess .cs-t { overflow: hidden; text-overflow: ellipsis; }
   .cm-sess .cs-wt { flex: 0 0 auto; font-size: 11px; }
+  /* 이 세션이 맡은 단계 — 들어오는 화살표에서 가져온다 */
+  .cm-sess .cs-stage { flex: 0 0 auto; margin-left: 4px; padding: 0 6px; border-radius: 999px;
+                       font-size: 10px; font-weight: 700; letter-spacing: .2px; white-space: nowrap;
+                       background: rgba(244,114,182,.18); color: #f9a8d4; border: 1px solid rgba(244,114,182,.45); }
+  .cm-sess.on .cs-stage { background: rgba(255,255,255,.22); color: #fff; border-color: rgba(255,255,255,.5); }
   /* ◎ 플로우 연결 버튼 — 마우스를 올린 행에만 나타난다 (터치 기기는 항상) */
   .cm-sess .cs-flow { display: none; flex: 0 0 auto; margin-left: auto; padding: 0 5px; line-height: 18px;
                       border: 1px solid var(--line); border-radius: 6px; background: transparent;
@@ -501,6 +514,9 @@
   #cmFlowSvg .cmflow-line { fill: none; stroke: #f472b6; stroke-width: 2; stroke-linecap: round; }
   #cmFlowSvg .cmflow-line.from-here { stroke: #22d3ee; stroke-width: 2.6; }
   #cmFlowSvg .cmflow-line.sel { stroke: #ef4444; stroke-width: 2.8; }
+  #cmFlowSvg .cmflow-line.hovered { stroke: #fde047; stroke-width: 3.2; stroke-dasharray: 9 6;
+                                    animation: flowDash .55s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { #cmFlowSvg .cmflow-line.hovered { animation: none; stroke-dasharray: none; } }
   #cmFlowSvg .cmflow-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
   /* 우측 파일 트리 */
   .cm-node { display: flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer;
@@ -5796,8 +5812,14 @@ function flowDraw(rootId) {
       ev.preventDefault(); ev.stopPropagation();
       flowDragStart(from, ev, to);
     });
-    hit.onmouseenter = () => { clearTimeout(flowHideT); flowPanel(from, to, path); };   // 단계 고르는 판을 화살표 밑에
-    hit.onmouseleave = () => flowClear(260);
+    // 마우스를 올린 화살표만 흐르는 점선으로 — 선이 여러 개 겹쳐 있을 때 어느 걸 집었는지 바로 보인다
+    hit.onmouseenter = () => {
+      clearTimeout(flowHideT);
+      g.querySelectorAll('.flow-line.hovered').forEach(x => x.classList.remove('hovered'));
+      path.classList.add('hovered');
+      flowPanel(from, to, path);                                                        // 단계 고르는 판을 화살표 밑에
+    };
+    hit.onmouseleave = () => { path.classList.remove('hovered'); flowClear(260); };
     g.appendChild(hit);
     // 화살표 위에 단계 이름 — 골라 둔 게 있으면 항상 보인다
     const meta = flowMeta(from, to);
@@ -9787,9 +9809,15 @@ async function cmRenderSessions() {
     el.className = 'cm-sess' + (cmSess && s.id === cmSess.id ? ' on' : '') + (s.alive ? '' : ' idle')
                  + (flowPick === s.id ? ' flowfrom' : '')
                  + (flowPick && cmFlowOf(list, flowPick).includes(s.id) ? ' flowon' : '');
+    // 이 세션으로 들어오는 화살표의 단계 = 이 세션의 담당. 여러 개면 모아서 보여준다.
+    const inStages = [...new Set(list.flatMap(o => {
+      const m = (o.flowMeta || {})[s.id];
+      return (o.id !== s.id && m && m.stage && cmFlowOf(list, o.id).includes(s.id)) ? [m.stage] : [];
+    }))];
     el.innerHTML = '<span class="dot"></span>'
                  + (s.worktree ? '<span class="cs-wt" title="' + escA((T.wtTip || '') + '\n' + (s.repo || '')) + '">🌿</span>' : '')
                  + '<span class="cs-t">' + esc(s.title || '') + '</span>'
+                 + inStages.map(st => '<span class="cs-stage">' + esc(flowStageLabel(st)) + '</span>').join('')
                  + '<button class="cs-flow" title="' + escA(T.flowT || '') + '">◎</button>';
     el.title = s.path || '';
     el.querySelector('.cs-flow').onclick = ev => {
@@ -9927,6 +9955,8 @@ function cmFlowDraw(list, rootId) {
       if (cmFlowSel) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
       cmFlowDraw(list, rootId);
     };
+    hit.onmouseenter = () => p.classList.add('hovered');
+    hit.onmouseleave = () => p.classList.remove('hovered');
     g.appendChild(hit);
     drew++;
   }
