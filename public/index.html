@@ -178,7 +178,8 @@
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   /* 진행 방향으로 색을 나눈다 — 왼쪽에서 오른쪽으로 가는(앞으로 나아가는) 선은 파랑, 되돌아오는 선은 분홍 */
-  #flowLayer .flow-line.fwd { stroke: #60a5fa; }
+  #flowLayer .flow-line.fwd { stroke: #93c5fd; stroke-width: 3.2;
+                             filter: drop-shadow(0 0 3px rgba(147,197,253,.5)) drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
   #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
@@ -543,6 +544,8 @@
                     border-radius: 2px; background: linear-gradient(#22c55e, #15803d); }
   #cmFlowSvg { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; display: none; }
   #cmFlowSvg .cmflow-line { fill: none; stroke: #f472b6; stroke-width: 2; stroke-linecap: round; }
+  /* 아래로 내려가는(앞으로 나아가는) 선은 파랑 — 본 화면의 좌→우와 같은 규칙 */
+  #cmFlowSvg .cmflow-line.fwd { stroke: #93c5fd; stroke-width: 2.6; }
   #cmFlowSvg .cmflow-line.from-here { stroke: #22d3ee; stroke-width: 2.6; }
   #cmFlowSvg .cmflow-line.sel { stroke: #ef4444; stroke-width: 2.8; stroke-dasharray: 9 6;
                                 animation: flowDash .55s linear infinite; }
@@ -4215,9 +4218,10 @@ function buildPane(sess, idx) {
       <div class="ph-top">
         <span class="numwrap"><span class="num" title="${escA(T.numAddT || '')}">${idx + 1}</span><span class="donebadge">${esc(T.doneBadge)}</span></span>
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
-        <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
-        <span class="st"></span>
+        <!-- ✳ 작업 시간은 제목 바로 옆에 — 오른쪽 끝에 두었더니 그 위에 떠 있는 도구 버튼에 가려 안 보였다 -->
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
+        <span class="st"></span>
+        <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         <!-- 도구버튼 묶음 — 창이 좁아지면 제목이 먼저 줄고, 그래도 모자라면 이 묶음이 통째로 아랫줄로 내려간다.
              예전엔 버튼들이 그냥 오른쪽으로 밀려 .pane 의 overflow:hidden 에 잘려 안 보였다. -->
         <span class="ph-tools">
@@ -5759,7 +5763,7 @@ function flowMeta(fromId, toId) {
    화살표마다 '자동으로 몇 번까지' 를 두고, 그 수를 넘으면 넘기기는 하되 *수동으로 강등* 한다
    (요청창에 채워만 두고 사람이 [전송]). 일이 사라지지 않으면서 토큰만 계속 타는 건 멈춘다.
    센 횟수는 화면에만 두어 새로고침하면 리셋되고, 사람이 그 흐름에 직접 요청을 보내면 그때도 리셋된다. */
-const FLOW_MAX_DEFAULT = 2;
+const FLOW_MAX_DEFAULT = 1;
 const flowFired = new Map();                       // 'from>to' → 자동으로 넘어간 횟수
 function flowResetCount(id) {                      // 사람이 개입 = 새 라운드 → 이 흐름 전체를 0으로
   for (const sid of flowComponent(id)) for (const k of [...flowFired.keys()]) {
@@ -5834,7 +5838,7 @@ function flowLayer() {
   svg.id = 'flowLayer';
   const mk = (id, color) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
                           + '<path d="M0,0 L10,5 L0,10 z" fill="' + color + '"/></marker>';
-  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadFwd', '#60a5fa') + mk('flowHeadSel', '#ef4444')
+  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadFwd', '#93c5fd') + mk('flowHeadSel', '#ef4444')
                 + mk('flowHeadDrag', '#22d3ee') + mk('flowHeadHov', '#fde047') + '</defs><g></g>';
   document.body.appendChild(svg);
   return svg;
@@ -10053,8 +10057,9 @@ function cmFlowDraw(list, rootId) {
   if (!svg) {
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.id = 'cmFlowSvg';
-    svg.innerHTML = '<defs><marker id="cmFlowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">'
-                  + '<path d="M0,0 L10,5 L0,10 z" fill="#f472b6"/></marker></defs><g></g>';
+    const mk = (id, c) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">'
+                        + '<path d="M0,0 L10,5 L0,10 z" fill="' + c + '"/></marker>';
+    svg.innerHTML = '<defs>' + mk('cmFlowHead', '#f472b6') + mk('cmFlowHeadFwd', '#93c5fd') + '</defs><g></g>';
     box.appendChild(svg);
   }
   const g = svg.querySelector('g');
@@ -10085,10 +10090,12 @@ function cmFlowDraw(list, rootId) {
     const bulge = Math.min(48, 16 + Math.abs(y2 - y1) * 0.22);
     const d = `M${W - 11},${y1} Q${W - 11 - bulge},${(y1 + y2) / 2} ${W - 11},${y2}`;
     const sel = cmFlowSel && cmFlowSel.from === from && cmFlowSel.to === to;
+    // 세로 목록에서는 '아래로 내려가는' 것이 앞으로 나아가는 흐름 — 본 화면의 좌→우와 같은 뜻이라 같은 파랑으로
+    const fwd = y2 > y1;
     const p = document.createElementNS(NS, 'path');
     p.setAttribute('d', d);
-    p.setAttribute('class', 'cmflow-line' + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : ''));
-    p.setAttribute('marker-end', 'url(#cmFlowHead)');
+    p.setAttribute('class', 'cmflow-line' + (fwd ? ' fwd' : '') + (from === rootId ? ' from-here' : '') + (sel ? ' sel' : ''));
+    p.setAttribute('marker-end', fwd ? 'url(#cmFlowHeadFwd)' : 'url(#cmFlowHead)');
     g.appendChild(p);
     // 본 화면과 같은 방식 — 투명한 굵은 선이 클릭을 받아 선택, Delete 로 삭제
     const hit = document.createElementNS(NS, 'path');
