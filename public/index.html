@@ -159,9 +159,10 @@
   #flowLayer { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
                z-index: 45; pointer-events: none; opacity: 0; transition: opacity .18s; }
   #flowLayer.on { opacity: 1; }                                  /* 연결이 하나라도 있으면 늘 보인다 */
-  /* 세션 창에 마우스를 올리면 = 그 세션을 보는 중 → 선이 글자를 가리지 않게 10% 로 물러난다.
+  /* 세션 창에 마우스를 올리면 = 그 세션을 보는 중 → 선이 글자를 가리지 않게 물러난다.
+     10% 는 너무 흐려 어디에 뭐가 이어졌는지조차 안 보였다 — 절반 정도면 글자도 읽히고 흐름도 남는다.
      단, 선 자체를 집고 있거나 단계 판을 쓰는 중이면 그대로 진하게 둔다(.keep). */
-  body.flowdim #flowLayer.on { opacity: .1; }
+  body.flowdim #flowLayer.on { opacity: .5; }
   body.flowdim #flowLayer.on.keep, #flowLayer.on.keep { opacity: 1; }
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
