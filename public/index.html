@@ -1233,6 +1233,15 @@
     /* ⋯ 자리를 항상 잡아둠 — 작업중 표시가 생겼다 사라져도 탭 폭이 안 변해 줄바꿈이 안 흔들림 */
     .mm-cell .mm-title::after { content: ' ⋯'; color: var(--sky); opacity: 0; }
     .mm-cell.busy .mm-title::after { opacity: 1; }
+    /* 🌿 같은 레포에서 갈라진 탭 묶음 — 붙여 놓고 초록 왼쪽선으로 한 뿌리임을 표시 */
+    #minimap { position: relative; }
+    .mm-cell.grp { background: #2f4a66; }
+    .mm-cell.grp-first { border-left: 3px solid #22c55e; }
+    /* 📱 화살표는 탭줄에만 — 세션창 위에 그으면 터미널을 가린다 */
+    #mmFlow { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; display: none; }
+    #mmFlow .mmflow { fill: none; stroke: #f472b6; stroke-width: 2; stroke-linecap: round; }
+    #mmFlow .mmflow.fwd { stroke: #93c5fd; stroke-width: 2.6; }
+    #flowLayer { display: none !important; }
     /* 폰 확대 모드: 고른 창만 크게, 나머지는 아주 얇게 */
     #grid.maxmode .pane.maxed { min-height: 86vh; }
     #grid.maxmode .pane.mini { min-height: 92px; }
@@ -6145,6 +6154,7 @@ function flowDraw(rootId) {
     }
   }
   flowShown = rootId;
+  if (typeof mmFlowDraw === 'function') mmFlowDraw();   // 폰 탭줄 화살표도 같은 시점에 갱신
   if (flowPanelKey && !edges.some(e => e[0] + '>' + e[1] === flowPanelKey)) flowPanelHide();
 }
 
@@ -6453,7 +6463,7 @@ async function flowRetarget(fromId, oldTo, newTo) {
 }
 // 창 크기·스크롤이 바뀌면 좌표가 어긋나므로 보이는 동안에는 다시 그린다
 // 늘 떠 있는 선이라 창 크기·스크롤이 바뀌면 매번 좌표를 다시 잡아야 한다
-window.addEventListener('resize', () => flowDraw(flowShown));
+window.addEventListener('resize', () => { flowDraw(flowShown); setTimeout(mmFlowDraw, 80); });
 window.addEventListener('scroll', () => flowDraw(flowShown), true);
 
 // --- 연결 만들기 ---
@@ -6633,11 +6643,33 @@ function detectModel(text) {
 function renderMinimap() {
   const mm = document.getElementById('minimap');
   mm.innerHTML = '';
-  [...grid.children].forEach((paneEl, i) => {
+  // 📱 같은 레포에서 갈라진 세션(worktree)들을 붙여서 순서대로 — 폰에선 탭이 줄바꿈되며 흩어져
+  //    어느 게 한 뿌리인지 알 수 없었다. 창 배열 자체는 건드리지 않고 탭 순서만 묶는다.
+  const nrm = s => (s || '').replace(/[\\/]+$/, '').toLowerCase();
+  const els = [...grid.children];
+  const groups = new Map();
+  els.forEach(el => {
+    const p = panes.get(el.dataset.id);
+    const k = p ? nrm(p.sess.repo || p.sess.path) : el.dataset.id;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(el);
+  });
+  const ordered = [];
+  const seen = new Set();
+  els.forEach(el => {
+    const p = panes.get(el.dataset.id);
+    const k = p ? nrm(p.sess.repo || p.sess.path) : el.dataset.id;
+    if (seen.has(k)) return;
+    seen.add(k);
+    groups.get(k).forEach((m, gi) => ordered.push({ el: m, group: k, first: gi === 0, size: groups.get(k).length }));
+  });
+  ordered.forEach(({ el: paneEl, first, size }) => {
     const id = paneEl.dataset.id;
     const p = panes.get(id);
+    const i = els.indexOf(paneEl);
     const cell = document.createElement('div');
-    cell.className = 'mm-cell' + (paneEl.classList.contains('done') ? ' done' : '');
+    cell.className = 'mm-cell' + (paneEl.classList.contains('done') ? ' done' : '')
+                   + (size > 1 ? (first ? ' grp grp-first' : ' grp') : '');
     cell.dataset.mm = id;
     cell.innerHTML = `<span class="mm-num">${i + 1}</span><span class="mm-title">${esc(p ? p.sess.title : '')}</span>`;
     cell.onclick = () => {
@@ -6653,6 +6685,50 @@ function renderMinimap() {
   applyLayout();
   mmCurId = undefined; mmSpy();   // 셀을 새로 그렸으니 현재 세션 강조 다시 칠하기
   saveOrder();   // 배열이 바뀔 때마다 현재 순서 기억 → 재시작 시 그대로 복원
+  setTimeout(mmFlowDraw, 60);     // 탭 사이 화살표 (폰에서는 여기에만 그린다)
+}
+/* 📱 탭메뉴 위의 플로우 화살표 — 폰에서는 세션창 위에 선을 그으면 터미널을 다 가려서
+   화살표를 탭 줄에만 그린다. 탭은 줄바꿈되므로 두 탭의 실제 좌표를 그때그때 재서 잇는다. */
+function mmFlowDraw() {
+  const mm = document.getElementById('minimap');
+  if (!mm) return;
+  let svg = document.getElementById('mmFlow');
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'mmFlow';
+    const mk = (id, c) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">'
+                        + '<path d="M0,0 L10,5 L0,10 z" fill="' + c + '"/></marker>';
+    svg.innerHTML = '<defs>' + mk('mmHeadFwd', '#93c5fd') + mk('mmHead', '#f472b6') + '</defs><g></g>';
+    mm.appendChild(svg);
+  }
+  const g = svg.querySelector('g');
+  g.innerHTML = '';
+  if (getComputedStyle(mm).display === 'none') { svg.style.display = 'none'; return; }   // PC 에선 탭줄 자체가 없다
+  const box = mm.getBoundingClientRect();
+  const cellOf = id => mm.querySelector('[data-mm="' + id + '"]');
+  let drew = 0;
+  for (const [from] of panes) for (const to of flowOf(from)) {
+    const a = cellOf(from), b = cellOf(to);
+    if (!a || !b) continue;
+    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    const fwd = (rb.top > ra.top) || (Math.abs(rb.top - ra.top) < 2 && rb.left > ra.left);
+    // 같은 줄이면 탭 옆구리끼리, 줄이 다르면 아래·위 가운데끼리 잇는다
+    const same = Math.abs(rb.top - ra.top) < 2;
+    const p1 = same ? { x: (fwd ? ra.right : ra.left) - box.left, y: ra.top + ra.height / 2 - box.top }
+                    : { x: ra.left + ra.width / 2 - box.left, y: (fwd ? ra.bottom : ra.top) - box.top };
+    const p2 = same ? { x: (fwd ? rb.left : rb.right) - box.left, y: rb.top + rb.height / 2 - box.top }
+                    : { x: rb.left + rb.width / 2 - box.left, y: (fwd ? rb.top : rb.bottom) - box.top };
+    const bow = same ? Math.max(7, Math.min(Math.abs(p2.x - p1.x) * 0.25, 16)) : 10;
+    const cx = (p1.x + p2.x) / 2, cy = (p1.y + p2.y) / 2 + (same ? bow : (fwd ? bow : -bow));
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`);
+    path.setAttribute('class', 'mmflow' + (fwd ? ' fwd' : ''));
+    path.setAttribute('marker-end', fwd ? 'url(#mmHeadFwd)' : 'url(#mmHead)');
+    g.appendChild(path); drew++;
+  }
+  svg.style.width = box.width + 'px';
+  svg.style.height = box.height + 'px';
+  svg.style.display = drew ? 'block' : 'none';
 }
 // 📱 스크롤 추적 — 화면 기준점(탭메뉴 아래 35% 지점)을 차지한 세션에 보라 링 + 탭메뉴 강조를 유지.
 // 스크롤·탭클릭으로 다른 세션에 가면 이전 것은 꺼지고 그 세션이 켜짐. (미니맵이 없는 PC 배치에선 전부 끔)
