@@ -2029,6 +2029,9 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    fs_report: "Report",
+    fsp_report: "The other sessions in this flow have finished their part. Go through each of their folders, read the git log and diff, and put together one summary: what changed, what was found, and what is still open. Do not edit any code and do not merge anything yet — this step only gathers.",
+    flowChainHead: "Sessions in this flow (folder is where each one worked):",
     tfTitle: "Terminal font",
     tfSub: "Consolas squeezes circled numbers like ①②③ into one cell and draws them tiny — at 13px the ring is 7px and the digit inside is about 4px. D2Coding and Cascadia draw them roughly twice that size without making the rest of the text bigger. Their circled glyphs are two cells wide, so they may overlap the next character slightly. Applies to every open session at once.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -2081,6 +2084,9 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    fs_report: "보고",
+    fsp_report: "이 흐름의 다른 세션들이 각자 맡은 걸 끝냈어. 그 세션들 폴더를 하나씩 들어가서 git log 와 git diff 를 읽고, 무엇이 바뀌었고 무엇이 발견됐고 무엇이 남았는지 한 장으로 정리해줘. 코드는 고치지 말고 아직 합치지도 마 — 이 단계는 모으기만 하는 거야.",
+    flowChainHead: "이 흐름에 참여한 세션 (폴더가 각자 작업한 곳):",
     tfTitle: "터미널 글꼴",
     tfSub: "Consolas 는 ①②③ 같은 원문자를 한 칸에 우겨넣느라 아주 작게 그립니다 — 13px 기준 동그라미가 7px, 그 안의 숫자는 4px 남짓이라 사실상 안 보여요. D2Coding·Cascadia 는 같은 글자 크기에서 두 배 가까이 크게 그립니다. 대신 이 글꼴들의 원문자는 두 칸 폭이라 옆 글자와 살짝 겹칠 수 있어요. 고르면 열려 있는 모든 세션에 바로 적용됩니다.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -2133,6 +2139,9 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    fs_report: "報告",
+    fsp_report: "この流れの他のセッションが担当分を終えました。それぞれのフォルダに入って git log と git diff を読み、何が変わり、何が見つかり、何が残っているかを一つにまとめてください。コードは直さず、まだマージもしないでください — この段階は集めるだけです。",
+    flowChainHead: "この流れに参加したセッション (フォルダが各自の作業場所):",
     tfTitle: "ターミナルの書体",
     tfSub: "Consolas は①②③のような丸数字を1マスに詰めるため非常に小さく描きます（13px で丸が7px、中の数字は4px ほどでほぼ見えません）。D2Coding・Cascadia は同じ文字サイズで倍近く大きく描きます。ただしこれらの丸数字は2マス幅なので隣の文字と少し重なることがあります。選ぶと開いているすべてのセッションにすぐ反映されます。",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -2367,6 +2376,9 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    fs_report: "汇报",
+    fsp_report: "这个流程里的其他会话都完成了各自的部分。请逐个进入它们的文件夹，读 git log 和 git diff，把改了什么、发现了什么、还剩什么整理成一份汇总。不要改代码，也先别合并 —— 这一步只负责收集。",
+    flowChainHead: "参与这个流程的会话（文件夹是各自工作的地方）:",
     tfTitle: "终端字体",
     tfSub: "Consolas 把①②③这类带圈数字挤进一个字符格，画得非常小（13px 时圆圈只有 7px，里面的数字约 4px，基本看不清）。D2Coding 和 Cascadia 在同样字号下画得几乎大一倍。不过这些字体的带圈数字宽两格，可能会和后面的字略微重叠。选择后立刻应用到所有打开的会话。",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -2601,6 +2613,9 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    fs_report: "Informe",
+    fsp_report: "Las demás sesiones de este flujo ya terminaron su parte. Entra en la carpeta de cada una, lee el git log y el git diff, y reúne un solo resumen: qué cambió, qué se encontró y qué queda pendiente. No edites código ni fusiones nada todavía — este paso solo recopila.",
+    flowChainHead: "Sesiones de este flujo (la carpeta es donde trabajó cada una):",
     tfTitle: "Fuente del terminal",
     tfSub: "Consolas mete los números en círculo como ①②③ en una sola celda y los dibuja diminutos: a 13px el círculo mide 7px y la cifra de dentro unos 4px. D2Coding y Cascadia los dibujan casi el doble de grandes sin agrandar el resto del texto. En esas fuentes ocupan dos celdas, así que pueden solaparse un poco con el carácter siguiente. Se aplica a todas las sesiones abiertas a la vez.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -2842,6 +2857,9 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    fs_report: "Bericht",
+    fsp_report: "Die anderen Sitzungen in diesem Ablauf sind mit ihrem Teil fertig. Geh in jeden ihrer Ordner, lies git log und git diff und stell eine einzige Zusammenfassung auf: was geändert wurde, was gefunden wurde und was offen bleibt. Ändere keinen Code und merge noch nichts — dieser Schritt sammelt nur.",
+    flowChainHead: "Sitzungen in diesem Ablauf (der Ordner ist, wo jede gearbeitet hat):",
     tfTitle: "Terminal-Schrift",
     tfSub: "Consolas quetscht Kreiszahlen wie ①②③ in eine Zelle und zeichnet sie winzig — bei 13px ist der Ring 7px und die Ziffer darin etwa 4px. D2Coding und Cascadia zeichnen sie fast doppelt so groß, ohne den übrigen Text zu vergrößern. Dort sind sie zwei Zellen breit und können das nächste Zeichen leicht überlappen. Gilt sofort für alle offenen Sitzungen.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -3079,6 +3097,9 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    fs_report: "Rapport",
+    fsp_report: "Les autres sessions de ce flux ont fini leur part. Entre dans le dossier de chacune, lis le git log et le git diff, et rassemble un seul résumé : ce qui a changé, ce qui a été trouvé et ce qui reste. Ne modifie aucun code et ne fusionne rien pour l’instant — cette étape ne fait que rassembler.",
+    flowChainHead: "Sessions de ce flux (le dossier est là où chacune a travaillé) :",
     tfTitle: "Police du terminal",
     tfSub: "Consolas tasse les chiffres cerclés comme ①②③ dans une seule cellule et les dessine minuscules : à 13px le cercle fait 7px et le chiffre dedans environ 4px. D2Coding et Cascadia les dessinent presque deux fois plus grands sans agrandir le reste. Chez elles ils font deux cellules de large et peuvent légèrement chevaucher le caractère suivant. S’applique d’un coup à toutes les sessions ouvertes.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -3319,6 +3340,9 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    fs_report: "Relatório",
+    fsp_report: "As outras sessões deste fluxo terminaram a parte delas. Entre na pasta de cada uma, leia o git log e o git diff, e junte um único resumo: o que mudou, o que foi encontrado e o que ficou em aberto. Não edite código nem faça merge ainda — esta etapa só reúne.",
+    flowChainHead: "Sessões deste fluxo (a pasta é onde cada uma trabalhou):",
     tfTitle: "Fonte do terminal",
     tfSub: "O Consolas espreme números em círculo como ①②③ numa célula só e os desenha minúsculos — a 13px o círculo tem 7px e o dígito dentro uns 4px. D2Coding e Cascadia desenham quase o dobro do tamanho sem aumentar o resto do texto. Nelas ocupam duas células, então podem sobrepor um pouco o caractere seguinte. Vale para todas as sessões abertas de uma vez.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -3559,6 +3583,9 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    fs_report: "Сводка",
+    fsp_report: "Остальные сессии этого потока закончили свою часть. Зайдите в папку каждой, прочитайте git log и git diff и соберите одну сводку: что изменилось, что нашли и что осталось. Код не правьте и пока ничего не сливайте — этот шаг только собирает.",
+    flowChainHead: "Сессии этого потока (папка — где каждая работала):",
     tfTitle: "Шрифт терминала",
     tfSub: "Consolas втискивает кружочные цифры вроде ①②③ в одну ячейку и рисует их крошечными — при 13px кружок 7px, а цифра внутри около 4px. D2Coding и Cascadia рисуют их почти вдвое крупнее, не увеличивая остальной текст. У них такие знаки шириной в две ячейки, поэтому могут слегка перекрывать следующий символ. Применяется сразу ко всем открытым сессиям.",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -3798,6 +3825,9 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    fs_report: "रिपोर्ट",
+    fsp_report: "इस क्रम की बाक़ी सेशनों ने अपना-अपना हिस्सा पूरा कर लिया है। उनमें से हर एक के फ़ोल्डर में जाकर git log और git diff पढ़ें, और एक ही सारांश बनाएँ: क्या बदला, क्या मिला, और क्या बचा है। कोड मत बदलिए और अभी मर्ज भी मत कीजिए — यह चरण सिर्फ़ इकट्ठा करता है।",
+    flowChainHead: "इस क्रम में शामिल सेशन (फ़ोल्डर यानी हर एक ने जहाँ काम किया):",
     tfTitle: "टर्मिनल का फ़ॉन्ट",
     tfSub: "Consolas ①②③ जैसे गोले वाले अंकों को एक ही ख़ाने में ठूँसकर बहुत छोटा बनाता है — 13px पर गोला 7px का और उसके अंदर का अंक लगभग 4px, यानी दिखता ही नहीं। D2Coding और Cascadia उसी आकार में इन्हें क़रीब दोगुना बड़ा बनाते हैं। इन फ़ॉन्ट में ये दो ख़ाने चौड़े होते हैं, इसलिए अगले अक्षर से थोड़ा ओवरलैप हो सकता है। चुनते ही सभी खुले सेशन पर लागू।",
     tfSample: "①②③④⑤ ▶ ▲ ✓ ✗ │ └ ┌ 0123 abc 한글",
@@ -5828,10 +5858,10 @@ function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess
 /* 화살표에 붙는 '단계' — 앞 세션 작업이 끝나면 그 단계의 요청문이 다음 세션 입력칸에 채워진다.
    자동 전송은 화살표마다 따로 켠다(기본 꺼짐) — 잘못 이어둔 화살표 하나로 AI 가 연쇄로 파일을 고치면 되돌리기 어렵다. */
 //   '구현' 은 뺐다 — 화살표의 단계는 *넘겨받는 쪽* 이 할 일이고, 넘기는 쪽이 이미 구현을 하고 있다.
-const FLOW_STAGES = ['ask', 'review', 'test', 'fix', 'ship'];
+const FLOW_STAGES = ['ask', 'review', 'test', 'fix', 'report', 'ship'];
 /* 단계에 어울리는 팀원 — 화살표에 단계를 정하면 받는 세션의 담당을 이걸로 자동으로 앉힌다.
    .claude/agents 에 그 이름이 실제로 있을 때만, 그리고 담당이 아직 비어 있을 때만 (직접 고른 건 안 건드림). */
-const STAGE_AGENT = { ask: 'designer', review: 'qa', test: 'qa', fix: 'developer', ship: 'pm' };
+const STAGE_AGENT = { ask: 'designer', review: 'qa', test: 'qa', fix: 'developer', report: 'pm', ship: 'pm' };
 async function flowAutoMember(toId, stage) {
   const p = panes.get(toId);
   if (!p || !p.setMember || !Array.isArray(p.agents) || !p.agents.length) return;
@@ -5878,7 +5908,26 @@ function flowText(fromId, toId) {
   if (!body) return '';
   const line = (T.flowSrcLine || '').replace(/\{t\}/g, src.title || '').replace(/\{p\}/g, src.path || '');
   const who = flowMemberLine(toId);
-  return (who ? who + '\n' : '') + body + (line ? '\n' + line : '');
+  // '보고' 는 흩어진 결과를 모아오는 단계라, 어디를 찾아가야 하는지 알아야 한다 —
+  // 참여한 세션들의 제목·맡은 단계·폴더 경로를 붙여 준다 (worktree 는 폴더가 전부 달라서 이게 없으면 못 찾는다)
+  const chain = m.stage === 'report' ? flowChainList(toId, fromId) : '';
+  return (who ? who + '\n' : '') + body + (line ? '\n' + line : '') + chain;
+}
+// 이 흐름에 참여한 세션 목록 — 받는 세션 자신은 뺀다
+function flowChainList(toId, fromId) {
+  const rows = [];
+  for (const id of flowComponent(fromId)) {
+    if (id === toId) continue;
+    const p = panes.get(id); if (!p) continue;
+    let st = '';
+    for (const [oid] of panes) {
+      if (oid === id || !flowOf(oid).includes(id)) continue;
+      const s = flowMeta(oid, id).stage;
+      if (s) { st = s; break; }
+    }
+    rows.push('· ' + (p.sess.title || '') + (st ? ' (' + flowStageLabel(st) + ')' : '') + ' — ' + (p.sess.path || ''));
+  }
+  return rows.length ? '\n' + (T.flowChainHead || '') + '\n' + rows.join('\n') : '';
 }
 // 단계를 고르면 대상 세션에게 "너는 이 흐름에서 무슨 담당" 인지 한 번 알려 준다.
 // 단계를 고른 것 자체가 그래도 된다는 뜻 — 같은 단계로는 다시 보내지 않는다(briefed 에 기록).
