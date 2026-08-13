@@ -896,6 +896,12 @@
   /* ❓ 질문 답변 — "질문~"으로 시작한 요청이 끝나면 답변이 질문 밑에 항상 표시 */
   .memo-row .mans { display: block; margin-top: 5px; font-size: 12px; line-height: 1.55; color: #065f46;
                     background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 7px; padding: 5px 8px; white-space: pre-wrap; }
+  /* 🙋 내가 직접 할 일 — 요청글 밑에 항상 표시 (AI 가 끝낸 뒤 사람이 손으로 해야 하는 순서) */
+  .memo-row .msteps { display: block; margin-top: 5px; font-size: 12px; line-height: 1.55; color: #7c2d12;
+                      background: #fff7ed; border: 1px solid #fed7aa; border-radius: 7px; padding: 5px 8px; }
+  .memo-row .msteps b { display: block; font-size: 11px; color: #b45309; margin-bottom: 2px; }
+  .memo-row .msteps ol { margin: 0; padding-left: 17px; }
+  .memo-row .msteps li { margin: 1px 0; }
   /* 🧭📝 요청 이유·요약프롬프트(설정에서 켜면 기록) — 마우스 올리면 요청글 밑에 표시 */
   .memo-row .mintent { display: none; font-size: 11px; line-height: 1.5; }
   .memo-row .mintent.nreason { color: #7c3aed; }    /* 이유 = 보라 */
@@ -1493,6 +1499,13 @@
     </span>
   </label>
   <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
+    <input type="checkbox" id="setSteps" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
+    <span style="display:block">
+      <span id="setStepsL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
+      <small id="setStepsHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+    </span>
+  </label>
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
     <input type="checkbox" id="setHints" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
     <span style="display:block">
       <span id="setHintsL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
@@ -1937,6 +1950,11 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    stepsHead: "Do this yourself",
+    setStepsL: "Collect what I have to do myself",
+    setStepsHint: "When a request finishes, the things the AI left for you to do by hand — run this, open that page and check it, restart something — are pulled out of the terminal and listed in order, in the memo pad and at the top of docs/질문-답변-기록.html. Uses one short Haiku call per finished request.",
+    setQaDocL: "Keep a questions-and-answers page",
+    setQaDocHint: "Requests you start with “question” / “질문” already get the answer attached in the request history. With this on they are also written to docs/질문-답변-기록.html in that folder — newest first, one row per question. The page itself costs nothing: PowerTerminal draws it, and the answer it shows was already being pulled out for the request history anyway.",
     fs_review: "Review", fs_test: "Test", fs_fix: "Fix", fs_ship: "Ship",
     fsp_review: "Review what “{t}” just changed. Read the git diff and point out only real bugs, missing error handling, and anything that should be reverted — do not edit the code.",
     fsp_test: "Actually run what “{t}” just changed and check it works. If something fails, report how to reproduce it with the exact output.",
@@ -1966,6 +1984,11 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    stepsHead: "내가 직접 할 일",
+    setStepsL: "내가 직접 할 일 모으기",
+    setStepsHint: "요청이 끝나면 AI 가 사람 몫으로 남긴 것들 — 이거 실행해라, 저 페이지 열어서 확인해라, 뭘 재시작해라 — 을 터미널에서 뽑아 순서대로 정리합니다. 메모장과 docs/질문-답변-기록.html 맨 위에 나옵니다. 끝난 요청 하나마다 짧은 Haiku 호출이 한 번 들어갑니다.",
+    setQaDocL: "질문 답변 기록 만들기",
+    setQaDocHint: "“질문~”으로 시작한 요청은 이미 요청내역에 답이 붙습니다. 이걸 켜면 그 폴더의 docs/질문-답변-기록.html 에도 표로 남습니다 — 최신이 위, 한 줄에 시각·질문·답. 이 페이지 자체로 드는 토큰은 없습니다: 표는 PowerTerminal 이 직접 그리고, 거기 실리는 답은 어차피 요청내역용으로 뽑아 두던 것입니다.",
     fs_review: "검토", fs_test: "테스트", fs_fix: "수정", fs_ship: "배포",
     fsp_review: "“{t}” 가 방금 바꾼 걸 검토해줘. git diff 를 읽고 진짜 버그·빠진 예외처리·되돌려야 할 부분만 짚어줘. 코드는 고치지 마.",
     fsp_test: "“{t}” 가 방금 바꾼 부분을 실제로 실행해서 동작하는지 확인해줘. 실패하면 재현 방법과 실제 출력을 그대로 알려줘.",
@@ -1995,6 +2018,11 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    stepsHead: "自分でやること",
+    setStepsL: "自分でやることを集める",
+    setStepsHint: "リクエストが終わると、AI が人の手に残したこと — これを実行、あのページを開いて確認、何かを再起動 — をターミナルから取り出して順番に並べます。メモ帳と docs/질문-답변-기록.html の一番上に出ます。終わったリクエスト1件につき短い Haiku 呼び出しが1回入ります。",
+    setQaDocL: "質問と回答の記録ページを作る",
+    setQaDocHint: "「質問」で始めたリクエストは、もともと回答がリクエスト履歴に付きます。これをオンにすると、そのフォルダの docs/질문-답변-기록.html にも書き出されます — 新しい順、質問1つにつき1行。このページ自体でかかるトークンはありません: 表は PowerTerminal が組み立て、載る回答はもともとリクエスト履歴用に取り出していたものです。",
     fs_review: "レビュー", fs_test: "テスト", fs_fix: "修正", fs_ship: "リリース",
     fsp_review: "「{t}」が今変更した内容をレビューしてください。git diff を読み、本当のバグ・抜けている例外処理・戻すべき箇所だけ指摘してください。コードは直さないでください。",
     fsp_test: "「{t}」が今変更した部分を実際に動かして確認してください。失敗したら再現手順と実際の出力をそのまま教えてください。",
@@ -2097,8 +2125,6 @@ const I18N_MORE = {
     billUnit: '日 (毎月)', billNext: '更新', billToday: '今日', billIn: 'あと{n}日',
     gptTip: 'GPT (Codex) の使用量 — 最後にGPTを動かした時点',
     addNeedPath: 'フォルダのパスを入力するか、📂 で選んでください。',
-    setQaDocL: '質問と回答の記録ページを作る — トークン不要',
-    setQaDocHint: '「質問」で始めたリクエストは、もともと回答がリクエスト履歴に付きます。これをオンにすると、そのフォルダの docs/질문-답변-기록.html にも書き出されます — 新しい順、質問1つにつき1行。PowerTerminal が自分でページを組み立て、AIは一切呼びません (トークン0) — だから既定でオンです。',
     phraseDefaults: '続けて,終わった?,1,2,3',
     phTitle: 'よく使うリクエストの言葉',
     phSub: '登録するとすべてのセッションの入力欄のすぐ上にボタンとして出ます。押すと入力欄に入るだけで、送信はしません。',
@@ -2208,6 +2234,11 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    stepsHead: "我要自己做的事",
+    setStepsL: "收集我要自己做的事",
+    setStepsHint: "请求结束后，把 AI 留给人做的事 —— 运行这个、打开那个页面确认、重启什么 —— 从终端里提取出来按顺序列好。会出现在记事本和 docs/질문-답변-기록.html 的最上面。每个完成的请求会用一次简短的 Haiku 调用。",
+    setQaDocL: "生成问答记录页面",
+    setQaDocHint: "以「质问 / 질문」开头的请求，本来就会把答案附在请求记录里。打开这个开关后，还会写入该文件夹的 docs/질문-답변-기록.html — 最新在前，一问一行。这个页面本身不花 token：表格由 PowerTerminal 自己生成，上面的答案本来就是为请求记录提取好的。",
     fs_review: "审查", fs_test: "测试", fs_fix: "修复", fs_ship: "发布",
     fsp_review: "审查「{t}」刚才改动的内容。读 git diff，只指出真正的 bug、遗漏的异常处理和应该回退的地方 —— 不要改代码。",
     fsp_test: "实际运行「{t}」刚才改动的部分，确认能正常工作。如果失败，把复现步骤和真实输出原样告诉我。",
@@ -2310,8 +2341,6 @@ const I18N_MORE = {
     billUnit: '日 (每月)', billNext: '续费', billToday: '今天', billIn: '还有 {n} 天',
     gptTip: 'GPT (Codex) 用量 — 截至最后一次运行 GPT 时',
     addNeedPath: '请输入文件夹路径，或用 📂 选择。',
-    setQaDocL: '生成问答记录页面 — 不消耗 token',
-    setQaDocHint: '以「质问 / 질문」开头的请求，本来就会把答案附在请求记录里。打开这个开关后，还会写入该文件夹的 docs/질문-답변-기록.html — 最新在前，一问一行。页面由 PowerTerminal 自己生成，完全不调用 AI (零 token)，所以默认开启。',
     phraseDefaults: '继续,做完了吗?,1,2,3',
     phTitle: '常用请求词',
     phSub: '每个词都会变成所有会话输入框正上方的按钮。按下只会填进输入框，不会直接发送。',
@@ -2421,6 +2450,11 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    stepsHead: "Lo que tengo que hacer yo",
+    setStepsL: "Recoger lo que tengo que hacer yo",
+    setStepsHint: "Cuando una petición termina, lo que la IA te dejó para hacer a mano — ejecuta esto, abre esa página y compruébala, reinicia algo — se saca de la terminal y se lista en orden, en el bloc de notas y arriba del todo en docs/질문-답변-기록.html. Usa una llamada corta a Haiku por petición terminada.",
+    setQaDocL: "Mantener una página de preguntas y respuestas",
+    setQaDocHint: "Las peticiones que empiezan por “pregunta” / “질문” ya llevan la respuesta adjunta en el historial. Con esto activado también se escriben en docs/질문-답변-기록.html dentro de esa carpeta — lo más nuevo primero, una fila por pregunta. La página en sí no cuesta nada: la dibuja PowerTerminal, y la respuesta que muestra ya se extraía para el historial.",
     fs_review: "Revisar", fs_test: "Probar", fs_fix: "Corregir", fs_ship: "Publicar",
     fsp_review: "Revisa lo que ‘{t}’ acaba de cambiar. Lee el git diff y señala solo errores reales, manejo de errores que falte y lo que habría que revertir — no toques el código.",
     fsp_test: "Ejecuta de verdad lo que ‘{t}’ acaba de cambiar y comprueba que funciona. Si algo falla, di cómo reproducirlo con la salida exacta.",
@@ -2526,8 +2560,6 @@ const I18N_MORE = {
     billUnit: 'de cada mes', billNext: 'Renueva', billToday: 'hoy', billIn: 'en {n} días',
     gptTip: 'Uso de GPT (Codex) — a fecha de la última vez que se ejecutó GPT',
     addNeedPath: 'Escribe la ruta de una carpeta, o elige una con 📂.',
-    setQaDocL: 'Mantener una página de preguntas y respuestas — sin tokens',
-    setQaDocHint: 'Las peticiones que empiezan por ‘pregunta’ / ‘질문’ ya llevan la respuesta adjunta en el historial. Con esto activado también se escriben en docs/질문-답변-기록.html dentro de esa carpeta — lo más nuevo primero, una fila por pregunta. PowerTerminal genera la página él mismo y nunca llama a la IA (cero tokens); por eso viene activado.',
     phraseDefaults: 'Continúa,¿Terminaste?,1,2,3',
     phTitle: 'Palabras de petición frecuentes',
     phSub: 'Cada una aparece como botón justo encima del campo de petición en todas las sesiones. Al pulsarlo solo se rellena el campo — no se envía.',
@@ -2641,6 +2673,11 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    stepsHead: "Was ich selbst tun muss",
+    setStepsL: "Sammeln, was ich selbst tun muss",
+    setStepsHint: "Wenn eine Anfrage fertig ist, wird das, was die KI dir von Hand überlässt — das ausführen, jene Seite öffnen und prüfen, etwas neu starten — aus dem Terminal gezogen und der Reihe nach aufgelistet: im Notizblock und ganz oben in docs/질문-답변-기록.html. Kostet einen kurzen Haiku-Aufruf je fertiger Anfrage.",
+    setQaDocL: "Seite mit Fragen und Antworten führen",
+    setQaDocHint: "Anfragen, die mit „Frage“ / „질문“ beginnen, bekommen die Antwort ohnehin im Anfrageverlauf angehängt. Ist das an, werden sie zusätzlich in docs/질문-답변-기록.html in diesem Ordner geschrieben — neueste zuerst, eine Zeile pro Frage. Die Seite selbst kostet nichts: PowerTerminal baut sie, und die gezeigte Antwort wurde ohnehin für den Verlauf herausgezogen.",
     fs_review: "Prüfen", fs_test: "Testen", fs_fix: "Beheben", fs_ship: "Ausliefern",
     fsp_review: "Prüfe, was ‘{t}’ gerade geändert hat. Lies den git diff und nenne nur echte Fehler, fehlende Fehlerbehandlung und was zurückgenommen gehört — ändere den Code nicht.",
     fsp_test: "Führe wirklich aus, was ‘{t}’ gerade geändert hat, und prüfe, ob es funktioniert. Wenn etwas scheitert, sag wie man es nachstellt, mit der genauen Ausgabe.",
@@ -2744,8 +2781,6 @@ const I18N_MORE = {
     billUnit: '. jedes Monats', billNext: 'Verlängert', billToday: 'heute', billIn: 'in {n} Tagen',
     gptTip: 'GPT-(Codex-)Nutzung — Stand des letzten GPT-Laufs',
     addNeedPath: 'Gib einen Ordnerpfad ein oder wähle einen mit 📂.',
-    setQaDocL: 'Seite mit Fragen und Antworten führen — kostet keine Tokens',
-    setQaDocHint: 'Anfragen, die mit ‘Frage’ / ‘질문’ beginnen, bekommen die Antwort ohnehin im Anfrageverlauf angehängt. Ist das an, werden sie zusätzlich in docs/질문-답변-기록.html in diesem Ordner geschrieben — neueste zuerst, eine Zeile pro Frage. PowerTerminal baut die Seite selbst und ruft dafür nie die KI (null Tokens) — deshalb ist es standardmäßig an.',
     phraseDefaults: 'Weiter,Fertig?,1,2,3',
     phTitle: 'Häufige Anfragewörter',
     phSub: 'Jedes wird in allen Sitzungen zu einem Knopf direkt über dem Eingabefeld. Ein Druck füllt nur das Feld — gesendet wird nichts.',
@@ -2857,6 +2892,11 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    stepsHead: "À faire moi-même",
+    setStepsL: "Rassembler ce que je dois faire moi-même",
+    setStepsHint: "Quand une demande se termine, ce que l’IA te laisse à faire à la main — lance ceci, ouvre cette page et vérifie, redémarre quelque chose — est extrait du terminal et listé dans l’ordre, dans le bloc-notes et tout en haut de docs/질문-답변-기록.html. Coûte un court appel Haiku par demande terminée.",
+    setQaDocL: "Tenir une page questions-réponses",
+    setQaDocHint: "Les demandes commençant par « question » / « 질문 » ont déjà la réponse jointe dans l’historique. Avec ceci activé, elles sont aussi écrites dans docs/질문-답변-기록.html de ce dossier — les plus récentes d’abord, une ligne par question. La page elle-même ne coûte rien : PowerTerminal la fabrique, et la réponse affichée était déjà extraite pour l’historique.",
     fs_review: "Relire", fs_test: "Tester", fs_fix: "Corriger", fs_ship: "Livrer",
     fsp_review: "Relis ce que « {t} » vient de changer. Lis le git diff et signale seulement les vrais bugs, la gestion d’erreur manquante et ce qu’il faudrait annuler — ne modifie pas le code.",
     fsp_test: "Exécute vraiment ce que « {t} » vient de changer et vérifie que ça marche. Si ça échoue, dis comment le reproduire avec la sortie exacte.",
@@ -2961,8 +3001,6 @@ const I18N_MORE = {
     billUnit: 'de chaque mois', billNext: 'Renouvelle', billToday: 'aujourd’hui', billIn: 'dans {n} jours',
     gptTip: 'Usage GPT (Codex) — à la dernière exécution de GPT',
     addNeedPath: 'Saisis un chemin de dossier, ou choisis-en un avec 📂.',
-    setQaDocL: 'Tenir une page questions-réponses — sans tokens',
-    setQaDocHint: 'Les demandes commençant par ‘question’ / ‘질문’ ont déjà la réponse jointe dans l’historique. Avec ceci activé, elles sont aussi écrites dans docs/질문-답변-기록.html de ce dossier — les plus récentes d’abord, une ligne par question. PowerTerminal fabrique la page lui-même et n’appelle jamais l’IA (zéro token) — d’où l’activation par défaut.',
     phraseDefaults: 'Continue,Fini ?,1,2,3',
     phTitle: 'Mots de demande fréquents',
     phSub: 'Chacun devient un bouton juste au-dessus du champ de demande, dans toutes les sessions. Appuyer ne fait que remplir le champ — ça n’envoie pas.',
@@ -3076,6 +3114,11 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    stepsHead: "O que eu tenho que fazer",
+    setStepsL: "Juntar o que eu tenho que fazer",
+    setStepsHint: "Quando um pedido termina, o que a IA deixou para você fazer na mão — rode isto, abra aquela página e confira, reinicie alguma coisa — é tirado do terminal e listado em ordem, no bloco de notas e no topo de docs/질문-답변-기록.html. Usa uma chamada curta ao Haiku por pedido concluído.",
+    setQaDocL: "Manter uma página de perguntas e respostas",
+    setQaDocHint: "Pedidos que começam com “pergunta” / “질문” já vêm com a resposta anexada no histórico. Com isto ligado, eles também são gravados em docs/질문-답변-기록.html naquela pasta — mais novos primeiro, uma linha por pergunta. A página em si não custa nada: o PowerTerminal a monta, e a resposta mostrada já era extraída para o histórico.",
     fs_review: "Revisar", fs_test: "Testar", fs_fix: "Corrigir", fs_ship: "Publicar",
     fsp_review: "Revise o que ‘{t}’ acabou de mudar. Leia o git diff e aponte só bugs de verdade, tratamento de erro que faltou e o que deveria voltar atrás — não mexa no código.",
     fsp_test: "Rode de verdade o que ‘{t}’ acabou de mudar e confira se funciona. Se falhar, diga como reproduzir com a saída exata.",
@@ -3180,8 +3223,6 @@ const I18N_MORE = {
     billUnit: 'de cada mês', billNext: 'Renova', billToday: 'hoje', billIn: 'em {n} dias',
     gptTip: 'Uso do GPT (Codex) — na última vez que o GPT rodou',
     addNeedPath: 'Digite o caminho de uma pasta, ou escolha uma com 📂.',
-    setQaDocL: 'Manter uma página de perguntas e respostas — sem tokens',
-    setQaDocHint: 'Pedidos que começam com ‘pergunta’ / ‘질문’ já vêm com a resposta anexada no histórico. Com isto ligado, eles também são gravados em docs/질문-답변-기록.html naquela pasta — mais novos primeiro, uma linha por pergunta. O PowerTerminal monta a página sozinho e nunca chama a IA (zero tokens) — por isso vem ligado.',
     phraseDefaults: 'Continua,Terminou?,1,2,3',
     phTitle: 'Palavras de pedido frequentes',
     phSub: 'Cada uma vira um botão logo acima do campo de pedido, em todas as sessões. Apertar só preenche o campo — não envia.',
@@ -3295,6 +3336,11 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    stepsHead: "Что мне сделать самому",
+    setStepsL: "Собирать то, что мне делать самому",
+    setStepsHint: "Когда запрос завершён, то, что ИИ оставил вам сделать руками — запустить это, открыть ту страницу и проверить, что-то перезапустить — вытаскивается из терминала и выкладывается по порядку: в блокноте и в самом верху docs/질문-답변-기록.html. Стоит один короткий вызов Haiku на завершённый запрос.",
+    setQaDocL: "Вести страницу вопросов и ответов",
+    setQaDocHint: "Запросы, начинающиеся со слова «вопрос» / «질문», и так получают ответ в истории запросов. С этой галочкой они дополнительно записываются в docs/질문-답변-기록.html в той папке — новые сверху, по строке на вопрос. Сама страница не стоит ничего: её собирает PowerTerminal, а показанный ответ и так извлекался для истории.",
     fs_review: "Проверка", fs_test: "Тест", fs_fix: "Исправление", fs_ship: "Выпуск",
     fsp_review: "Проверь то, что «{t}» только что изменил. Прочитай git diff и назови только настоящие ошибки, пропущенную обработку ошибок и то, что стоит откатить — код не правь.",
     fsp_test: "Реально запусти то, что «{t}» только что изменил, и убедись, что работает. Если падает — опиши, как воспроизвести, и приведи точный вывод.",
@@ -3398,8 +3444,6 @@ const I18N_MORE = {
     billUnit: 'числа каждого месяца', billNext: 'Продление', billToday: 'сегодня', billIn: 'через {n} дн.',
     gptTip: 'Расход GPT (Codex) — на момент последнего запуска GPT',
     addNeedPath: 'Введите путь к папке или выберите её через 📂.',
-    setQaDocL: 'Вести страницу вопросов и ответов — без токенов',
-    setQaDocHint: 'Запросы, начинающиеся со слова «вопрос» / «질문», и так получают ответ в истории запросов. С этой галочкой они дополнительно записываются в docs/질문-답변-기록.html в той папке — новые сверху, по строке на вопрос. Страницу собирает сам PowerTerminal и никогда не обращается к ИИ (ноль токенов) — поэтому по умолчанию включено.',
     phraseDefaults: 'Продолжай,Готово?,1,2,3',
     phTitle: 'Частые слова для запросов',
     phSub: 'Каждое становится кнопкой прямо над полем запроса во всех сессиях. Нажатие только подставляет текст в поле — не отправляет.',
@@ -3513,6 +3557,11 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    stepsHead: "जो मुझे ख़ुद करना है",
+    setStepsL: "जो मुझे ख़ुद करना है, वह इकट्ठा करें",
+    setStepsHint: "अनुरोध पूरा होने पर, AI ने जो आपके हाथ के लिए छोड़ा है — यह चलाओ, वह पेज खोलकर देखो, कुछ दोबारा चालू करो — उसे टर्मिनल से निकालकर क्रम से लिख दिया जाता है। नोटबुक में और docs/질문-답변-기록.html के सबसे ऊपर दिखता है। हर पूरे हुए अनुरोध पर एक छोटा Haiku कॉल लगता है।",
+    setQaDocL: "सवाल-जवाब का पन्ना बनाते रहें",
+    setQaDocHint: "जो अनुरोध “सवाल” / “질문” से शुरू होते हैं, उनका जवाब वैसे भी अनुरोध इतिहास में जुड़ जाता है। यह चालू रहने पर वे उसी फ़ोल्डर की docs/질문-답변-기록.html में भी लिखे जाते हैं — नए सबसे ऊपर, हर सवाल की एक पंक्ति। यह पन्ना ख़ुद कुछ ख़र्च नहीं करता: तालिका PowerTerminal बनाता है, और उसमें दिखने वाला जवाब वैसे भी अनुरोध इतिहास के लिए निकाला जा चुका होता है।",
     fs_review: "जाँच", fs_test: "टेस्ट", fs_fix: "सुधार", fs_ship: "रिलीज़",
     fsp_review: "‘{t}’ ने अभी जो बदला उसकी जाँच करें। git diff पढ़ें और सिर्फ़ असली बग, छूटी हुई एरर हैंडलिंग और जो वापस लेना चाहिए वही बताएँ — कोड मत बदलें।",
     fsp_test: "‘{t}’ ने अभी जो बदला उसे सचमुच चलाकर देखें कि काम करता है या नहीं। कुछ फेल हो तो दोबारा करने का तरीका और असली आउटपुट बताएँ।",
@@ -3616,8 +3665,6 @@ const I18N_MORE = {
     billUnit: 'हर महीने की तारीख़', billNext: 'नवीनीकरण', billToday: 'आज', billIn: '{n} दिन में',
     gptTip: 'GPT (Codex) का उपयोग — जब GPT आख़िरी बार चला, उस समय तक',
     addNeedPath: 'फ़ोल्डर का पता लिखें, या 📂 से चुनें।',
-    setQaDocL: 'सवाल-जवाब का पन्ना बनाते रहें — कोई टोकन नहीं लगता',
-    setQaDocHint: 'जो अनुरोध ‘सवाल’ / ‘질문’ से शुरू होते हैं, उनका जवाब वैसे भी अनुरोध इतिहास में जुड़ जाता है। यह चालू रहने पर वे उसी फ़ोल्डर की docs/질문-답변-기록.html में भी लिखे जाते हैं — नए सबसे ऊपर, हर सवाल की एक पंक्ति। यह पन्ना PowerTerminal ख़ुद बनाता है और इसके लिए AI को कभी नहीं बुलाता (शून्य टोकन) — इसीलिए यह डिफ़ॉल्ट रूप से चालू है।',
     phraseDefaults: 'आगे बढ़ो,हो गया?,1,2,3',
     phTitle: 'बार-बार काम आने वाले शब्द',
     phSub: 'हर शब्द सभी सेशनों में अनुरोध खाने के ठीक ऊपर बटन बन जाता है। दबाने पर बस खाने में लिख जाता है — भेजा नहीं जाता।',
@@ -7051,6 +7098,7 @@ async function openSettings() {
     const s = await api('GET', '/api/settings');
     ci.checked = !!(s && s.intentNotes); cs.checked = !!(s && s.summaryNotes);
     { const q = document.getElementById('setQaDoc'); if (q) q.checked = !!(s && s.qaDoc); }
+    { const p = document.getElementById('setSteps'); if (p) p.checked = !!(s && s.nextSteps); }
     bc.value = (s && s.billClaude) || ''; bg.value = (s && s.billGpt) || '';
     BILL.claude = Math.floor(Number(s && s.billClaude) || 0); BILL.gpt = Math.floor(Number(s && s.billGpt) || 0);
   } catch (e) {}
@@ -7061,6 +7109,11 @@ async function openSettings() {
   document.getElementById('setQaDocL').textContent = T.setQaDocL || '질문 답변 기록 만들기 (docs/질문-답변-기록.html)';
   document.getElementById('setQaDocHint').textContent = T.setQaDocHint || '';
   cq.onchange = () => api('POST', '/api/settings', { qaDoc: cq.checked });
+  // 🙋 내가 직접 할 일
+  const cp = document.getElementById('setSteps');
+  document.getElementById('setStepsL').textContent = T.setStepsL || '';
+  document.getElementById('setStepsHint').textContent = T.setStepsHint || '';
+  cp.onchange = () => api('POST', '/api/settings', { nextSteps: cp.checked });
   phraseRefreshUI();   // 💬 자주 쓰는 요청 단어 관리
   wtRefresh();     // 🌿 worktree 목록
   // 🔔 완료 소리 점검 — 실제 완료음과 똑같은 경로(speakNum)를 태워보고 상태를 그대로 보여준다
@@ -10011,6 +10064,7 @@ function renderMemo() {
                 + `<span class="mtext">${esc(rq.text)}`
                 + (rq.answer ? `<span class="mans">💬 ${esc(rq.answer)}</span>`
                              : `<span class="mans">⏳ ${esc(T.stRun || '')}</span>`)   // 아직 답이 안 온 질문
+                + reqSteps(rq)
                 + `</span><button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
     r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (rq.answer ? '\n💬 ' + rq.answer : ''));
     r.querySelector('.mjump').onclick = () => jumpToReq(rq);
@@ -10027,6 +10081,7 @@ function renderMemo() {
                 + `<span class="mtext">${esc(rq.text)}`
                 + (notesHtml ? '<br>' + notesHtml : '')   // 🧭📝 이유·요약 — 마우스 올리면 표시
                 + (rq.answer ? `<span class="mans">💬 ${esc(rq.answer)}</span>` : '')   // ❓ 질문이면 답변이 밑에 항상 표시
+                + reqSteps(rq)                                                          // 🙋 사람이 직접 할 일
                 + `</span><button class="mjump" title="${esc(T.memoJumpT || '')}">↑</button>`;
     r.querySelector('.mjump').onclick = () => jumpToReq(rq);   // 터미널에서 이 요청 위치로
     r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (notesTxt ? '\n' + notesTxt : '') + (rq.answer ? '\n💬 ' + rq.answer : ''));
@@ -10083,6 +10138,14 @@ function sendMemoToTerminal(it) {
 // 터미널이 단어 단위로 줄을 바꾸거나 간격을 바꿔도 공백 무시 비교로 찾아짐
 function reqNeedle(text) {
   return ((text || '').split('\n')[0] || '').replace(/\s+/g, '').slice(0, 24);
+}
+// 🙋 이 요청이 끝난 뒤 사람이 직접 해야 할 일 — 번호 순서대로. 없으면 아무 것도 안 그린다.
+function reqSteps(rq, asText) {
+  const st = Array.isArray(rq.steps) ? rq.steps.filter(Boolean) : [];
+  if (!st.length) return '';
+  if (asText) return (T.stepsHead || '') + '\n' + st.map((s, i) => (i + 1) + '. ' + s).join('\n');
+  return `<span class="msteps"><b>🙋 ${esc(T.stepsHead || '')}</b><ol>`
+       + st.map(s => `<li>${esc(s)}</li>`).join('') + '</ol></span>';
 }
 // 🧭📝 요청 메모(이유·요약프롬프트) — 있는 것만 라벨 붙여서. asText=true면 툴팁/복사용 순수 텍스트
 function reqNotes(rq, asText) {

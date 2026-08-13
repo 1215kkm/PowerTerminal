@@ -223,8 +223,13 @@ function stampReqs(dir, st) {
   const stamped = [];
   m.reqs.forEach(r => { if (r.st === 'run') { r.st = st; r.endTs = Date.now(); hit = true; stamped.push(r); } });
   if (hit) saveMemos();
-  // ❓ "질문~"으로 시작한 요청이 완료되면 터미널 출력에서 답변을 뽑아 질문 밑에 기록
-  if (st === 'done') stamped.forEach(r => { if (r.q && !r.answer) genReqAnswer(dir, r.id, r.text); });
+  // 요청이 끝나면 터미널 출력에서 ① 질문이었다면 답변 ② 사람이 직접 해야 할 일 을 뽑아 기록한다.
+  // 둘 다 한 번의 Haiku 호출로 끝내 호출 수를 늘리지 않는다.
+  if (st === 'done') stamped.forEach(r => {
+    const wantA = r.q && !r.answer;
+    const wantS = config.nextSteps !== false && !r.steps;
+    if (wantA || wantS) genReqNotes(dir, r.id, r.text, wantA, wantS);
+  });
 }
 // 지난 실행에서 '진행중'으로 남은 요청 = 서버가 그대로 꺼졌던 것 → 종료로 중단 표시
 {
@@ -1062,6 +1067,7 @@ const settingsView = () => ({
   // 표는 PT가 직접 그려 토큰이 안 드니 기본으로 켜 둔다 (undefined = 아직 정한 적 없음).
   // 사용자가 명시적으로 끈 false 는 그대로 존중한다 — 껐는데 다시 켜지면 안 되니까.
   qaDoc: config.qaDoc === undefined ? true : !!config.qaDoc,
+  nextSteps: config.nextSteps === undefined ? true : !!config.nextSteps,
   billClaude: config.billClaude || 0, billGpt: config.billGpt || 0,
   // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다.
   // null = "아직 한 번도 정한 적 없음" → 클라이언트가 화면 언어에 맞는 기본 4개를 넣는다.
@@ -1078,6 +1084,7 @@ app.post('/api/settings', (req, res) => {
     // 켜는 즉시, 이미 쌓여 있던 질문·답으로 열려 있는 폴더들의 문서를 한 번 만들어 준다
     if (config.qaDoc) { try { [...new Set(sessions.map(s => s.path))].forEach(p => writeQaDoc(p)); } catch (e) {} }
   }
+  if (req.body && typeof req.body.nextSteps === 'boolean') { config.nextSteps = req.body.nextSteps; dirty = true; }
   if (req.body && req.body.billClaude !== undefined) { config.billClaude = billDay(req.body.billClaude); dirty = true; }
   if (req.body && req.body.billGpt !== undefined) { config.billGpt = billDay(req.body.billGpt); dirty = true; }
   if (req.body && Array.isArray(req.body.phrases)) {
@@ -1951,7 +1958,8 @@ function writeQaDoc(dir) {
   try {
     const m = memos[memoKey(dir)];
     const list = ((m && m.reqs) || []).filter(r => r.q && r.answer);
-    if (!list.length) return;
+    const todo = ((m && m.reqs) || []).filter(r => Array.isArray(r.steps) && r.steps.length);
+    if (!list.length && !todo.length) return;
     // 최신이 위로. 날짜별로 묶고 각 줄은 시각·질문·답.
     const byDay = new Map();
     list.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach(r => {
@@ -1963,6 +1971,19 @@ function writeQaDoc(dir) {
     });
     const title = path.basename(dir.replace(/[\\/]+$/, '')) + ' — 질문 답변 기록';
     let body = '';
+    // 🙋 내가 직접 할 일 — AI 가 끝낸 뒤 사람이 손으로 해야 하는 것들. 맨 위에 둔다(제일 급한 정보라서).
+    if (todo.length) {
+      body += '<h2 class="todo">🙋 내가 직접 할 일</h2>\n<table>\n'
+            + '<thead><tr><th class="t">시각</th><th class="q">요청</th><th>순서대로 할 일</th></tr></thead>\n<tbody>\n';
+      todo.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 40).forEach(r => {
+        const d = new Date(r.ts || Date.now());
+        const p = n => (n < 10 ? '0' + n : '' + n);
+        const when = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+        body += '<tr><td class="t">' + qaEsc(when) + '</td><td class="q">' + qaEsc(r.text) + '</td><td><ol class="steps">'
+              + r.steps.map(s => '<li>' + qaEsc(s) + '</li>').join('') + '</ol></td></tr>\n';
+      });
+      body += '</tbody>\n</table>\n';
+    }
     for (const [day, rows] of byDay) {
       body += '<h2>' + qaEsc(day) + '</h2>\n<table>\n<thead><tr><th class="t">시각</th><th class="q">질문</th><th>답</th></tr></thead>\n<tbody>\n';
       for (const r of rows) {
@@ -1979,11 +2000,13 @@ function writeQaDoc(dir) {
       + 'table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid #eef0f3}\n'
       + 'thead th{background:#f8fafc;color:#475569;font-weight:600;font-size:13px}\n'
       + 'td.t,th.t{width:64px;color:#6b7280;white-space:nowrap} td.q,th.q{width:34%;font-weight:600}\n'
+      + 'h2.todo{color:#b45309;border-bottom-color:#fcd34d}\n'
+      + 'ol.steps{margin:0;padding-left:20px} ol.steps li{margin:2px 0}\n'
       + '@media(max-width:640px){td.q,th.q{width:auto} table,thead,tbody,tr,td,th{display:block} thead{display:none}\n'
       + ' tr{border-bottom:1px solid #e5e7eb;padding:8px 0} td{border:0;padding:3px 0}}\n'
       + '</style></head><body>\n'
       + '<h1>' + qaEsc(title) + '</h1>\n'
-      + '<p class="lead">물어본 것과 그 답만 남습니다 (작업 지시는 여기 안 적힙니다). 최신이 위에 옵니다.</p>\n'
+      + '<p class="lead">물어본 것과 그 답, 그리고 AI 가 끝낸 뒤 내가 손으로 해야 할 일이 남습니다. 최신이 위에 옵니다.</p>\n'
       + '<p class="lead">PowerTerminal이 자동으로 갱신합니다 — 직접 고쳐도 다음 질문 때 덮어씁니다.</p>\n'
       + body
       + '</body></html>\n';
@@ -1992,7 +2015,7 @@ function writeQaDoc(dir) {
     fs.writeFileSync(out, html);
   } catch (e) {}
 }
-function genReqAnswer(dir, reqId, question) {
+function genReqNotes(dir, reqId, question, wantAnswer, wantSteps) {
   try {
     const cands = sessions.filter(s => memoKey(s.path) === memoKey(dir)).map(s => ptys.get(s.id)).filter(p => p && !p.dead);
     if (!cands.length) return;
@@ -2009,18 +2032,36 @@ function genReqAnswer(dir, reqId, question) {
     const kill = setTimeout(() => { try { proc.kill(); } catch (e) {} }, 90000);
     proc.on('close', () => {
       clearTimeout(kill);
-      const mt = out.match(/ANSWER:\s*([\s\S]+)/);
-      if (!mt) return;
-      const ans = mt[1].trim().slice(0, 1500);
       const m = memos[memoKey(dir)];
       const r = m && (m.reqs || []).find(x => x.id === reqId);
-      if (r && ans) { r.answer = ans; saveMemos(); writeQaDoc(dir); }
+      if (!r) return;
+      let dirty = false;
+      if (wantAnswer) {
+        const mt = out.match(/ANSWER:\s*([\s\S]*?)(?=\nSTEPS:|$)/);
+        const ans = mt && mt[1].trim().slice(0, 1500);
+        if (ans && !/^none$/i.test(ans)) { r.answer = ans; dirty = true; }
+      }
+      if (wantSteps) {
+        const ms = out.match(/STEPS:\s*([\s\S]+)/);
+        const raw = ms ? ms[1].trim() : '';
+        // 'none' 이면 사람이 할 일이 없다는 뜻 — 빈 배열로 남겨 다시 물어보지 않게 한다
+        const steps = /^none$/i.test(raw) ? [] : raw.split('\n')
+          .map(s => s.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim())
+          .filter(s => s && !/^none$/i.test(s)).slice(0, 8).map(s => s.slice(0, 300));
+        r.steps = steps; dirty = true;
+      }
+      if (dirty) { saveMemos(); writeQaDoc(dir); }
     });
     proc.on('error', () => clearTimeout(kill));
-    proc.stdin.write('Below is the tail of a terminal log where an AI assistant just answered the user\'s question.\n'
-      + 'Extract the assistant\'s answer to that question. Reply in the SAME language as the question, formatted EXACTLY as:\n'
-      + 'ANSWER: <the answer — keep the substance, condense to at most ~600 characters>\n\n'
-      + 'Question:\n' + String(question || '').slice(0, 500) + '\n\nTerminal log:\n' + log);
+    const ask = [];
+    if (wantAnswer) ask.push('ANSWER: <the assistant\'s answer to the question — keep the substance, at most ~600 characters>');
+    if (wantSteps) ask.push('STEPS: <things the HUMAN must now do by hand, one per line, in order — running a command, '
+      + 'opening a page and checking it, restarting something, entering a key. Write only what the assistant asked the '
+      + 'person to do or clearly left for them; do NOT invent steps and do NOT list what the assistant already did itself. '
+      + 'If there is nothing for the person to do, write exactly: none>');
+    proc.stdin.write('Below is the tail of a terminal log where an AI assistant worked on a request.\n'
+      + 'Reply in the SAME language as the request, formatted EXACTLY as these lines and nothing else:\n'
+      + ask.join('\n') + '\n\nRequest:\n' + String(question || '').slice(0, 500) + '\n\nTerminal log:\n' + log);
     proc.stdin.end();
   } catch (e) {}
 }
