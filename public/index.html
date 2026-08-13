@@ -4907,19 +4907,24 @@ function buildPane(sess, idx) {
     if (!sel) return;
     let list = [];
     try { list = await api('GET', '/api/sessions/' + sess.id + '/agents'); } catch (e) {}
-    if (!Array.isArray(list) || !list.length) return;                 // 강팀이 없는 레포면 자리 자체를 안 만든다
+    if (!Array.isArray(list) || !list.length) { sel.remove(); return; }   // 팀원이 정의 안 된 레포면 칸 자체를 없앤다
     sel.innerHTML = `<option value="">${esc(T.memberNone || '')}</option>`
                   + list.map(a => `<option value="${escA(a.id)}"${sess.member === a.id ? ' selected' : ''}>${esc(a.label)}</option>`).join('');
     sel.style.display = '';
     const paint = () => sel.classList.toggle('has', !!sel.value);
     paint();
-    sel.onchange = async () => {
+    const save = async auto => {
       const a = list.find(x => x.id === sel.value);
-      sess.member = sel.value; sess.memberLabel = a ? a.label : '';
+      sess.member = sel.value; sess.memberLabel = a ? a.label : ''; sess.memberAuto = !!auto;
       paint();
-      await api('PATCH', '/api/sessions/' + sess.id, { member: sess.member, memberLabel: sess.memberLabel });
+      await api('PATCH', '/api/sessions/' + sess.id,
+                { member: sess.member, memberLabel: sess.memberLabel, memberAuto: sess.memberAuto });
       if (typeof cmRenderSessions === 'function' && codeModal.classList.contains('on')) cmRenderSessions();
     };
+    sel.onchange = () => save(false);           // 사람이 직접 고른 담당 — 이후 자동 배정이 덮지 않는다
+    // 단계가 정해질 때 알맞은 팀원을 자동으로 앉히기 위해 창 쪽에 목록과 설정 함수를 달아 둔다
+    const pane = panes.get(sess.id);
+    if (pane) { pane.agents = list; pane.setMember = async id => { sel.value = id; await save(true); }; }
   })();
 
   // ◎ 플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션으로 연결. 그냥 클릭 = 고르기 모드(터치 기기용).
@@ -5761,6 +5766,17 @@ function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess
    자동 전송은 화살표마다 따로 켠다(기본 꺼짐) — 잘못 이어둔 화살표 하나로 AI 가 연쇄로 파일을 고치면 되돌리기 어렵다. */
 //   '구현' 은 뺐다 — 화살표의 단계는 *넘겨받는 쪽* 이 할 일이고, 넘기는 쪽이 이미 구현을 하고 있다.
 const FLOW_STAGES = ['ask', 'review', 'test', 'fix', 'ship'];
+/* 단계에 어울리는 팀원 — 화살표에 단계를 정하면 받는 세션의 담당을 이걸로 자동으로 앉힌다.
+   .claude/agents 에 그 이름이 실제로 있을 때만, 그리고 담당이 아직 비어 있을 때만 (직접 고른 건 안 건드림). */
+const STAGE_AGENT = { ask: 'designer', review: 'qa', test: 'qa', fix: 'developer', ship: 'pm' };
+async function flowAutoMember(toId, stage) {
+  const p = panes.get(toId);
+  if (!p || !p.setMember || !Array.isArray(p.agents) || !p.agents.length) return;
+  if (p.sess.member && !p.sess.memberAuto) return;             // 사람이 직접 고른 담당은 그대로 둔다
+  const want = STAGE_AGENT[stage];
+  const a = want && p.agents.find(x => x.id === want);
+  if (a && a.id !== p.sess.member) await p.setMember(a.id);    // 자동으로 앉힌 담당은 단계가 바뀌면 따라 바뀐다
+}
 const flowStageLabel = k => (T['fs_' + k] || k);
 const flowStagePrompt = k => (T['fsp_' + k] || '');
 function flowMeta(fromId, toId) {
@@ -5825,6 +5841,8 @@ async function flowSetMeta(fromId, toId, patch) {
   const p = panes.get(fromId); if (!p) return;
   const all = Object.assign({}, p.sess.flowMeta || {});
   const next = Object.assign(flowMeta(fromId, toId), patch);
+  // 단계가 정해지면 그 일에 맞는 팀원을 받는 세션의 담당으로 먼저 앉힌다 (브리핑에 담당 지시가 같이 나가도록)
+  if (next.stage) await flowAutoMember(toId, next.stage);
   // 단계를 새로 골랐으면 대상 세션에 역할을 한 번 알려 주고, 알린 단계를 기록해 중복을 막는다
   if (next.stage && next.stage !== next.briefed) {
     if (await flowBrief(fromId, toId, next.stage)) next.briefed = next.stage;

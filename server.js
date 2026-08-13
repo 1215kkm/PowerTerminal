@@ -1456,6 +1456,7 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (typeof req.body.member === 'string') {
     s.member = req.body.member.slice(0, 40);
     s.memberLabel = typeof req.body.memberLabel === 'string' ? req.body.memberLabel.slice(0, 40) : '';
+    s.memberAuto = !!req.body.memberAuto;      // 단계 보고 자동으로 앉힌 것인지 (사람이 고른 건 나중에 안 바꾼다)
     saveSessions();
     return res.json(s);
   }
