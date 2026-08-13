@@ -5612,7 +5612,7 @@ function flowMeta(fromId, toId) {
    화살표마다 '자동으로 몇 번까지' 를 두고, 그 수를 넘으면 넘기기는 하되 *수동으로 강등* 한다
    (요청창에 채워만 두고 사람이 [전송]). 일이 사라지지 않으면서 토큰만 계속 타는 건 멈춘다.
    센 횟수는 화면에만 두어 새로고침하면 리셋되고, 사람이 그 흐름에 직접 요청을 보내면 그때도 리셋된다. */
-const FLOW_MAX_DEFAULT = 3;
+const FLOW_MAX_DEFAULT = 2;
 const flowFired = new Map();                       // 'from>to' → 자동으로 넘어간 횟수
 function flowResetCount(id) {                      // 사람이 개입 = 새 라운드 → 이 흐름 전체를 0으로
   for (const sid of flowComponent(id)) for (const k of [...flowFired.keys()]) {
