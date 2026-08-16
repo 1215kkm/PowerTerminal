@@ -1088,7 +1088,12 @@
   .pick-card.sel { border-color: var(--pink); background: rgba(236,72,153,.12); }
   .pick-card .pk-title { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pick-card .pk-path { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
+  /* ◎ 마우스 올린 카드와 플로우로 이어진 것들 — 선택(분홍)과 헷갈리지 않게 파랑 계열로 */
+  .pick-card.pk-flow { border-color: #38bdf8; background: rgba(56,189,248,.14); }
+  .pick-card.pk-flowroot { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,.35); }
+  .pick-card.pk-flow::after { content: '◎'; position: absolute; top: 4px; left: 6px; font-size: 10px; color: #38bdf8; }
   .pick-card.pk-recent { opacity: .6; }
+  .pick-card.pk-recent.pk-flow { opacity: 1; }   /* 닫힌 세션이라도 이어진 거면 또렷하게 */
   .pick-card.pk-recent.sel { opacity: 1; }
   /* 카드 우측상단 3개 아이콘 (폴더열기·빼기·중복) — 평소 숨김, 호버 시 표시, 박스 안 정중앙 */
   .card-icons { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; z-index: 3; }
@@ -2055,6 +2060,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
+    flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
     flowSortT: "Sort the panes by the flow — sessions from one repo together, in arrow order. Saved, so a restart keeps it.",
@@ -2115,6 +2121,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
+    flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
     flowSortT: "창을 흐름 순서로 정렬 — 같은 레포 세션끼리 모으고 화살표 순서대로. 저장돼서 다시 켜도 그대로예요.",
@@ -2175,6 +2182,7 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
+    flowOpenMates: "フローでつながっているセッションも一緒に開きますか？", flowCloseMates: "フローでつながっているセッションも一緒に閉じますか？",
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
     flowSortT: "ウィンドウをフローの順に並べ替え — 同じリポジトリのセッションをまとめ、矢印の順に。保存されるので再起動後もそのままです。",
@@ -2417,6 +2425,7 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
+    flowOpenMates: "要一起打开用流程箭头连接的会话吗？", flowCloseMates: "要一起关闭用流程箭头连接的会话吗？",
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
     flowSortT: "按流程顺序排列窗口 —— 同一仓库的会话放在一起，按箭头顺序。会保存，重启后依然如此。",
@@ -2659,6 +2668,7 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
+    flowOpenMates: "¿Abrir también las sesiones conectadas por flechas de flujo?", flowCloseMates: "¿Cerrar también las sesiones conectadas por flechas de flujo?",
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
     flowSortT: "Ordenar los paneles según el flujo — las sesiones de un mismo repo juntas, en orden de las flechas. Se guarda, así que un reinicio lo conserva.",
@@ -2908,6 +2918,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
+    flowOpenMates: "Auch die per Flusspfeil verbundenen Sitzungen öffnen?", flowCloseMates: "Auch die per Flusspfeil verbundenen Sitzungen schließen?",
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
     flowSortT: "Fenster nach dem Ablauf sortieren — Sitzungen eines Repos zusammen, in Pfeilreihenfolge. Wird gespeichert und übersteht einen Neustart.",
@@ -3153,6 +3164,7 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
+    flowOpenMates: "Ouvrir aussi les sessions reliées par les flèches de flux ?", flowCloseMates: "Fermer aussi les sessions reliées par les flèches de flux ?",
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
     flowSortT: "Trier les panneaux selon le flux — les sessions d’un même dépôt ensemble, dans l’ordre des flèches. Enregistré, donc conservé au redémarrage.",
@@ -3401,6 +3413,7 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
+    flowOpenMates: "Abrir também as sessões conectadas pelas setas de fluxo?", flowCloseMates: "Fechar também as sessões conectadas pelas setas de fluxo?",
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
     flowSortT: "Ordenar os painéis pelo fluxo — sessões do mesmo repo juntas, na ordem das setas. Fica salvo, então sobrevive a um reinício.",
@@ -3649,6 +3662,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
+    flowOpenMates: "Открыть также сессии, связанные стрелками потока?", flowCloseMates: "Закрыть также сессии, связанные стрелками потока?",
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
     flowSortT: "Упорядочить окна по потоку — сессии одного репозитория вместе, в порядке стрелок. Сохраняется и переживает перезапуск.",
@@ -3896,6 +3910,7 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
+    flowOpenMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में खोलें?", flowCloseMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में बंद करें?",
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
     flowSortT: "विंडो को क्रम के हिसाब से लगाएँ — एक ही रिपॉज़िटरी की सेशन साथ, तीरों के क्रम में। सेव होता है, इसलिए दोबारा चालू करने पर भी वैसा ही रहता है।",
@@ -5157,12 +5172,23 @@ function buildPane(sess, idx) {
   el.querySelector('.btnClose').onclick = async (ev) => {
     ev.stopPropagation();
     if (!confirm(T.confirmClose.replace('{t}', sess.title))) return;
+    // ◎ 플로우로 이어진 세션들 — 한 흐름은 보통 같이 쓰고 같이 끝난다. 물어보고 같이 닫는다.
+    const mates = flowOpenMates(sess.id);
+    const alsoClose = mates.length &&
+      confirm((T.flowCloseMates || '플로우로 이어진 세션들도 같이 닫을까요?') + '\n\n' +
+              mates.map(i => (panes.get(i).sess.title || i)).join(', '));
     if (zoomedId === sess.id) closeZoom();   // 전체화면 중이면 먼저 원위치
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 쓰다 만 글 임시저장도 정리
     await api('DELETE', '/api/sessions/' + sess.id);
     closedByUser = true;
     el.dispatchEvent(new Event('ptclose'));   // 이 창의 주기 타이머(브랜치 갱신 등) 정리
     ws.close(); el.remove(); panes.delete(sess.id);
+    if (alsoClose) for (const id of mates) {
+      if (!panes.has(id)) continue;
+      await api('DELETE', '/api/sessions/' + id);
+      removePaneLocal(id);   // 전체화면 정리·WebSocket 종료까지 여기서 함께 처리된다
+    }
+    applyLayout();
     renumber();
   };
 
@@ -5986,6 +6012,87 @@ let flowDragEdge = null;          // 이미 있는 화살표를 잡아당기는 
 let flowClickSquelch = false;     // 드래그로 끝난 mouseup 뒤에 따라오는 click 무시용
 
 function flowOf(id) { const p = panes.get(id); return (p && Array.isArray(p.sess.flowTo)) ? p.sess.flowTo : []; }
+
+/* ── 폴더 기준 플로우 지도 — 닫힌 세션까지 이어져 있던 기록 ──
+   화살표 자체는 세션 id 로 이어져 있어 닫으면 사라지지만, 서버가 "폴더 → 폴더" 로 한 벌 더 적어둔다.
+   이걸로 세션을 열 때 "같이 이어져 있던 것들도 같이 열까요?" 를 물어보고, 선택창에서 한 덩어리를 표시한다. */
+let flowLinkMap = null;                 // { from경로: { to경로: {...} } }
+const fkey = p => String(p || '').replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();   // \ 와 / 를 섞어 써도 같은 폴더로
+async function flowLinksLoad(force) {
+  if (flowLinkMap && !force) return flowLinkMap;
+  try { const m = await api('GET', '/api/flow-links'); flowLinkMap = (m && !m.error) ? m : {}; }
+  catch (e) { flowLinkMap = {}; }
+  return flowLinkMap;
+}
+/* 이 폴더와 한 덩어리로 이어진 폴더들 — 방향과 상관없이 타고 간다(맨 끝 세션에서 시작해도 앞쪽이 같이 나오게).
+   순서는 화살표를 따라간 순서 = 실제 일이 흐르는 차례. */
+function flowMateKeys(startKey) {
+  const map = flowLinkMap || {};
+  const back = {};                                            // 들어오는 화살표도 타야 해서 역방향을 만든다
+  for (const [f, tos] of Object.entries(map)) for (const t of Object.keys(tos)) (back[t] = back[t] || []).push(f);
+  const seen = new Set([startKey]), order = [], q = [startKey];
+  while (q.length) {
+    const cur = q.shift();
+    for (const nx of [...Object.keys(map[cur] || {}), ...(back[cur] || [])]) {
+      if (seen.has(nx)) continue;
+      seen.add(nx); order.push(nx); q.push(nx);                // 나가는 화살표 먼저 → 흐름 순서대로 쌓인다
+    }
+  }
+  return order;
+}
+/* 세션을 연 뒤 — 이어져 있던 폴더 중 아직 안 열린 게 있으면 같이 열지 묻는다.
+   paths = 방금 연 세션들의 경로. 열 때는 화살표를 따라간 차례대로 오른쪽에 이어 붙인다. */
+async function offerFlowMates(paths, skipPaths) {
+  if (isMobile || !IS_MAIN) return;
+  const skip = new Set((skipPaths || []).map(fkey));   // 선택창에서 방금 '안 열기'로 고른 건 다시 묻지 않는다
+  await flowLinksLoad(true);
+  if (!flowLinkMap || !Object.keys(flowLinkMap).length) return;
+  let live = [];
+  try { live = await api('GET', '/api/sessions'); } catch (e) {}
+  if (!Array.isArray(live)) live = [];
+  const openKeys = new Set(live.map(s => fkey(s.path)));
+  const want = [];
+  for (const p of paths) for (const k of flowMateKeys(fkey(p)))
+    if (!openKeys.has(k) && !skip.has(k) && !want.includes(k)) want.push(k);
+  if (!want.length) return;
+  // 다시 켜려면 제목·AI 를 알아야 한다 — '최근 닫은' 목록에 있는 것만 대상
+  let known = [];
+  try { known = await api('GET', '/api/known-projects'); } catch (e) {}
+  const byKey = new Map((Array.isArray(known) ? known : []).map(k => [fkey(k.path), k]));
+  const list = want.map(k => byKey.get(k)).filter(Boolean);
+  if (!list.length) return;
+  const names = list.map(k => k.title || k.name).join(', ');
+  if (!confirm((T.flowOpenMates || '플로우로 이어진 세션도 같이 열까요?') + '\n\n' + names)) return;
+  for (const k of list) {
+    const ns = await api('POST', '/api/sessions', { path: k.path, title: k.title || k.name, agent: k.agent || 'claude', model: k.model || 'default' });
+    if (ns && !ns.error) buildPane(ns, grid.children.length);
+  }
+  applyLayout(); renumber(); renderMinimap();
+  // 새로 열린 세션에는 상대와의 화살표가 서버에서 복원돼 있다 — 최신 flowTo 를 받아 화면에도 반영
+  await flowRefreshAll();
+  try { await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) }); } catch (e) {}
+}
+// 열려 있는 창들의 flowTo 를 서버 값으로 다시 맞춘다 (복원된 화살표를 바로 그리기 위해)
+async function flowRefreshAll() {
+  let live = [];
+  try { live = await api('GET', '/api/sessions'); } catch (e) { return; }
+  if (!Array.isArray(live)) return;
+  for (const s of live) {
+    const p = panes.get(s.id);
+    if (p) { p.sess.flowTo = Array.isArray(s.flowTo) ? s.flowTo : []; p.sess.flowMeta = s.flowMeta || {}; }
+  }
+  flowDraw();
+}
+// 이 세션과 한 덩어리로 이어진 '열려 있는' 세션 id 들 (양방향·간접 포함, 자기 자신 제외)
+function flowOpenMates(id) {
+  const seen = new Set([id]), out = [], q = [id];
+  while (q.length) {
+    const cur = q.shift();
+    const near = [...flowOf(cur), ...[...panes.keys()].filter(x => flowOf(x).includes(cur))];
+    for (const nx of near) { if (seen.has(nx) || !panes.has(nx)) continue; seen.add(nx); out.push(nx); q.push(nx); }
+  }
+  return out;
+}
 /* 화살표에 붙는 '단계' — 앞 세션 작업이 끝나면 그 단계의 요청문이 다음 세션 입력칸에 채워진다.
    자동 전송은 화살표마다 따로 켠다(기본 꺼짐) — 잘못 이어둔 화살표 하나로 AI 가 연쇄로 파일을 고치면 되돌리기 어렵다. */
 //   '구현' 은 뺐다 — 화살표의 단계는 *넘겨받는 쪽* 이 할 일이고, 넘기는 쪽이 이미 구현을 하고 있다.
@@ -7625,6 +7732,7 @@ async function addSession(path, title, agent, cmd, skipPrompt, extra) {
   if (s.error) { alert(s.error); return null; }
   if (skipPrompt) addHere(s);          // 이전에 쓰던 세션 다시 열기 = 새 창 묻지 않고 이 창에
   else await placeNewSession(s);       // 완전히 새 폴더 추가 = 5개↑면 새 창 물어봄
+  if (!(extra && extra.autoClose)) offerFlowMates([s.path]);   // ◎ 이어져 있던 세션도 같이 열지 물어봄
   return s;
 }
 
@@ -11183,6 +11291,15 @@ function renderPicker() {
     c.innerHTML = `<div class="pk-title">${esc(s.title)}${s._new ? ' <span style="font-size:9px;color:var(--muted);font-weight:400">· closed</span>' : ''}</div>
       <div class="pk-path">${esc(s.path)}</div>`;
     c.onclick = () => { s._sel = !s._sel; renderPicker(); };
+    // ◎ 마우스를 올리면 그것과 플로우로 이어진 세션들이 같이 물든다 — 한 흐름이 어디까지인지 눈으로 보이게
+    c.dataset.fkey = fkey(s.path);
+    c.onmouseenter = () => {
+      const mates = new Set(flowMateKeys(c.dataset.fkey));
+      if (!mates.size) return;
+      c.classList.add('pk-flowroot');
+      [...g.children].forEach(x => { if (x !== c && mates.has(x.dataset.fkey)) x.classList.add('pk-flow'); });
+    };
+    c.onmouseleave = () => [...g.children].forEach(x => x.classList.remove('pk-flow', 'pk-flowroot'));
     c.appendChild(cardIcons(s.path,
       async () => {   // 빼기: 목록에서 제거
         if (!confirm(T.confirmRemove.replace('{t}', s.title))) return;
@@ -11228,10 +11345,14 @@ async function pickStart() {
   renumber();
   // 복원한 화면 순서를 서버에 저장 → 다음 재실행 때도 이 순서 그대로 (단일 기준 유지)
   try { await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) }); } catch (e) {}
+  // ◎ 고른 것들과 플로우로 이어져 있는데 안 고른 세션이 있으면 같이 열지 물어본다
+  await offerFlowMates(pickList.filter(s => s._sel).map(s => s.path),
+                       pickList.filter(s => !s._sel).map(s => s.path));
 }
 
 // 언제든 세션 선택창 열기 (서버가 안 꺼져 세션이 살아있어도 다시 고를 수 있게)
 async function openPicker() {
+  flowLinksLoad(true);   // ◎ 이어진 세션 표시용 지도 — 늦게 와도 마우스 올릴 때쯤이면 도착해 있다
   let list = [];
   try { list = await api('GET', '/api/sessions'); } catch (e) {}
   const nrm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
@@ -11392,6 +11513,7 @@ applyStatic();
   // 서버가 계속 살아있어(alive) 이미 자동 복원됐고 남은 게 최근닫은(회색)뿐이면 팝업 안 띄움
   // — 그런 세션은 ＋ Session 에서 이전 폴더로 다시 열 수 있음.
   if (idle.length) {
+    flowLinksLoad(true);   // ◎ 카드에 마우스 올렸을 때 이어진 세션을 물들이기 위한 지도
     renderPicker();
     pickDlg.showModal();
   }

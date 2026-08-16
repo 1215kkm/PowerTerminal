@@ -119,6 +119,56 @@ function addRecent(s) {
   recent = recent.slice(0, 40);
   saveRecent();
 }
+// ---------- ◎ 플로우 연결 기억 ----------
+// 화살표는 세션 id 로 이어져 있는데 세션을 닫으면 그 id 가 사라진다 → 다시 켜면 연결이 통째로 없어졌다.
+// 그래서 "폴더 → 폴더" 로 한 벌 더 적어둔다. 이건 닫아도 안 지운다.
+//  · 다시 켤 때 상대가 열려 있으면 화살표를 그대로 복원
+//  · 닫혀 있으면 "같이 열까요?" 를 물어볼 근거가 된다
+const FLOW_FILE = dataFile('flowlinks.json');
+let flowLinks = {};                   // { 소문자from경로: { 소문자to경로: {stage,auto,back,msg,max} } }
+try { flowLinks = readJson(FLOW_FILE) || {}; } catch (e) {}
+function saveFlowLinks() { try { fs.writeFileSync(FLOW_FILE, JSON.stringify(flowLinks, null, 2)); } catch (e) {} }
+// 구분자(\ 와 /)·대소문자·끝 슬래시까지 맞춰야 같은 폴더로 인식된다
+const fkey = p => String(p || '').replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+// 지금 이 세션의 화살표를 폴더 기준으로 다시 적는다 (연결이 하나도 없으면 항목 자체를 지움)
+function syncFlowLinks(s) {
+  const from = fkey(s.path); if (!from) return;
+  const out = {};
+  for (const to of (s.flowTo || [])) {
+    const t = sessions.find(x => x.id === to); if (!t) continue;
+    const m = (s.flowMeta || {})[to] || {};
+    out[fkey(t.path)] = { stage: m.stage || '', auto: !!m.auto, back: !!m.back, msg: m.msg || '', max: m.max || 0 };
+  }
+  // 닫혀 있는 상대와의 연결은 그대로 둔다 — 지금 화살표에 안 보이는 건 "끊었다"가 아니라 "안 열려 있다".
+  // 열려 있는데도 화살표가 없어졌으면 그건 진짜 끊은 것이라 지운다.
+  const openKeys = new Set(sessions.filter(x => x.id !== s.id).map(x => fkey(x.path)));
+  for (const [to, meta] of Object.entries(flowLinks[from] || {}))
+    if (!openKeys.has(to) && !out[to]) out[to] = meta;
+  if (Object.keys(out).length) flowLinks[from] = out; else delete flowLinks[from];
+  saveFlowLinks();
+}
+// 세션을 켤 때 — 기억해둔 연결 중 상대가 지금 열려 있는 것만 화살표로 되살린다 (양방향 모두)
+function restoreFlowLinks(s) {
+  const key = fkey(s.path);
+  const link = (from, to, meta) => {
+    if (!from || !to || from.id === to.id) return false;
+    from.flowTo = from.flowTo || []; from.flowMeta = from.flowMeta || {};
+    if (from.flowTo.includes(to.id)) return false;
+    from.flowTo.push(to.id);
+    from.flowMeta[to.id] = { stage: meta.stage || '', auto: !!meta.auto, back: !!meta.back,
+                             msg: meta.msg || '', briefed: '', max: meta.max || 0 };
+    return true;
+  };
+  let hit = false;
+  for (const [toKey, meta] of Object.entries(flowLinks[key] || {}))       // 이 세션 → 남
+    hit = link(s, sessions.find(x => x.id !== s.id && fkey(x.path) === toKey), meta) || hit;
+  for (const [fromKey, tos] of Object.entries(flowLinks)) {               // 남 → 이 세션
+    if (!tos[key] || fromKey === key) continue;
+    hit = link(sessions.find(x => x.id !== s.id && fkey(x.path) === fromKey), s, tos[key]) || hit;
+  }
+  if (hit) saveSessions();
+}
+
 // ---------- 🌿 worktree 격리 세션 ----------
 // 같은 폴더를 하나 더 여는 이유는 "다른 작업을 시키려고"뿐이다. 그런데 지금까진 작업 폴더가 그대로 같아서
 // 두 AI가 같은 파일을 고치고, git index.lock 이 부딪히고, dev 서버 포트가 겹쳤다.
@@ -1412,6 +1462,7 @@ app.post('/api/sessions', async (req, res) => {
   sessions.push(sess);
   saveSessions();
   if (!sess.autoClose) addRecent(sess);            // 임시 세션은 최근 목록에 안 남김
+  if (!sess.autoClose && !wt) restoreFlowLinks(sess);   // ◎ 예전에 이어뒀던 화살표 복원 (새 worktree 는 처음이라 제외)
   // 응답을 먼저 보내고 터미널(PTY)은 그 다음에 띄운다 — pty.spawn 이 이 응답의 대부분을 차지해서
   // [추가] 버튼이 한참 반응 없는 것처럼 보였다. 클라이언트는 응답을 받아 창을 그리고 WebSocket 을
   // 붙이는데, 그때 getPty 가 이미 만들어진 걸 그대로 돌려준다. (getPty 는 동기 함수라 중복 생성 없음)
@@ -1479,6 +1530,7 @@ app.patch('/api/sessions/:id', (req, res) => {
       s.flowMeta = out;
     }
     saveSessions();
+    syncFlowLinks(s);   // 폴더 기준으로도 적어둔다 — 닫았다 켜도 화살표가 살아 있게
     return res.json(s);
   }
   // 세션에 연결된 AI(agent) 변경 — 실행 중이면 새 AI로 세션 재시작
@@ -2192,6 +2244,8 @@ app.post('/api/reorder', (req, res) => {
   res.json({ ok: true });
 });
 
+// ◎ 폴더 기준 플로우 지도 — 닫힌 세션까지 포함한다 ("같이 열까요?" 판단용)
+app.get('/api/flow-links', (req, res) => res.json(flowLinks));
 app.delete('/api/sessions/:id', (req, res) => {
   const p = ptys.get(req.params.id);
   const wasBusy = !!(p && !p.dead && p.busy && !p.done);   // 죽이기 전에 작업중이었는지 기억
