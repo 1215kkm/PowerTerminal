@@ -2018,16 +2018,44 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   }
   const rid = crypto.randomBytes(6).toString('hex');
   const entry = { id: rid, text, ts: Date.now(), st: 'run' };
-  // ❓ "질문~"으로 *시작*할 때만 = 완료 시 답변을 추출해 밑에 기록.
-  // 예전엔 앞 20자 어디에든 '질문'이 있으면 잡아서, "올렸어 이건 질문이 아니라 지시" 같은 평범한 요청까지
-  // 질문으로 오인해 답변 추출(AI 호출 = 토큰)이 돌았다. 시작 위치로 못박는다.
-  if (/^\s*(질문|question)/i.test(text)) entry.q = true;
+  // ❓ 물어본 것이면 표시해 둔다 — 완료 시 답변을 뽑아 요청내역과 질문-답변 기록에 남긴다.
+  // 자동 판별은 '질문 답변 기록' 설정을 켠 사람만 (끈 사람은 예전처럼 '질문~' 으로 시작한 것만)
+  if (looksLikeQuestion(text, config.qaDoc !== false)) entry.q = true;
   m.reqs.unshift(entry);
   m.reqs = m.reqs.slice(0, 200);
   saveMemos();
   if (config.intentNotes || config.summaryNotes) genReqNotes(req.body.path, rid, text);   // 🧭📝 설정을 켠 경우만 — 약간의 토큰 사용
   res.json({ ok: true });
 });
+/* ❓ 이 요청이 '물어본 것'인가 — 앞에 '질문' 이라고 적지 않아도 알아본다.
+   예전엔 '질문~' 으로 시작할 때만 잡아서, 그냥 물어본 것들은 기록에 아예 안 남았다.
+   판단은 여기서 글자만 보고 한다 (AI 호출 없음). 답변 추출은 어차피 '다음 할 일' 뽑느라
+   요청이 끝날 때마다 한 번 도는 그 호출에 얹혀 가므로, 질문을 더 잡아도 호출 수는 안 늘어난다.
+
+   규칙: ① '질문/question' 으로 시작  ② 마지막 줄이 물음표로 끝남  ③ 중간 줄이 물음표로 끝나되
+   글 전체가 '~해줘' 같은 지시로 끝나지 않음  ④ 물음표 없이도 분명한 의문형 어미/의문사로 끝남.
+   경로·URL·쿼리스트링 안의 ? 는 물음표로 치지 않는다 (…?token=abc 로 질문 판정되던 것 방지). */
+const Q_TAIL = /(까요|나요|가요|은가|는가|런가|을까|ㄹ까|일까|할까|될까|줄까|건가|건지|는지|맞아|맞지|맞나|어때|어떨까|어떤가|뭐야|뭐지|뭘까|왜지|why|어떻게|가능해|되나|되니|있나|없나)\s*$/i;
+const Q_HEAD_EN = /^(what|why|how|when|where|who|which|whose)\b/i;
+const CMD_TAIL = /(해줘|해 줘|해주세요|해라|하자|해봐|해 봐|바꿔|바꿔줘|만들어|추가|넣어|고쳐|지워|없애|보내|올려|정리|진행|적용|시작|반영)\s*[.!~…]*$/;
+function looksLikeQuestion(text, auto) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (/^\s*(질문|question)/i.test(t)) return true;
+  if (auto === false) return false;
+  const clean = t.replace(/https?:\/\/\S+/g, ' ')                       // 링크
+                 .replace(/`[^`]*`/g, ' ')                              // 코드 조각
+                 .replace(/[\w./\\:-]+\?[\w=&%.+-]+/g, ' ');            // 경로·쿼리스트링 (foo.html?a=1)
+  const lines = clean.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return false;
+  const last = lines[lines.length - 1];
+  if (/[?？]\s*[)\]"'”』]*\s*$/.test(last)) return true;                 // 마지막 줄이 물음표로 끝
+  const isCmd = CMD_TAIL.test(last);
+  if (!isCmd && lines.some(l => /[?？]\s*$/.test(l))) return true;       // 물어보다가 지시로 끝나면 지시로 본다
+  if (isCmd) return false;
+  return Q_TAIL.test(last) || Q_HEAD_EN.test(last);
+}
+
 // 🧭 요청 이유 / 📝 요청 요약 생성 — claude -p(haiku)에게 짧게 물어 요청내역에 저장. 실패하면 조용히 생략.
 // PT에서 유일하게 AI 토큰을 쓰는 기능이라 기본 꺼짐(⚙ 설정에서 항목별 옵트인).
 function genReqNotes(dir, reqId, text) {
