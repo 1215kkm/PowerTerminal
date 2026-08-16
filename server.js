@@ -168,6 +168,9 @@ function restoreFlowLinks(s) {
   }
   if (hit) saveSessions();
 }
+// 이 기능이 생기기 전에 이어둔 화살표들은 지도에 한 번도 안 적혔다 — 켜질 때 지금 상태로 채운다.
+// 이게 없으면 기존 사용자는 "같이 열까요?" 를 영영 못 본다.
+for (const s of sessions) if (Array.isArray(s.flowTo) && s.flowTo.length) syncFlowLinks(s);
 
 // ---------- 🌿 worktree 격리 세션 ----------
 // 같은 폴더를 하나 더 여는 이유는 "다른 작업을 시키려고"뿐이다. 그런데 지금까진 작업 폴더가 그대로 같아서

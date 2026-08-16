@@ -1112,6 +1112,11 @@
   .mini-pane { position: relative; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer;
                background: #111827; transition: border-color .15s, transform .1s; }
   .mini-pane:hover { border-color: var(--violet); transform: translateY(-1px); }
+  /* ◎ 플로우로 이어진 카드 — 마우스 올린 카드(root)와 그 흐름에 속한 카드들이 같이 파랑으로 */
+  .mini-pane.pk-flow { border-color: #38bdf8; background: rgba(56,189,248,.14); }
+  .mini-pane.pk-flowroot { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,.35); }
+  .mini-pane.pk-flow .mp-head, .mini-pane.pk-flowroot .mp-head { background: rgba(56,189,248,.22); }
+  .mini-pane.pk-flow::after { content: '◎'; position: absolute; right: 5px; bottom: 3px; font-size: 10px; color: #38bdf8; }
   .mp-head { display: flex; align-items: center; gap: 6px; padding: 5px 7px;
              background: #1f2937; border-bottom: 1px solid var(--line); cursor: grab;
              user-select: none; -webkit-user-select: none; }   /* 미니카드도 제목 글자에서 드래그 시작 가능하게 */
@@ -7436,6 +7441,15 @@ async function renderAddCards() {
     const paneEl = paneElByPath(k.path);
     const on = !!paneEl;
     const c = miniCard(i + 1, nm, k.path, on);
+    // ◎ 마우스를 올리면 이 폴더와 플로우로 이어진 카드들이 같이 물든다 — 어디까지가 한 흐름인지 보이게
+    c.dataset.fkey = fkey(k.path);
+    c.onmouseenter = () => {
+      const mates = new Set(flowMateKeys(c.dataset.fkey));
+      if (!mates.size) return;
+      c.classList.add('pk-flowroot');
+      [...list.children].forEach(x => { if (x !== c && mates.has(x.dataset.fkey)) x.classList.add('pk-flow'); });
+    };
+    c.onmouseleave = () => [...list.children].forEach(x => x.classList.remove('pk-flow', 'pk-flowroot'));
     // 제목(mp-head) 드래그로 카드 순서 변경 → 활성 세션이면 실제 그리드·서버 순서에도 반영
     c.addEventListener('dragstart', ev => { ev.dataTransfer.setData('text/plain', String(i)); ev.dataTransfer.effectAllowed = 'move'; c.classList.add('dragging'); });
     c.addEventListener('dragend', () => { c.classList.remove('dragging'); miniDragEnd = Date.now(); });
@@ -7482,6 +7496,7 @@ async function renderAddCards() {
   });
 }
 async function openAdd() {
+  flowLinksLoad(true);   // ◎ 카드에 마우스 올렸을 때 이어진 폴더를 물들이기 위한 지도
   try { addState.known = await api('GET', '/api/known-projects'); } catch (e) { addState.known = []; }
   await renderAddCards();
   document.getElementById('browser').style.display = 'none';
