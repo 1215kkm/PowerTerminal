@@ -339,7 +339,13 @@
 
   /* ⬆ 요청내역 버튼 위 회색 안내 — Ctrl+↑로 이전 요청 불러오기 */
   .quick .qBtns .qHistHint { font-size: 9.5px; color: var(--muted); text-align: center; line-height: 1; white-space: nowrap; }
-  .quick .qSend { width: 100%; font-weight: 700; background: linear-gradient(90deg, var(--violet), var(--pink));
+  /* 전송 줄 — 버튼은 입력창과 같은 폭, 남는 오른쪽 자리(위 버튼 묶음과 같은 폭)에 마지막 완료 시각 */
+  .quick .qSendRow { display: flex; align-items: center; gap: 6px; }
+  .quick .qLast { flex: 0 0 auto; text-align: center; white-space: nowrap; line-height: 1.35;
+                  font-size: 10.5px; font-weight: 700; color: var(--muted); }
+  .quick .qLast:empty { display: none; }
+  .quick .qLast b { display: block; font-size: 12px; color: var(--sky); font-weight: 700; }
+  .quick .qSend { flex: 1 1 auto; width: 100%; font-weight: 700; background: linear-gradient(90deg, var(--violet), var(--pink));
                   padding: 10px 12px;                                        /* PC: 기존의 1.5배 높이 */
                   transition: transform .08s ease, filter .08s ease; }
   .quick .qSend:active { transform: scale(.985); filter: brightness(.82); }  /* 누르면 살짝 어둡게 + 눌림 */
@@ -2050,6 +2056,7 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    lastDone: "last done", lastDoneT: "When this session last finished a request. Kept across reloads.",
     flowQueued: "Handed to “{t}” — it is still working, so it goes out the moment it finishes.",
     fs_report: "Report",
     fsp_report: "The other sessions in this flow have finished their part. Go through each of their folders, read the git log and diff, and put together one summary: what changed, what was found, and what is still open. Do not edit any code and do not merge anything yet — this step only gathers.",
@@ -2106,6 +2113,7 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    lastDone: "최근완료", lastDoneT: "이 세션이 마지막으로 요청을 끝낸 시각. 새로고침해도 남습니다.",
     flowQueued: "“{t}” 로 넘겼어요 — 지금 작업 중이라 끝나는 대로 들어갑니다.",
     fs_report: "보고",
     fsp_report: "이 흐름의 다른 세션들이 각자 맡은 걸 끝냈어. 그 세션들 폴더를 하나씩 들어가서 git log 와 git diff 를 읽고, 무엇이 바뀌었고 무엇이 발견됐고 무엇이 남았는지 한 장으로 정리해줘. 코드는 고치지 말고 아직 합치지도 마 — 이 단계는 모으기만 하는 거야.",
@@ -2162,6 +2170,7 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    lastDone: "最終完了", lastDoneT: "このセッションが最後にリクエストを終えた時刻。再読み込みしても残ります。",
     flowQueued: "「{t}」へ渡しました — いま作業中なので、終わり次第送られます。",
     fs_report: "報告",
     fsp_report: "この流れの他のセッションが担当分を終えました。それぞれのフォルダに入って git log と git diff を読み、何が変わり、何が見つかり、何が残っているかを一つにまとめてください。コードは直さず、まだマージもしないでください — この段階は集めるだけです。",
@@ -2400,6 +2409,7 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    lastDone: "最近完成", lastDoneT: "这个会话最后一次完成请求的时间。刷新后仍保留。",
     flowQueued: "已交给「{t}」—— 它还在忙，一结束就会发过去。",
     fs_report: "汇报",
     fsp_report: "这个流程里的其他会话都完成了各自的部分。请逐个进入它们的文件夹，读 git log 和 git diff，把改了什么、发现了什么、还剩什么整理成一份汇总。不要改代码，也先别合并 —— 这一步只负责收集。",
@@ -2638,6 +2648,7 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    lastDone: "último fin", lastDoneT: "Cuándo terminó esta sesión su última petición. Se conserva al recargar.",
     flowQueued: "Pasado a “{t}” — sigue trabajando, así que saldrá en cuanto termine.",
     fs_report: "Informe",
     fsp_report: "Las demás sesiones de este flujo ya terminaron su parte. Entra en la carpeta de cada una, lee el git log y el git diff, y reúne un solo resumen: qué cambió, qué se encontró y qué queda pendiente. No edites código ni fusiones nada todavía — este paso solo recopila.",
@@ -2883,6 +2894,7 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    lastDone: "zuletzt fertig", lastDoneT: "Wann diese Sitzung zuletzt eine Anfrage beendet hat. Bleibt nach dem Neuladen erhalten.",
     flowQueued: "An „{t}“ übergeben — sie arbeitet noch, es geht raus, sobald sie fertig ist.",
     fs_report: "Bericht",
     fsp_report: "Die anderen Sitzungen in diesem Ablauf sind mit ihrem Teil fertig. Geh in jeden ihrer Ordner, lies git log und git diff und stell eine einzige Zusammenfassung auf: was geändert wurde, was gefunden wurde und was offen bleibt. Ändere keinen Code und merge noch nichts — dieser Schritt sammelt nur.",
@@ -3124,6 +3136,7 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    lastDone: "fini à", lastDoneT: "Quand cette session a terminé sa dernière demande. Conservé après rechargement.",
     flowQueued: "Transmis à « {t} » — elle travaille encore, ça partira dès qu’elle aura fini.",
     fs_report: "Rapport",
     fsp_report: "Les autres sessions de ce flux ont fini leur part. Entre dans le dossier de chacune, lis le git log et le git diff, et rassemble un seul résumé : ce qui a changé, ce qui a été trouvé et ce qui reste. Ne modifie aucun code et ne fusionne rien pour l’instant — cette étape ne fait que rassembler.",
@@ -3368,6 +3381,7 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    lastDone: "último fim", lastDoneT: "Quando esta sessão terminou o último pedido. Continua após recarregar.",
     flowQueued: "Passado para “{t}” — ainda está trabalhando, vai assim que terminar.",
     fs_report: "Relatório",
     fsp_report: "As outras sessões deste fluxo terminaram a parte delas. Entre na pasta de cada uma, leia o git log e o git diff, e junte um único resumo: o que mudou, o que foi encontrado e o que ficou em aberto. Não edite código nem faça merge ainda — esta etapa só reúne.",
@@ -3612,6 +3626,7 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    lastDone: "завершено", lastDoneT: "Когда эта сессия в последний раз закончила запрос. Сохраняется после перезагрузки.",
     flowQueued: "Передано в «{t}» — сессия ещё занята, уйдёт сразу как освободится.",
     fs_report: "Сводка",
     fsp_report: "Остальные сессии этого потока закончили свою часть. Зайдите в папку каждой, прочитайте git log и git diff и соберите одну сводку: что изменилось, что нашли и что осталось. Код не правьте и пока ничего не сливайте — этот шаг только собирает.",
@@ -3855,6 +3870,7 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    lastDone: "अंतिम पूर्ण", lastDoneT: "इस सेशन ने आख़िरी अनुरोध कब पूरा किया। रीलोड के बाद भी रहता है।",
     flowQueued: "“{t}” को दे दिया — वह अभी काम कर रही है, ख़त्म होते ही चला जाएगा।",
     fs_report: "रिपोर्ट",
     fsp_report: "इस क्रम की बाक़ी सेशनों ने अपना-अपना हिस्सा पूरा कर लिया है। उनमें से हर एक के फ़ोल्डर में जाकर git log और git diff पढ़ें, और एक ही सारांश बनाएँ: क्या बदला, क्या मिला, और क्या बचा है। कोड मत बदलिए और अभी मर्ज भी मत कीजिए — यह चरण सिर्फ़ इकट्ठा करता है।",
@@ -4396,7 +4412,11 @@ function buildPane(sess, idx) {
         </span>
         <input type="file" class="qFile" multiple style="display:none">
       </div>
-      <button class="small qSend">${T.send}</button>
+      <!-- 전송 버튼 폭을 위 입력창과 똑같이 맞추고, 오른쪽에 남는 자리(=버튼 묶음 폭)에 마지막 완료 시각 -->
+      <div class="qSendRow">
+        <button class="small qSend">${T.send}</button>
+        <span class="qLast" title="${escA(T.lastDoneT || '')}"></span>
+      </div>
     </div>`;
   grid.appendChild(el);
   // 새 세션창 부드럽게 등장
@@ -5699,6 +5719,8 @@ function buildPane(sess, idx) {
   // 이 창에서만 제거 (서버 세션은 유지) — 다른 창이 가져갈 때 사용. 재접속 방지 위해 closedByUser 설정
   const kill = () => { closedByUser = true; try { ws.close(); } catch (e) {} };
   panes.set(sess.id, { el, term, fit, ws, sess, kill, releaseHold, sendText, refreshReq });
+  // 🕒 지난번에 끝낸 시각 복원 — 새로고침해도 '최근완료' 가 비어 보이지 않게
+  try { const ts = Number(localStorage.getItem('pt_lastdone_' + sess.id) || 0); if (ts) setTimeout(() => paintLastDone(el, ts), 80); } catch (e) {}
 }
 
 // 이 창에서만 패널 제거 (서버 세션 유지)
@@ -5797,6 +5819,27 @@ function toggleSound() {
 }
 updateSoundBtn();
 
+/* 🕒 마지막으로 작업이 끝난 시각 — 전송 버튼 오른쪽에 'HH:MM' 으로. 새로고침해도 남도록 브라우저에 적어 둔다.
+   (세션 목록이 아니라 화면 표시용이라 서버까지 보낼 필요는 없다) */
+function paintLastDone(el, ts) {
+  const box = el.querySelector('.qLast'); if (!box) return;
+  if (!ts) { box.innerHTML = ''; return; }
+  const d = new Date(ts), p = n => (n < 10 ? '0' + n : '' + n);
+  box.innerHTML = esc(T.lastDone || '최근완료') + '<b>' + p(d.getHours()) + ':' + p(d.getMinutes()) + '</b>';
+  syncSendWidth(el);
+}
+function markLastDone(el) {
+  const id = el.dataset.id, ts = Date.now();
+  try { localStorage.setItem('pt_lastdone_' + id, String(ts)); } catch (e) {}
+  paintLastDone(el, ts);
+}
+// 전송 버튼이 위 입력창과 정확히 같은 폭이 되도록, 오른쪽 시각칸을 버튼 묶음과 같은 폭으로 맞춘다
+function syncSendWidth(el) {
+  const btns = el.querySelector('.qBtns'), last = el.querySelector('.qLast');
+  if (!btns || !last || !last.innerHTML) return;
+  const w = Math.round(btns.getBoundingClientRect().width);
+  if (w) last.style.width = w + 'px';
+}
 /* 작업 경과 시간 표시 — 예전엔 초만 세서 904s 처럼 나왔다. 몇 분인지 암산해야 해서 길어질수록 못 읽는다.
    1분 미만은 그대로 초, 그 위는 분:초, 한 시간을 넘기면 시:분:초. */
 function fmtWorkTime(s) {
@@ -5858,6 +5901,7 @@ function setState(el, done, busy, announce) {
           el._lastAnn = annNow;
           speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
         } else soundDiag = '15초 안에 이미 울려서 건너뜀';
+        markLastDone(el);   // 🕒 전송 버튼 옆 '최근완료' 시각 — 소리와 같은 판정(진짜 마무리)을 쓴다
         // ◎ 플로우 인계는 여기서 하지 않는다 — 아래에서 훨씬 길게 기다린 뒤에 (FLOW_SETTLE_MS)
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
@@ -6862,7 +6906,8 @@ function animateMax(applyFn) {
 function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
-  setTimeout(() => { if (typeof flowDraw === 'function') flowDraw(null); }, 90);   // 배치가 바뀌면 선도 새 좌표로 (◎ 유지 포함)
+  setTimeout(() => { if (typeof flowDraw === 'function') flowDraw(null); }, 90);
+  setTimeout(() => panes.forEach(p => syncSendWidth(p.el)), 100);   // 전송 버튼 폭 = 입력창 폭 유지   // 배치가 바뀌면 선도 새 좌표로 (◎ 유지 포함)
   if (typeof scheduleRefit === 'function') scheduleRefit();   // 배치 바뀌면 곧 모든 터미널 재fit
   // 확대 대상이 이미 닫혔으면 초기화
   if (maxedId && !els.some(el => el.dataset.id === maxedId)) maxedId = null;
