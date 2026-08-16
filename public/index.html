@@ -5750,8 +5750,9 @@ function buildPane(sess, idx) {
   // 이 창에서만 제거 (서버 세션은 유지) — 다른 창이 가져갈 때 사용. 재접속 방지 위해 closedByUser 설정
   const kill = () => { closedByUser = true; try { ws.close(); } catch (e) {} };
   panes.set(sess.id, { el, term, fit, ws, sess, kill, releaseHold, sendText, refreshReq });
-  // 🕒 지난번에 끝낸 시각 복원 — 새로고침해도 '최근완료' 가 비어 보이지 않게
+  // 🕒 지난번에 끝낸 시각 — 브라우저에 적어둔 값을 먼저 칠하고, 서버 요청내역으로 한 번 더 맞춘다
   try { const ts = Number(localStorage.getItem('pt_lastdone_' + sess.id) || 0); if (ts) setTimeout(() => paintLastDone(el, ts), 80); } catch (e) {}
+  setTimeout(() => seedLastDone(el, sess.path, sess.id), 400);
 }
 
 // 이 창에서만 패널 제거 (서버 세션 유지)
@@ -5858,6 +5859,18 @@ function paintLastDone(el, ts) {
   const d = new Date(ts), p = n => (n < 10 ? '0' + n : '' + n);
   box.innerHTML = esc(T.lastDone || '최근완료') + '<b>' + p(d.getHours()) + ':' + p(d.getMinutes()) + '</b>';
   syncSendWidth(el);
+}
+/* 처음 열 때는 요청 내역에서 가져온다 — 이 화면에서 완료를 한 번 봐야만 시각이 생기면
+   PT 를 켜자마자는 늘 비어 있고, 다른 기기·다른 브라우저에서 한 작업도 안 보인다.
+   요청 내역의 '완료' 스탬프(endTs)는 서버에 남아 있으니 그게 더 정확한 출처다. */
+async function seedLastDone(el, path, id) {
+  let ts = 0;
+  try { ts = Number(localStorage.getItem('pt_lastdone_' + id) || 0); } catch (e) {}
+  try {
+    const m = await api('GET', '/api/memos?path=' + encodeURIComponent(path));
+    for (const r of ((m && m.reqs) || [])) if (r.st === 'done' && r.endTs > ts) ts = r.endTs;
+  } catch (e) {}
+  if (ts) { try { localStorage.setItem('pt_lastdone_' + id, String(ts)); } catch (e) {} paintLastDone(el, ts); }
 }
 function markLastDone(el) {
   const id = el.dataset.id, ts = Date.now();
