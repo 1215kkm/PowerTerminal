@@ -5895,10 +5895,10 @@ function paintLastDone(el, ts) {
   const d = new Date(ts), p = n => (n < 10 ? '0' + n : '' + n);
   // 이름은 좁은 칸에 맞춰 두 줄로 (최근/작업, Last/work). 띄어쓰기 없는 언어는 한 줄 그대로.
   const lab = esc(T.lastDone || '최근 작업').replace(/\s+/, '<br>');
-  let day;
-  try { day = d.toLocaleDateString(LANG, { month: 'short', day: 'numeric' }); }
-  catch (e) { day = (d.getMonth() + 1) + '/' + d.getDate(); }
-  if (LANG === 'ko' || LANG === 'ja' || LANG === 'zh') day = day.replace(/\s+/g, '');   // '12월 30일' → '12월30일'
+  // 날짜는 숫자로 짧게 — '12월30일' 은 좁은 칸에서 두 배로 길고, 언어별 표기(12. 16. / Dec 30)도 제각각이라
+  // 자리 폭이 흔들렸다. 순서만 그 언어 방식대로: 유럽·인도는 일/월, 그 외는 월/일.
+  const dayFirst = ['es', 'de', 'fr', 'pt', 'ru', 'hi'].indexOf(LANG) >= 0;
+  const day = dayFirst ? (d.getDate() + '/' + (d.getMonth() + 1)) : ((d.getMonth() + 1) + '/' + d.getDate());
   box.innerHTML = '<span class="ql-lab">' + lab + '</span>' +
                   '<span class="ql-val"><i>' + esc(day) + '</i><b>' + p(d.getHours()) + ':' + p(d.getMinutes()) + '</b></span>';
   syncSendWidth(el);
