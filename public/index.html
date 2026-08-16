@@ -6367,6 +6367,9 @@ function flowDraw(rootId) {
         path.classList.remove('hovered'); svg.classList.remove('keep');
         path.setAttribute('marker-end', path.dataset.head);
       }
+      // 판이 이 화살표 것이면 닫기를 *예약* 한다 — 판으로 마우스를 옮기면 판의 mouseenter 가 취소한다.
+      // 예약하지 않으면, 판에 한 번도 안 들르고 그냥 지나간 경우 판의 mouseleave 가 영영 안 와서 강조가 남았다.
+      else flowPanelHideSoon(300);
       flowClear(260);
     };
     g.appendChild(hit);
@@ -6392,10 +6395,28 @@ function flowDraw(rootId) {
    고른 단계가 없으면 5개 버튼이 다 보이고, 하나 고르면 그것만 남는다. 그걸 다시 누르면 선택이 풀려 5개가 다시 나온다.
    맨 아래 줄이 '자동 전송' 체크. */
 let flowPanelKey = null, flowPanelT = null;
+// 잠시 뒤 닫기 — 이미 예약돼 있으면 새로 밀지 않는다(마우스가 움직일 때마다 뒤로 밀려 안 닫히던 문제)
+function flowPanelHideSoon(ms) {
+  if (flowPanelT) return;
+  flowPanelT = setTimeout(() => { flowPanelT = null; flowPanelHide(); }, ms || 260);
+}
+function flowPanelKeep() { clearTimeout(flowPanelT); flowPanelT = null; }
+/* 안전망 — 화살표를 떠나는 이벤트를 아예 못 받는 경우가 있다: 강조된 채로 다시 그려지면(작업 상태가 바뀌거나
+   창 크기가 변할 때) 그 hit 요소가 통째로 새로 만들어져 mouseleave 가 오지 않는다. 그래서 포인터가
+   화살표에도 판에도 없으면 정리한다. 판에서 글을 쓰는 중이면 건드리지 않는다. */
+document.addEventListener('mousemove', ev => {
+  if (!flowPanelKey || flowDragFrom || flowPick) return;
+  const t = ev.target;
+  if (t && t.closest && (t.closest('#flowPanel') || t.closest('.flow-hit'))) return;
+  const p = document.getElementById('flowPanel');
+  if (p && p.contains(document.activeElement)) return;
+  flowPanelHideSoon(300);
+}, { passive: true });
 function flowPanelHide() {
   const el = document.getElementById('flowPanel');
   if (el) el.remove();
   flowPanelKey = null;
+  clearTimeout(flowPanelT); flowPanelT = null;   // 예약이 남아 있으면 다음 예약이 막힌다
   // 판이 닫힐 때 강조를 푼다 — 화살촉도 원래 색으로 (안 되돌리면 노란 촉이 그대로 남는다)
   document.querySelectorAll('#flowLayer .flow-line.hovered').forEach(x => {
     x.classList.remove('hovered');
@@ -6404,7 +6425,7 @@ function flowPanelHide() {
   const svg = document.getElementById('flowLayer'); if (svg) svg.classList.remove('keep');
 }
 function flowPanel(from, to, pathEl) {
-  clearTimeout(flowPanelT);
+  flowPanelKeep();
   const key = from + '>' + to;
   let el = document.getElementById('flowPanel');
   if (el && flowPanelKey === key) return;          // 같은 화살표면 다시 만들지 않는다 (체크 상태 유지)
@@ -6461,8 +6482,8 @@ function flowPanel(from, to, pathEl) {
   el.style.left = Math.max(6, Math.min(mid.x - w / 2, window.innerWidth - w - 6)) + 'px';
   el.style.top = Math.min(mid.y + 10, window.innerHeight - h - 6) + 'px';
   el.style.visibility = '';
-  el.onmouseenter = () => { clearTimeout(flowPanelT); clearTimeout(flowHideT); };
-  el.onmouseleave = () => { flowPanelT = setTimeout(flowPanelHide, 260); flowClear(300); };
+  el.onmouseenter = () => { flowPanelKeep(); clearTimeout(flowHideT); };
+  el.onmouseleave = () => { flowPanelHideSoon(260); flowClear(300); };
 }
 // 화살표 선택 — 빨갛게 바뀌고, Delete 를 누르면 그 연결만 지워진다
 function flowSelect(from, to) {
