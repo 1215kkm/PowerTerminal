@@ -1293,6 +1293,7 @@
   <!-- ④ 버튼들 — 항상 오른쪽 끝에 가로로 -->
   <span id="hdrBtns">
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
+  <button id="btnFlowSort" onclick="flowSortPanes()" data-i18n-title="flowSortT">⇅</button>
   <button id="btnTheme" onclick="toggleTheme()" data-i18n-title="themeT">☀</button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
   <button id="btnMind" onclick="openMind()" data-i18n-title="mindBtn"><svg class="mindic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="7" x2="17" y2="6"></line><line x1="6" y1="7" x2="11" y2="17"></line><line x1="17" y1="6" x2="11" y2="17"></line><circle cx="6" cy="7" r="2.5" fill="currentColor" stroke="none"></circle><circle cx="17" cy="6" r="2.5" fill="currentColor" stroke="none"></circle><circle cx="11" cy="17" r="2.5" fill="currentColor" stroke="none"></circle></svg></button>
@@ -2056,6 +2057,9 @@ const I18N_MORE = {
   en: {
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
+    flowSortT: "Sort the panes by the flow — sessions from one repo together, in arrow order. Saved, so a restart keeps it.",
+    flowSortDone: "Panes sorted by the flow.",
+    flowSortSame: "Already in flow order.",
     lastDone: "last done", lastDoneT: "When this session last finished a request. Kept across reloads.",
     flowQueued: "Handed to “{t}” — it is still working, so it goes out the moment it finishes.",
     fs_report: "Report",
@@ -2113,6 +2117,9 @@ const I18N_MORE = {
   ko: {
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
+    flowSortT: "창을 흐름 순서로 정렬 — 같은 레포 세션끼리 모으고 화살표 순서대로. 저장돼서 다시 켜도 그대로예요.",
+    flowSortDone: "흐름 순서로 정렬했어요.",
+    flowSortSame: "이미 흐름 순서예요.",
     lastDone: "최근완료", lastDoneT: "이 세션이 마지막으로 요청을 끝낸 시각. 새로고침해도 남습니다.",
     flowQueued: "“{t}” 로 넘겼어요 — 지금 작업 중이라 끝나는 대로 들어갑니다.",
     fs_report: "보고",
@@ -2170,6 +2177,9 @@ const I18N_MORE = {
   ja: {
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
+    flowSortT: "ウィンドウをフローの順に並べ替え — 同じリポジトリのセッションをまとめ、矢印の順に。保存されるので再起動後もそのままです。",
+    flowSortDone: "フローの順に並べ替えました。",
+    flowSortSame: "すでにフローの順です。",
     lastDone: "最終完了", lastDoneT: "このセッションが最後にリクエストを終えた時刻。再読み込みしても残ります。",
     flowQueued: "「{t}」へ渡しました — いま作業中なので、終わり次第送られます。",
     fs_report: "報告",
@@ -2409,6 +2419,9 @@ const I18N_MORE = {
   zh: {
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
+    flowSortT: "按流程顺序排列窗口 —— 同一仓库的会话放在一起，按箭头顺序。会保存，重启后依然如此。",
+    flowSortDone: "已按流程顺序排列。",
+    flowSortSame: "已经是流程顺序了。",
     lastDone: "最近完成", lastDoneT: "这个会话最后一次完成请求的时间。刷新后仍保留。",
     flowQueued: "已交给「{t}」—— 它还在忙，一结束就会发过去。",
     fs_report: "汇报",
@@ -2648,6 +2661,9 @@ const I18N_MORE = {
   es: {
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
+    flowSortT: "Ordenar los paneles según el flujo — las sesiones de un mismo repo juntas, en orden de las flechas. Se guarda, así que un reinicio lo conserva.",
+    flowSortDone: "Paneles ordenados según el flujo.",
+    flowSortSame: "Ya están en orden de flujo.",
     lastDone: "último fin", lastDoneT: "Cuándo terminó esta sesión su última petición. Se conserva al recargar.",
     flowQueued: "Pasado a “{t}” — sigue trabajando, así que saldrá en cuanto termine.",
     fs_report: "Informe",
@@ -2894,6 +2910,9 @@ const I18N_MORE = {
   de: {
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
+    flowSortT: "Fenster nach dem Ablauf sortieren — Sitzungen eines Repos zusammen, in Pfeilreihenfolge. Wird gespeichert und übersteht einen Neustart.",
+    flowSortDone: "Nach dem Ablauf sortiert.",
+    flowSortSame: "Schon in Ablaufreihenfolge.",
     lastDone: "zuletzt fertig", lastDoneT: "Wann diese Sitzung zuletzt eine Anfrage beendet hat. Bleibt nach dem Neuladen erhalten.",
     flowQueued: "An „{t}“ übergeben — sie arbeitet noch, es geht raus, sobald sie fertig ist.",
     fs_report: "Bericht",
@@ -3136,6 +3155,9 @@ const I18N_MORE = {
   fr: {
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
+    flowSortT: "Trier les panneaux selon le flux — les sessions d’un même dépôt ensemble, dans l’ordre des flèches. Enregistré, donc conservé au redémarrage.",
+    flowSortDone: "Panneaux triés selon le flux.",
+    flowSortSame: "Déjà dans l’ordre du flux.",
     lastDone: "fini à", lastDoneT: "Quand cette session a terminé sa dernière demande. Conservé après rechargement.",
     flowQueued: "Transmis à « {t} » — elle travaille encore, ça partira dès qu’elle aura fini.",
     fs_report: "Rapport",
@@ -3381,6 +3403,9 @@ const I18N_MORE = {
   pt: {
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
+    flowSortT: "Ordenar os painéis pelo fluxo — sessões do mesmo repo juntas, na ordem das setas. Fica salvo, então sobrevive a um reinício.",
+    flowSortDone: "Painéis ordenados pelo fluxo.",
+    flowSortSame: "Já estão na ordem do fluxo.",
     lastDone: "último fim", lastDoneT: "Quando esta sessão terminou o último pedido. Continua após recarregar.",
     flowQueued: "Passado para “{t}” — ainda está trabalhando, vai assim que terminar.",
     fs_report: "Relatório",
@@ -3626,6 +3651,9 @@ const I18N_MORE = {
   ru: {
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
+    flowSortT: "Упорядочить окна по потоку — сессии одного репозитория вместе, в порядке стрелок. Сохраняется и переживает перезапуск.",
+    flowSortDone: "Окна упорядочены по потоку.",
+    flowSortSame: "Уже в порядке потока.",
     lastDone: "завершено", lastDoneT: "Когда эта сессия в последний раз закончила запрос. Сохраняется после перезагрузки.",
     flowQueued: "Передано в «{t}» — сессия ещё занята, уйдёт сразу как освободится.",
     fs_report: "Сводка",
@@ -3870,6 +3898,9 @@ const I18N_MORE = {
   hi: {
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
+    flowSortT: "विंडो को क्रम के हिसाब से लगाएँ — एक ही रिपॉज़िटरी की सेशन साथ, तीरों के क्रम में। सेव होता है, इसलिए दोबारा चालू करने पर भी वैसा ही रहता है।",
+    flowSortDone: "क्रम के हिसाब से लगा दिया।",
+    flowSortSame: "पहले से ही सही क्रम में है।",
     lastDone: "अंतिम पूर्ण", lastDoneT: "इस सेशन ने आख़िरी अनुरोध कब पूरा किया। रीलोड के बाद भी रहता है।",
     flowQueued: "“{t}” को दे दिया — वह अभी काम कर रही है, ख़त्म होते ही चला जाएगा।",
     fs_report: "रिपोर्ट",
@@ -6579,6 +6610,58 @@ async function flowToggle(fromId, toId) {
 }
 // Esc = 연결 고르기 그만 (덮개가 떠 있는 채로 갇히지 않게). capture 로 받아 터미널이 먼저 먹는 걸 피한다.
 window.addEventListener('keydown', ev => { if (ev.key === 'Escape' && flowPick) { ev.stopPropagation(); flowEndPick(); } }, true);
+/* ⇅ 창을 '흐름 순서' 로 정렬 — 같은 레포에서 갈라진 세션끼리 모으고, 그 안에서는 화살표를 따라간다.
+   창 순서는 만든 순서일 뿐이라 worktree 를 여러 번 만들면 두 레포가 뒤섞이고, 그러면 화살표가
+   화면을 가로질러 엉킨다. 정렬한 순서는 서버에도 저장해서 다시 켜도 그대로 온다. */
+function flowSortOrder() {
+  const norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+  const ids = [...grid.children].map(el => el.dataset.id).filter(id => panes.has(id));
+  const pos = new Map(ids.map((id, i) => [id, i]));
+  const famOf = id => { const p = panes.get(id); return norm(p.sess.repo || p.sess.path); };
+  // ① 화살표로 이어진 덩어리를 먼저 찾는다 — 레포가 달라도 이어져 있으면 한 덩어리다
+  //    (예전엔 레포별로만 묶어서, 다른 폴더끼리 이은 흐름은 정렬해도 그대로였다)
+  const grp = new Map();                     // id → 덩어리 대표
+  const find = a => { while (grp.get(a) !== a) { grp.set(a, grp.get(grp.get(a))); a = grp.get(a); } return a; };
+  ids.forEach(i => grp.set(i, i));
+  const join = (a, b) => { a = find(a); b = find(b); if (a !== b) grp.set(a, b); };
+  ids.forEach(i => flowOf(i).forEach(t => { if (pos.has(t)) join(i, t); }));
+  ids.forEach(i => { const f = famOf(i); ids.forEach(j => { if (j !== i && famOf(j) === f) join(i, j); }); });  // 같은 레포도 한 덩어리
+  const blocks = new Map();
+  ids.forEach(i => { const k = find(i); if (!blocks.has(k)) blocks.set(k, []); blocks.get(k).push(i); });
+  // ② 덩어리 안에서는 화살표를 따라 줄 세운다
+  const out = [];
+  for (const [, group] of blocks) {
+    const set = new Set(group);
+    const indeg = new Map(group.map(i => [i, 0]));
+    group.forEach(i => flowOf(i).forEach(t => { if (set.has(t)) indeg.set(t, (indeg.get(t) || 0) + 1); }));
+    // 머리: 들어오는 화살표가 없는 것 → 없으면(순환) 원본 레포 세션 → 그것도 없으면 지금 제일 앞에 있는 것
+    const start = group.find(i => indeg.get(i) === 0)
+               || group.find(i => !panes.get(i).sess.worktree)
+               || group.slice().sort((a, b) => pos.get(a) - pos.get(b))[0];
+    const seen = new Set(); const chain = [];
+    let cur = start;
+    while (cur && !seen.has(cur)) {
+      seen.add(cur); chain.push(cur);
+      cur = flowOf(cur).find(t => set.has(t) && !seen.has(t));
+    }
+    group.slice().sort((a, b) => pos.get(a) - pos.get(b))
+         .forEach(i => { if (!seen.has(i)) chain.push(i); });   // 화살표에 안 걸린 세션은 뒤에
+    out.push({ chain, at: Math.min(...chain.map(i => pos.get(i))) });
+  }
+  // ③ 덩어리끼리는 지금 화면에서 제일 앞에 있던 순서대로 — 정렬 한 번에 화면이 통째로 뒤집히지 않게
+  return out.sort((a, b) => a.at - b.at).flatMap(b => b.chain);
+}
+async function flowSortPanes() {
+  const order = flowSortOrder();
+  if (order.length < 2) return;
+  const same = [...grid.children].every((el, i) => el.dataset.id === order[i]);
+  order.forEach(id => { const p = panes.get(id); if (p) grid.appendChild(p.el); });   // 순서대로 다시 붙이기
+  applyLayout(); renumber(); renderMinimap();
+  setTimeout(() => flowDraw(null), 120);
+  try { await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) }); } catch (e) {}
+  saveOrder();
+  flashToast(same ? (T.flowSortSame || '') : (T.flowSortDone || ''));
+}
 // ---- 화면 배열(순서) 기억 — 재시작해도 같은 배열로 복원 ----
 const normPath = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
 function saveOrder() {
