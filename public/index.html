@@ -1824,7 +1824,7 @@ const I18N = {
     exitMsg:'[Session ended — close it with ✕ or add a new one]', addNeedPath:'Type a folder path, or pick one with 📂.',
     setQaDocL:'Keep a questions-and-answers page — no tokens', setQaDocHint:'Requests you start with "question" / "질문" already get the answer attached in the request history. With this on they are also written to docs/질문-답변-기록.html in that folder — newest first, one row per question. PowerTerminal draws the page itself and never calls the AI for it (zero tokens), which is why it is on by default.',
     phraseDefaults:'Continue,Done?,1,2,3',
-    phTitle:'Frequent request words', phSub:'Each one becomes a button just above the request box in every session. Pressing it only fills the box — it does not send.', phNone:'none yet', phraseAdd:'＋ Add a word', phraseAddShort:'quick word', phrasePrompt:'Type a word you use often (e.g. pushed it)', phraseUse:'Press to put it in the request box', phraseDel:'Right-click or long-press to delete', phraseDelAsk:'Delete the "{w}" button?',
+    phTitle:'Frequent request words', phSub: "Each one becomes a button just above the request box in every session. Pressing it sends right away; Shift+click only fills the box.", phNone:'none yet', phraseAdd:'＋ Add a word', phraseAddShort:'quick word', phrasePrompt:'Type a word you use often (e.g. pushed it)', phraseUse: "Press to send it right away (Shift+click just fills the box)", phraseDel:'Right-click or long-press to delete', phraseDelAsk:'Delete the "{w}" button?',
     codeNoSess:'Open a session first.', admTitle:'Banner admin (dev)', admSub:'Publish banners, set the latest version, see install stats. Visible only when this PC\'s GitHub account is the developer.', admShow:'Open', admHide:'Collapse', admNewTab:'Open in a new tab',
     cmImgs:'Images', cmImgsHint:'— click to enlarge · drag into the code', cmVisual:'Visual edit', cmPopOut:'New window',
     cmGrep:'Find in files', cmGrepCase:'Aa case', cmGrepRe:'.* regex',
@@ -1918,7 +1918,7 @@ const I18N = {
     exitMsg:'[세션 종료 — ✕ 로 닫거나 새로 추가하세요]', addNeedPath:'폴더 경로를 입력하거나 📂 로 골라주세요.',
     setQaDocL:'질문 답변 기록 만들기 — 토큰 안 씀', setQaDocHint:'"질문~"으로 시작한 요청은 이미 요청내역에 답이 붙습니다. 이걸 켜면 그 폴더의 docs/질문-답변-기록.html 에도 표로 남습니다 — 최신이 위, 한 줄에 시각·질문·답. 표는 PowerTerminal이 직접 그리므로 AI를 부르지 않습니다(토큰 0). 그래서 기본으로 켜져 있어요.',
     phraseDefaults:'진행해,다했어?,1,2,3',
-    phTitle:'자주 쓰는 요청 단어', phSub:'등록하면 각 세션의 요청칸 바로 위에 버튼으로 나옵니다. 눌러도 바로 보내지 않고 요청칸에 넣기만 해요.', phNone:'아직 없음', phraseAdd:'＋ 단어 추가', phraseAddShort:'자주 쓰는 단어', phrasePrompt:'자주 쓰는 요청 단어를 적으세요 (예: 올렸어)', phraseUse:'눌러서 요청칸에 넣기', phraseDel:'우클릭·길게눌러 삭제', phraseDelAsk:'"{w}" 버튼을 지울까요?',
+    phTitle:'자주 쓰는 요청 단어', phSub: "등록하면 각 세션의 요청칸 바로 위에 버튼으로 나옵니다. 누르면 바로 전송되고, Shift+클릭하면 요청칸에 넣기만 해요.", phNone:'아직 없음', phraseAdd:'＋ 단어 추가', phraseAddShort:'자주 쓰는 단어', phrasePrompt:'자주 쓰는 요청 단어를 적으세요 (예: 올렸어)', phraseUse: "눌러서 바로 전송 (Shift+클릭은 요청칸에 넣기만)", phraseDel:'우클릭·길게눌러 삭제', phraseDelAsk:'"{w}" 버튼을 지울까요?',
     codeNoSess:'먼저 세션을 하나 여세요.', admTitle:'배너 관리 (개발자)', admSub:'배너 발행 · 최신 버전 · 설치 통계. 이 PC의 GitHub 계정이 개발자일 때만 보입니다.', admShow:'열기', admHide:'접기', admNewTab:'새 탭에서 열기',
     cmImgs:'이미지', cmImgsHint:'— 클릭하면 크게 · 코드로 끌어다 놓으면 적용', cmVisual:'비주얼 편집', cmPopOut:'새 창',
     cmGrep:'파일들 검색', cmGrepCase:'Aa 대소문자', cmGrepRe:'.* 정규식',
@@ -2329,9 +2329,9 @@ const I18N_MORE = {
     addNeedPath: 'フォルダのパスを入力するか、📂 で選んでください。',
     phraseDefaults: '続けて,終わった?,1,2,3',
     phTitle: 'よく使うリクエストの言葉',
-    phSub: '登録するとすべてのセッションの入力欄のすぐ上にボタンとして出ます。押すと入力欄に入るだけで、送信はしません。',
+    phSub: "登録するとすべてのセッションの入力欄のすぐ上にボタンとして出ます。押すとすぐ送信され、Shift+クリックなら入力欄に入れるだけです。",
     phNone: 'まだありません', phraseAdd: '＋ 言葉を追加', phraseAddShort: 'よく使う言葉',
-    phrasePrompt: 'よく使う言葉を入力 (例: 上げたよ)', phraseUse: '押すと入力欄に入ります',
+    phrasePrompt: 'よく使う言葉を入力 (例: 上げたよ)', phraseUse: "押すとすぐ送信 (Shift+クリックは入力欄に入れるだけ)",
     phraseDel: '右クリックまたは長押しで削除', phraseDelAsk: '「{w}」ボタンを削除しますか?',
     codeNoSess: '先にセッションを開いてください。',
     admTitle: 'バナー管理 (開発者)',
@@ -2572,9 +2572,9 @@ const I18N_MORE = {
     addNeedPath: '请输入文件夹路径，或用 📂 选择。',
     phraseDefaults: '继续,做完了吗?,1,2,3',
     phTitle: '常用请求词',
-    phSub: '每个词都会变成所有会话输入框正上方的按钮。按下只会填进输入框，不会直接发送。',
+    phSub: "每个词都会变成所有会话输入框正上方的按钮。按下会立即发送；按住 Shift 点击则只填进输入框。",
     phNone: '还没有', phraseAdd: '＋ 添加词', phraseAddShort: '常用词',
-    phrasePrompt: '输入你常用的词 (例如 已经上传了)', phraseUse: '按一下就填进输入框',
+    phrasePrompt: '输入你常用的词 (例如 已经上传了)', phraseUse: "按一下立即发送 (Shift+点击只填进输入框)",
     phraseDel: '右键或长按可删除', phraseDelAsk: '删除「{w}」按钮?',
     codeNoSess: '请先打开一个会话。',
     admTitle: '横幅管理 (开发者)',
@@ -2818,10 +2818,10 @@ const I18N_MORE = {
     addNeedPath: 'Escribe la ruta de una carpeta, o elige una con 📂.',
     phraseDefaults: 'Continúa,¿Terminaste?,1,2,3',
     phTitle: 'Palabras de petición frecuentes',
-    phSub: 'Cada una aparece como botón justo encima del campo de petición en todas las sesiones. Al pulsarlo solo se rellena el campo — no se envía.',
+    phSub: "Cada una aparece como botón justo encima del campo de petición en todas las sesiones. Al pulsarlo se envía al instante; con Shift+clic solo se rellena el campo.",
     phNone: 'todavía ninguna', phraseAdd: '＋ Añadir palabra', phraseAddShort: 'palabra rápida',
     phrasePrompt: 'Escribe una palabra que uses a menudo (p. ej. ya lo subí)',
-    phraseUse: 'Púlsalo para ponerlo en el campo de petición',
+    phraseUse: "Púlsalo para enviarlo al instante (Shift+clic solo rellena el campo)",
     phraseDel: 'Clic derecho o pulsación larga para borrar', phraseDelAsk: '¿Borrar el botón ‘{w}’?',
     codeNoSess: 'Abre primero una sesión.',
     admTitle: 'Admin de banners (dev)',
@@ -3066,9 +3066,9 @@ const I18N_MORE = {
     addNeedPath: 'Gib einen Ordnerpfad ein oder wähle einen mit 📂.',
     phraseDefaults: 'Weiter,Fertig?,1,2,3',
     phTitle: 'Häufige Anfragewörter',
-    phSub: 'Jedes wird in allen Sitzungen zu einem Knopf direkt über dem Eingabefeld. Ein Druck füllt nur das Feld — gesendet wird nichts.',
+    phSub: "Jedes wird in allen Sitzungen zu einem Knopf direkt über dem Eingabefeld. Ein Druck sendet sofort; Shift+Klick füllt nur das Feld.",
     phNone: 'noch keine', phraseAdd: '＋ Wort hinzufügen', phraseAddShort: 'Kurzwort',
-    phrasePrompt: 'Ein Wort, das du oft nutzt (z. B. hochgeladen)', phraseUse: 'Drücken, um es ins Eingabefeld zu setzen',
+    phrasePrompt: 'Ein Wort, das du oft nutzt (z. B. hochgeladen)', phraseUse: "Drücken sendet sofort (Shift+Klick füllt nur das Feld)",
     phraseDel: 'Rechtsklick oder langes Drücken löscht', phraseDelAsk: 'Den Knopf ‘{w}’ löschen?',
     codeNoSess: 'Öffne zuerst eine Sitzung.',
     admTitle: 'Banner-Verwaltung (Dev)',
@@ -3313,10 +3313,10 @@ const I18N_MORE = {
     addNeedPath: 'Saisis un chemin de dossier, ou choisis-en un avec 📂.',
     phraseDefaults: 'Continue,Fini ?,1,2,3',
     phTitle: 'Mots de demande fréquents',
-    phSub: 'Chacun devient un bouton juste au-dessus du champ de demande, dans toutes les sessions. Appuyer ne fait que remplir le champ — ça n’envoie pas.',
+    phSub: "Chacun devient un bouton juste au-dessus du champ de demande, dans toutes les sessions. Appuyer envoie aussitôt ; Maj+clic ne fait que remplir le champ.",
     phNone: 'aucun pour l’instant', phraseAdd: '＋ Ajouter un mot', phraseAddShort: 'mot rapide',
     phrasePrompt: 'Saisis un mot que tu utilises souvent (p. ex. c’est poussé)',
-    phraseUse: 'Appuie pour le mettre dans le champ de demande',
+    phraseUse: "Appuie pour envoyer aussitôt (Maj+clic remplit seulement le champ)",
     phraseDel: 'Clic droit ou appui long pour supprimer', phraseDelAsk: 'Supprimer le bouton ‘{w}’ ?',
     codeNoSess: 'Ouvre d’abord une session.',
     admTitle: 'Gestion des bandeaux (dev)',
@@ -3562,10 +3562,10 @@ const I18N_MORE = {
     addNeedPath: 'Digite o caminho de uma pasta, ou escolha uma com 📂.',
     phraseDefaults: 'Continua,Terminou?,1,2,3',
     phTitle: 'Palavras de pedido frequentes',
-    phSub: 'Cada uma vira um botão logo acima do campo de pedido, em todas as sessões. Apertar só preenche o campo — não envia.',
+    phSub: "Cada uma vira um botão logo acima do campo de pedido, em todas as sessões. Apertar envia na hora; com Shift+clique só preenche o campo.",
     phNone: 'nenhuma ainda', phraseAdd: '＋ Adicionar palavra', phraseAddShort: 'palavra rápida',
     phrasePrompt: 'Digite uma palavra que você usa muito (ex. já subi)',
-    phraseUse: 'Aperte para colocar no campo de pedido',
+    phraseUse: "Aperte para enviar na hora (Shift+clique só preenche o campo)",
     phraseDel: 'Clique com o botão direito ou segure para apagar', phraseDelAsk: 'Apagar o botão ‘{w}’?',
     codeNoSess: 'Abra uma sessão primeiro.',
     admTitle: 'Admin de banners (dev)',
@@ -3810,10 +3810,10 @@ const I18N_MORE = {
     addNeedPath: 'Введите путь к папке или выберите её через 📂.',
     phraseDefaults: 'Продолжай,Готово?,1,2,3',
     phTitle: 'Частые слова для запросов',
-    phSub: 'Каждое становится кнопкой прямо над полем запроса во всех сессиях. Нажатие только подставляет текст в поле — не отправляет.',
+    phSub: "Каждое становится кнопкой прямо над полем запроса во всех сессиях. Нажатие сразу отправляет; Shift+клик только подставляет текст в поле.",
     phNone: 'пока нет', phraseAdd: '＋ Добавить слово', phraseAddShort: 'быстрое слово',
     phrasePrompt: 'Введите слово, которым часто пользуетесь (например: залил)',
-    phraseUse: 'Нажмите, чтобы подставить в поле запроса',
+    phraseUse: "Нажмите — отправится сразу (Shift+клик только подставит в поле)",
     phraseDel: 'Правый клик или долгое нажатие — удалить', phraseDelAsk: 'Удалить кнопку ‘{w}’?',
     codeNoSess: 'Сначала откройте сессию.',
     admTitle: 'Управление баннерами (dev)',
@@ -4058,10 +4058,10 @@ const I18N_MORE = {
     addNeedPath: 'फ़ोल्डर का पता लिखें, या 📂 से चुनें।',
     phraseDefaults: 'आगे बढ़ो,हो गया?,1,2,3',
     phTitle: 'बार-बार काम आने वाले शब्द',
-    phSub: 'हर शब्द सभी सेशनों में अनुरोध खाने के ठीक ऊपर बटन बन जाता है। दबाने पर बस खाने में लिख जाता है — भेजा नहीं जाता।',
+    phSub: "हर शब्द सभी सेशनों में अनुरोध खाने के ठीक ऊपर बटन बन जाता है। दबाते ही भेज दिया जाता है; Shift+क्लिक करने पर सिर्फ़ खाने में लिख जाता है।",
     phNone: 'अभी कोई नहीं', phraseAdd: '＋ शब्द जोड़ें', phraseAddShort: 'झटपट शब्द',
     phrasePrompt: 'कोई शब्द लिखें जो आप अक्सर इस्तेमाल करते हैं (जैसे: चढ़ा दिया)',
-    phraseUse: 'दबाएँ तो अनुरोध खाने में आ जाएगा',
+    phraseUse: "दबाते ही भेज दिया जाएगा (Shift+क्लिक सिर्फ़ खाने में लिखेगा)",
     phraseDel: 'हटाने के लिए दायाँ क्लिक या देर तक दबाएँ', phraseDelAsk: '‘{w}’ बटन हटाएँ?',
     codeNoSess: 'पहले कोई सेशन खोलें।',
     admTitle: 'बैनर प्रबंधन (dev)',
@@ -8183,14 +8183,21 @@ function renderPhrases(el) {
   PHRASES.forEach(w => {
     const b = document.createElement('button');
     b.textContent = w;
-    b.title = (T.phraseUse || '눌러서 요청칸에 넣기') + ' · ' + (T.phraseDel || '우클릭·길게눌러 삭제');
+    b.title = (T.phraseUse || '눌러서 바로 전송') + ' · ' + (T.phraseDel || '우클릭·길게눌러 삭제');
     b.onclick = ev => {
       ev.stopPropagation();
       const cur = ta.value;
       ta.value = cur ? cur.replace(/\s*$/, ' ') + w + ' ' : w + ' ';
       ta.dispatchEvent(new Event('input'));   // 임시저장·높이 조절이 같이 돌게
-      ta.focus();
-      try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+      // 누르면 바로 보낸다 — '진행해' · '1' 같은 단어는 그 자체가 완성된 답이라 확인 단계가 군더더기였다.
+      // 여러 단어를 이어 붙여 문장을 만들고 싶으면 Shift(또는 Ctrl)를 누른 채 눌러 요청칸에 넣기만 한다.
+      if (ev.shiftKey || ev.ctrlKey || ev.metaKey) {
+        ta.focus();
+        try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+        return;
+      }
+      const sb = el.querySelector('.qSend');
+      if (sb) sb.click();                     // 전송 버튼과 같은 길 — 요청내역 기록·플로우·소리까지 그대로
     };
     const del = async ev => {
       ev.preventDefault(); ev.stopPropagation();
