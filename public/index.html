@@ -2069,6 +2069,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
+    flowDidHead: "What the previous session was asked to do:",
     flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
@@ -2130,6 +2131,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
+    flowDidHead: "앞 세션이 받은 요청 (= 방금 한 일):",
     flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
@@ -2191,6 +2193,7 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
+    flowDidHead: "前のセッションが受けた依頼 (= 直前にやったこと):",
     flowOpenMates: "フローでつながっているセッションも一緒に開きますか？", flowCloseMates: "フローでつながっているセッションも一緒に閉じますか？",
     mPinned: '過去のバージョン(固定)',
     memoQaCol: '質問と回答', memoQaEmpty: 'リクエストを「質問」で始めると、回答がここに集まります。',
@@ -2434,6 +2437,7 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
+    flowDidHead: "上一个会话收到的请求 (= 刚做完的事):",
     flowOpenMates: "要一起打开用流程箭头连接的会话吗？", flowCloseMates: "要一起关闭用流程箭头连接的会话吗？",
     mPinned: '旧版本(固定)',
     memoQaCol: '问题与回答', memoQaEmpty: '请求以「质问」开头，回答就会汇集到这里。',
@@ -2677,6 +2681,7 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
+    flowDidHead: "Lo que se pidió a la sesión anterior:",
     flowOpenMates: "¿Abrir también las sesiones conectadas por flechas de flujo?", flowCloseMates: "¿Cerrar también las sesiones conectadas por flechas de flujo?",
     mPinned: 'Versiones anteriores (fijas)',
     memoQaCol: 'Preguntas y respuestas', memoQaEmpty: 'Empieza una petición con “pregunta” y la respuesta se recoge aquí.',
@@ -2927,6 +2932,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
+    flowDidHead: "Was die vorige Sitzung tun sollte:",
     flowOpenMates: "Auch die per Flusspfeil verbundenen Sitzungen öffnen?", flowCloseMates: "Auch die per Flusspfeil verbundenen Sitzungen schließen?",
     mPinned: 'Ältere Versionen (fest)',
     memoQaCol: 'Fragen & Antworten', memoQaEmpty: 'Beginne eine Anfrage mit „Frage“, und die Antwort sammelt sich hier.',
@@ -3173,6 +3179,7 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
+    flowDidHead: "Ce qui a été demandé à la session précédente :",
     flowOpenMates: "Ouvrir aussi les sessions reliées par les flèches de flux ?", flowCloseMates: "Fermer aussi les sessions reliées par les flèches de flux ?",
     mPinned: 'Anciennes versions (figées)',
     memoQaCol: 'Questions et réponses', memoQaEmpty: 'Commence une demande par « question » et la réponse se retrouve ici.',
@@ -3422,6 +3429,7 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
+    flowDidHead: "O que foi pedido à sessão anterior:",
     flowOpenMates: "Abrir também as sessões conectadas pelas setas de fluxo?", flowCloseMates: "Fechar também as sessões conectadas pelas setas de fluxo?",
     mPinned: 'Versões antigas (fixas)',
     memoQaCol: 'Perguntas e respostas', memoQaEmpty: 'Comece um pedido com “pergunta” e a resposta aparece aqui.',
@@ -3671,6 +3679,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
+    flowDidHead: "Что просили сделать предыдущую сессию:",
     flowOpenMates: "Открыть также сессии, связанные стрелками потока?", flowCloseMates: "Закрыть также сессии, связанные стрелками потока?",
     mPinned: 'Прежние версии (закреплённые)',
     memoQaCol: 'Вопросы и ответы', memoQaEmpty: 'Начните запрос со слова «вопрос», и ответ соберётся здесь.',
@@ -3919,6 +3928,7 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
+    flowDidHead: "पिछले सेशन को क्या करने को कहा गया था:",
     flowOpenMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में खोलें?", flowCloseMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में बंद करें?",
     mPinned: 'पुराने वर्शन (तय किए हुए)',
     memoQaCol: 'सवाल-जवाब', memoQaEmpty: 'अनुरोध को “सवाल” से शुरू करें, जवाब यहाँ इकट्ठा होगा।',
@@ -5272,6 +5282,7 @@ function buildPane(sess, idx) {
     el._flowNotified = false;
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
+    logSent(el, val);            // ◎ 다음 세션에 넘길 때 "무엇을 했는지" 로 같이 보낸다
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
     if (qHist) { let ht = val; for (const [tk] of attachMap) ht = ht.split(tk).join(' '); ht = ht.replace(/\s+/g, ' ').trim(); if (ht) qHist.unshift(ht); }
     qHistIdx = -1; qDraft = '';
@@ -5402,6 +5413,7 @@ function buildPane(sess, idx) {
     const t = String(text || '').trim();
     if (!t) return false;
     api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => { reqsCache = null; refreshReq(); });
+    logSent(el, t);
     wsSend(t.replace(/\r?\n/g, '\x1b\r'));        // 큐 경유 — 재접속 중이어도 안 사라짐
     setTimeout(() => wsSend('\r'), 80);
     return true;
@@ -6158,17 +6170,33 @@ function flowMemberLine(toId) {
   if (!d.member) return '';
   return (T.flowAgentLine || '').replace(/\{a\}/g, d.member).replace(/\{n\}/g, d.memberLabel || d.member);
 }
-function flowText(fromId, toId) {
+/* 이 세션에 들어간 요청을 몇 개만 기억해 둔다 — 다음 세션으로 넘길 때 '무엇을 했는지' 로 붙인다.
+   메모장 요청내역을 읽지 않고 화면에 있는 값을 쓰는 이유: worktree 는 요청내역이 원본 레포로 합쳐져
+   어느 세션이 한 일인지 갈리지 않기 때문이다. 인계할 때 비우므로 지난 것이 다시 따라가지 않는다.
+   알림 문구(자동 인계 안내)는 사람이 시킨 일이 아니라서 뺀다. */
+function logSent(el, text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  // 알림 문구는 '한 일'이 아니다 — 문구 앞 12자로 알아본다 (언어마다 문장이 달라 통짜 비교는 못 한다)
+  const notice = String(T.flowSentNote || '').slice(0, 12);
+  if (!t || (notice && t.startsWith(notice))) return;
+  el._sentLog = [...(el._sentLog || []), t.slice(0, 160)].slice(-3);
+}
+function flowText(fromId, toId, did) {
   const m = flowMeta(fromId, toId);
   const src = (panes.get(fromId) || { sess: {} }).sess;
   const body = (m.msg || flowStagePrompt(m.stage) || '').replace(/\{t\}/g, src.title || '');
   if (!body) return '';
+  /* 앞 세션이 *무엇을* 했는지 같이 넘긴다 — 예전엔 "그 폴더에서 확인해봐" 뿐이라, 받는 쪽이
+     git diff 부터 뒤지며 무슨 일이 있었는지 되짚어야 했다. 시킨 말이 그대로 남아 있으니 그걸 붙인다. */
+  const didBlock = (did && did.length)
+    ? '\n' + (T.flowDidHead || '앞 세션이 방금 한 일:') + '\n' + did.map(x => '· ' + x).join('\n')
+    : '';
   const line = (T.flowSrcLine || '').replace(/\{t\}/g, src.title || '').replace(/\{p\}/g, src.path || '');
   const who = flowMemberLine(toId);
   // '보고' 는 흩어진 결과를 모아오는 단계라, 어디를 찾아가야 하는지 알아야 한다 —
   // 참여한 세션들의 제목·맡은 단계·폴더 경로를 붙여 준다 (worktree 는 폴더가 전부 달라서 이게 없으면 못 찾는다)
   const chain = m.stage === 'report' ? flowChainList(toId, fromId) : '';
-  return (who ? who + '\n' : '') + body + (line ? '\n' + line : '') + chain;
+  return (who ? who + '\n' : '') + body + didBlock + (line ? '\n' + line : '') + chain;
 }
 // 이 흐름에 참여한 세션 목록 — 받는 세션 자신은 뺀다
 function flowChainList(toId, fromId) {
@@ -6634,6 +6662,7 @@ function flowHandoff(fromId) {
   // 방금 끝난 게 '너 일 넘겼다' 알림에 대한 응답이면 인계를 또 내보내지 않는다 (알림 → 완료 → 인계 → 알림 … 고리 방지)
   if (src.el._flowNotified) { src.el._flowNotified = false; return; }
   const opts = [];
+  const did = (src.el._sentLog || []).slice();   // 이 세션이 이번에 받은 요청들 = 넘길 때 알려 줄 '한 일'
   // ① 부탁받고 하던 일이었으면 '돌려보내기' 가 첫 후보
   const ret = flowReturns.get(fromId);
   if (ret && panes.has(ret)) {
@@ -6645,7 +6674,7 @@ function flowHandoff(fromId) {
     const meta = flowMeta(fromId, to);
     if (!meta.stage) continue;                        // 단계를 안 정한 화살표는 표시 전용 — 아무 것도 안 넘긴다
     if (!panes.has(to)) continue;
-    const text = flowText(fromId, to);
+    const text = flowText(fromId, to, did);
     if (!text) continue;
     opts.push({ to, meta, label: flowStageLabel(meta.stage) + ' → ' + (panes.get(to).sess.title || ''),
                 text, auto: meta.auto, back: meta.back, max: meta.max });
@@ -6661,6 +6690,7 @@ function flowHandoff(fromId) {
     const cap = o.ret ? FLOW_MAX_DEFAULT : ((o.meta && o.meta.max) || 0);
     const capped = o.auto && cap > 0 && (flowFired.get(k) || 0) >= cap;
     const how = flowSend(fromId, o.to, o.text, o.auto && !capped);
+    if (how) src.el._sentLog = [];       // 넘겼으면 '한 일' 은 비운다 — 다음 인계에 지난 일이 또 따라가지 않게
     if (how === 'auto' || how === 'queued') {          // 대기시킨 것도 결국 자동으로 나간다
       flowFired.set(k, (flowFired.get(k) || 0) + 1);
       flowNotifySource(fromId, o);        // 자동으로 넘겼다 = 맡긴다는 뜻 → 앞 세션에도 알려 준다
