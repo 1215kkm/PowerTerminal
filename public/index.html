@@ -204,6 +204,10 @@
   #flowLayer .flow-label { font: 700 11.5px system-ui, sans-serif; fill: #fbcfe8;
                            paint-order: stroke; stroke: rgba(0,0,0,.75); stroke-width: 3.5px; stroke-linejoin: round; }
   #flowLayer .flow-label.auto { fill: #fde68a; }        /* ⚡ = 자동 전송 켜짐 */
+  #flowLayer .flow-label.capped { fill: #fb923c; }      /* 한도에 닿음 = 이제 자동으로 안 나감 */
+  /* 자동 한도로 '채워만 둔' 세션 — 사람이 눌러야 나간다는 걸 계속 보이게 (토스트는 사라진다) */
+  .pane.flow-hold .quick .qSend { box-shadow: 0 0 0 2px #f59e0b inset; animation: holdPulse 1.6s ease-in-out infinite; }
+  @keyframes holdPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
   /* 화살표 바로 아래 단계 선택판 */
   #flowPanel { position: fixed; z-index: 55; display: block; padding: 5px; border-radius: 10px;
                background: #111827; border: 1px solid var(--violet); box-shadow: 0 6px 20px rgba(0,0,0,.55); }
@@ -5307,6 +5311,7 @@ function buildPane(sess, idx) {
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
     api('POST', '/api/memos/req', { path: sess.path, text: val.trim(), sid: sess.id }).then(() => { reqsCache = null; refreshReq(); });
     logSent(el, val);            // ◎ 다음 세션에 넘길 때 "무엇을 했는지" 로 같이 보낸다
+    el.classList.remove('flow-hold');   // 채워둔 걸 사람이 보냈다 = 대기 해제
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
     if (qHist) { let ht = val; for (const [tk] of attachMap) ht = ht.split(tk).join(' '); ht = ht.replace(/\s+/g, ' ').trim(); if (ht) qHist.unshift(ht); }
     qHistIdx = -1; qDraft = '';
@@ -6229,8 +6234,28 @@ function flowMemberLine(toId) {
    메모장 요청내역을 읽지 않고 화면에 있는 값을 쓰는 이유: worktree 는 요청내역이 원본 레포로 합쳐져
    어느 세션이 한 일인지 갈리지 않기 때문이다. 인계할 때 비우므로 지난 것이 다시 따라가지 않는다.
    알림 문구(자동 인계 안내)는 사람이 시킨 일이 아니라서 뺀다. */
+/* 문구 틀({t}·{a} 같은 자리표시자가 든 번역문)을 그 문장인지 알아보는 정규식으로 바꾼다 */
+function tmplRe(str) {
+  const raw = String(str || '');
+  if (!raw) return null;
+  const esc = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');       // 특수문자 무력화
+  try { return new RegExp('^' + esc.replace(/\\\{[a-z]\\\}/gi, '[\\s\\S]*?') + '$'); }
+  catch (e) { return null; }
+}
+/* 인계로 받은 글에서 *사람이 시킨 알맹이* 만 남긴다.
+   인계문에는 담당 지정 줄, 앞 세션 폴더 안내, 그 앞 세션이 한 일 목록이 함께 붙는다.
+   그대로 '한 일' 로 기록하면 다음 세션에 넘길 때 그게 또 통째로 실려, 같은 말이 겹겹이 쌓인다. */
+function flowStrip(text) {
+  const head = String(T.flowDidHead || '');
+  let out = String(text || '');
+  if (head) { const i = out.indexOf(head); if (i >= 0) out = out.slice(0, i); }   // '앞 세션이 받은 요청:' 아래는 통째로 버림
+  const agent = tmplRe(T.flowAgentLine), src = tmplRe(T.flowSrcLine);
+  return out.split(/\r?\n/)
+    .filter(l => { const x = l.trim(); return x && !(agent && agent.test(x)) && !(src && src.test(x)); })
+    .join(' ').replace(/\s+/g, ' ').trim();
+}
 function logSent(el, text) {
-  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  const t = flowStrip(text);
   // 알림 문구는 '한 일'이 아니다 — 문구 앞 12자로 알아본다 (언어마다 문장이 달라 통짜 비교는 못 한다)
   const notice = String(T.flowSentNote || '').slice(0, 12);
   if (!t || (notice && t.startsWith(notice))) return;
@@ -6476,8 +6501,13 @@ function flowDraw(rootId) {
       t.setAttribute('x', mid.x); t.setAttribute('y', mid.y + (rightward ? 17 : -7));
       t.setAttribute('class', 'flow-label' + (meta.auto ? ' auto' : ''));
       t.setAttribute('text-anchor', 'middle');
+      /* 자동 전송은 한도까지만 나간다. 한도에 닿으면 요청칸에 채워만 두는데, 예전엔 그 사실이
+         잠깐 뜨는 안내(토스트)뿐이라 놓치면 "자동인데 왜 안 갔지?" 가 됐다 → 선에 횟수를 같이 적는다. */
+      const fired = flowFired.get(from + '>' + to) || 0;
+      const capHit = meta.auto && meta.max > 0 && fired >= meta.max;
       t.textContent = (meta.auto ? '⚡ ' : '') + flowStageLabel(meta.stage) + (meta.back ? ' ↩' : '')
-                    + (meta.auto && meta.max > 0 ? ' ≤' + meta.max : '');
+                    + (meta.auto && meta.max > 0 ? ' ' + fired + '/' + meta.max : '');
+      if (capHit) t.setAttribute('class', t.getAttribute('class') + ' capped');
       g.appendChild(t);
     }
   }
@@ -6772,7 +6802,11 @@ function flowHandoff(fromId) {
       flowFired.set(k, (flowFired.get(k) || 0) + 1);
       flowNotifySource(fromId, o);        // 자동으로 넘겼다 = 맡긴다는 뜻 → 앞 세션에도 알려 준다
     }
-    if (capped) flashToast((T.flowMaxHit || '').replace('{n}', cap).replace('{t}', (panes.get(o.to) || { sess: {} }).sess.title || ''));
+    if (capped) {
+      const d = panes.get(o.to);
+      if (d) d.el.classList.add('flow-hold');   // 사람이 [전송] 을 눌러 줘야 하는 상태 — 눌러야 풀린다
+      flashToast((T.flowMaxHit || '').replace('{n}', cap).replace('{t}', (panes.get(o.to) || { sess: {} }).sess.title || ''));
+    }
   };
   if (opts.length === 1) return go(opts[0]);
   flowPickNext(src.el, opts, go);
