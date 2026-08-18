@@ -211,6 +211,10 @@
   html.light #flowPanel .fp-st { background: #f3f4f6; }
   #flowPanel .fp-st:hover { border-color: var(--pink); color: var(--pink); }
   #flowPanel .fp-st.on { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; }
+  /* 정해 둔 단계 하나만 남았을 때 = "이 화살표는 무슨 역할인가" 를 보러 올린 것 → 크게 보여준다 */
+  #flowPanel .fp-row.solo { justify-content: center; }
+  #flowPanel .fp-row.solo .fp-st { padding: 7px 18px; font-size: 18px; font-weight: 800; letter-spacing: .5px;
+                                   border-radius: 12px; box-shadow: 0 2px 10px rgba(138,56,245,.45); }
   #flowPanel .fp-auto { display: flex; align-items: center; gap: 5px; margin-top: 5px; padding: 0 3px;
                         font-size: 11px; color: var(--muted); cursor: pointer; white-space: nowrap; }
   #flowPanel .fp-auto input { accent-color: var(--violet); cursor: pointer; }
@@ -2069,6 +2073,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
+    wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
     flowDidHead: "What the previous session was asked to do:",
     flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
     mPinned: 'Older versions (pinned)',
@@ -2131,6 +2136,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
+    wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
     flowDidHead: "앞 세션이 받은 요청 (= 방금 한 일):",
     flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
     mPinned: '지난 버전 (고정)',
@@ -2193,6 +2199,7 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
+    wtTeamCopied: "チーム設定(.claude)も新しい作業フォルダにコピーしました。",
     flowDidHead: "前のセッションが受けた依頼 (= 直前にやったこと):",
     flowOpenMates: "フローでつながっているセッションも一緒に開きますか？", flowCloseMates: "フローでつながっているセッションも一緒に閉じますか？",
     mPinned: '過去のバージョン(固定)',
@@ -2437,6 +2444,7 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
+    wtTeamCopied: "团队配置(.claude)也一并复制到新的工作文件夹了。",
     flowDidHead: "上一个会话收到的请求 (= 刚做完的事):",
     flowOpenMates: "要一起打开用流程箭头连接的会话吗？", flowCloseMates: "要一起关闭用流程箭头连接的会话吗？",
     mPinned: '旧版本(固定)',
@@ -2681,6 +2689,7 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
+    wtTeamCopied: "Los archivos del equipo (.claude) también se copiaron a la nueva carpeta de trabajo.",
     flowDidHead: "Lo que se pidió a la sesión anterior:",
     flowOpenMates: "¿Abrir también las sesiones conectadas por flechas de flujo?", flowCloseMates: "¿Cerrar también las sesiones conectadas por flechas de flujo?",
     mPinned: 'Versiones anteriores (fijas)',
@@ -2932,6 +2941,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
+    wtTeamCopied: "Die Team-Dateien (.claude) wurden auch in den neuen Arbeitsordner kopiert.",
     flowDidHead: "Was die vorige Sitzung tun sollte:",
     flowOpenMates: "Auch die per Flusspfeil verbundenen Sitzungen öffnen?", flowCloseMates: "Auch die per Flusspfeil verbundenen Sitzungen schließen?",
     mPinned: 'Ältere Versionen (fest)',
@@ -3179,6 +3189,7 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
+    wtTeamCopied: "Les fichiers d’équipe (.claude) ont aussi été copiés dans le nouveau dossier de travail.",
     flowDidHead: "Ce qui a été demandé à la session précédente :",
     flowOpenMates: "Ouvrir aussi les sessions reliées par les flèches de flux ?", flowCloseMates: "Fermer aussi les sessions reliées par les flèches de flux ?",
     mPinned: 'Anciennes versions (figées)',
@@ -3429,6 +3440,7 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
+    wtTeamCopied: "Os arquivos da equipe (.claude) também foram copiados para a nova pasta de trabalho.",
     flowDidHead: "O que foi pedido à sessão anterior:",
     flowOpenMates: "Abrir também as sessões conectadas pelas setas de fluxo?", flowCloseMates: "Fechar também as sessões conectadas pelas setas de fluxo?",
     mPinned: 'Versões antigas (fixas)',
@@ -3679,6 +3691,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
+    wtTeamCopied: "Файлы команды (.claude) тоже скопированы в новую рабочую папку.",
     flowDidHead: "Что просили сделать предыдущую сессию:",
     flowOpenMates: "Открыть также сессии, связанные стрелками потока?", flowCloseMates: "Закрыть также сессии, связанные стрелками потока?",
     mPinned: 'Прежние версии (закреплённые)',
@@ -3928,6 +3941,7 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
+    wtTeamCopied: "टीम फ़ाइलें (.claude) भी नए काम के फ़ोल्डर में कॉपी कर दी गईं।",
     flowDidHead: "पिछले सेशन को क्या करने को कहा गया था:",
     flowOpenMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में खोलें?", flowCloseMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में बंद करें?",
     mPinned: 'पुराने वर्शन (तय किए हुए)',
@@ -6461,7 +6475,7 @@ function flowPanel(from, to, pathEl) {
   flowPanelKey = key;
   const meta = flowMeta(from, to);
   const btns = meta.stage ? [meta.stage] : FLOW_STAGES;
-  el.innerHTML = '<div class="fp-row">'
+  el.innerHTML = '<div class="fp-row' + (meta.stage ? ' solo' : '') + '">'
     + btns.map(s => `<button class="fp-st${meta.stage === s ? ' on' : ''}" data-s="${s}" title="${escA(flowStagePrompt(s))}">${esc(flowStageLabel(s))}</button>`).join('')
     + '</div>'
     + (meta.stage
@@ -7808,6 +7822,7 @@ async function addSession(path, title, agent, cmd, skipPrompt, extra) {
   const pick = document.getElementById('addAgent').value;
   const s = await api('POST', '/api/sessions', Object.assign({ path, title, agent: agent || pick, cmd, model: curAddModel() }, extra || {}));
   if (s.error) { alert(s.error); return null; }
+  if (s.teamCopied) flashToast(T.wtTeamCopied || '강팀도 새 작업 폴더로 같이 복사했어요.');
   if (skipPrompt) addHere(s);          // 이전에 쓰던 세션 다시 열기 = 새 창 묻지 않고 이 창에
   else await placeNewSession(s);       // 완전히 새 폴더 추가 = 5개↑면 새 창 물어봄
   if (!(extra && extra.autoClose)) offerFlowMates([s.path]);   // ◎ 이어져 있던 세션도 같이 열지 물어봄

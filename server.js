@@ -191,6 +191,28 @@ async function gitTopLevel(dir) {
   catch (e) { return ''; }
 }
 // 원본 레포 경로 옆(.pt-worktrees)에 새 작업트리를 만든다. 레포 안에 두면 git 이 자기 자신을 추적하게 돼 지저분해진다.
+/* 🧑‍🤝‍🧑 강팀을 새 작업 폴더에도 넣어 준다.
+   git worktree 는 *커밋된 파일만* 가져온다. 강팀(.claude/)과 CLAUDE.md 는 대개 커밋하지 않으므로
+   새 폴더에는 팀이 없다 — 그래서 워크트리 세션만 담당·회의·권한 승인이 통째로 빠진 채 시작했다.
+   강팀이 설치된 레포일 때만 그대로 복사한다 (다른 미추적 파일 — .env·빌드 산출물 등 — 은 손대지 않는다).
+   이미 있는 파일은 덮지 않는다: git 이 가져온 쪽이 원본이다. */
+function copyTeamFiles(repoTop, dir) {
+  try {
+    const src = path.join(repoTop, '.claude');
+    let hasTeam = fs.existsSync(path.join(src, '.kang-version'));
+    if (!hasTeam) {
+      try { hasTeam = fs.readdirSync(path.join(src, 'agents')).some(f => /\.md$/i.test(f)); } catch (e) { hasTeam = false; }
+    }
+    if (!hasTeam) return false;
+    fs.cpSync(src, path.join(dir, '.claude'), {
+      recursive: true, force: false, errorOnExist: false,
+      filter: p => !/[\\/](node_modules|\.git)$/i.test(p) && !/\.lock$/i.test(p),   // 잠금파일·군더더기는 빼고
+    });
+    const md = path.join(repoTop, 'CLAUDE.md'), dst = path.join(dir, 'CLAUDE.md');
+    if (fs.existsSync(md) && !fs.existsSync(dst)) fs.copyFileSync(md, dst);
+    return true;
+  } catch (e) { return false; }
+}
 async function makeWorktree(repoTop) {
   const base = path.basename(repoTop).replace(/[^\w가-힣.-]/g, '_');
   const root = path.join(path.dirname(repoTop), '.pt-worktrees');
@@ -200,9 +222,10 @@ async function makeWorktree(repoTop) {
     if (fs.existsSync(dir)) continue;
     try {
       await git(repoTop, ['worktree', 'add', dir, '-b', branch], 60000);
-      wtMap[dir.toLowerCase()] = { dir, repo: repoTop, branch };   // dir = 원래 대소문자 (목록 표시용)
+      const team = copyTeamFiles(repoTop, dir);                    // 강팀이 있는 레포면 팀도 같이
+      wtMap[dir.toLowerCase()] = { dir, repo: repoTop, branch, team };   // dir = 원래 대소문자 (목록 표시용)
       saveWtMap();
-      return { dir, branch, n };
+      return { dir, branch, n, team };
     } catch (e) {
       // 브랜치 이름이 이미 있으면 다음 번호로. 그 외(레포 아님 등)는 포기하고 같은 폴더로 폴백.
       if (!/already exists|이미 존재/i.test(e.stderr || e.message || '')) return null;
@@ -1469,7 +1492,8 @@ app.post('/api/sessions', async (req, res) => {
   // 응답을 먼저 보내고 터미널(PTY)은 그 다음에 띄운다 — pty.spawn 이 이 응답의 대부분을 차지해서
   // [추가] 버튼이 한참 반응 없는 것처럼 보였다. 클라이언트는 응답을 받아 창을 그리고 WebSocket 을
   // 붙이는데, 그때 getPty 가 이미 만들어진 걸 그대로 돌려준다. (getPty 는 동기 함수라 중복 생성 없음)
-  res.json(sess);
+  // 강팀을 같이 넣어 줬으면 알려 준다 (세션 자체에 저장할 값은 아니라 응답에만 얹는다)
+  res.json(wt && wt.team ? Object.assign({ teamCopied: true }, sess) : sess);
   setImmediate(() => { try { getPty(sess); } catch (e) {} });
 });
 
@@ -2298,9 +2322,16 @@ app.delete('/api/sessions/:id', (req, res) => {
   //    지우지 못한 경우 경로를 돌려줘 클라이언트가 "변경이 남아 폴더를 남겨뒀다"고 알릴 수 있게.
   if (gone && gone.worktree && gone.repo) {
     const dir = gone.path;
-    git(dir, ['status', '--porcelain'], 8000).then(out => {
+    // 우리가 넣어 준 강팀(.claude·CLAUDE.md)은 '남은 변경'으로 세지 않는다 —
+    // 안 그러면 복사해 준 것 때문에 폴더가 늘 '작업 중'으로 보여 영영 정리되지 않는다.
+    const wt = wtMap[dir.toLowerCase()];
+    const args = ['status', '--porcelain'];
+    if (wt && wt.team) args.push('--', '.', ':(exclude).claude', ':(exclude)CLAUDE.md');
+    git(dir, args, 8000).then(out => {
       if (String(out).trim()) return { kept: true };                    // 변경 있음 → 보존
-      return git(gone.repo, ['worktree', 'remove', dir], 20000)
+      // --force 는 강팀을 복사해 넣은 폴더에만 — 그 파일들 때문에 git 이 삭제를 거부하기 때문이다.
+      // (그 외에는 예전 그대로: 뭔가 남아 있으면 git 이 막고, 폴더는 보존된다)
+      return git(gone.repo, ['worktree', 'remove', dir].concat(wt && wt.team ? ['--force'] : []), 20000)
         .then(() => {
           delete wtMap[dir.toLowerCase()]; saveWtMap();
           // 폴더를 지웠으면 '최근 닫은 세션' 에서도 뺀다 — 안 그러면 목록에 남아 눌러도 안 열린다
