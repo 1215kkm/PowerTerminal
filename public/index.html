@@ -4572,14 +4572,11 @@ function buildPane(sess, idx) {
   el.querySelector('.term').addEventListener('mouseup', () => {
     const s = term.getSelection();
     if (!s || !s.trim()) return;
-    // 복사 과정(포커스 이동 등)이 스크롤을 맨 아래로 튕기지 않게 — 위(스크롤백)를 보던 중이면 그 위치 복원
-    const buf = term.buffer.active, vy = buf.viewportY, wasUp = vy < buf.baseY;
+    holdViewport(term, el.querySelector('.term'));   // 복사하는 동안 보던 위치를 지킨다
     copySel(s);
-    if (wasUp) setTimeout(() => {
-      const b = term.buffer.active;
-      if (b.viewportY >= b.baseY) { try { term.scrollToLine(vy); } catch (e) {} }   // 맨 아래로 튕겼을 때만 되돌림
-    }, 60);
   });
+  // Ctrl+C·우클릭 복사처럼 브라우저가 직접 처리하는 복사도 같은 보호를 받게 한다
+  el.querySelector('.term').addEventListener('copy', () => holdViewport(term, el.querySelector('.term')), true);
   // 🖱 드래그 선택 중엔 수신 출력을 잠시 보류 — Claude가 화면을 계속 다시 그려서
   // 선택 표시가 그리는 순간마다 지워지던 문제 (선택이 아예 안 되는 것처럼 보임)
   let selHold = false, holdBuf = [];
@@ -6882,6 +6879,24 @@ function escA(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
 // 터미널 선택 텍스트 복사.
 // Clipboard API 우선 — 성공/실패를 정확히 알려줌 (localhost·https에선 항상 이 경로).
 // execCommand는 http LAN 폴백 전용: "성공"을 거짓 보고하는 경우가 있어 1순위에서 뺐음 (드래그복사 안 되던 원인).
+/* 📌 보던 위치 지키기 — 복사는 클립보드 응답을 기다렸다가 늦게 폴백으로 넘어가기도 해서,
+   한 번만 되돌려서는 그 뒤에 튀는 걸 못 잡는다. 잠깐 동안 몇 번 확인해 원위치시킨다.
+   사람이 스스로 스크롤(휠·터치)하면 그 즉시 손을 뗀다 — 안 그러면 보려던 곳에서 도로 끌려온다. */
+function holdViewport(term, el) {
+  const buf = term.buffer.active, vy = buf.viewportY;
+  if (vy >= buf.baseY) return;                  // 맨 아래를 보던 중이면 지킬 것이 없다
+  let stop = false;
+  const off = () => { stop = true; };
+  if (el) {
+    el.addEventListener('wheel', off, { once: true, passive: true });
+    el.addEventListener('touchstart', off, { once: true, passive: true });
+  }
+  [60, 300, 900].forEach(ms => setTimeout(() => {
+    if (stop) return;
+    const b = term.buffer.active;
+    if (b.viewportY !== vy && vy <= b.baseY) { try { term.scrollToLine(vy); } catch (e) {} }
+  }, ms));
+}
 function copySel(text) {
   if (!text) return;
   if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
@@ -6898,13 +6913,21 @@ function copySel(text) {
 function copySelExec(text) {
   let ok = false;
   try {
+    /* 임시 입력칸에 담아 복사한다. 여기서 포커스를 뺏기면 브라우저가 원래 포커스였던 곳(터미널의
+       숨은 입력칸 = 커서 자리 = 맨 아래)을 화면에 끌어와, 위를 읽고 있던 화면이 밑으로 튀었다.
+       그래서 화면 안에 고정으로 두고(스크롤 유발 없음), 포커스는 원래 있던 곳으로 되돌려 준다. */
+    const was = document.activeElement;
+    const sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
     const ta = document.createElement('textarea');
     ta.value = text; ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:absolute;left:-9999px;top:' + (window.pageYOffset || document.documentElement.scrollTop || 0) + 'px;font-size:12pt';
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;font-size:12pt';
     document.body.appendChild(ta);
-    ta.select(); ta.setSelectionRange(0, text.length);
+    try { ta.focus({ preventScroll: true }); } catch (e) { ta.focus(); }
+    ta.setSelectionRange(0, text.length);
     ok = document.execCommand('copy');
     document.body.removeChild(ta);
+    if (was && was.focus) { try { was.focus({ preventScroll: true }); } catch (e) {} }
+    if (window.pageXOffset !== sx || window.pageYOffset !== sy) window.scrollTo(sx, sy);
   } catch (e) {}
   flashToast(ok ? (T.copied || 'Copied') : (T.copyFail || 'Copy failed'));
 }
