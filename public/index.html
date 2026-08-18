@@ -5309,9 +5309,10 @@ function buildPane(sess, idx) {
     // 그 표식이 남아 있다가 사람이 시킨 다음 작업의 인계를 대신 삼켜버린다.
     el._flowNotified = false;
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
-    api('POST', '/api/memos/req', { path: sess.path, text: val.trim(), sid: sess.id }).then(() => { reqsCache = null; refreshReq(); });
+    api('POST', '/api/memos/req', { path: sess.path, text: val.trim(), sid: sess.id, flow: el._pendingFlow || null }).then(() => { reqsCache = null; refreshReq(); });
     logSent(el, val);            // ◎ 다음 세션에 넘길 때 "무엇을 했는지" 로 같이 보낸다
     el.classList.remove('flow-hold');   // 채워둔 걸 사람이 보냈다 = 대기 해제
+    el._pendingFlow = null;
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
     if (qHist) { let ht = val; for (const [tk] of attachMap) ht = ht.split(tk).join(' '); ht = ht.replace(/\s+/g, ' ').trim(); if (ht) qHist.unshift(ht); }
     qHistIdx = -1; qDraft = '';
@@ -5438,10 +5439,12 @@ function buildPane(sess, idx) {
   el.addEventListener('ptclose', () => clearInterval(gitTimer));
 
   // 메모장 '📤 전송' 등 외부에서 이 세션 터미널로 보내기 — send()와 같은 경로 (요청내역 기록)
-  const sendText = (text) => {
+  const sendText = (text, flow) => {
     const t = String(text || '').trim();
     if (!t) return false;
-    api('POST', '/api/memos/req', { path: sess.path, text: t, sid: sess.id }).then(() => { reqsCache = null; refreshReq(); });
+    // flow = {stage, from, to} — 플로우로 넘어온 요청이면 그 단계를 같이 남긴다 (질문-답변 기록의 '플로우 진행' 표에 쓰임)
+    api('POST', '/api/memos/req', { path: sess.path, text: t, sid: sess.id, flow: flow || null })
+      .then(() => { reqsCache = null; refreshReq(); });
     logSent(el, t);
     wsSend(t.replace(/\r?\n/g, '\x1b\r'));        // 큐 경유 — 재접속 중이어도 안 사라짐
     setTimeout(() => wsSend('\r'), 80);
@@ -6722,6 +6725,13 @@ function flowFlushPending(toId) {
   setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
 }
 // 실제로 한 건 넘기기. 정말 자동 전송까지 갔으면 'auto', 요청창에 채워만 뒀으면 'manual' 을 돌려준다.
+/* 이 인계가 '무슨 단계로, 어디서 어디로' 갔는지 — 요청내역에 함께 남겨 문서(질문-답변 기록)에서
+   단계별 진행을 표로 보여줄 수 있게 한다. */
+function flowStamp(fromId, toId) {
+  const f = panes.get(fromId), t = panes.get(toId);
+  const m = flowMeta(fromId, toId);
+  return { stage: flowStageLabel(m.stage || ''), from: (f && f.sess.title) || '', to: (t && t.sess.title) || '' };
+}
 function flowSend(fromId, toId, text, auto) {
   const dst = panes.get(toId);
   if (!dst || !dst.el.isConnected || !text) return false;
@@ -6740,10 +6750,11 @@ function flowSend(fromId, toId, text, auto) {
   }
   const sent = auto && !busy;
   if (sent) {
-    dst.sendText(text);                                 // 요청내역에도 기록되고 터미널로 바로 들어간다
+    dst.sendText(text, flowStamp(fromId, toId));        // 요청내역에도 기록되고 터미널로 바로 들어간다
   } else {
     // 사람이 쓰던 글이 있으면 덮어쓰지 않고 아래에 붙인다
     ta.value = ta.value.trim() ? ta.value.replace(/\s*$/, '') + '\n' + text : text;
+    dst.el._pendingFlow = flowStamp(fromId, toId);   // 사람이 눌러 보낼 때도 '무슨 단계였는지' 가 기록되게
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
   dst.el.classList.add('flow-incoming');

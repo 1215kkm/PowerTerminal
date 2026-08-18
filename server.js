@@ -321,7 +321,7 @@ function stampReqs(dir, st, auto) {
   // 요청이 끝나면 터미널 출력에서 ① 질문이었다면 답변 ② 사람이 직접 해야 할 일 을 뽑아 기록한다.
   // 둘 다 한 번의 Haiku 호출로 끝내 호출 수를 늘리지 않는다.
   if (st === 'done') stamped.forEach(r => {
-    const wantA = r.q && !r.answer;
+    const wantA = (r.q || r.flow) && !r.answer;   // 플로우 단계는 그 자체가 '결과를 남겨야 하는 일'
     const wantS = config.nextSteps !== false && !r.steps;
     if (wantA || wantS) genReqOutcome(dir, r.id, r.text, wantA, wantS);
   });
@@ -2091,6 +2091,12 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   // 어느 세션이 보낸 요청인지 — worktree 는 요청내역을 원본 레포와 함께 쓰므로 이게 없으면
   // '이 세션의 최근 작업' 을 가려낼 수가 없다 (형제 worktree 것까지 자기 것으로 보인다)
   if (typeof req.body.sid === 'string') entry.sid = req.body.sid.slice(0, 20);
+  // 🔀 플로우로 넘어온 요청 — 어느 단계로 누구에게서 왔는지. 문서의 '플로우 진행' 표를 이걸로 그린다.
+  const fl = req.body && req.body.flow;
+  if (fl && typeof fl === 'object') entry.flow = {
+    stage: String(fl.stage || '').slice(0, 20),
+    from: String(fl.from || '').slice(0, 60),
+    to: String(fl.to || '').slice(0, 60) };
   // ❓ 물어본 것이면 표시해 둔다 — 완료 시 답변을 뽑아 요청내역과 질문-답변 기록에 남긴다.
   // 자동 판별은 '질문 답변 기록' 설정을 켠 사람만 (끈 사람은 예전처럼 '질문~' 으로 시작한 것만)
   if (looksLikeQuestion(text, config.qaDoc !== false)) entry.q = true;
@@ -2175,7 +2181,9 @@ function writeQaDoc(dir) {
     // 답을 못 뽑은 질문도 남긴다 — 예전엔 답이 있는 것만 실어서, 추출이 실패하면 물어본 사실 자체가 사라졌다.
     const list = ((m && m.reqs) || []).filter(r => r.q);
     const todo = ((m && m.reqs) || []).filter(r => Array.isArray(r.steps) && r.steps.length);
-    if (!list.length && !todo.length) return;
+    // 🔀 플로우로 넘어온 요청들 — 어느 단계에서 무엇을 했고 어떻게 끝났는지
+    const flow = ((m && m.reqs) || []).filter(r => r.flow && r.flow.stage);
+    if (!list.length && !todo.length && !flow.length) return;
     // 최신이 위로. 날짜별로 묶고 각 줄은 시각·질문·답.
     const byDay = new Map();
     list.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach(r => {
@@ -2200,6 +2208,31 @@ function writeQaDoc(dir) {
       });
       body += '</tbody>\n</table>\n';
     }
+    /* 🔀 플로우 진행 — 한 흐름이 단계를 거치며 무엇을 했는지 한눈에.
+       '누가 → 누구에게 / 무슨 단계로 / 무엇을 시켰고 / 어떻게 끝났는지' 를 최신 순으로 적는다. */
+    if (flow.length) {
+      const stCls = { done: 'ok', off: 'off', stop: 'stop', run: 'run' };
+      const stTxt = { done: '완료', off: '세션 종료로 중단', stop: '중단', run: '진행 중' };
+      body += '<h2 class="flow">🔀 플로우 진행</h2>\n<table>\n'
+            + '<thead><tr><th class="t">시각</th><th class="st">단계</th><th class="who">흐름</th>'
+            + '<th class="q">시킨 일</th><th>결과</th></tr></thead>\n<tbody>\n';
+      flow.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 60).forEach(r => {
+        const d = new Date(r.ts || Date.now());
+        const p = n => (n < 10 ? '0' + n : '' + n);
+        const when = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+        const took = (r.endTs && r.ts) ? Math.max(0, Math.round((r.endTs - r.ts) / 60000)) : null;
+        const who = qaEsc(r.flow.from || '?') + ' <span class="arw">→</span> ' + qaEsc(r.flow.to || '?');
+        let out = r.answer ? qaEsc(r.answer) : '<span class="noans">결과를 못 뽑았습니다</span>';
+        if (Array.isArray(r.steps) && r.steps.length)
+          out += '<ol class="steps">' + r.steps.map(x => '<li>' + qaEsc(x) + '</li>').join('') + '</ol>';
+        body += '<tr><td class="t">' + qaEsc(when) + (took !== null ? '<br><span class="took">' + took + '분</span>' : '') + '</td>'
+              + '<td class="st"><span class="badge">' + qaEsc(r.flow.stage) + '</span><br>'
+              + '<span class="' + (stCls[r.st] || '') + '">' + qaEsc(stTxt[r.st] || r.st || '') + '</span></td>'
+              + '<td class="who">' + who + '</td>'
+              + '<td class="q">' + qaEsc(r.text) + '</td><td>' + out + '</td></tr>\n';
+      });
+      body += '</tbody>\n</table>\n';
+    }
     for (const [day, rows] of byDay) {
       body += '<h2>' + qaEsc(day) + '</h2>\n<table>\n<thead><tr><th class="t">시각</th><th class="q">질문</th><th>답</th></tr></thead>\n<tbody>\n';
       for (const r of rows) {
@@ -2218,13 +2251,19 @@ function writeQaDoc(dir) {
       + 'thead th{background:#f8fafc;color:#475569;font-weight:600;font-size:13px}\n'
       + 'td.t,th.t{width:64px;color:#6b7280;white-space:nowrap} td.q,th.q{width:34%;font-weight:600}\n'
       + 'h2.todo{color:#b45309;border-bottom-color:#fcd34d}\n'
+      + 'h2.flow{color:#4338ca;border-bottom-color:#c7d2fe}\n'
+      + 'td.st,th.st{width:96px} td.who,th.who{width:190px;color:#475569;font-size:13px}\n'
+      + '.badge{display:inline-block;padding:1px 8px;border-radius:999px;background:#eef2ff;color:#4338ca;font-weight:700;font-size:12px}\n'
+      + '.arw{color:#94a3b8} .took{color:#94a3b8;font-size:12px}\n'
+      + '.ok{color:#15803d;font-size:12px;font-weight:600} .off{color:#b45309;font-size:12px}\n'
+      + '.stop{color:#b91c1c;font-size:12px} .run{color:#2563eb;font-size:12px}\n'
       + 'ol.steps{margin:0;padding-left:20px} ol.steps li{margin:2px 0}\n'
       + '.noans{color:#9ca3af;font-style:italic}\n'
       + '@media(max-width:640px){td.q,th.q{width:auto} table,thead,tbody,tr,td,th{display:block} thead{display:none}\n'
       + ' tr{border-bottom:1px solid #e5e7eb;padding:8px 0} td{border:0;padding:3px 0}}\n'
       + '</style></head><body>\n'
       + '<h1>' + qaEsc(title) + '</h1>\n'
-      + '<p class="lead">물어본 것과 그 답, 그리고 AI 가 끝낸 뒤 내가 손으로 해야 할 일이 남습니다. 최신이 위에 옵니다.</p>\n'
+      + '<p class="lead">물어본 것과 그 답, 플로우가 단계를 거치며 한 일, 그리고 AI 가 끝낸 뒤 내가 손으로 해야 할 일이 남습니다. 최신이 위에 옵니다.</p>\n'
       + '<p class="lead">PowerTerminal이 자동으로 갱신합니다 — 직접 고쳐도 다음 질문 때 덮어씁니다.</p>\n'
       + body
       + '</body></html>\n';
