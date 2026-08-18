@@ -308,12 +308,15 @@ function pathBusy(dir) {
   return false;
 }
 // 요청 내역의 '진행중(run)' 항목을 done(완료)·stop(중단)·off(종료로 중단)로 스탬프
-function stampReqs(dir, st) {
+/* auto=true 는 '실제로 끝나는 걸 본 게 아니라, 세션·서버가 닫히면서 정리한 스탬프' 라는 뜻이다.
+   PT 를 끄면 열려 있던 모든 폴더의 요청이 이 경로로 같은 시각에 한꺼번에 찍힌다 —
+   그걸 '최근 작업' 으로 쓰면 모든 세션이 똑같은(그리고 실제 작업과 무관한) 시각을 보여준다. */
+function stampReqs(dir, st, auto) {
   const m = memos[memoKey(dir)];
   if (!m || !m.reqs) return;
   let hit = false;
   const stamped = [];
-  m.reqs.forEach(r => { if (r.st === 'run') { r.st = st; r.endTs = Date.now(); hit = true; stamped.push(r); } });
+  m.reqs.forEach(r => { if (r.st === 'run') { r.st = st; r.endTs = Date.now(); if (auto) r.endAuto = true; hit = true; stamped.push(r); } });
   if (hit) saveMemos();
   // 요청이 끝나면 터미널 출력에서 ① 질문이었다면 답변 ② 사람이 직접 해야 할 일 을 뽑아 기록한다.
   // 둘 다 한 번의 Haiku 호출로 끝내 호출 수를 늘리지 않는다.
@@ -341,7 +344,7 @@ function stampReqs(dir, st) {
 // 지난 실행에서 '진행중'으로 남은 요청 = 서버가 그대로 꺼졌던 것 → 종료로 중단 표시
 {
   let dirty = false;
-  for (const k of Object.keys(memos)) ((memos[k] && memos[k].reqs) || []).forEach(r => { if (r.st === 'run') { r.st = 'off'; r.endTs = r.endTs || Date.now(); dirty = true; } });
+  for (const k of Object.keys(memos)) ((memos[k] && memos[k].reqs) || []).forEach(r => { if (r.st === 'run') { r.st = 'off'; r.endTs = r.endTs || Date.now(); r.endAuto = true; dirty = true; } });
   if (dirty) flushMemos();
 }
 
@@ -2076,6 +2079,9 @@ app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보
   }
   const rid = crypto.randomBytes(6).toString('hex');
   const entry = { id: rid, text, ts: Date.now(), st: 'run' };
+  // 어느 세션이 보낸 요청인지 — worktree 는 요청내역을 원본 레포와 함께 쓰므로 이게 없으면
+  // '이 세션의 최근 작업' 을 가려낼 수가 없다 (형제 worktree 것까지 자기 것으로 보인다)
+  if (typeof req.body.sid === 'string') entry.sid = req.body.sid.slice(0, 20);
   // ❓ 물어본 것이면 표시해 둔다 — 완료 시 답변을 뽑아 요청내역과 질문-답변 기록에 남긴다.
   // 자동 판별은 '질문 답변 기록' 설정을 켠 사람만 (끈 사람은 예전처럼 '질문~' 으로 시작한 것만)
   if (looksLikeQuestion(text, config.qaDoc !== false)) entry.q = true;
@@ -2350,7 +2356,7 @@ app.delete('/api/sessions/:id', (req, res) => {
     if (s.flowMeta && s.flowMeta[req.params.id]) delete s.flowMeta[req.params.id];
   }
   // 그 폴더에 다른 세션이 안 남았으면 스탬프: 일 끝난 상태로 닫힘=완료 · 작업 중 닫힘=종료로 중단
-  if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, wasBusy ? 'off' : 'done');
+  if (gone && !sessions.some(s => memoKey(s.path) === memoKey(gone.path))) stampReqs(gone.path, wasBusy ? 'off' : 'done', true);   // 세션을 닫아서 찍힌 스탬프 (실제 완료 아님)
   saveSessions();
   // 🌿 worktree 세션을 닫으면 작업트리도 정리한다 — 단, 커밋 안 한 변경이 남아 있으면 지우지 않는다(작업 유실 방지).
   //    지우지 못한 경우 경로를 돌려줘 클라이언트가 "변경이 남아 폴더를 남겨뒀다"고 알릴 수 있게.
@@ -2430,7 +2436,7 @@ app.post('/api/sessions/:id/merge-worktree', async (req, res) => {
 // 세션 목록/배열은 sessions.json에 저장돼 다음 실행 때 그대로 복원됨(초기화 아님).
 app.post('/api/shutdown', (req, res) => {
   saveSessions();                            // 배열·레이아웃 먼저 저장
-  for (const k of Object.keys(memos)) stampReqs(k, pathBusy(k) ? 'off' : 'done');   // 일 끝났으면 완료, 작업 중이던 것만 종료로 중단
+  for (const k of Object.keys(memos)) stampReqs(k, pathBusy(k) ? 'off' : 'done', true);   // 서버 종료로 찍힌 스탬프
   flushMemos();                              // 디바운스 저장이 exit보다 늦지 않게 즉시 기록
   res.json({ ok: true });
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
@@ -2443,7 +2449,7 @@ app.post('/api/shutdown', (req, res) => {
 // 최신 코드를 다시 받아(git sync) 서버를 자동으로 재기동함. 세션은 저장돼 그대로 복원됨.
 app.post('/api/reboot', (req, res) => {
   saveSessions();
-  for (const k of Object.keys(memos)) stampReqs(k, pathBusy(k) ? 'off' : 'done');
+  for (const k of Object.keys(memos)) stampReqs(k, pathBusy(k) ? 'off' : 'done', true);   // 재시작으로 찍힌 스탬프
   flushMemos();
   res.json({ ok: true });
   console.log('\n  🔄 재시작 요청 — 최신 버전을 받아 서버를 다시 시작합니다. (세션은 저장됨, 다음 실행 때 복원)');

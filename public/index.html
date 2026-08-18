@@ -1123,13 +1123,6 @@
   .mini-pane { position: relative; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer;
                background: #111827; transition: border-color .15s, transform .1s; }
   .mini-pane:hover { border-color: var(--violet); transform: translateY(-1px); }
-  /* ◎ 플로우로 이어진 카드 — 마우스 올린 카드(root)와 그 흐름에 속한 카드들이 같이 파랑으로 */
-  .mini-pane.pk-flow { border-color: #38bdf8; background: rgba(56,189,248,.14); }
-  .mini-pane.pk-flowroot { border-color: #0ea5e9; background: rgba(56,189,248,.30);
-                          box-shadow: 0 0 0 3px rgba(56,189,248,.55); }
-  .mini-pane.pk-flow .mp-head { background: rgba(56,189,248,.22); }
-  .mini-pane.pk-flowroot .mp-head { background: rgba(56,189,248,.40); }
-  .mini-pane.pk-flow::after { content: '◎'; position: absolute; right: 5px; bottom: 3px; font-size: 10px; color: #38bdf8; }
   .mp-head { display: flex; align-items: center; gap: 6px; padding: 5px 7px;
              background: #1f2937; border-bottom: 1px solid var(--line); cursor: grab;
              user-select: none; -webkit-user-select: none; }   /* 미니카드도 제목 글자에서 드래그 시작 가능하게 */
@@ -1147,6 +1140,17 @@
   .mini-pane.on .mp-title { color: #fff; }
   .mini-pane.off { opacity: .45; filter: grayscale(.75); }        /* 안 쓰는 세션 회색 */
   .mini-pane.off:hover { opacity: 1; filter: none; border-color: var(--green); }
+  /* ◎ 플로우로 이어진 카드 — 마우스 올린 카드(root)와 그 흐름에 속한 카드들이 같이 파랑으로.
+     ⚠ 이 규칙은 .on(열린 세션 보라) · .off(안 쓰는 세션 회색) *뒤* 에 와야 한다.
+     앞에 뒀더니 열린 카드는 보라로 덮이고, 안 열린 카드는 grayscale 에 색이 빠져 파랑이 안 보였다. */
+  .mini-pane.pk-flow { border-color: #38bdf8; background: rgba(56,189,248,.14); }
+  .mini-pane.pk-flowroot { border-color: #0ea5e9; background: rgba(56,189,248,.30);
+                           box-shadow: 0 0 0 3px rgba(56,189,248,.55); }
+  .mini-pane.off.pk-flow, .mini-pane.off.pk-flowroot { opacity: 1; filter: none; }   /* 회색 처리 해제 */
+  .mini-pane.pk-flow .mp-head { background: rgba(56,189,248,.22); }
+  .mini-pane.pk-flowroot .mp-head { background: rgba(56,189,248,.40); }
+  .mini-pane.pk-flow .mp-title, .mini-pane.pk-flowroot .mp-title { color: #fff; }
+  .mini-pane.pk-flow::after { content: '◎'; position: absolute; right: 5px; bottom: 3px; font-size: 10px; color: #38bdf8; }
   /* 모바일: 열린 세션은 얇은 한 줄 (번호+제목만, 본문 숨김) */
   .mini-pane.mp-slim .mp-body { display: none; }
   .mini-pane.mp-slim .mp-head { padding: 8px 10px; }
@@ -5297,7 +5301,7 @@ function buildPane(sess, idx) {
     // 그 표식이 남아 있다가 사람이 시킨 다음 작업의 인계를 대신 삼켜버린다.
     el._flowNotified = false;
     // 📝 보낸 요청을 메모장 '요청 내역'에 자동 기록 (칩 확장 전 원문 — 사용자가 본 그대로)
-    api('POST', '/api/memos/req', { path: sess.path, text: val.trim() }).then(() => { reqsCache = null; refreshReq(); });
+    api('POST', '/api/memos/req', { path: sess.path, text: val.trim(), sid: sess.id }).then(() => { reqsCache = null; refreshReq(); });
     logSent(el, val);            // ◎ 다음 세션에 넘길 때 "무엇을 했는지" 로 같이 보낸다
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
     if (qHist) { let ht = val; for (const [tk] of attachMap) ht = ht.split(tk).join(' '); ht = ht.replace(/\s+/g, ' ').trim(); if (ht) qHist.unshift(ht); }
@@ -5428,7 +5432,7 @@ function buildPane(sess, idx) {
   const sendText = (text) => {
     const t = String(text || '').trim();
     if (!t) return false;
-    api('POST', '/api/memos/req', { path: sess.path, text: t }).then(() => { reqsCache = null; refreshReq(); });
+    api('POST', '/api/memos/req', { path: sess.path, text: t, sid: sess.id }).then(() => { reqsCache = null; refreshReq(); });
     logSent(el, t);
     wsSend(t.replace(/\r?\n/g, '\x1b\r'));        // 큐 경유 — 재접속 중이어도 안 사라짐
     setTimeout(() => wsSend('\r'), 80);
@@ -5939,7 +5943,15 @@ async function seedLastDone(el, path, id) {
   try { ts = Number(localStorage.getItem('pt_lastdone_' + id) || 0); } catch (e) {}
   try {
     const m = await api('GET', '/api/memos?path=' + encodeURIComponent(path));
-    for (const r of ((m && m.reqs) || [])) if (r.st === 'done' && r.endTs > ts) ts = r.endTs;
+    const reqs = (m && m.reqs) || [];
+    /* 쓸 수 있는 스탬프만 고른다.
+       · endAuto — PT 를 끄거나 세션을 닫을 때 한꺼번에 찍힌 것. 실제 작업이 끝난 시각이 아니고
+         모든 폴더가 같은 값이 돼서, 이걸 쓰면 모든 세션이 똑같은 엉뚱한 시각을 보여준다.
+       · sid — 이 세션이 보낸 요청. worktree 는 요청내역을 원본과 함께 쓰므로 이걸로 갈라야
+         옆 작업트리가 한 일을 내 것으로 표시하지 않는다. sid 가 붙기 전 기록은 폴더 단위로 폴백. */
+    const real = reqs.filter(r => r.st === 'done' && r.endTs && !r.endAuto);
+    const mine = real.filter(r => r.sid === id);
+    for (const r of (mine.length ? mine : real.filter(r => !r.sid))) if (r.endTs > ts) ts = r.endTs;
   } catch (e) {}
   if (ts) { try { localStorage.setItem('pt_lastdone_' + id, String(ts)); } catch (e) {} paintLastDone(el, ts); }
 }
