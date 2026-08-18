@@ -542,7 +542,7 @@ function getPty(sess) {
 // 예전엔 status 가 오면 무조건 울려서, PT를 켜기만 해도 세션 수만큼 "session N done" 이 났다
 // (PTY는 busy:true 로 시작 → 마커가 4초간 없으면 곧장 완료 전환 = 아무 요청도 안 한 완료).
 function broadcastStatus(id, p, announce) {
-  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy, announce: !!announce });
+  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy, announce: !!announce, since: p.doneSince || 0 });
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
 }
 // 한 번의 요청 안에서도 Claude 는 작업표시가 끊겨 busy→done 이 여러 번 뒤집힌다
@@ -671,7 +671,7 @@ app.get('/vendor/qrcode.js', (req, res) =>
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {
     const p = ptys.get(s.id);
-    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false };
+    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, doneSince: p ? (p.doneSince || 0) : 0 };
   }));
 });
 
@@ -1572,6 +1572,15 @@ app.patch('/api/sessions/:id', (req, res) => {
     s.member = req.body.member.slice(0, 40);
     s.memberLabel = typeof req.body.memberLabel === 'string' ? req.body.memberLabel.slice(0, 40) : '';
     s.memberAuto = !!req.body.memberAuto;      // 단계 보고 자동으로 앉힌 것인지 (사람이 고른 건 나중에 안 바꾼다)
+    saveSessions();
+    return res.json(s);
+  }
+  /* ◎ 어느 '완료' 까지 인계를 처리했는지 (그 완료의 doneSince 값). 서버에 남겨야 하는 이유:
+     인계 판단은 화면에서 하는데, 업데이트로 페이지가 새로고침되거나 창을 닫아 두면 그 사이의
+     완료 신호를 아무도 못 받아 인계가 통째로 사라졌다. 이 값이 있으면 창이 다시 붙었을 때
+     "아직 처리 안 한 완료" 를 알아보고 따라잡을 수 있다. */
+  if (typeof req.body.flowDone === 'number') {
+    s.flowDone = req.body.flowDone;
     saveSessions();
     return res.json(s);
   }
@@ -2681,7 +2690,7 @@ wss.on('connection', (ws, req) => {
   p.sockets.add(ws);
   // 접속 시 지금까지 화면 재생 + 상태
   ws.send(JSON.stringify({ type: 'out', data: p.buffer }));
-  ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy }));
+  ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, since: p.doneSince || 0 }));
 
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }

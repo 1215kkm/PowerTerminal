@@ -4848,6 +4848,7 @@ function buildPane(sess, idx) {
         // 🔔 announce = 서버가 '사용자가 시킨 작업이 끝났다'고 표시한 완료만 true.
         // (세션을 막 띄웠을 때·유휴 중 감지가 깜빡일 때 나던 헛소리 방지 — 화면 표시는 예전대로 다 갱신)
         const ann = !!m.announce;
+        if (m.since) el._doneSince = m.since;   // 이 완료가 언제 시작됐는지 — 인계를 따라잡을 때 기준
         const applyStatus = (done, busy) => {
           const wasBusy = el.classList.contains('busy');
           setState(el, done, busy, ann);
@@ -5820,6 +5821,8 @@ function buildPane(sess, idx) {
   // 🕒 지난번에 끝낸 시각 — 브라우저에 적어둔 값을 먼저 칠하고, 서버 요청내역으로 한 번 더 맞춘다
   try { const ts = Number(localStorage.getItem('pt_lastdone_' + sess.id) || 0); if (ts) setTimeout(() => paintLastDone(el, ts), 80); } catch (e) {}
   setTimeout(() => seedLastDone(el, sess.path, sess.id), 400);
+  // 이 창이 붙기 전에 이미 끝나 있던 완료도 알아야 인계를 따라잡을 수 있다 (새로고침 중에 끝난 경우)
+  if (sess.doneSince) el._doneSince = sess.doneSince;
 }
 
 // 이 창에서만 패널 제거 (서버 세션 유지)
@@ -6129,6 +6132,27 @@ async function offerFlowMates(paths, skipPaths) {
   await flowRefreshAll();
   try { await api('POST', '/api/reorder', { ids: [...grid.children].map(x => x.dataset.id) }); } catch (e) {}
 }
+/* 🔁 놓친 인계 따라잡기 — 인계는 '작업 중 → 완료' 가 바뀌는 순간을 화면이 봐야 시작된다.
+   그런데 업데이트로 페이지가 새로고침되거나, 창을 잠깐 닫아 뒀거나, 연결이 끊긴 사이에 끝나면
+   그 순간을 아무도 못 봐서 인계가 통째로 사라졌다 ("끝났는데 다음 세션으로 안 넘어감").
+   그래서 주기적으로 확인한다: 완료 상태로 충분히(설정된 대기시간) 조용했고, 그 완료를 아직
+   처리한 적이 없다면(서버에 적힌 flowDone 과 다르면) 지금이라도 넘긴다.
+   너무 오래된 완료(10분 초과)는 건드리지 않는다 — 아침에 PT 를 켜자마자 어젯밤 일이 쏟아지면 안 되니까. */
+const FLOW_CATCHUP_MAX = 10 * 60 * 1000;
+function flowCatchUp() {
+  if (isMobile) return;
+  const now = Date.now();
+  for (const [id, p] of panes) {
+    const at = p.el._doneSince || 0;
+    if (!at || now - at < FLOW_SETTLE_MS || now - at > FLOW_CATCHUP_MAX) continue;
+    if (!p.el.classList.contains('done') || p.el.classList.contains('busy')) continue;
+    if ((p.sess.flowDone || 0) === at) continue;                       // 이미 처리한 완료
+    if (p.el._flowTimer) continue;                                     // 정상 경로가 곧 처리한다
+    if (!flowOf(id).some(to => panes.has(to) && flowMeta(id, to).stage)) { flowMarkDone(id); continue; }
+    flowHandoff(id);
+  }
+}
+setInterval(flowCatchUp, 12000);
 // 열려 있는 창들의 flowTo 를 서버 값으로 다시 맞춘다 (복원된 화살표를 바로 그리기 위해)
 async function flowRefreshAll() {
   let live = [];
@@ -6434,7 +6458,9 @@ function flowDraw(rootId) {
     if (meta.stage) {
       const mid = path.getPointAtLength(path.getTotalLength() / 2);
       const t = document.createElementNS(NS, 'text');
-      t.setAttribute('x', mid.x); t.setAttribute('y', mid.y - 7);
+      // 앞→뒤(좌→우) 화살표는 위로 솟는 아치라, 글자를 선 위에 두면 화면 밖이나 세션 머리글에 가려 안 보였다.
+      // 그 방향은 선 *아래* 에 쓴다. 되돌아오는(우→좌) 선은 완만해서 예전처럼 위가 낫다.
+      t.setAttribute('x', mid.x); t.setAttribute('y', mid.y + (rightward ? 17 : -7));
       t.setAttribute('class', 'flow-label' + (meta.auto ? ' auto' : ''));
       t.setAttribute('text-anchor', 'middle');
       t.textContent = (meta.auto ? '⚡ ' : '') + flowStageLabel(meta.stage) + (meta.back ? ' ↩' : '')
@@ -6685,8 +6711,18 @@ function flowSend(fromId, toId, text, auto) {
 /* 세션 하나가 끝났을 때 어디로 넘길지 정한다.
    갈 곳이 하나면 바로 넘기고, 여러 곳이면 사람에게 고르게 한다 —
    같은 세션에서 나가는 화살표가 여럿이면 '지금이 어느 시점인지' 는 사람만 안다. */
+/* 이 완료는 인계를 처리했다고 서버에 적어 둔다.
+   화면이 새로고침되거나(업데이트·창 닫힘) 잠깐 끊긴 사이의 완료를 나중에 따라잡을 때,
+   이미 처리한 것을 또 보내지 않기 위한 표식이다. */
+function flowMarkDone(id) {
+  const p = panes.get(id); if (!p) return;
+  const at = p.el._doneSince || 0; if (!at) return;
+  p.sess.flowDone = at;
+  api('PATCH', '/api/sessions/' + id, { flowDone: at }).catch(() => {});
+}
 function flowHandoff(fromId) {
   const src = panes.get(fromId); if (!src) return;
+  flowMarkDone(fromId);        // 처리 시도 자체를 기록 — 결과가 무엇이든 이 완료는 다시 보지 않는다
   // 방금 끝난 게 '너 일 넘겼다' 알림에 대한 응답이면 인계를 또 내보내지 않는다 (알림 → 완료 → 인계 → 알림 … 고리 방지)
   if (src.el._flowNotified) { src.el._flowNotified = false; return; }
   const opts = [];
