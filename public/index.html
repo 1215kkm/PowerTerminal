@@ -167,8 +167,10 @@
   /* ◎ 플로우 화살표 — 평소엔 아무것도 안 그려져 있고, 세션에 마우스를 올리거나 요청을 보낼 때만 켜진다 */
   /* svg 는 대체요소라 width/height 를 안 주면 inset:0 을 무시하고 기본 300x150 으로 잡히고,
      그 밖으로 나간 선은 통째로 잘려 아무것도 안 보인다 — 크기를 명시해야 한다. */
+  /* 상단 바(z-index 50)보다 위 — 아치가 화면 위쪽으로 솟을 때 바 뒤로 숨어 역할 글자까지 안 보였다.
+     대신 '집기용' 투명선은 바 영역을 피하도록 잘라내(clip) 상단 버튼 클릭을 가로채지 않게 한다. */
   #flowLayer { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-               z-index: 45; pointer-events: none; opacity: 0; transition: opacity .18s; }
+               z-index: 52; pointer-events: none; opacity: 0; transition: opacity .18s; }
   #flowLayer.on { opacity: 1; }                                  /* 연결이 하나라도 있으면 늘 보인다 */
   /* 세션 창에 마우스를 올리면 = 그 세션을 보는 중 → 선이 글자를 가리지 않게 물러난다.
      10% 는 너무 흐려 어디에 뭐가 이어졌는지조차 안 보였다 — 절반 정도면 글자도 읽히고 흐름도 남는다.
@@ -182,7 +184,8 @@
                              filter: drop-shadow(0 0 3px rgba(147,197,253,.5)) drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
-  #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+  #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer;
+                        clip-path: url(#flowHitClip); }
   /* 선택됨 — Delete 로 삭제. 고른 상태에서도 점선이 흘러 '지금 이 화살표를 쓰는 중' 이 유지된다 */
   #flowLayer .flow-line.sel { stroke: #ef4444; stroke-width: 3.6; stroke-dasharray: 11 8;
                               animation: flowDash .55s linear infinite; }
@@ -241,7 +244,7 @@
   .pane.flow-incoming { border-color: #22d3ee; animation: flowIn 1s ease-in-out 4; }
   @keyframes flowIn { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); } 50% { box-shadow: 0 0 0 4px rgba(34,211,238,.45); } }
   /* 연결 대상 고르는 중 — 다른 세션들 위에 덮이는 클릭판 */
-  .flow-target { position: absolute; inset: 0; z-index: 46; cursor: pointer; display: flex;
+  .flow-target { position: absolute; inset: 0; z-index: 54; cursor: pointer; display: flex;   /* 연결 대상 고르는 중엔 화살표(52)보다 위 */
                  align-items: center; justify-content: center; text-align: center; padding: 10px;
                  background: rgba(17,24,39,.72); border: 2.5px dashed #f472b6; border-radius: 12px;
                  color: #fbcfe8; font-weight: 700; font-size: 13px; }
@@ -6319,7 +6322,10 @@ function flowLayer() {
   const mk = (id, color) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
                           + '<path d="M0,0 L10,5 L0,10 z" fill="' + color + '"/></marker>';
   svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadFwd', '#93c5fd') + mk('flowHeadSel', '#ef4444')
-                + mk('flowHeadDrag', '#22d3ee') + mk('flowHeadHov', '#fde047') + '</defs><g></g>';
+                + mk('flowHeadDrag', '#22d3ee') + mk('flowHeadHov', '#fde047')
+                + '<clipPath id="flowHitClip" clipPathUnits="userSpaceOnUse">'
+                +   '<rect id="flowHitRect" x="0" y="0" width="99999" height="99999"/></clipPath>'
+                + '</defs><g></g>';
   document.body.appendChild(svg);
   return svg;
 }
@@ -6386,6 +6392,13 @@ function flowCurve(p1, p2) {
 function flowDraw(rootId) {
   clearTimeout(flowHideT);
   flowMarkAnchors();
+  // 선은 상단 바 위에 그리되, 클릭을 받는 부분은 바 아래에서만 — 바의 버튼을 가리지 않게
+  try {
+    const hdr = document.querySelector('header');
+    const top = hdr ? Math.round(hdr.getBoundingClientRect().bottom) : 0;
+    const rect = document.getElementById('flowHitRect');
+    if (rect) rect.setAttribute('y', String(top));
+  } catch (e) {}
   const edges = [];
   for (const [from] of panes) for (const to of flowOf(from)) {
     if (!panes.has(to)) continue;
