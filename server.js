@@ -190,6 +190,22 @@ async function gitTopLevel(dir) {
   try { return (await git(dir, ['rev-parse', '--show-toplevel'], 6000)).trim().replace(/\//g, path.sep); }
   catch (e) { return ''; }
 }
+/* 작업트리를 또 나눌 때는 *본체 레포* 를 기준으로 삼는다.
+   worktree 안에서 --show-toplevel 은 그 worktree 자신을 가리키므로, 그걸 기준으로 만들면
+   이름이 truth_Rooftop-5-tree3 처럼 계속 길어지고 어디서 갈라져 나온 건지도 헷갈렸다.
+   --git-common-dir 은 어느 worktree 에서 물어도 본체의 .git 을 알려준다 (그 부모가 본체 폴더). */
+async function gitMainRoot(dir) {
+  const top = await gitTopLevel(dir);
+  if (!top) return '';
+  try {
+    const common = (await git(dir, ['rev-parse', '--path-format=absolute', '--git-common-dir'], 6000)).trim();
+    if (common) {
+      const root = path.dirname(common.replace(/\//g, path.sep).replace(/[\\/]+$/, ''));
+      if (root && fs.existsSync(root)) return root;
+    }
+  } catch (e) {}          // git 이 옛 버전이라 --path-format 을 모르면 예전처럼 자기 자신 기준
+  return top;
+}
 // 원본 레포 경로 옆(.pt-worktrees)에 새 작업트리를 만든다. 레포 안에 두면 git 이 자기 자신을 추적하게 돼 지저분해진다.
 /* 🧑‍🤝‍🧑 강팀을 새 작업 폴더에도 넣어 준다.
    git worktree 는 *커밋된 파일만* 가져온다. 강팀(.claude/)과 CLAUDE.md 는 대개 커밋하지 않으므로
@@ -306,6 +322,21 @@ function stampReqs(dir, st) {
     const wantS = config.nextSteps !== false && !r.steps;
     if (wantA || wantS) genReqOutcome(dir, r.id, r.text, wantA, wantS);
   });
+}
+/* 옛 worktree 제목 정리 — '원본-tree3', 심하면 '원본-5-tree3' 처럼 번호가 뒤에 붙어 있어서
+   이름이 긴 프로젝트는 세션 목록에서 말줄임에 잘려 몇 번 작업트리인지 안 보였다. 'tree3 · 원본' 으로 바꾼다.
+   사람이 직접 붙인 제목은 건드리지 않는다 (tree 번호가 들어 있는 것만). */
+{
+  let dirty = false;
+  for (const s of sessions) {
+    if (!s.worktree || !s.repo || !s.title) continue;
+    if (!/tree\d+/i.test(s.title)) continue;
+    const m = String(s.path || '').match(/-tree(\d+)$/) || String(s.branch || '').match(/-tree(\d+)$/);
+    if (!m) continue;
+    const want = 'tree' + m[1] + ' · ' + path.basename(String(s.repo).replace(/[\/]+$/, ''));
+    if (s.title !== want) { s.title = want; dirty = true; }
+  }
+  if (dirty) saveSessions();
 }
 // 지난 실행에서 '진행중'으로 남은 요청 = 서버가 그대로 꺼졌던 것 → 종료로 중단 표시
 {
@@ -1473,14 +1504,17 @@ app.post('/api/sessions', async (req, res) => {
       const q = ptys.get(s.id); return q && !q.dead;
     });
     if (already) {
-      const top = await gitTopLevel(dir);
+      const top = await gitMainRoot(dir);   // worktree 에서 또 나눠도 항상 본체 레포 기준
       if (top) wt = await makeWorktree(top);      // git 레포가 아니면 null → 예전처럼 같은 폴더
       if (wt) dir = wt.dir;
     }
   }
   const id = crypto.randomBytes(4).toString('hex');
-  // worktree 제목은 '원본-tree2' — 예전엔 '원본 · 원본-2' 라 같은 이름이 두 번 나와 헤더만 길어졌다
-  const sess = { id, title: wt ? wantTitle + '-tree' + wt.n : wantTitle,
+  /* worktree 제목은 'tree2 · 원본'. 번호를 뒤에 붙였더니 이름이 긴 프로젝트에서는 말줄임에 잘려
+     세션 목록에서 몇 번 작업트리인지 안 보였다. 앞에 두면 이름이 잘려도 번호는 남는다.
+     이미 'tree3 · ' 이나 옛 '-tree3' 이 붙은 제목에서 또 나눌 때는 그 표시를 떼고 새로 붙인다. */
+  const baseTitle = String(wantTitle).replace(/^tree\d+\s*·\s*/, '').replace(/-tree\d+$/, '');
+  const sess = { id, title: wt ? 'tree' + wt.n + ' · ' + baseTitle : wantTitle,
                  path: dir, previewUrl: '',
                  agent: agent || 'claude', model: (model && String(model)) || 'default', cmd: cmd || '' };
   if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
