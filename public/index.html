@@ -222,15 +222,15 @@
   #flowPanel .fp-row.solo { justify-content: center; }
   #flowPanel .fp-row.solo .fp-st { padding: 7px 18px; font-size: 18px; font-weight: 800; letter-spacing: .5px;
                                    border-radius: 12px; box-shadow: 0 2px 10px rgba(138,56,245,.45); }
-  #flowPanel .fp-auto { display: flex; align-items: center; gap: 5px; margin-top: 5px; padding: 0 3px;
-                        font-size: 11px; color: var(--muted); cursor: pointer; white-space: nowrap; }
-  #flowPanel .fp-auto input { accent-color: var(--violet); cursor: pointer; }
-  #flowPanel .fp-msg { display: block; width: 100%; box-sizing: border-box; margin-top: 5px; padding: 4px 7px;
-                       font-size: 11.5px; font-family: inherit; border-radius: 7px; border: 1px solid var(--line);
-                       background: var(--bg); color: var(--fg); min-width: 250px; }
+  #flowPanel .fp-auto { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 0 3px;
+                        font-size: 14px; color: var(--fg); cursor: pointer; white-space: nowrap; }
+  #flowPanel .fp-auto input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--violet); cursor: pointer; }
+  #flowPanel .fp-msg { display: block; width: 100%; box-sizing: border-box; margin-top: 7px; padding: 8px 10px;
+                       font-size: 14px; font-family: inherit; border-radius: 8px; border: 1px solid var(--line);
+                       background: var(--bg); color: var(--fg); min-width: 330px; }
   #flowPanel .fp-msg:focus { outline: none; border-color: var(--violet); }
-  #flowPanel .fp-max { width: 46px; padding: 1px 4px; font-size: 11px; font-family: inherit; text-align: center;
-                       border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  #flowPanel .fp-max { width: 62px; padding: 5px 6px; font-size: 15px; font-weight: 700; font-family: inherit; text-align: center;
+                       border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   #flowPanel .fp-max:focus { outline: none; border-color: var(--violet); }
   /* 갈림길 선택줄 — 세션 아래쪽에 뜬다 */
   .flow-next { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 20;
@@ -312,6 +312,12 @@
 
   /* 빠른 입력줄: 1줄 = 입력칸+이미지+취소 · 2줄 = 전송 버튼이 한 줄 전체 */
   /* 💬 자주 쓰는 요청 단어 버튼 줄 — 요청칸 바로 위. 등록된 단어가 있을 때만 나타난다 */
+  /* AI 가 종료돼 셸 프롬프트만 남은 세션에만 뜨는 줄 — 눈에 띄되 입력칸을 밀어내지 않게 한 줄 */
+  .quick .qResume { padding: 0 0 5px; }
+  .quick .qResume button { width: 100%; padding: 7px 10px; font-size: 12.5px; font-weight: 700; border-radius: 8px;
+                           border: 1px solid #f59e0b; background: rgba(245,158,11,.14); color: #fbbf24; cursor: pointer;
+                           font-family: inherit; }
+  .quick .qResume button:hover { background: rgba(245,158,11,.24); }
   .quick .qPhrases { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 5px; }
   .quick .qPhrases button { flex: 0 0 auto; font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
                             background: #1f2937; color: var(--fg); border: 1px solid var(--line); cursor: pointer; max-width: 190px;
@@ -1110,8 +1116,13 @@
   .pick-card.pk-flowroot { border-color: #0ea5e9; background: rgba(56,189,248,.30);
                            box-shadow: 0 0 0 3px rgba(56,189,248,.55); }
   .pick-card.pk-flow::after { content: '◎'; position: absolute; top: 4px; left: 6px; font-size: 10px; color: #38bdf8; }
+  /* 이 무리의 기준(메인) 세션 — 어디서 시작하는 흐름인지 한눈에 */
+  .pick-card.pk-main::before, .mini-pane.pk-main::before {
+    content: 'MAIN'; position: absolute; top: 3px; right: 5px; z-index: 2;
+    font-size: 8.5px; font-weight: 800; letter-spacing: .5px; line-height: 1.5;
+    color: #0b1220; background: #7dd3fc; padding: 0 5px; border-radius: 999px; }
   .pick-card.pk-recent { opacity: .6; }
-  .pick-card.pk-recent.pk-flow { opacity: 1; }   /* 닫힌 세션이라도 이어진 거면 또렷하게 */
+  .pick-card.pk-recent.pk-flow, .pick-card.pk-recent.pk-flowroot { opacity: 1; }   /* 닫힌 세션이라도 이어진 거면 또렷하게 */
   .pick-card.pk-recent.sel { opacity: 1; }
   /* 카드 우측상단 3개 아이콘 (폴더열기·빼기·중복) — 평소 숨김, 호버 시 표시, 박스 안 정중앙 */
   .card-icons { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; z-index: 3; }
@@ -2089,6 +2100,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
+    qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
     flowDidHead: "What the previous session was asked to do:",
     flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
@@ -2136,7 +2148,7 @@ const I18N_MORE = {
     fsp_return: "What “{t}” was asked for is finished. Check the result and carry on from where you left off.",
     flowBack: "Come back",
     flowBackT: "When that session finishes, the work is handed straight back here — for asking another AI for one thing and continuing.",
-    flowMsgPh: "What to send (empty = the stage default)",
+    flowMsgPh: "What to send (default: {d})",
     flowMsgT: "Written here, this is sent instead of the stage default. Use it for Ask, where only you know what to ask for.",
     flowNext: "Hand over to",
     flowNextSkip: "Hand over to no one",
@@ -2152,6 +2164,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
+    qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
     flowDidHead: "앞 세션이 받은 요청 (= 방금 한 일):",
     flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
@@ -2199,7 +2212,7 @@ const I18N_MORE = {
     fsp_return: "“{t}” 에 부탁했던 게 끝났어. 결과를 확인하고 하던 데서 이어서 진행해줘.",
     flowBack: "돌아오기",
     flowBackT: "그 세션이 끝나면 여기로 바로 다시 넘어옵니다 — 다른 AI 에게 하나만 부탁하고 이어서 할 때.",
-    flowMsgPh: "넘길 때 보낼 말 (비우면 단계 기본문)",
+    flowMsgPh: "넘길 때 보낼 말 (기본내용: {d})",
     flowMsgT: "여기 적으면 단계 기본문 대신 이 글이 갑니다. 무엇을 부탁할지는 본인만 아는 ‘요청’ 단계에 쓰세요.",
     flowNext: "다음으로 넘기기",
     flowNextSkip: "아무 데도 안 넘김",
@@ -2215,6 +2228,7 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
+    qResume: "▶ AI に再接続 — 続きから", qResumeT: "AI が終了してシェルだけが残っています。このままでは入力しても AI に届きません。押すと会話を引き継いで(--continue)起動し直します。", qResumeIng: "再接続中…",
     wtTeamCopied: "チーム設定(.claude)も新しい作業フォルダにコピーしました。",
     flowDidHead: "前のセッションが受けた依頼 (= 直前にやったこと):",
     flowOpenMates: "フローでつながっているセッションも一緒に開きますか？", flowCloseMates: "フローでつながっているセッションも一緒に閉じますか？",
@@ -2262,7 +2276,7 @@ const I18N_MORE = {
     fsp_return: "「{t}」に頼んでいたものが終わりました。結果を確認して、やりかけのところから続けてください。",
     flowBack: "戻ってくる",
     flowBackT: "そのセッションが終わったら、すぐここへ戻ってきます — 他のAIに一つだけ頼んで続けるとき。",
-    flowMsgPh: "渡すときに送る文 (空なら段階の既定文)",
+    flowMsgPh: "渡すときに送る文 (既定: {d})",
     flowMsgT: "ここに書くと段階の既定文の代わりにこれが送られます。何を頼むか本人しか分からない「依頼」で使います。",
     flowNext: "次に渡す",
     flowNextSkip: "どこにも渡さない",
@@ -2460,6 +2474,7 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
+    qResume: "▶ 重新连接 AI — 接着刚才继续", qResumeT: "AI 已退出，只剩下终端。这样输入什么都不会到 AI。点一下会带着之前的对话(--continue)重新启动。", qResumeIng: "重新连接中…",
     wtTeamCopied: "团队配置(.claude)也一并复制到新的工作文件夹了。",
     flowDidHead: "上一个会话收到的请求 (= 刚做完的事):",
     flowOpenMates: "要一起打开用流程箭头连接的会话吗？", flowCloseMates: "要一起关闭用流程箭头连接的会话吗？",
@@ -2507,7 +2522,7 @@ const I18N_MORE = {
     fsp_return: "拜托「{t}」的事已经做完了。看一下结果，从你之前停下的地方继续。",
     flowBack: "回来",
     flowBackT: "那个会话一结束就直接交回这里 —— 适合只让另一个 AI 做一件事然后继续。",
-    flowMsgPh: "交接时要发的话 (留空则用该阶段默认文)",
+    flowMsgPh: "交接时要发的话 (默认: {d})",
     flowMsgT: "在这里写的话会代替阶段默认文发送。用于「请求」——要请求什么只有你自己知道。",
     flowNext: "交给下一个",
     flowNextSkip: "不交给任何人",
@@ -2705,6 +2720,7 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
+    qResume: "▶ Reconectar la IA — seguir donde lo dejaste", qResumeT: "La IA ha salido y solo queda la shell, así que nada de lo que escribas le llega. Esto la reinicia conservando la conversación (--continue).", qResumeIng: "Reconectando…",
     wtTeamCopied: "Los archivos del equipo (.claude) también se copiaron a la nueva carpeta de trabajo.",
     flowDidHead: "Lo que se pidió a la sesión anterior:",
     flowOpenMates: "¿Abrir también las sesiones conectadas por flechas de flujo?", flowCloseMates: "¿Cerrar también las sesiones conectadas por flechas de flujo?",
@@ -2752,7 +2768,7 @@ const I18N_MORE = {
     fsp_return: "Lo que se le pidió a ‘{t}’ ya está. Revisa el resultado y sigue desde donde lo dejaste.",
     flowBack: "Volver",
     flowBackT: "Cuando esa sesión termine, el trabajo vuelve aquí directamente — para pedirle una cosa a otra IA y continuar.",
-    flowMsgPh: "Qué enviar (vacío = texto por defecto de la etapa)",
+    flowMsgPh: "Qué enviar (por defecto: {d})",
     flowMsgT: "Lo escrito aquí se envía en lugar del texto por defecto. Úsalo en Pedir, donde solo tú sabes qué pedir.",
     flowNext: "Pasar a",
     flowNextSkip: "No pasarlo a nadie",
@@ -2957,6 +2973,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
+    qResume: "▶ KI neu verbinden — dort weitermachen", qResumeT: "Die KI ist beendet, es ist nur die Shell übrig — Eingaben erreichen sie nicht mehr. Dies startet sie mit dem bisherigen Gespräch neu (--continue).", qResumeIng: "Neu verbinden…",
     wtTeamCopied: "Die Team-Dateien (.claude) wurden auch in den neuen Arbeitsordner kopiert.",
     flowDidHead: "Was die vorige Sitzung tun sollte:",
     flowOpenMates: "Auch die per Flusspfeil verbundenen Sitzungen öffnen?", flowCloseMates: "Auch die per Flusspfeil verbundenen Sitzungen schließen?",
@@ -3004,7 +3021,7 @@ const I18N_MORE = {
     fsp_return: "Was bei ‘{t}’ in Auftrag gegeben war, ist fertig. Sieh dir das Ergebnis an und mach da weiter, wo du warst.",
     flowBack: "Zurückkommen",
     flowBackT: "Wenn diese Sitzung fertig ist, kommt die Arbeit direkt hierher zurück — um eine andere KI um eine Sache zu bitten und weiterzumachen.",
-    flowMsgPh: "Was gesendet wird (leer = Standardtext der Stufe)",
+    flowMsgPh: "Was gesendet wird (Standard: {d})",
     flowMsgT: "Was hier steht, wird statt des Standardtexts gesendet. Für „Bitten“ gedacht — was zu tun ist, weißt nur du.",
     flowNext: "Übergeben an",
     flowNextSkip: "An niemanden übergeben",
@@ -3205,6 +3222,7 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
+    qResume: "▶ Reconnecter l’IA — reprendre la conversation", qResumeT: "L’IA s’est arrêtée et il ne reste que le shell : ce que tu tapes ne lui parvient plus. Ceci la relance en gardant la conversation (--continue).", qResumeIng: "Reconnexion…",
     wtTeamCopied: "Les fichiers d’équipe (.claude) ont aussi été copiés dans le nouveau dossier de travail.",
     flowDidHead: "Ce qui a été demandé à la session précédente :",
     flowOpenMates: "Ouvrir aussi les sessions reliées par les flèches de flux ?", flowCloseMates: "Fermer aussi les sessions reliées par les flèches de flux ?",
@@ -3252,7 +3270,7 @@ const I18N_MORE = {
     fsp_return: "Ce qui avait été demandé à « {t} » est terminé. Vérifie le résultat et reprends où tu en étais.",
     flowBack: "Revenir",
     flowBackT: "Quand cette session a fini, le travail revient directement ici — pour demander une seule chose à une autre IA et continuer.",
-    flowMsgPh: "Ce qu’on envoie (vide = texte par défaut de l’étape)",
+    flowMsgPh: "Ce qui sera envoyé (par défaut : {d})",
     flowMsgT: "Ce qui est écrit ici part à la place du texte par défaut. Pour « Demander », où toi seul sais quoi demander.",
     flowNext: "Passer à",
     flowNextSkip: "Ne passer à personne",
@@ -3456,6 +3474,7 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
+    qResume: "▶ Reconectar a IA — continuar de onde parou", qResumeT: "A IA saiu e só sobrou o shell, então nada do que você digitar chega até ela. Isto reinicia mantendo a conversa (--continue).", qResumeIng: "Reconectando…",
     wtTeamCopied: "Os arquivos da equipe (.claude) também foram copiados para a nova pasta de trabalho.",
     flowDidHead: "O que foi pedido à sessão anterior:",
     flowOpenMates: "Abrir também as sessões conectadas pelas setas de fluxo?", flowCloseMates: "Fechar também as sessões conectadas pelas setas de fluxo?",
@@ -3503,7 +3522,7 @@ const I18N_MORE = {
     fsp_return: "O que foi pedido a ‘{t}’ está pronto. Confira o resultado e continue de onde parou.",
     flowBack: "Voltar",
     flowBackT: "Quando aquela sessão terminar, o trabalho volta direto para cá — para pedir uma coisa a outra IA e seguir.",
-    flowMsgPh: "O que enviar (vazio = texto padrão da etapa)",
+    flowMsgPh: "O que enviar (padrão: {d})",
     flowMsgT: "O que estiver escrito aqui vai no lugar do texto padrão. Use em Pedir, onde só você sabe o que pedir.",
     flowNext: "Passar para",
     flowNextSkip: "Não passar para ninguém",
@@ -3707,6 +3726,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
+    qResume: "▶ Переподключить ИИ — продолжить разговор", qResumeT: "ИИ завершился, осталась только оболочка — введённое до него не доходит. Это перезапустит его с сохранением разговора (--continue).", qResumeIng: "Переподключение…",
     wtTeamCopied: "Файлы команды (.claude) тоже скопированы в новую рабочую папку.",
     flowDidHead: "Что просили сделать предыдущую сессию:",
     flowOpenMates: "Открыть также сессии, связанные стрелками потока?", flowCloseMates: "Закрыть также сессии, связанные стрелками потока?",
@@ -3754,7 +3774,7 @@ const I18N_MORE = {
     fsp_return: "То, о чём просили «{t}», готово. Посмотри результат и продолжай с того места, где остановился.",
     flowBack: "Вернуться",
     flowBackT: "Когда та сессия закончит, работа сразу вернётся сюда — когда нужно попросить другой ИИ об одной вещи и продолжить.",
-    flowMsgPh: "Что отправить (пусто — текст этапа по умолчанию)",
+    flowMsgPh: "Что отправить (по умолчанию: {d})",
     flowMsgT: "Написанное здесь уйдёт вместо текста по умолчанию. Для «Просьбы» — о чём именно просить, знаете только вы.",
     flowNext: "Передать",
     flowNextSkip: "Никому не передавать",
@@ -3957,6 +3977,7 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
+    qResume: "▶ AI फिर से जोड़ें — बातचीत आगे बढ़ाएँ", qResumeT: "AI बंद हो गया है और सिर्फ़ शेल बचा है, इसलिए जो लिखेंगे वह AI तक नहीं जाएगा। यह बातचीत को साथ लेकर (--continue) फिर शुरू करता है।", qResumeIng: "फिर से जोड़ रहे हैं…",
     wtTeamCopied: "टीम फ़ाइलें (.claude) भी नए काम के फ़ोल्डर में कॉपी कर दी गईं।",
     flowDidHead: "पिछले सेशन को क्या करने को कहा गया था:",
     flowOpenMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में खोलें?", flowCloseMates: "फ़्लो तीरों से जुड़े सेशन भी साथ में बंद करें?",
@@ -4004,7 +4025,7 @@ const I18N_MORE = {
     fsp_return: "‘{t}’ से जो माँगा था वह हो गया। नतीजा देखें और जहाँ छोड़ा था वहीं से आगे बढ़ें।",
     flowBack: "वापस आना",
     flowBackT: "वह सेशन ख़त्म होते ही काम सीधे यहाँ लौट आता है — किसी दूसरे AI से एक चीज़ कराकर आगे बढ़ने के लिए।",
-    flowMsgPh: "क्या भेजना है (खाली = चरण का डिफ़ॉल्ट)",
+    flowMsgPh: "क्या भेजें (डिफ़ॉल्ट: {d})",
     flowMsgT: "यहाँ लिखा हुआ चरण के डिफ़ॉल्ट की जगह भेजा जाता है। ‘अनुरोध’ के लिए — क्या माँगना है यह सिर्फ़ आप जानते हैं।",
     flowNext: "आगे किसे दें",
     flowNextSkip: "किसी को नहीं देना",
@@ -4497,6 +4518,8 @@ function buildPane(sess, idx) {
     <div class="quick">
       <div class="qWho"></div>
       <!-- 💬 자주 쓰는 요청 단어 — 등록된 게 하나도 없으면 이 줄 자체가 안 보인다 -->
+      <!-- ▶ AI 가 빠져나가 셸만 남았을 때만 나오는 줄. 누르면 대화를 이어서 다시 띄운다 -->
+      <div class="qResume" style="display:none"><button type="button"></button></div>
       <div class="qPhrases" style="display:none"></div>
       <div class="qRow">
         <textarea placeholder="${escA(T.quickPh)}" enterkeyhint="send" rows="1"></textarea>
@@ -5830,6 +5853,43 @@ function buildPane(sess, idx) {
   // 이 창에서만 제거 (서버 세션은 유지) — 다른 창이 가져갈 때 사용. 재접속 방지 위해 closedByUser 설정
   const kill = () => { closedByUser = true; try { ws.close(); } catch (e) {} };
   panes.set(sess.id, { el, term, fit, ws, sess, kill, releaseHold, sendText, refreshReq });
+  /* ▶ AI 가 빠져나갔는지 지켜본다 — ESC 로 클로드를 끄면 셸 프롬프트만 남는데,
+     그 상태에선 무엇을 입력해도 AI 에게 가지 않는다. 그때만 '다시 연결' 줄을 띄운다. */
+  const resumeRow = el.querySelector('.qResume'), resumeBtn = resumeRow && resumeRow.querySelector('button');
+  if (resumeBtn) {
+    resumeBtn.textContent = T.qResume || '▶ AI 다시 연결 — 하던 대화 이어서';
+    resumeBtn.title = T.qResumeT || '';
+    resumeBtn.onclick = async () => {
+      resumeBtn.disabled = true;
+      resumeBtn.textContent = T.qResumeIng || '다시 연결하는 중…';
+      try { await api('POST', '/api/sessions/' + sess.id + '/restart', {}); } catch (e) {}
+      setTimeout(() => { resumeBtn.disabled = false; resumeBtn.textContent = T.qResume || ''; resumeRow.style.display = 'none'; }, 2500);
+      term.focus();
+    };
+  }
+  const shellOnly = () => {                       // 지금 화면이 셸 프롬프트뿐인가 (= AI 가 없다)
+    const ag = sess.agent || 'claude';
+    if (ag !== 'claude' && ag !== 'codex') return false;        // 셸·커스텀 세션은 프롬프트가 정상 화면이다
+    try {
+      const buf = term.buffer.active, tail = [];
+      for (let y = buf.baseY; y < buf.baseY + term.rows; y++) {          // 스크롤백이 아니라 '지금 보이는 화면'
+        const ln = buf.getLine(y); if (ln) tail.push(ln.translateToString(true).replace(/\s+$/, ''));
+      }
+      const shown = tail.join('\n');
+      // AI 화면의 흔적이 하나라도 보이면 살아 있는 것으로 본다
+      if (/esc to interrupt|⏵⏵|auto mode|bypassing|╭─|╰─|│ >|shift\+tab/i.test(shown)) return false;
+      const last = tail.filter(x => x.trim()).pop() || '';
+      return /[>$%#]$/.test(last.trim());                                 // 프롬프트로 끝나면 셸만 남은 것
+    } catch (e) { return false; }
+  };
+  const watchResume = () => {
+    if (!resumeRow || !el.isConnected) return;
+    if (el.classList.contains('busy')) { resumeRow.style.display = 'none'; return; }   // 작업 중이면 살아 있는 것
+    resumeRow.style.display = shellOnly() ? '' : 'none';
+  };
+  const resumeTimer = setInterval(watchResume, 2500);
+  el.addEventListener('ptclose', () => clearInterval(resumeTimer));
+
   // 🕒 지난번에 끝낸 시각 — 브라우저에 적어둔 값을 먼저 칠하고, 서버 요청내역으로 한 번 더 맞춘다
   try { const ts = Number(localStorage.getItem('pt_lastdone_' + sess.id) || 0); if (ts) setTimeout(() => paintLastDone(el, ts), 80); } catch (e) {}
   setTimeout(() => seedLastDone(el, sess.path, sess.id), 400);
@@ -6098,6 +6158,20 @@ async function flowLinksLoad(force) {
 }
 /* 이 폴더와 한 덩어리로 이어진 폴더들 — 방향과 상관없이 타고 간다(맨 끝 세션에서 시작해도 앞쪽이 같이 나오게).
    순서는 화살표를 따라간 순서 = 실제 일이 흐르는 차례. */
+/* 이 무리에서 '메인' 은 어디인가 — 원본 레포(작업트리가 아닌 폴더)를 먼저 보고,
+   그중 흐름의 시작(들어오는 화살표가 없는 것)을 고른다. 고리로 이어져 시작이 없으면 원본 레포가 메인. */
+function flowMainKey(keys) {
+  const all = keys.filter(Boolean);
+  if (!all.length) return '';
+  const notWt = all.filter(k => !/[\/].pt-worktrees[\/]/.test(k));
+  const pool = notWt.length ? notWt : all;
+  const incoming = new Set();
+  for (const [f, tos] of Object.entries(flowLinkMap || {}))
+    for (const t of Object.keys(tos)) if (f !== t && pool.indexOf(t) >= 0) incoming.add(t);
+  const starts = pool.filter(k => !incoming.has(k));
+  return starts[0] || pool[0];
+}
+
 function flowMateKeys(startKey) {
   const map = flowLinkMap || {};
   const back = {};                                            // 들어오는 화살표도 타야 해서 역방향을 만든다
@@ -6565,11 +6639,15 @@ function flowPanel(from, to, pathEl) {
   flowPanelKey = key;
   const meta = flowMeta(from, to);
   const btns = meta.stage ? [meta.stage] : FLOW_STAGES;
+  // 이 단계의 기본 문구 앞부분 — 비워 두면 무엇이 나가는지 안내문에서 바로 보이게
+  const srcT = (panes.get(from) || { sess: {} }).sess.title || '';
+  const defFull = (flowStagePrompt(meta.stage) || '').replace(/{t}/g, srcT);
+  const defTxt = defFull.length > 46 ? defFull.slice(0, 46) + '…' : defFull;
   el.innerHTML = '<div class="fp-row' + (meta.stage ? ' solo' : '') + '">'
     + btns.map(s => `<button class="fp-st${meta.stage === s ? ' on' : ''}" data-s="${s}" title="${escA(flowStagePrompt(s))}">${esc(flowStageLabel(s))}</button>`).join('')
     + '</div>'
     + (meta.stage
-        ? `<input class="fp-msg" placeholder="${escA(T.flowMsgPh || '')}" title="${escA(T.flowMsgT || '')}" value="${escA(meta.msg)}">`
+        ? `<input class="fp-msg" placeholder="${escA((T.flowMsgPh || '').replace(/{d}/g, defTxt))}" title="${escA(T.flowMsgT || '')}" value="${escA(meta.msg)}">`
           + `<label class="fp-auto" title="${escA(T.flowBackT || '')}"><input type="checkbox" class="fp-back"${meta.back ? ' checked' : ''}> ↩ ${esc(T.flowBack || 'Come back')}</label>`
           + `<label class="fp-auto" title="${escA(T.flowAutoT || '')}"><input type="checkbox" class="fp-autoc"${meta.auto ? ' checked' : ''}> ⚡ ${esc(T.flowAuto || 'Auto-send')}</label>`
           + `<label class="fp-auto" title="${escA(T.flowMaxT || '')}">↻ ${esc(T.flowMax || 'Auto at most')}`
@@ -7683,8 +7761,10 @@ async function renderAddCards() {
       if (!mates.size) return;
       c.classList.add('pk-flowroot');
       [...list.children].forEach(x => { if (x !== c && mates.has(x.dataset.fkey)) x.classList.add('pk-flow'); });
+      const mainKey = flowMainKey([c.dataset.fkey, ...mates]);
+      [...list.children].forEach(x => { if (x.dataset.fkey === mainKey) x.classList.add('pk-main'); });
     };
-    c.onmouseleave = () => [...list.children].forEach(x => x.classList.remove('pk-flow', 'pk-flowroot'));
+    c.onmouseleave = () => [...list.children].forEach(x => x.classList.remove('pk-flow', 'pk-flowroot', 'pk-main'));
     // 제목(mp-head) 드래그로 카드 순서 변경 → 활성 세션이면 실제 그리드·서버 순서에도 반영
     c.addEventListener('dragstart', ev => { ev.dataTransfer.setData('text/plain', String(i)); ev.dataTransfer.effectAllowed = 'move'; c.classList.add('dragging'); });
     c.addEventListener('dragend', () => { c.classList.remove('dragging'); miniDragEnd = Date.now(); });
@@ -11556,8 +11636,10 @@ function renderPicker() {
       if (!mates.size) return;
       c.classList.add('pk-flowroot');
       [...g.children].forEach(x => { if (x !== c && mates.has(x.dataset.fkey)) x.classList.add('pk-flow'); });
+      const mainKey = flowMainKey([c.dataset.fkey, ...mates]);      // 무리에서 기준이 되는 세션
+      [...g.children].forEach(x => { if (x.dataset.fkey === mainKey) x.classList.add('pk-main'); });
     };
-    c.onmouseleave = () => [...g.children].forEach(x => x.classList.remove('pk-flow', 'pk-flowroot'));
+    c.onmouseleave = () => [...g.children].forEach(x => x.classList.remove('pk-flow', 'pk-flowroot', 'pk-main'));
     c.appendChild(cardIcons(s.path,
       async () => {   // 빼기: 목록에서 제거
         if (!confirm(T.confirmRemove.replace('{t}', s.title))) return;
