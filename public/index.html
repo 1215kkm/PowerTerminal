@@ -179,9 +179,9 @@
   body.flowdim #flowLayer.on.keep, #flowLayer.on.keep { opacity: 1; }
   #flowLayer .flow-line { fill: none; stroke: #f472b6; stroke-width: 2.5; stroke-linecap: round;
                           filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
-  /* 진행 방향으로 색을 나눈다 — 왼쪽에서 오른쪽으로 가는(앞으로 나아가는) 선은 파랑, 되돌아오는 선은 분홍 */
-  #flowLayer .flow-line.fwd { stroke: #93c5fd; stroke-width: 4.8;
-                             filter: drop-shadow(0 0 3px rgba(147,197,253,.5)) drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
+  /* 진행 방향으로 색을 나눈다 — 왼쪽에서 오른쪽으로 가는(앞으로 나아가는) 선은 연두, 되돌아오는 선은 분홍 */
+  #flowLayer .flow-line.fwd { stroke: #86efac; stroke-width: 4.8;
+                             filter: drop-shadow(0 0 3px rgba(134,239,172,.55)) drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
   #flowLayer .flow-line.from-here { stroke: #22d3ee; stroke-width: 3.2; }   /* 지금 기준이 되는 세션에서 나가는 선 */
   /* 화살표 선택·삭제 — 가는 선은 마우스로 못 집으니, 같은 경로의 투명한 16px '집기용' 선이 클릭을 받는다 */
   #flowLayer .flow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer;
@@ -5313,6 +5313,7 @@ function buildPane(sess, idx) {
     logSent(el, val);            // ◎ 다음 세션에 넘길 때 "무엇을 했는지" 로 같이 보낸다
     el.classList.remove('flow-hold');   // 채워둔 걸 사람이 보냈다 = 대기 해제
     el._pendingFlow = null;
+    el._flowFilled = null;
     // ⬆ 방향키 히스토리에도 즉시 추가 — 칩 토큰([이미지 #N] 등)은 재전송 시 확장 안 되므로 빼고 저장
     if (qHist) { let ht = val; for (const [tk] of attachMap) ht = ht.split(tk).join(' '); ht = ht.replace(/\s+/g, ' ').trim(); if (ht) qHist.unshift(ht); }
     qHistIdx = -1; qDraft = '';
@@ -6268,6 +6269,7 @@ function logSent(el, text) {
   el._sentLog = [...log, item].slice(-3);
 }
 function flowText(fromId, toId, did) {
+  const brief = flowBriefText(fromId, toId);   // 아직 역할을 안 알린 대상이면 첫 인계문에 함께
   const m = flowMeta(fromId, toId);
   const src = (panes.get(fromId) || { sess: {} }).sess;
   const body = (m.msg || flowStagePrompt(m.stage) || '').replace(/\{t\}/g, src.title || '');
@@ -6282,7 +6284,7 @@ function flowText(fromId, toId, did) {
   // '보고' 는 흩어진 결과를 모아오는 단계라, 어디를 찾아가야 하는지 알아야 한다 —
   // 참여한 세션들의 제목·맡은 단계·폴더 경로를 붙여 준다 (worktree 는 폴더가 전부 달라서 이게 없으면 못 찾는다)
   const chain = m.stage === 'report' ? flowChainList(toId, fromId) : '';
-  return (who ? who + '\n' : '') + body + didBlock + (line ? '\n' + line : '') + chain;
+  return (who ? who + '\n' : '') + (brief ? brief + '\n' : '') + body + didBlock + (line ? '\n' + line : '') + chain;
 }
 // 이 흐름에 참여한 세션 목록 — 받는 세션 자신은 뺀다
 function flowChainList(toId, fromId) {
@@ -6302,27 +6304,20 @@ function flowChainList(toId, fromId) {
 }
 // 단계를 고르면 대상 세션에게 "너는 이 흐름에서 무슨 담당" 인지 한 번 알려 준다.
 // 단계를 고른 것 자체가 그래도 된다는 뜻 — 같은 단계로는 다시 보내지 않는다(briefed 에 기록).
-async function flowBrief(fromId, toId, stage) {
+/* 역할 안내 문구 — 흐름에서 이 세션의 자리를 알려 준다. 첫 인계문에 함께 실려 나간다. */
+function flowBriefText(fromId, toId) {
   const dst = panes.get(toId), src = panes.get(fromId);
-  if (!dst || !src || !dst.sendText) return false;
+  if (!dst || !src) return '';
+  const meta = flowMeta(fromId, toId);
+  if (!meta.stage || meta.briefed === meta.stage) return '';   // 이미 알린 단계면 다시 안 붙인다
   // 다음 단계 이름은 *정해져 있을 때만* 괄호로 붙인다 — 아직 안 정한 화살표까지 적으면 'sC ()' 처럼 빈 괄호가 나간다
   const nexts = flowOf(toId).filter(x => panes.has(x))
     .map(x => { const st = flowMeta(toId, x).stage; return panes.get(x).sess.title + (st ? ' (' + flowStageLabel(st) + ')' : ''); })
     .filter(Boolean);
-  /* 다음 단계는 *있을 때만* 알려 준다. 예전엔 없으면 "네가 마지막 단계야" 라고 못박았는데,
-     흐름은 보통 앞에서부터 이어 붙이므로 그 시점엔 아직 뒤가 없을 뿐이었다 —
-     몇 초 뒤 뒤가 생겨도 세션은 자기가 마지막인 줄 알고 있었다. */
-  const txt = (T.flowBriefMsg || '')
-    .replace(/\{s\}/g, flowStageLabel(stage))
+  return (T.flowBriefMsg || '')
+    .replace(/\{s\}/g, flowStageLabel(meta.stage))
     .replace(/\{t\}/g, src.sess.title || '').replace(/\{p\}/g, src.sess.path || '')
     + (nexts.length ? ' ' + (T.flowBriefNext || '').replace(/\{n\}/g, nexts.join(', ')) : '');
-  if (!txt) return false;
-  if (dst.el.classList.contains('busy')) return false;   // 작업 중인 세션에 끼어들지 않는다
-  const who = flowMemberLine(toId);
-  dst.sendText((who ? who + '\n' : '') + txt, null, { log: false });   // 역할 브리핑 = 한 일이 아님
-  dst.el.classList.add('flow-incoming');
-  setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
-  return true;
 }
 async function flowSetMeta(fromId, toId, patch) {
   const p = panes.get(fromId); if (!p) return;
@@ -6330,10 +6325,9 @@ async function flowSetMeta(fromId, toId, patch) {
   const next = Object.assign(flowMeta(fromId, toId), patch);
   // 단계가 정해지면 그 일에 맞는 팀원을 받는 세션의 담당으로 먼저 앉힌다 (브리핑에 담당 지시가 같이 나가도록)
   if (next.stage) await flowAutoMember(toId, next.stage);
-  // 단계를 새로 골랐으면 대상 세션에 역할을 한 번 알려 주고, 알린 단계를 기록해 중복을 막는다
-  if (next.stage && next.stage !== next.briefed) {
-    if (await flowBrief(fromId, toId, next.stage)) next.briefed = next.stage;
-  }
+  /* 역할 안내는 따로 보내지 않는다 — 예전엔 단계를 고르는 즉시 한 통을 보내서, 받는 세션이 그걸 읽고
+     한 턴을 통째로 쓰고(토큰), 그 사이 '작업 중'이 되어 정작 진짜 요청은 대기열로 밀렸다.
+     대신 첫 인계문 맨 앞에 붙여 보낸다 — 어차피 처음 일을 받을 때 알면 되는 내용이다. */
   all[toId] = next;
   p.sess.flowMeta = all;
   flowDraw(flowShown || fromId);
@@ -6356,7 +6350,7 @@ function flowLayer() {
   svg.id = 'flowLayer';
   const mk = (id, color) => '<marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
                           + '<path d="M0,0 L10,5 L0,10 z" fill="' + color + '"/></marker>';
-  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadFwd', '#93c5fd') + mk('flowHeadSel', '#ef4444')
+  svg.innerHTML = '<defs>' + mk('flowHead', '#f472b6') + mk('flowHeadFwd', '#86efac') + mk('flowHeadSel', '#ef4444')
                 + mk('flowHeadDrag', '#22d3ee') + mk('flowHeadHov', '#fde047')
                 + '<clipPath id="flowHitClip" clipPathUnits="userSpaceOnUse">'
                 +   '<rect id="flowHitRect" x="0" y="0" width="99999" height="99999"/></clipPath>'
@@ -6759,8 +6753,19 @@ function flowSend(fromId, toId, text, auto) {
   if (sent) {
     dst.sendText(text, flowStamp(fromId, toId));        // 요청내역에도 기록되고 터미널로 바로 들어간다
   } else {
-    // 사람이 쓰던 글이 있으면 덮어쓰지 않고 아래에 붙인다
-    ta.value = ta.value.trim() ? ta.value.replace(/\s*$/, '') + '\n' + text : text;
+    /* 사람이 쓰던 글은 덮지 않고 아래에 붙인다. 단, 이미 같은 인계문이 들어 있으면 또 붙이지 않는다 —
+       자동을 꺼 두면 앞 세션이 끝날 때마다 같은 글이 요청칸에 겹겹이 쌓여 있었다.
+       지난번에 채워 둔 인계문은 새 것으로 갈아 끼운다 (내용이 바뀐 경우만 갱신되는 셈). */
+    const norm = s => String(s || '').replace(/\s+/g, ' ').trim();
+    const prev = dst.el._flowFilled || '';
+    let cur = ta.value;
+    if (prev && norm(cur).endsWith(norm(prev))) {
+      const cut = cur.lastIndexOf(prev.slice(0, 40));
+      if (cut >= 0) cur = cur.slice(0, cut).replace(/\s*$/, '');
+    }
+    if (norm(cur).includes(norm(text))) { ta.value = cur; }        // 이미 같은 내용 — 그대로 둔다
+    else { ta.value = cur.trim() ? cur.replace(/\s*$/, '') + '\n' + text : text; }
+    dst.el._flowFilled = text;
     dst.el._pendingFlow = flowStamp(fromId, toId);   // 사람이 눌러 보낼 때도 '무슨 단계였는지' 가 기록되게
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -6820,7 +6825,11 @@ function flowHandoff(fromId) {
     const cap = o.ret ? FLOW_MAX_DEFAULT : ((o.meta && o.meta.max) || 0);
     const capped = o.auto && cap > 0 && (flowFired.get(k) || 0) >= cap;
     const how = flowSend(fromId, o.to, o.text, o.auto && !capped);
-    if (how) src.el._sentLog = [];       // 넘겼으면 '한 일' 은 비운다 — 다음 인계에 지난 일이 또 따라가지 않게
+    if (how) {
+      src.el._sentLog = [];             // 넘겼으면 '한 일' 은 비운다 — 다음 인계에 지난 일이 또 따라가지 않게
+      // 역할 안내를 함께 실어 보냈으면 '알렸다' 고 적어 둔다 — 다음 인계부터는 빠져 글이 짧아진다
+      if (o.meta && o.meta.stage && o.meta.briefed !== o.meta.stage) flowSetMeta(fromId, o.to, { briefed: o.meta.stage });
+    }
     if (how === 'auto' || how === 'queued') {          // 대기시킨 것도 결국 자동으로 나간다
       flowFired.set(k, (flowFired.get(k) || 0) + 1);
       flowNotifySource(fromId, o);        // 자동으로 넘겼다 = 맡긴다는 뜻 → 앞 세션에도 알려 준다
