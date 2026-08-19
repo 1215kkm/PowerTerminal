@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>미사일 테트리스</title>
+<style>
+  :root { --bg:#0b1220; --panel:#111827; --line:#1f2937; --fg:#e5e7eb; --muted:#9ca3af;
+          --violet:#8a38f5; --pink:#ec4899; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--fg);
+         font-family:Pretendard,-apple-system,"Segoe UI",sans-serif; }
+  .wrap { display:flex; gap:18px; align-items:flex-start; padding:18px; }
+  canvas { background:#0f172a; border:2px solid var(--line); border-radius:12px; display:block; }
+  .side { width:170px; display:flex; flex-direction:column; gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .card h2 { margin:0 0 6px; font-size:12px; color:var(--muted); font-weight:600; letter-spacing:.4px; }
+  .big { font-size:24px; font-weight:800; }
+  .keys { font-size:12px; color:var(--muted); line-height:1.9; }
+  .keys b { color:var(--fg); }
+  .missile { color:#fb923c; font-weight:800; }
+  button { width:100%; padding:9px; border:0; border-radius:9px; cursor:pointer; font-weight:700; color:#fff;
+           background:linear-gradient(90deg,var(--violet),var(--pink)); font-family:inherit; }
+  .over { position:fixed; inset:0; display:none; place-items:center; background:rgba(2,6,23,.82); }
+  .over.on { display:grid; }
+  .over div { text-align:center; }
+  .over h1 { margin:0 0 6px; font-size:28px; }
+  /* 📱 모바일 — 화면 폭에 맞춰 판을 줄이고, 손가락 조작 버튼을 아래에 깐다 */
+  .pad { display:none; gap:8px; margin:10px auto 0; }
+  .pad button { flex:1 1 0; padding:14px 0; font-size:18px; background:#1f2937; border:1px solid var(--line); }
+  .pad button.fire { background:linear-gradient(90deg,#f97316,#ef4444); }
+  @media (max-width: 720px), (pointer: coarse) {
+    body { display:block; }
+    .wrap { flex-direction:column; align-items:center; gap:10px; padding:10px; }
+    canvas#cv { width:min(92vw, 60vh); height:auto; }
+    .side { width:min(92vw, 60vh); flex-direction:row; flex-wrap:wrap; }
+    .side .card { flex:1 1 auto; padding:8px 10px; }
+    .side .card:last-of-type, #nx { display:none; }     /* 키 안내·다음조각은 좁은 화면에서 숨김 */
+    .pad { display:flex; }
+    .pad2 { display:flex; }
+  }
+</style></head><body>
+<div class="wrap">
+  <canvas id="cv" width="300" height="600"></canvas>
+  <div class="side">
+    <div class="card"><h2>점수</h2><div class="big" id="score">0</div></div>
+    <div class="card"><h2>줄</h2><div class="big" id="lines">0</div></div>
+    <div class="card"><h2>다음</h2><canvas id="nx" width="120" height="90"></canvas></div>
+    <div class="card"><h2>미사일</h2><div class="big missile" id="ammo">0</div>
+      <div class="keys" style="margin-top:4px">아이템 블록(◆)이 든 줄을 지우면 1발</div></div>
+    <div class="card keys">
+      <b>← →</b> 이동<br><b>↑</b> 회전<br><b>↓</b> 소프트드롭<br>
+      <b>Space</b> 하드드롭<br><b class="missile">F</b> 미사일 발사<br><b>P</b> 일시정지
+    </div>
+    <button id="again">새 게임</button>
+  </div>
+</div>
+  <div class="pad" style="width:min(92vw,60vh)">
+    <button id="bL">◀</button><button id="bR">▶</button><button id="bRot">⟳</button>
+  </div>
+  <div class="pad pad2" style="width:min(92vw,60vh)">
+    <button id="bDown">▼</button><button id="bDrop">⤓</button><button class="fire" id="bFire">🚀</button>
+  </div>
+<div class="over" id="over"><div><h1>게임 오버</h1><p id="final"></p><button id="restart" style="width:160px">다시 하기</button></div></div>
+<script>
+const COLS = 10, ROWS = 20, CELL = 30;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const nx = document.getElementById('nx'), nctx = nx.getContext('2d');
+const SHAPES = {
+  I: { c:'#22d3ee', m:[[1,1,1,1]] },
+  O: { c:'#fde047', m:[[1,1],[1,1]] },
+  T: { c:'#c084fc', m:[[0,1,0],[1,1,1]] },
+  S: { c:'#4ade80', m:[[0,1,1],[1,1,0]] },
+  Z: { c:'#fb7185', m:[[1,1,0],[0,1,1]] },
+  J: { c:'#60a5fa', m:[[1,0,0],[1,1,1]] },
+  L: { c:'#fb923c', m:[[0,0,1],[1,1,1]] },
+};
+const KEYS = Object.keys(SHAPES);
+let board, cur, next, score, lines, ammo, over, paused, dropMs, acc, last, missiles;
+
+function blank() { return Array.from({ length: ROWS }, () => Array(COLS).fill(null)); }
+function newPiece() {
+  const k = KEYS[(Math.random() * KEYS.length) | 0];
+  const m = SHAPES[k].m.map(r => r.slice());
+  // 아이템 블록 — 15% 확률로 조각 한 칸이 ◆ 가 된다. 그 칸이 든 줄을 지우면 미사일 1발.
+  const cells = [];
+  m.forEach((row, y) => row.forEach((v, x) => { if (v) cells.push([y, x]); }));
+  if (Math.random() < 0.15) { const [y, x] = cells[(Math.random() * cells.length) | 0]; m[y][x] = 2; }
+  return { k, m, c: SHAPES[k].c, x: ((COLS - m[0].length) / 2) | 0, y: 0 };
+}
+function collide(p, dx, dy, mm) {
+  const m = mm || p.m;
+  for (let y = 0; y < m.length; y++) for (let x = 0; x < m[y].length; x++) {
+    if (!m[y][x]) continue;
+    const nx2 = p.x + x + dx, ny = p.y + y + dy;
+    if (nx2 < 0 || nx2 >= COLS || ny >= ROWS) return true;
+    if (ny >= 0 && board[ny][nx2]) return true;
+  }
+  return false;
+}
+function rotate(m) {
+  const h = m.length, w = m[0].length;
+  const out = Array.from({ length: w }, () => Array(h).fill(0));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[x][h - 1 - y] = m[y][x];
+  return out;
+}
+function merge(p) {
+  p.m.forEach((row, y) => row.forEach((v, x) => {
+    if (v && p.y + y >= 0) board[p.y + y][p.x + x] = { c: p.c, item: v === 2 };
+  }));
+}
+function clearLines() {
+  let cleared = 0, gained = 0;
+  for (let y = ROWS - 1; y >= 0; y--) {
+    if (board[y].every(Boolean)) {
+      if (board[y].some(c => c && c.item)) gained++;      // 아이템이 든 줄 = 미사일 1발
+      board.splice(y, 1); board.unshift(Array(COLS).fill(null));
+      cleared++; y++;
+    }
+  }
+  if (cleared) {
+    lines += cleared;
+    score += [0, 100, 300, 500, 800][cleared] || 800;
+    ammo += gained;
+    dropMs = Math.max(120, 800 - Math.floor(lines / 10) * 70);
+  }
+}
+function spawn() {
+  cur = next || newPiece(); next = newPiece();
+  if (collide(cur, 0, 0)) { over = true; document.getElementById('over').classList.add('on');
+    document.getElementById('final').textContent = '점수 ' + score + ' · ' + lines + '줄'; }
+}
+// 🚀 미사일 — 현재 조각의 가운데 열을 따라 아래로 날아가며 만나는 블록을 부순다
+function fire() {
+  if (!ammo || over || paused) return;
+  ammo--;
+  const col = Math.min(COLS - 1, cur.x + ((cur.m[0].length / 2) | 0));
+  missiles.push({ col, y: cur.y + cur.m.length, hits: 0 });
+}
+function stepMissiles() {
+  for (const ms of missiles) {
+    ms.y += 1.4;
+    const row = Math.floor(ms.y);
+    if (row >= 0 && row < ROWS && board[row][ms.col]) { board[row][ms.col] = null; ms.hits++; score += 20; }
+  }
+  missiles = missiles.filter(m => m.y < ROWS);
+}
+function drop() {
+  if (collide(cur, 0, 1)) { merge(cur); clearLines(); spawn(); }
+  else cur.y++;
+}
+function hardDrop() { while (!collide(cur, 0, 1)) cur.y++; merge(cur); clearLines(); spawn(); }
+function cell(g, x, y, color, item) {
+  g.fillStyle = color; g.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
+  g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, 4);
+  if (item) { g.fillStyle = '#0b1220'; g.font = 'bold 16px sans-serif'; g.textAlign = 'center';
+              g.fillText('◆', x * CELL + CELL / 2, y * CELL + CELL / 2 + 6); }
+}
+function draw() {
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = 'rgba(148,163,184,.08)';
+  for (let x = 1; x < COLS; x++) { ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, cv.height); ctx.stroke(); }
+  for (let y = 1; y < ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(cv.width, y * CELL); ctx.stroke(); }
+  board.forEach((row, y) => row.forEach((c, x) => { if (c) cell(ctx, x, y, c.c, c.item); }));
+  if (cur) {
+    // 착지 위치 미리보기
+    let gy = 0; while (!collide(cur, 0, gy + 1)) gy++;
+    ctx.globalAlpha = .22;
+    cur.m.forEach((row, y) => row.forEach((v, x) => { if (v) cell(ctx, cur.x + x, cur.y + y + gy, cur.c, false); }));
+    ctx.globalAlpha = 1;
+    cur.m.forEach((row, y) => row.forEach((v, x) => { if (v) cell(ctx, cur.x + x, cur.y + y, cur.c, v === 2); }));
+  }
+  for (const ms of missiles) {
+    const cx = ms.col * CELL + CELL / 2, cy = ms.y * CELL;
+    ctx.fillStyle = '#fb923c';
+    ctx.beginPath(); ctx.moveTo(cx, cy + 12); ctx.lineTo(cx - 6, cy - 6); ctx.lineTo(cx + 6, cy - 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(251,146,60,.35)'; ctx.fillRect(cx - 3, cy - 20, 6, 14);
+  }
+  nctx.clearRect(0, 0, nx.width, nx.height);
+  if (next) {
+    const w = next.m[0].length, h = next.m.length, s = 22;
+    const ox = (nx.width - w * s) / 2, oy = (nx.height - h * s) / 2;
+    next.m.forEach((row, y) => row.forEach((v, x) => {
+      if (!v) return;
+      nctx.fillStyle = next.c; nctx.fillRect(ox + x * s + 1, oy + y * s + 1, s - 2, s - 2);
+      if (v === 2) { nctx.fillStyle = '#0b1220'; nctx.font = 'bold 13px sans-serif'; nctx.textAlign = 'center';
+                     nctx.fillText('◆', ox + x * s + s / 2, oy + y * s + s / 2 + 5); }
+    }));
+  }
+  document.getElementById('score').textContent = score;
+  document.getElementById('lines').textContent = lines;
+  document.getElementById('ammo').textContent = ammo;
+}
+function loop(t) {
+  if (!last) last = t;
+  const dt = t - last; last = t;
+  if (!over && !paused) {
+    acc += dt;
+    if (acc > dropMs) { drop(); acc = 0; }
+    if (missiles.length) stepMissiles();
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+function reset() {
+  board = blank(); score = 0; lines = 0; ammo = 0; over = false; paused = false;
+  dropMs = 800; acc = 0; last = 0; missiles = []; next = null; spawn();
+  document.getElementById('over').classList.remove('on');
+}
+addEventListener('keydown', e => {
+  if (over) return;
+  const k = e.key.toLowerCase();
+  if (k === 'p') { paused = !paused; return; }
+  if (paused) return;
+  if (e.key === 'ArrowLeft' && !collide(cur, -1, 0)) cur.x--;
+  else if (e.key === 'ArrowRight' && !collide(cur, 1, 0)) cur.x++;
+  else if (e.key === 'ArrowDown') { drop(); acc = 0; }
+  else if (e.key === 'ArrowUp') { const r = rotate(cur.m); if (!collide(cur, 0, 0, r)) cur.m = r; }
+  else if (e.code === 'Space') { e.preventDefault(); hardDrop(); }
+  else if (k === 'f') fire();
+  else return;
+  e.preventDefault();
+});
+/* 📱 손가락 조작 — 버튼과 스와이프 둘 다. 스와이프: 좌우=이동, 아래로 짧게=한 칸, 길게=바닥까지, 탭=회전 */
+const act = {
+  left:  () => { if (!collide(cur, -1, 0)) cur.x--; },
+  right: () => { if (!collide(cur, 1, 0)) cur.x++; },
+  rot:   () => { const r = rotate(cur.m); if (!collide(cur, 0, 0, r)) cur.m = r; },
+  down:  () => { drop(); acc = 0; },
+  hard:  () => hardDrop(),
+  fire:  () => fire(),
+};
+const hold = (id, fn, repeat) => {
+  const el = document.getElementById(id); if (!el) return;
+  let t = null, iv = null;
+  const go = ev => { ev.preventDefault(); if (over || paused) return; fn();
+    if (repeat) { t = setTimeout(() => { iv = setInterval(() => { if (!over && !paused) fn(); }, 90); }, 260); } };
+  const stop = () => { clearTimeout(t); clearInterval(iv); t = iv = null; };
+  el.addEventListener('touchstart', go, { passive: false });
+  el.addEventListener('mousedown', go);
+  ['touchend','touchcancel','mouseup','mouseleave'].forEach(e => el.addEventListener(e, stop));
+};
+hold('bL', act.left, true); hold('bR', act.right, true); hold('bRot', act.rot, false);
+hold('bDown', act.down, true); hold('bDrop', act.hard, false); hold('bFire', act.fire, false);
+(() => {   // 판 위에서의 스와이프
+  let sx = 0, sy = 0, st = 0, moved = 0;
+  cv.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now(); moved = 0; }, { passive: true });
+  cv.addEventListener('touchmove', e => {
+    if (over || paused) return;
+    const t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    const step = cv.getBoundingClientRect().width / COLS;
+    if (Math.abs(dx) > step && Math.abs(dx) > Math.abs(dy)) {
+      act[dx > 0 ? 'right' : 'left'](); sx = t.clientX; moved++;
+    } else if (dy > step * 0.9) { act.down(); sy = t.clientY; moved++; }
+    e.preventDefault();
+  }, { passive: false });
+  cv.addEventListener('touchend', e => {
+    if (over || paused) return;
+    const dt = Date.now() - st, dy = (e.changedTouches[0].clientY - sy);
+    if (!moved && dt < 250) act.rot();                       // 짧은 탭 = 회전
+    else if (dy > cv.getBoundingClientRect().height * 0.25) act.hard();   // 아래로 길게 = 하드드롭
+  }, { passive: true });
+})();
+document.getElementById('again').onclick = reset;
+document.getElementById('restart').onclick = reset;
+reset();
+requestAnimationFrame(loop);
+</script></body></html>

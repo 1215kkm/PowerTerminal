@@ -6502,7 +6502,10 @@ function flowDraw(rootId) {
       const t = document.createElementNS(NS, 'text');
       // 앞→뒤(좌→우) 화살표는 위로 솟는 아치라, 글자를 선 위에 두면 화면 밖이나 세션 머리글에 가려 안 보였다.
       // 그 방향은 선 *아래* 에 쓴다. 되돌아오는(우→좌) 선은 완만해서 예전처럼 위가 낫다.
-      t.setAttribute('x', mid.x); t.setAttribute('y', mid.y + (rightward ? 17 : -7));
+      // 라벨이 상단 바 위로 올라가 잘리지 않게 아래로 밀어 준다 (세션이 붙어 있으면 아치가 화면 꼭대기까지 솟는다)
+      const hdrB = (document.querySelector('header') || { getBoundingClientRect: () => ({ bottom: 0 }) }).getBoundingClientRect().bottom;
+      const ly = Math.max(mid.y + (rightward ? 17 : -7), hdrB + 14);
+      t.setAttribute('x', mid.x); t.setAttribute('y', ly);
       t.setAttribute('class', 'flow-label' + (meta.auto ? ' auto' : ''));
       t.setAttribute('text-anchor', 'middle');
       /* 자동 전송은 한도까지만 나간다. 한도에 닿으면 요청칸에 채워만 두는데, 예전엔 그 사실이
