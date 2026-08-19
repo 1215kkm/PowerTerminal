@@ -2117,8 +2117,8 @@ const I18N_MORE = {
     flowMaxT: "How many times in a row this arrow may send by itself. 0 = no limit. Past the limit it still hands over, but only fills the box so you press Send — that is what stops a fix↔test loop from running all night. Counting restarts when you send a request into this flow yourself.",
     flowMaxHit: "Auto-send stopped after {n} times — “{t}” is filled in, press Send yourself.",
     flowSrcLine: "(Previous session: “{t}” — its folder is {p}. Look there for what it changed.)",
-    flowBriefMsg: "Heads-up about your place in this workflow: you are the “{s}” step. The step before you is “{t}”, working in {p}. After you: {n}. Do nothing for now — wait until the actual request arrives, then start.",
-    flowBriefEnd: "nothing (you are the last step)",
+    flowBriefMsg: "Heads-up about your place in this workflow: you are the “{s}” step. The step before you is “{t}” — its folder is {p}, read it to see what changed. Do your own work in your own folder. Do nothing for now — wait until a real request arrives.",
+    flowBriefNext: "After you: {n}.", flowBriefEnd: "nothing (you are the last step)",
     tagHaiku: "🪶 uses a little Haiku", tagNoCost: "🪶 no extra tokens",
     stepsHead: "Do this yourself",
     setStepsL: "Collect what I have to do myself",
@@ -2180,8 +2180,8 @@ const I18N_MORE = {
     flowMaxT: "이 화살표가 연달아 자동 전송할 수 있는 횟수. 0 = 무제한. 넘어가면 넘기기는 하되 요청창에 채워만 두고 사람이 [전송]을 누르게 합니다 — 수정↔테스트 순환이 밤새 도는 걸 막는 장치예요. 이 흐름에 직접 요청을 보내면 횟수는 다시 0부터.",
     flowMaxHit: "{n}회를 넘어서 자동 전송을 멈췄어요 — “{t}” 에 채워뒀으니 직접 [전송] 하세요.",
     flowSrcLine: "(앞 세션: “{t}” — 그 폴더는 {p} 입니다. 무엇이 바뀌었는지는 거기서 확인하세요.)",
-    flowBriefMsg: "이 작업 흐름에서 네 자리를 미리 알려줄게. 너는 “{s}” 담당이야. 네 앞은 “{t}” 이고 {p} 에서 작업해. 네 다음은 {n}. 지금은 아무것도 하지 말고 대기해 — 실제 요청이 오면 그때 시작하면 돼.",
-    flowBriefEnd: "없음 (네가 마지막 단계야)",
+    flowBriefMsg: "이 작업 흐름에서 네 자리를 미리 알려줄게. 너는 “{s}” 담당이야. 네 앞 단계는 “{t}” 이고 그 세션의 폴더는 {p} 야 — 무엇이 바뀌었는지는 거기서 확인해. 네 작업은 지금 이 폴더에서 해. 지금은 아무것도 하지 말고 대기해 — 실제 요청이 오면 그때 시작하면 돼.",
+    flowBriefNext: "네 다음은 {n} 이야.", flowBriefEnd: "없음 (네가 마지막 단계야)",
     tagHaiku: "🪶 Haiku 소량 사용", tagNoCost: "🪶 추가 토큰 없음",
     stepsHead: "내가 직접 할 일",
     setStepsL: "내가 직접 할 일 모으기",
@@ -2243,8 +2243,8 @@ const I18N_MORE = {
     flowMaxT: "この矢印が続けて自動送信できる回数。0 = 無制限。超えると渡しはしますが入力欄に入れるだけで、[送信] は人が押します — 修正↔テストの循環が一晩中回るのを防ぐ仕組みです。この流れに自分でリクエストを送ると回数は 0 に戻ります。",
     flowMaxHit: "{n}回を超えたので自動送信を止めました — 「{t}」に入れてあるので自分で [送信] してください。",
     flowSrcLine: "(前のセッション: 「{t}」 — そのフォルダは {p} です。何が変わったかはそこで確認してください。)",
-    flowBriefMsg: "この作業の流れでのあなたの位置をお知らせします。あなたは「{s}」担当です。前は「{t}」で、{p} で作業しています。次は {n}。今は何もせず待機してください — 実際のリクエストが来たら始めてください。",
-    flowBriefEnd: "なし (あなたが最後の段階です)",
+    flowBriefMsg: "この流れでのあなたの位置をお知らせします。あなたは「{s}」担当です。前の段階は「{t}」で、そのフォルダは {p} です — 何が変わったかはそこで確認してください。作業自体は今このフォルダで行ってください。今は何もせず待機してください — 実際の依頼が来てから始めれば大丈夫です。",
+    flowBriefNext: "次は {n} です。", flowBriefEnd: "なし (あなたが最後の段階です)",
     tagHaiku: "🪶 Haiku を少量使用", tagNoCost: "🪶 追加トークンなし",
     stepsHead: "自分でやること",
     setStepsL: "自分でやることを集める",
@@ -2488,8 +2488,8 @@ const I18N_MORE = {
     flowMaxT: "这条箭头可以连续自动发送的次数。0 = 不限。超过后仍会交接，但只填进输入框，由你按 [发送] —— 这是防止修复↔测试的循环整夜空转的机制。你自己往这个流程发一次请求，计数就归零。",
     flowMaxHit: "超过 {n} 次，已停止自动发送 —— 已填进「{t}」，请自己按 [发送]。",
     flowSrcLine: "（上一个会话：「{t}」—— 它的文件夹是 {p}。改了什么请到那里看。）",
-    flowBriefMsg: "先告诉你在这个流程里的位置：你负责「{s}」。你前面是「{t}」，在 {p} 里工作。你后面是 {n}。现在什么都别做，等真正的请求来了再开始。",
-    flowBriefEnd: "没有（你是最后一步）",
+    flowBriefMsg: "先告诉你在这个流程里的位置：你负责「{s}」。你前面是「{t}」，它的文件夹是 {p} —— 改了什么去那里看。你自己的活儿在当前文件夹里做。现在什么都别做，等真正的请求来了再开始。",
+    flowBriefNext: "你后面是 {n}。", flowBriefEnd: "没有（你是最后一步）",
     tagHaiku: "🪶 少量使用 Haiku", tagNoCost: "🪶 不额外花 token",
     stepsHead: "我要自己做的事",
     setStepsL: "收集我要自己做的事",
@@ -2733,8 +2733,8 @@ const I18N_MORE = {
     flowMaxT: "Cuántas veces seguidas puede enviar sola esta flecha. 0 = sin límite. Pasado el límite sigue entregando, pero solo rellena el campo para que pulses Enviar — así un bucle corregir↔probar no se pasa la noche girando. La cuenta vuelve a cero cuando tú mismo mandas una petición a este flujo.",
     flowMaxHit: "Envío automático detenido tras {n} veces — está puesto en “{t}”, pulsa Enviar tú.",
     flowSrcLine: "(Sesión anterior: “{t}” — su carpeta es {p}. Mira ahí lo que cambió.)",
-    flowBriefMsg: "Para que sepas tu sitio en este flujo: tú eres el paso “{s}”. Antes de ti está “{t}”, que trabaja en {p}. Después de ti: {n}. Por ahora no hagas nada — espera a que llegue la petición de verdad y entonces empieza.",
-    flowBriefEnd: "nada (eres el último paso)",
+    flowBriefMsg: "Para que sepas tu sitio en este flujo: tú eres el paso “{s}”. El paso anterior es “{t}” y su carpeta es {p} — mira ahí lo que cambió. Tu trabajo hazlo en tu propia carpeta. Por ahora no hagas nada: espera a que llegue una petición real.",
+    flowBriefNext: "Después de ti: {n}.", flowBriefEnd: "nada (eres el último paso)",
     tagHaiku: "🪶 usa un poco de Haiku", tagNoCost: "🪶 sin tokens extra",
     stepsHead: "Lo que tengo que hacer yo",
     setStepsL: "Recoger lo que tengo que hacer yo",
@@ -2985,8 +2985,8 @@ const I18N_MORE = {
     flowMaxT: "Wie oft hintereinander dieser Pfeil von selbst senden darf. 0 = ohne Grenze. Danach übergibt er weiter, füllt aber nur das Feld, damit du Senden drückst — so dreht eine Beheben↔Testen-Schleife nicht die ganze Nacht. Die Zählung beginnt neu, sobald du selbst eine Anfrage in diesen Ablauf schickst.",
     flowMaxHit: "Automatisches Senden nach {n} Mal gestoppt — steht in „{t}“, drück selbst Senden.",
     flowSrcLine: "(Vorige Sitzung: „{t}“ — ihr Ordner ist {p}. Was geändert wurde, steht dort.)",
-    flowBriefMsg: "Damit du deinen Platz in diesem Ablauf kennst: du bist der Schritt „{s}“. Vor dir steht „{t}“ und arbeitet in {p}. Nach dir: {n}. Tu vorerst nichts — warte, bis die eigentliche Anfrage kommt, und fang dann an.",
-    flowBriefEnd: "nichts (du bist der letzte Schritt)",
+    flowBriefMsg: "Damit du deinen Platz in diesem Ablauf kennst: du bist der Schritt „{s}“. Der Schritt vor dir ist „{t}“, sein Ordner ist {p} — dort siehst du, was sich geändert hat. Deine eigene Arbeit machst du in deinem eigenen Ordner. Tu vorerst nichts — warte, bis eine echte Anfrage kommt.",
+    flowBriefNext: "Nach dir: {n}.", flowBriefEnd: "nichts (du bist der letzte Schritt)",
     tagHaiku: "🪶 nutzt etwas Haiku", tagNoCost: "🪶 keine extra Tokens",
     stepsHead: "Was ich selbst tun muss",
     setStepsL: "Sammeln, was ich selbst tun muss",
@@ -3233,8 +3233,8 @@ const I18N_MORE = {
     flowMaxT: "Combien de fois de suite cette flèche peut envoyer toute seule. 0 = sans limite. Au-delà elle transmet quand même, mais se contente de remplir le champ pour que tu appuies sur Envoyer — c’est ce qui empêche une boucle corriger↔tester de tourner toute la nuit. Le compte repart à zéro dès que tu envoies toi-même une demande dans ce flux.",
     flowMaxHit: "Envoi automatique arrêté après {n} fois — c’est rempli dans « {t} », appuie sur Envoyer.",
     flowSrcLine: "(Session précédente : « {t} » — son dossier est {p}. Ce qui a changé est là-bas.)",
-    flowBriefMsg: "Pour situer ta place dans ce flux : tu es l’étape « {s} ». Avant toi il y a « {t} », qui travaille dans {p}. Après toi : {n}. Ne fais rien pour l’instant — attends la vraie demande, puis commence.",
-    flowBriefEnd: "rien (tu es la dernière étape)",
+    flowBriefMsg: "Pour situer ta place dans ce flux : tu es l’étape « {s} ». L’étape précédente est « {t} » et son dossier est {p} — c’est là que tu vois ce qui a changé. Ton propre travail, fais-le dans ton dossier. Pour l’instant ne fais rien : attends une vraie demande.",
+    flowBriefNext: "Après toi : {n}.", flowBriefEnd: "rien (tu es la dernière étape)",
     tagHaiku: "🪶 utilise un peu de Haiku", tagNoCost: "🪶 pas de tokens en plus",
     stepsHead: "À faire moi-même",
     setStepsL: "Rassembler ce que je dois faire moi-même",
@@ -3484,8 +3484,8 @@ const I18N_MORE = {
     flowMaxT: "Quantas vezes seguidas esta seta pode enviar sozinha. 0 = sem limite. Passando disso ela ainda entrega, mas só preenche o campo para você apertar Enviar — é o que impede um ciclo corrigir↔testar de rodar a noite toda. A contagem zera quando você mesmo manda um pedido para este fluxo.",
     flowMaxHit: "Envio automático parado depois de {n} vezes — está preenchido em “{t}”, aperte Enviar você.",
     flowSrcLine: "(Sessão anterior: “{t}” — a pasta dela é {p}. Veja lá o que mudou.)",
-    flowBriefMsg: "Só para situar o seu lugar neste fluxo: você é a etapa “{s}”. Antes de você está “{t}”, trabalhando em {p}. Depois de você: {n}. Por enquanto não faça nada — espere o pedido de verdade chegar e então comece.",
-    flowBriefEnd: "nada (você é a última etapa)",
+    flowBriefMsg: "Para você saber seu lugar neste fluxo: você é a etapa “{s}”. A etapa anterior é “{t}” e a pasta dela é {p} — veja ali o que mudou. Seu trabalho, faça na sua própria pasta. Por enquanto não faça nada: espere chegar um pedido de verdade.",
+    flowBriefNext: "Depois de você: {n}.", flowBriefEnd: "nada (você é a última etapa)",
     tagHaiku: "🪶 usa um pouco de Haiku", tagNoCost: "🪶 sem tokens extra",
     stepsHead: "O que eu tenho que fazer",
     setStepsL: "Juntar o que eu tenho que fazer",
@@ -3735,8 +3735,8 @@ const I18N_MORE = {
     flowMaxT: "Сколько раз подряд эта стрелка может отправлять сама. 0 = без ограничения. Дальше она всё равно передаёт, но только заполняет поле, чтобы вы нажали «Отправить» — это и не даёт циклу исправление↔тест крутиться всю ночь. Счёт обнуляется, когда вы сами отправляете запрос в этот поток.",
     flowMaxHit: "Автоотправка остановлена после {n} раз — вставлено в «{t}», нажмите «Отправить» сами.",
     flowSrcLine: "(Предыдущая сессия: «{t}» — её папка {p}. Что изменилось, смотрите там.)",
-    flowBriefMsg: "Чтобы ты знал своё место в этом потоке: ты — этап «{s}». Перед тобой «{t}», он работает в {p}. После тебя: {n}. Пока ничего не делай — дождись самого запроса и тогда начинай.",
-    flowBriefEnd: "ничего (ты последний этап)",
+    flowBriefMsg: "Чтобы вы знали своё место в этом потоке: вы — шаг «{s}». Перед вами шаг «{t}», его папка — {p}: посмотрите там, что изменилось. Свою работу делайте в своей папке. Пока ничего не делайте — дождитесь настоящего запроса.",
+    flowBriefNext: "После вас: {n}.", flowBriefEnd: "ничего (ты последний этап)",
     tagHaiku: "🪶 немного Haiku", tagNoCost: "🪶 без лишних токенов",
     stepsHead: "Что мне сделать самому",
     setStepsL: "Собирать то, что мне делать самому",
@@ -3985,8 +3985,8 @@ const I18N_MORE = {
     flowMaxT: "यह तीर लगातार कितनी बार अपने आप भेज सकता है। 0 = कोई सीमा नहीं। सीमा के बाद भी काम आगे जाता है, पर सिर्फ़ खाने में भर जाता है और [भेजें] आप दबाते हैं — इसी से सुधार↔टेस्ट का चक्र रात भर नहीं घूमता। जब आप ख़ुद इस क्रम में अनुरोध भेजते हैं, गिनती फिर शून्य से शुरू होती है।",
     flowMaxHit: "{n} बार के बाद ऑटो भेजना रोक दिया — “{t}” में भर दिया है, आप ख़ुद [भेजें] दबाएँ।",
     flowSrcLine: "(पिछला सेशन: “{t}” — उसका फ़ोल्डर {p} है। क्या बदला, वहीं देखें।)",
-    flowBriefMsg: "इस काम के क्रम में आपकी जगह बता दूँ: आप “{s}” वाला चरण हैं। आपसे पहले “{t}” है, जो {p} में काम करता है। आपके बाद: {n}। अभी कुछ मत कीजिए — असली अनुरोध आने का इंतज़ार कीजिए, तभी शुरू कीजिए।",
-    flowBriefEnd: "कुछ नहीं (आप आख़िरी चरण हैं)",
+    flowBriefMsg: "इस फ़्लो में आपकी जगह बता देते हैं: आप “{s}” चरण हैं। आपसे पहले “{t}” है और उसका फ़ोल्डर {p} है — क्या बदला, वह वहीं देखें। अपना काम अपने ही फ़ोल्डर में करें। अभी कुछ न करें — असली अनुरोध आने का इंतज़ार करें।",
+    flowBriefNext: "आपके बाद: {n}।", flowBriefEnd: "कुछ नहीं (आप आख़िरी चरण हैं)",
     tagHaiku: "🪶 थोड़ा Haiku लगता है", tagNoCost: "🪶 अतिरिक्त टोकन नहीं",
     stepsHead: "जो मुझे ख़ुद करना है",
     setStepsL: "जो मुझे ख़ुद करना है, वह इकट्ठा करें",
@@ -6262,7 +6262,10 @@ function logSent(el, text) {
   // 알림 문구는 '한 일'이 아니다 — 문구 앞 12자로 알아본다 (언어마다 문장이 달라 통짜 비교는 못 한다)
   const notice = String(T.flowSentNote || '').slice(0, 12);
   if (!t || (notice && t.startsWith(notice))) return;
-  el._sentLog = [...(el._sentLog || []), t.slice(0, 160)].slice(-3);
+  const log = el._sentLog || [];
+  const item = t.slice(0, 160);
+  if (log[log.length - 1] === item) return;        // 같은 요청이 두 번 들어오면 한 번만 (재전송·재시도)
+  el._sentLog = [...log, item].slice(-3);
 }
 function flowText(fromId, toId, did) {
   const m = flowMeta(fromId, toId);
@@ -6302,17 +6305,21 @@ function flowChainList(toId, fromId) {
 async function flowBrief(fromId, toId, stage) {
   const dst = panes.get(toId), src = panes.get(fromId);
   if (!dst || !src || !dst.sendText) return false;
+  // 다음 단계 이름은 *정해져 있을 때만* 괄호로 붙인다 — 아직 안 정한 화살표까지 적으면 'sC ()' 처럼 빈 괄호가 나간다
   const nexts = flowOf(toId).filter(x => panes.has(x))
-    .map(x => panes.get(x).sess.title + ' (' + flowStageLabel(flowMeta(toId, x).stage || '') + ')')
+    .map(x => { const st = flowMeta(toId, x).stage; return panes.get(x).sess.title + (st ? ' (' + flowStageLabel(st) + ')' : ''); })
     .filter(Boolean);
+  /* 다음 단계는 *있을 때만* 알려 준다. 예전엔 없으면 "네가 마지막 단계야" 라고 못박았는데,
+     흐름은 보통 앞에서부터 이어 붙이므로 그 시점엔 아직 뒤가 없을 뿐이었다 —
+     몇 초 뒤 뒤가 생겨도 세션은 자기가 마지막인 줄 알고 있었다. */
   const txt = (T.flowBriefMsg || '')
     .replace(/\{s\}/g, flowStageLabel(stage))
     .replace(/\{t\}/g, src.sess.title || '').replace(/\{p\}/g, src.sess.path || '')
-    .replace(/\{n\}/g, nexts.length ? nexts.join(', ') : (T.flowBriefEnd || ''));
+    + (nexts.length ? ' ' + (T.flowBriefNext || '').replace(/\{n\}/g, nexts.join(', ')) : '');
   if (!txt) return false;
   if (dst.el.classList.contains('busy')) return false;   // 작업 중인 세션에 끼어들지 않는다
   const who = flowMemberLine(toId);
-  dst.sendText((who ? who + '\n' : '') + txt);
+  dst.sendText((who ? who + '\n' : '') + txt, null, { log: false });   // 역할 브리핑 = 한 일이 아님
   dst.el.classList.add('flow-incoming');
   setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
   return true;
@@ -6785,7 +6792,12 @@ function flowHandoff(fromId) {
   const ret = flowReturns.get(fromId);
   if (ret && panes.has(ret)) {
     opts.push({ to: ret, ret: true, label: '↩ ' + (panes.get(ret).sess.title || ''),
-                text: (T.fsp_return || '').replace(/\{t\}/g, src.sess.title || ''), auto: true });
+                // 돌아오는 글에도 '어디서' 와 '무엇을 했는지' 를 붙인다 — worktree 는 세션마다 폴더가 달라
+                // 경로가 없으면 부탁한 결과를 볼 방법이 없다.
+                text: (T.fsp_return || '').replace(/\{t\}/g, src.sess.title || '')
+                    + (did.length ? '\n' + (T.flowDidHead || '') + '\n' + did.map(x => '· ' + x).join('\n') : '')
+                    + '\n' + (T.flowSrcLine || '').replace(/\{t\}/g, src.sess.title || '').replace(/\{p\}/g, src.sess.path || ''),
+                auto: true });
   }
   // ② 단계를 정해 둔 화살표들
   for (const to of flowOf(fromId)) {
@@ -6834,7 +6846,7 @@ function flowNotifySource(fromId, o) {
   if (!txt) return;
   // 이 알림 때문에 앞 세션이 다시 '작업 → 완료' 를 타는데, 그 완료로 인계가 또 나가면 안 된다.
   src.el._flowNotified = true;
-  src.sendText(txt);
+  src.sendText(txt, null, { log: false });   // 인계 알림 = 한 일이 아님
 }
 // 갈림길 — 세션 아래쪽에 뜨는 작은 선택줄. 고르기 전엔 아무 데도 안 넘어간다.
 function flowPickNext(paneEl, opts, go) {
