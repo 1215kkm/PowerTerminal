@@ -54,6 +54,49 @@ function dataFile(name) {
   return dest;
 }
 
+/* 🧊 멈춤 기록기 — "PT가 또 멈췄다" 를 다음 번엔 추측이 아니라 기록으로 답하기 위한 장치.
+   서버가 굳으면 원인을 적을 주체(메인 스레드)도 같이 굳는다. 그래서 감시는 별도 스레드에서 하고,
+   메인 스레드는 0.5초마다 공유 메모리의 숫자만 올린다. 숫자가 멎으면 그 순간의 '마크'(무엇을 하던 중인지)를
+   ~/.powerterminal/freeze.log 에 남긴다. 마크는 요청 경로·주기 작업 이름이라 범인을 바로 좁힌다. */
+const FREEZE_LOG = dataFile('freeze.log');
+const MARK_MAX = 160;
+let markBuf = null, markView = null;
+function mark(name) {                       // 지금 하는 일을 공유 메모리에 적는다 (비용: 문자열 복사 한 번)
+  if (!markView) return;
+  try {
+    const b = Buffer.from(String(name || '').slice(0, MARK_MAX), 'utf8');
+    markBuf.set(b.subarray(0, markBuf.length));
+    Atomics.store(markView, 1, Math.min(b.length, markBuf.length));
+  } catch (e) {}
+}
+let lagBase = Date.now();
+(function startFreezeWatch() {
+  let Worker;
+  try { ({ Worker } = require('worker_threads')); } catch (e) { return; }
+  const sab = new SharedArrayBuffer(2 * 4 + MARK_MAX * 3);
+  markView = new Int32Array(sab);
+  markBuf = new Uint8Array(sab, 8);
+  const file = path.join(ROOT, 'freeze-watch.js');
+  if (!fs.existsSync(file)) return;
+  try {
+    const w = new Worker(file, { workerData: { sab, log: FREEZE_LOG, freezeMs: 4000 } });
+    w.unref();
+  } catch (e) { return; }
+  setInterval(() => {                       // 심장박동 + 이벤트 루프 지연 측정
+    const now = Date.now();
+    const lag = now - lagBase - 500;
+    lagBase = now;
+    Atomics.add(markView, 0, 1);
+    if (lag > 1200) {                       // 굳었다 풀린 흔적 — 짧은 것도 여기 남는다
+      const line = new Date().toLocaleString('ko-KR', { hour12: false }) +
+        '  루프 지연 ' + (lag / 1000).toFixed(1) + '초 · 하던 일: ' + curMark;
+      fs.appendFile(FREEZE_LOG, line + String.fromCharCode(13, 10), () => {});
+    }
+  }, 500).unref();
+})();
+let curMark = 'idle';
+function setMark(name) { curMark = name; mark(name); }
+
 const SESSIONS_FILE = dataFile('sessions.json');
 const CONFIG_FILE = dataFile('config.json');
 const LAUNCHER_PROJECTS = path.join(ROOT, '..', 'Launcher', 'projects.json');
@@ -107,7 +150,7 @@ function pairRateOk(ip) {
 const RECENT_FILE = dataFile('recent.json');
 let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
-function saveSessions() { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); }
+function saveSessions() { setMark('세션목록 저장'); fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); setMark('idle'); }
 
 // 최근 사용 세션 기록 — 닫아도 남아서 세션추가창에 회색으로 표시(다시 켤 수 있게)
 let recent = [];
@@ -612,6 +655,7 @@ function unstickScan() {
   const script = path.join(ROOT, 'unstick.ps1');
   if (!fs.existsSync(script)) return;
   stuckScanning = true;
+  setMark('멈춘 프로세스 훑기');
   let out = '';
   const ps = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script,
                    '-ServerPid', String(process.pid), '-MinAgeSec', String(STUCK_MIN_AGE)],
@@ -644,6 +688,12 @@ setInterval(unstickScan, STUCK_SCAN_MS);
 
 // ---------- HTTP ----------
 const app = express();
+// 요청 하나하나에 마크를 찍는다 — 굳은 순간 처리 중이던 요청이 그대로 기록에 남는다
+app.use((req, res, next) => {
+  setMark('요청 ' + req.method + ' ' + req.path);
+  res.on('finish', () => { if (curMark.startsWith('요청 ')) setMark('idle'); });
+  next();
+});
 app.use(express.json({ limit: '30mb',      // 이미지 붙여넣기(base64) 수용
   verify: (req, res, buf) => { req.rawBody = buf; } }));   // 프록시 중계용 원본 보존
 
@@ -2234,6 +2284,7 @@ function qaEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 function writeQaDoc(dir) {
+  setMark('질문답변 문서 쓰기 · ' + dir);
   if (config.qaDoc === false) return;              // 설정에서 끈 사람만 제외 (기본은 켜짐)
   try {
     const m = memos[memoKey(dir)];
@@ -2842,7 +2893,10 @@ server.listen(PORT, '0.0.0.0', () => {
   if (wifiUrl) console.log('  ② 폰 — 같은 와이파이:      ' + wifiUrl);
   console.log('  ③ 폰 — 외부 접속(LTE):     주소 준비 중...');
   console.log('');
-  ensureCloudflared().then(() => startTunnel(wifiUrl));
+  // PT_NO_TUNNEL=1 이면 외부 주소를 만들지 않는다 — 테스트용 서버가 매번 cloudflared 를 띄우고
+  // 고아로 남기던 문제 때문에 둔 스위치. 실사용에는 영향 없음.
+  if (process.env.PT_NO_TUNNEL === '1') console.log('  ③ 외부 접속: 꺼짐 (PT_NO_TUNNEL=1)');
+  else ensureCloudflared().then(() => startTunnel(wifiUrl));
 });
 
 // cloudflared.exe가 없으면 자동 다운로드 (gitignore라 clone 시 안 딸려옴 — 외부 접속을 항상 가능하게)
