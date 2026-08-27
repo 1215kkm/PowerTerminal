@@ -596,6 +596,52 @@ setInterval(() => {
   }
 }, 1500);
 
+/* 🩺 멈춘 하위 프로세스 자동 복구 (윈도우) — 실제 사고에서 나온 장치.
+   세션이 띄운 bash.exe 가 CPU 0.000초 · Suspended 로 태어나 아무도 깨우지 않은 채 남았고,
+   그 명령을 기다리던 Claude 는 끝나지 않았다. 세션은 겉보기에 '작업 중' 인데 요청은 큐에만 쌓인다.
+   → 작업 중인 세션이 있을 때만 훑고, 그 서명(스레드1 + Suspended + CPU 0)인 자손을 깨운다.
+   ⚠ 서버 코드에서 동기 실행은 금지 — 몇 초라도 멈추면 모든 세션이 함께 멈춘다. 반드시 spawn(비동기). */
+const STUCK_SCAN_MS = 30000;      // 훑는 주기 — 작업 중인 세션이 있을 때만
+const STUCK_MIN_AGE = 20;         // 이만큼 지난 프로세스만 (갓 태어난 정상 한순간을 건드리지 않게)
+let stuckScanning = false;
+function unstickScan() {
+  if (!IS_WIN || stuckScanning) return;
+  let anyBusy = false;
+  for (const [, p] of ptys) if (!p.dead && p.busy && !p.done) { anyBusy = true; break; }
+  if (!anyBusy) return;
+  const script = path.join(ROOT, 'unstick.ps1');
+  if (!fs.existsSync(script)) return;
+  stuckScanning = true;
+  let out = '';
+  const ps = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script,
+                   '-ServerPid', String(process.pid), '-MinAgeSec', String(STUCK_MIN_AGE)],
+                  { windowsHide: true });
+  const done = () => { stuckScanning = false; };
+  const bail = setTimeout(() => { try { ps.kill(); } catch (e) {} done(); }, 25000);   // 훑기 자체가 걸리면 포기
+  ps.stdout.on('data', d => { out += d.toString(); });
+  ps.on('error', () => { clearTimeout(bail); done(); });
+  ps.on('close', () => {
+    clearTimeout(bail); done();
+    for (const line of out.split(/\r?\n/)) {
+      const m = line.match(/^(RESUMED|KILLED)\s+(\d+)\s+(\S+)\s+(\d+)\s+(\d+)/);
+      if (!m) continue;
+      const [, how, cpid, name, top, age] = m;
+      // 그 갈래가 어느 세션인지 되짚어 그 세션 화면에만 알린다
+      let hit = null;
+      for (const [id, p] of ptys) if (p.proc && String(p.proc.pid) === top) { hit = [id, p]; break; }
+      const note = how === 'RESUMED'
+        ? '멈춰 있던 하위 프로세스(' + name + ' PID ' + cpid + ', ' + age + '초)를 깨웠습니다 — 이어서 진행됩니다.'
+        : '멈춘 하위 프로세스(' + name + ' PID ' + cpid + ')를 깨우지 못해 종료했습니다 — 그 명령만 실패로 끝납니다.';
+      console.log('  🩺 ' + note);
+      if (hit) {
+        const msg = JSON.stringify({ type: 'out', data: '\r\n\u001b[36m  [PT] ' + note + '\u001b[0m\r\n' });
+        for (const ws of hit[1].sockets) { try { ws.send(msg); } catch (e) {} }
+      }
+    }
+  });
+}
+setInterval(unstickScan, STUCK_SCAN_MS);
+
 // ---------- HTTP ----------
 const app = express();
 app.use(express.json({ limit: '30mb',      // 이미지 붙여넣기(base64) 수용
