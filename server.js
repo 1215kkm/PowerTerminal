@@ -603,6 +603,19 @@ app.use(express.json({ limit: '30mb',      // 이미지 붙여넣기(base64) 수
 
 function isLocal(sock) { return /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
 
+/* 💓 생존 신호 — 이 PC에서만. 런처(start.bat)가 "포트는 잡혀 있는데 진짜 살아 있나" 를 몇 초 안에 확인한다.
+   멈춘 서버는 포트를 계속 붙들고 있어서, 예전엔 런처가 '이미 실행 중' 이라며 브라우저만 열고 끝났다 —
+   사용자 눈에는 '아무 이유 없이 실행이 안 됨' 으로만 보였다. 어느 폴더의 사본이 포트를 쥐고 있는지도 같이 알려 준다. */
+app.get('/api/ping', (req, res) => {
+  if (!isLocal(req.socket)) return res.status(404).end();
+  res.setHeader('Cache-Control', 'no-store');
+  let ver = '';
+  try { ver = require('./package.json').version; } catch (e) {}
+  // 런처(배치 파일)용 한 줄 텍스트 — 배치에서 JSON 을 파싱하려면 따옴표 지옥이라 그냥 읽을 수 있게 준다
+  if (req.query.fmt === 'txt') return res.type('text').send('PT-OK  v' + ver + '   PID ' + process.pid + '   folder: ' + ROOT);
+  res.json({ ok: true, ver, pid: process.pid, root: ROOT, up: Math.round(process.uptime()) });
+});
+
 // ---------- 페어링(다른 PC 쉬운 접속) — 토큰 게이트보다 앞에 둬서 무토큰으로도 열림 ----------
 // 다른 PC: 이 주소만 치고 폰에 뜬 4자리 코드 입력 → 아래 POST가 cc_token 쿠키를 심어줌 → 정식 접속.
 app.get('/pair', (req, res) => {
