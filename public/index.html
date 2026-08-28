@@ -6518,6 +6518,15 @@ function flowCurve(p1, p2) {
 function flowDraw(rootId) {
   clearTimeout(flowHideT);
   flowMarkAnchors();
+  /* 📱 폰에서는 화살표를 그리지 않는다 — 세션이 세로로 쌓여 상단 탭들 사이를 곡선이 가로지르니
+     화면만 복잡해 보이고, 정작 손가락으로는 선을 집거나 끌 수도 없다(호버·드래그 전용 기능).
+     플로우 자체(인계·자동 전송)는 그대로 돈다 — 보이지만 않는 것. */
+  if (isMobileNow()) {
+    const s = document.getElementById('flowLayer');
+    if (s) { const g = s.querySelector('g'); if (g) g.innerHTML = ''; s.classList.remove('on'); }
+    flowPanelHide();
+    return;
+  }
   // 선은 상단 바 위에 그리되, 클릭을 받는 부분은 바 아래에서만 — 바의 버튼을 가리지 않게
   try {
     const hdr = document.querySelector('header');
