@@ -79,7 +79,8 @@ let lagBase = Date.now();
   const file = path.join(ROOT, 'freeze-watch.js');
   if (!fs.existsSync(file)) return;
   try {
-    const w = new Worker(file, { workerData: { sab, log: FREEZE_LOG, freezeMs: 4000 } });
+    const w = new Worker(file, { workerData: { sab, log: FREEZE_LOG, freezeMs: 4000,
+      pid: process.pid, doctor: IS_WIN ? path.join(ROOT, 'unfreeze.ps1') : '' } });
     w.unref();
   } catch (e) { return; }
   setInterval(() => {                       // 심장박동 + 이벤트 루프 지연 측정
