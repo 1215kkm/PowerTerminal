@@ -17,10 +17,37 @@ param([Parameter(Mandatory = $true)][int]$TargetPid)
 try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
 $ErrorActionPreference = 'SilentlyContinue'
 
+
+# 스레드가 멀쩡한데 멈췄다면 남는 용의자는 디스크다 — 굳은 순간의 디스크 상태와
+# 그때 돌고 있던 자식 프로세스(git·gh 등)를 같이 남긴다. (2026-08-29 03:04 사례:
+# 세워진 스레드가 하나도 없이 171초 멈춤 · 그때 탐색기가 파일 25만 개를 C:→D: 로 옮기는 중이었다)
+function Show-DiskLoad {
+  try {
+    $c = Get-Counter '\PhysicalDisk(*)\% Disk Time','\PhysicalDisk(*)\Avg. Disk Queue Length' -SampleInterval 1 -MaxSamples 2 -ErrorAction Stop
+    $c.CounterSamples | Where-Object { $_.InstanceName -ne '_total' } | Group-Object InstanceName | ForEach-Object {
+      $dt = ($_.Group | Where-Object Path -like '*disk time*' | Measure-Object CookedValue -Average).Average
+      $q  = ($_.Group | Where-Object Path -like '*queue*' | Measure-Object CookedValue -Average).Average
+      "     디스크 {0,-10} 사용률 {1,5:N0}% · 대기열 {2,5:N2}" -f $_.Name, $dt, $q
+    }
+  } catch { "     (디스크 상태 조회 실패)" }
+}
+function Show-Children {
+  try {
+    $kids = Get-CimInstance Win32_Process -Filter "ParentProcessId=$TargetPid"
+    if (-not $kids) { "     자식 프로세스: 없음"; return }
+    foreach ($k in $kids) {
+      $kp = Get-Process -Id $k.ProcessId -ErrorAction SilentlyContinue
+      $age = if ($kp) { [math]::Round(((Get-Date) - $kp.StartTime).TotalSeconds) } else { 0 }
+      "     자식: {0} (PID {1}) {2}초째" -f $k.Name, $k.ProcessId, $age
+    }
+  } catch {}
+}
 $p = Get-Process -Id $TargetPid
 if (-not $p) { "     (진찰: PID $TargetPid 프로세스가 없음)"; exit 0 }
 
 "     ── 스레드 상태 ──"
+Show-DiskLoad
+Show-Children
 $susp = @()
 foreach ($t in $p.Threads) {
   $line = "       스레드 {0,-6} {1,-10} {2,-14} CPU {3,7:N2}s" -f $t.Id, $t.ThreadState, $t.WaitReason, $t.TotalProcessorTime.TotalSeconds
