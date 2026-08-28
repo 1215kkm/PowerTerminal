@@ -46,6 +46,79 @@ const PORT = Number(process.env.PORT) || 7777;   // 포트 충돌 시 PORT 환�
 // → 새로 다운받아 폴더가 달라져도, 버전이 올라가도, 세션 세팅이 그대로 유지됨.
 const DATA_DIR = process.env.PT_DATA_DIR || path.join(os.homedir(), '.powerterminal');   // PT_DATA_DIR = 테스트용 격리 저장소
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+
+/* 🧹 세션들이 쓸 임시 폴더 — 만들어만 주는 게 아니라 PT가 치운다.
+   실제 사고(2026-08-28): 세션이 짠 검사 스크립트가 실행 때마다 C:\jv-shots\profNN 에 크롬 프로필을
+   새로 만들어 118개·7GB 가 쌓였고, C드라이브 여유가 3%까지 떨어져 컴퓨터 전체가 몇 초씩 멈췄다.
+   세션마다 조심시키는 건 한계가 있으니(세션은 계속 새로 생긴다) 자동으로 치워지는 자리를 준다.
+   PT_SCRATCH 로 모든 세션에 넘어가고, 7일 지난 것은 여기서 지운다. */
+const SCRATCH_DIR = path.join(os.tmpdir(), 'pt-scratch');
+try { fs.mkdirSync(SCRATCH_DIR, { recursive: true }); } catch (e) {}
+const SCRATCH_KEEP_MS = 7 * 24 * 3600 * 1000;
+function sweepScratch() {
+  let freed = 0, n = 0;
+  let list = [];
+  try { list = fs.readdirSync(SCRATCH_DIR); } catch (e) { return; }
+  for (const name of list) {
+    const p = path.join(SCRATCH_DIR, name);
+    try {
+      const st = fs.statSync(p);
+      if (Date.now() - st.mtimeMs < SCRATCH_KEEP_MS) continue;
+      const size = st.isDirectory() ? dirSize(p) : st.size;
+      fs.rmSync(p, { recursive: true, force: true });
+      freed += size; n++;
+    } catch (e) {}
+  }
+  if (n) console.log('  🧹 임시폴더 정리 — ' + n + '개 · ' + (freed / 1048576).toFixed(0) + 'MB (7일 지난 것)');
+}
+function dirSize(p) {
+  let t = 0;
+  try {
+    for (const e of fs.readdirSync(p, { withFileTypes: true })) {
+      const f = path.join(p, e.name);
+      try { t += e.isDirectory() ? dirSize(f) : fs.statSync(f).size; } catch (e2) {}
+    }
+  } catch (e) {}
+  return t;
+}
+
+/* 🖼 붙여넣은 이미지(.pt-images) 관리 — 지우는 사람이 없어 프로젝트마다 계속 쌓인다.
+   기준: 폴더당 200MB 를 넘으면 오래된 것부터 지워 200MB 로 맞춘다.
+   단 최근 7일 것은 용량과 무관하게 남긴다 — 방금 붙여넣은 그림을 AI 가 읽기 전에 지우면 대화가 깨진다.
+   조용히 사라지면 불안하니, 지운 만큼 그 세션 화면에 한 줄로 알린다. */
+const IMG_CAP = 200 * 1024 * 1024;
+const IMG_KEEP_MS = 7 * 24 * 3600 * 1000;
+function trimImages(sess) {
+  if (!sess || !sess.path) return;
+  const dir = path.join(sess.path, '.pt-images');
+  let files = [];
+  try {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!e.isFile()) continue;
+      try { const st = fs.statSync(path.join(dir, e.name)); files.push({ p: path.join(dir, e.name), t: st.mtimeMs, s: st.size }); } catch (e2) {}
+    }
+  } catch (e) { return; }                       // 폴더가 없으면 할 일 없음
+  let total = files.reduce((a, f) => a + f.s, 0);
+  if (total <= IMG_CAP) return;
+  files.sort((a, b) => a.t - b.t);              // 오래된 것부터
+  const cut = Date.now() - IMG_KEEP_MS;
+  let freed = 0, n = 0;
+  for (const f of files) {
+    if (total <= IMG_CAP) break;
+    if (f.t > cut) continue;                    // 최근 7일은 건드리지 않는다
+    try { fs.unlinkSync(f.p); total -= f.s; freed += f.s; n++; } catch (e) {}
+  }
+  if (!n) return;
+  const note = '.pt-images 정리 — 오래된 이미지 ' + n + '개(' + (freed / 1048576).toFixed(0) + 'MB) 삭제, 남은 용량 '
+             + (total / 1048576).toFixed(0) + 'MB';
+  console.log('  🖼 ' + note + '  (' + (sess.title || sess.path) + ')');
+  const p = ptys.get(sess.id);
+  if (p && p.sockets) {
+    const msg = JSON.stringify({ type: 'out', data: '\r\n\u001b[36m  [PT] ' + note + '\u001b[0m\r\n' });
+    for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
+  }
+}
+function trimAllImages() { for (const s of sessions) trimImages(s); }
 function dataFile(name) {
   const dest = path.join(DATA_DIR, name);
   if (!fs.existsSync(dest)) {                       // 예전 앱폴더에 있던 데이터가 있으면 1회 이전(복사)
@@ -215,6 +288,8 @@ function restoreFlowLinks(s) {
 // 이 기능이 생기기 전에 이어둔 화살표들은 지도에 한 번도 안 적혔다 — 켜질 때 지금 상태로 채운다.
 // 이게 없으면 기존 사용자는 "같이 열까요?" 를 영영 못 본다.
 for (const s of sessions) if (Array.isArray(s.flowTo) && s.flowTo.length) syncFlowLinks(s);
+setTimeout(() => { sweepScratch(); trimAllImages(); }, 8000);          // 부팅 직후 한 번 (시작을 늦추지 않게 8초 뒤)
+setInterval(() => { sweepScratch(); trimAllImages(); }, 6 * 3600 * 1000);
 
 // ---------- 🌿 worktree 격리 세션 ----------
 // 같은 폴더를 하나 더 여는 이유는 "다른 작업을 시키려고"뿐이다. 그런데 지금까진 작업 폴더가 그대로 같아서
@@ -508,7 +583,9 @@ function getPty(sess) {
                '\r\n    이 세션을 닫고 올바른 폴더로 다시 추가하세요.\x1b[0m\r\n';
     cwd = os.homedir();
   }
-  const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd, env: process.env };
+  const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd,
+                 // 세션이 임시물을 둘 곳 — 7일 뒤 PT가 알아서 치운다 (sweepScratch)
+                 env: Object.assign({}, process.env, { PT_SCRATCH: SCRATCH_DIR }) };
   let proc;
   try {
     if (IS_WIN) {
@@ -1771,6 +1848,7 @@ app.post('/api/sessions/:id/upload-image', (req, res) => {
     const fname = 'paste-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex') + '.' + ext;
     const full = path.join(dir, fname);
     fs.writeFileSync(full, Buffer.from(b64, 'base64'));
+    trimImages(s);                                // 넘치면 오래된 것부터 정리
     res.json({ ok: true, path: full });
   } catch (e) {
     res.json({ error: String((e && e.message) || e) });
