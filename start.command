@@ -4,6 +4,29 @@ cd "$(dirname "$0")" || exit 1
 
 openurl(){ command -v open >/dev/null 2>&1 && open "$1" || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$1"); }
 
+# 창이 스스로 닫혀도 이유가 남게 — 실행할 때마다 한 줄씩 쌓는다
+PTLOG="$HOME/.powerterminal/start.log"
+mkdir -p "$HOME/.powerterminal" 2>/dev/null
+log(){ printf '%s\n' "$1" >>"$PTLOG" 2>/dev/null; }
+log ""
+log "==== $(date '+%Y-%m-%d %H:%M:%S')  start from $PWD"
+
+# 다운로드 폴더에서 돌리면 사본이 쌓인다 — 맥에서는 "PowerTerminal 2", "PowerTerminal 3" 이 되고
+# 브라우저가 받은 파일이라 격리(quarantine) 딱지도 붙는다. 어느 사본이 도는지 헷갈리는 게 진짜 문제.
+case "$PWD/" in
+  "$HOME/Downloads/"*)
+    echo
+    echo "  [!] 지금 다운로드 폴더에서 실행 중입니다:"
+    echo "      $PWD"
+    echo "      받을 때마다 사본이 쌓여(PowerTerminal 2, 3 …) 어느 게 도는지 헷갈리고,"
+    echo "      정리 도구가 지우기도 합니다. 한 번만 옮겨 두세요:"
+    echo "        mkdir -p ~/Applications && mv \"$PWD\" ~/Applications/PowerTerminal"
+    echo "      세션·메모·설정은 ~/.powerterminal 에 따로 있어 옮겨도 그대로입니다."
+    log "  [!] running from Downloads"
+    echo
+    ;;
+esac
+
 # This script runs under #!/bin/bash, non-interactively, so it reads no ~/.zshrc or ~/.bash_profile — the
 # PATH additions those files carry are simply absent. Claude Code installed into ~/.local/bin was therefore
 # invisible here and the launcher asked to install it on every single start, and Homebrew's own bin can be
@@ -147,11 +170,51 @@ while true; do
 
   # 이미 7777에서 실행 중이면 두 번째로 켜지 말고(포트 충돌) 브라우저만 열고 끝
   if command -v lsof >/dev/null 2>&1 && lsof -iTCP:7777 -sTCP:LISTEN >/dev/null 2>&1; then
-    if [ "$FIRST_RUN" = "1" ]; then
-      echo "  PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다."
-      launch_ui
+    # 포트는 잡혀 있다. 멀쩡한 PowerTerminal 인가, 굳은 채 포트만 붙들고 있는 것인가?
+    # 굳은 서버는 아무 대답도 못 하는데, 예전에는 그것도 "이미 실행 중" 으로 보고 브라우저만 열어
+    # 죽은 화면을 띄우고 끝났다 — 밖에서 보면 "그냥 안 켜진다" 로만 보인다. 서버에게 직접 물어본다.
+    PING=$(curl -s -m 5 "http://127.0.0.1:7777/api/ping?fmt=txt" 2>/dev/null)
+    case "$PING" in
+      PT-OK*)
+        if [ "$FIRST_RUN" = "1" ]; then
+          echo "  PowerTerminal이 이미 실행 중입니다 — 브라우저만 엽니다."
+          echo "     $PING"
+          log "  already running and healthy"
+          launch_ui
+        fi
+        break
+        ;;
+    esac
+    HOLDER=$(lsof -iTCP:7777 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    echo
+    echo "  [!] 7777 포트는 잡혀 있는데 아무 응답이 없습니다."
+    echo "      PowerTerminal이 멈췄거나, 다른 프로그램이 그 포트를 쓰고 있습니다."
+    echo "      (그래서 실행해도 아무 일도 안 일어나는 것처럼 보였습니다.)"
+    echo
+    if [ -n "$HOLDER" ]; then
+      echo "      붙들고 있는 것: $(ps -p "$HOLDER" -o comm= 2>/dev/null)  (PID $HOLDER)"
+      log "  port busy, no answer, holder PID $HOLDER"
+      echo
+      read -p "  강제 종료하고 새로 시작할까요? (y/N): " k
+      case "$k" in
+        y|Y)
+          kill -9 "$HOLDER" 2>/dev/null
+          log "  killed PID $HOLDER"
+          sleep 2
+          echo "  정리했습니다. 새로 시작합니다..."
+          ;;
+        *)
+          echo "      그대로 두었습니다. 기록: $PTLOG"
+          read -p "  Press Enter to close..." _
+          exit 0
+          ;;
+      esac
+    else
+      echo "      어떤 프로세스인지 확인하지 못했습니다. 다른 포트로 띄우려면:  PORT=7788 node server.js"
+      log "  port busy, holder unknown"
+      read -p "  Press Enter to close..." _
+      exit 0
     fi
-    break
   fi
 
   # 첫 실행에서만 브라우저를 새로 연다 — 재시작(업데이트) 후에는 기존 탭이 스스로 새로고침됨
@@ -177,7 +240,9 @@ while true; do
   fi
   if [ "$EC" != "0" ]; then
     echo
-    echo "  === Server stopped unexpectedly (exit $EC) - see the message above. ==="
+    echo "  === 서버가 멈췄습니다 (종료 코드 $EC) — 위 메시지에 이유가 있습니다. ==="
+    echo "  === 이번 실행 기록: $PTLOG ==="
+    log "  server exited with code $EC"
     read -p "  Press Enter to close..." _
   fi
   break
