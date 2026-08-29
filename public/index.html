@@ -10300,7 +10300,9 @@ function openZoom(id) {
   zoomedId = id;
   // 커진 영역에 맞춰 여러 번 재fit (모바일 레이아웃 정착 대비)
   [60, 260, 700].forEach(t => setTimeout(() => fitPane(p), t));
-  try { p.term.focus(); } catch (e) {}
+  /* 📱 폰에서는 여기서 터미널에 포커스를 주지 않는다 — 포커스가 들어가는 순간 자판이 올라와
+     화면 절반을 덮어버린다. 크게 보려고 누른 것과 정반대다. 입력할 땐 터미널을 한 번 탭하면 된다. */
+  if (!isMobileNow()) { try { p.term.focus(); } catch (e) {} }
 }
 function closeZoom() {
   const modal = document.getElementById('zoomModal');
