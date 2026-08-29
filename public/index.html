@@ -6201,7 +6201,7 @@ function flowMateKeys(startKey) {
 /* 세션을 연 뒤 — 이어져 있던 폴더 중 아직 안 열린 게 있으면 같이 열지 묻는다.
    paths = 방금 연 세션들의 경로. 열 때는 화살표를 따라간 차례대로 오른쪽에 이어 붙인다. */
 async function offerFlowMates(paths, skipPaths) {
-  if (isMobile || !IS_MAIN) return;
+  if (!IS_MAIN) return;   // 폰에서도 물어본다 — 예전엔 폰이면 조용히 건너뛰어 "이어져 있는데 왜 안 물어보지" 가 됐다
   const skip = new Set((skipPaths || []).map(fkey));   // 선택창에서 방금 '안 열기'로 고른 건 다시 묻지 않는다
   await flowLinksLoad(true);
   if (!flowLinkMap || !Object.keys(flowLinkMap).length) return;
@@ -6217,7 +6217,9 @@ async function offerFlowMates(paths, skipPaths) {
   let known = [];
   try { known = await api('GET', '/api/known-projects'); } catch (e) {}
   const byKey = new Map((Array.isArray(known) ? known : []).map(k => [fkey(k.path), k]));
-  const list = want.map(k => byKey.get(k)).filter(Boolean);
+  /* 최근목록에 없다고 조용히 빼지 않는다 — 그러면 "이어져 있는데 아무 말도 없는" 상태가 된다.
+     제목·AI 를 모르면 폴더 이름과 기본값으로 물어본다. 폴더가 이미 없으면 서버가 거부하고 그때 넘어간다. */
+  const list = want.map(k => byKey.get(k) || { path: k, title: k.split('/').filter(Boolean).pop(), agent: 'claude' });
   if (!list.length) return;
   const names = list.map(k => k.title || k.name).join(', ');
   if (!confirm((T.flowOpenMates || '플로우로 이어진 세션도 같이 열까요?') + '\n\n' + names)) return;

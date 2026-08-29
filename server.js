@@ -288,6 +288,23 @@ function restoreFlowLinks(s) {
 // 이 기능이 생기기 전에 이어둔 화살표들은 지도에 한 번도 안 적혔다 — 켜질 때 지금 상태로 채운다.
 // 이게 없으면 기존 사용자는 "같이 열까요?" 를 영영 못 본다.
 for (const s of sessions) if (Array.isArray(s.flowTo) && s.flowTo.length) syncFlowLinks(s);
+
+/* 🧹 사라진 폴더로 이어진 화살표 정리 — 이게 남아 있으면 "이어진 세션이 있다" 고 판단해
+   존재하지도 않는 폴더를 같이 열지 물어보게 되고(열 수도 없다), 무리 판정도 어긋난다.
+   실제로 지운 worktree 5개가 계속 한 무리로 남아 있었다. 부팅 때 한 번만 훑는다. */
+function pruneDeadFlowLinks() {
+  const alive = p => { try { return fs.existsSync(p.split('/').join(path.sep)); } catch (e) { return false; } };
+  let removed = 0;
+  for (const from of Object.keys(flowLinks)) {
+    if (!alive(from)) { delete flowLinks[from]; removed++; continue; }
+    for (const to of Object.keys(flowLinks[from])) {
+      if (!alive(to)) { delete flowLinks[from][to]; removed++; }
+    }
+    if (!Object.keys(flowLinks[from]).length) delete flowLinks[from];
+  }
+  if (removed) { saveFlowLinks(); console.log('  🧹 없어진 폴더로 향하던 플로우 연결 ' + removed + '개 정리'); }
+}
+pruneDeadFlowLinks();
 setTimeout(() => { sweepScratch(); trimAllImages(); }, 8000);          // 부팅 직후 한 번 (시작을 늦추지 않게 8초 뒤)
 setInterval(() => { sweepScratch(); trimAllImages(); }, 6 * 3600 * 1000);
 
