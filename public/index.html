@@ -1299,7 +1299,8 @@
     .mm-cell .mm-title::after { content: ' ⋯'; color: var(--sky); opacity: 0; }
     .mm-cell.busy .mm-title::after { opacity: 1; }
     /* 🌿 같은 레포에서 갈라진 탭 묶음 — 붙여 놓고 초록 왼쪽선으로 한 뿌리임을 표시 */
-    #minimap { position: relative; }
+    /* ⚠ 여기에 #minimap{position:relative} 를 두면 안 된다 — 위의 sticky 를 덮어써서
+       폰에서 탭줄이 스크롤에 안 붙는다. sticky 자체가 위치지정 요소라 #mmFlow(absolute) 의 기준이 된다. */
     .mm-cell.grp { background: #2f4a66; }
     .mm-cell.grp-first { border-left: 3px solid #22c55e; }
     /* 📱 화살표는 탭줄에만 — 세션창 위에 그으면 터미널을 가린다 */
