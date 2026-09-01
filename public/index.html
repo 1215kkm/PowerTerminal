@@ -317,6 +317,12 @@
   /* 💬 자주 쓰는 요청 단어 버튼 줄 — 요청칸 바로 위. 등록된 단어가 있을 때만 나타난다 */
   /* AI 가 종료돼 셸 프롬프트만 남은 세션에만 뜨는 줄 — 눈에 띄되 입력칸을 밀어내지 않게 한 줄 */
   /* AI 가 종료돼 셸만 남은 세션에만 뜨는 줄 — 이 상태에선 입력이 어디에도 안 가므로 크게 눈에 띄게 */
+  /* 🗂 대화가 백그라운드 작업 목록으로 넘어갔을 때 뜨는 안내 — 이 화면에선 입력이 대화로 안 간다 */
+  .quick .qBg { display: flex; align-items: center; gap: 8px; padding: 0 0 6px; }
+  .quick .qBgMsg { flex: 1 1 auto; font-size: 12px; font-weight: 700; color: #fbbf24; line-height: 1.4; }
+  .quick .qBg button { flex: 0 0 auto; padding: 8px 12px; font-size: 13px; font-weight: 800; border-radius: 9px;
+                       border: 1px solid #f59e0b; background: #78350f; color: #fde68a; cursor: pointer; }
+  .quick .qBg button:hover { filter: brightness(1.15); }
   .quick .qResume { padding: 0 0 6px; }
   .quick .qResume button { width: 100%; padding: 12px 12px; font-size: 15px; font-weight: 800; border-radius: 10px;
                            border: 0; color: #fff; cursor: pointer; font-family: inherit; letter-spacing: .2px;
@@ -2112,7 +2118,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
-    qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
+    qBg: "This conversation moved to Claude Code's background task list — what you send goes to \"new task\", not to the conversation.", qBgBtn: "↩ Back to the conversation", qBgT: "Sends ESC to leave the task list and return to the conversation. Your background tasks keep running.", qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
     flowDidHead: "What the previous session was asked to do:",
     flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
@@ -2176,7 +2182,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
-    qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
+    qBg: "이 대화가 백그라운드 작업 목록으로 넘어갔습니다 — 지금 보내면 대화가 아니라 \"새 작업\" 칸으로 들어갑니다.", qBgBtn: "↩ 대화로 돌아가기", qBgT: "ESC 를 보내 작업 목록에서 빠져나와 대화로 돌아갑니다. 돌고 있는 백그라운드 작업은 그대로 유지됩니다.", qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
     flowDidHead: "앞 세션이 받은 요청 (= 방금 한 일):",
     flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
@@ -4531,6 +4537,7 @@ function buildPane(sess, idx) {
       <div class="qWho"></div>
       <!-- 💬 자주 쓰는 요청 단어 — 등록된 게 하나도 없으면 이 줄 자체가 안 보인다 -->
       <!-- ▶ AI 가 빠져나가 셸만 남았을 때만 나오는 줄. 누르면 대화를 이어서 다시 띄운다 -->
+      <div class="qBg" style="display:none"><span class="qBgMsg"></span><button type="button"></button></div>
       <div class="qResume" style="display:none"><button type="button"></button></div>
       <div class="qPhrases" style="display:none"></div>
       <div class="qRow">
@@ -5360,8 +5367,11 @@ function buildPane(sess, idx) {
     }
     // 직접 타이핑한 줄바꿈은 ESC+CR(제출 없는 개행)로 변환 — 여러 줄이 한 요청으로 감
     val = val.replace(/\r?\n/g, '\x1b\r');
-    wsSend(val);                                  // 큐 경유 — 재접속 중이면 열릴 때 보냄
-    setTimeout(() => wsSend('\r'), 80);
+    const deliver = () => { wsSend(val); setTimeout(() => wsSend(String.fromCharCode(13)), 80); };   // 큐 경유 — 재접속 중이면 열릴 때
+    /* 🗂 백그라운드 작업 목록 화면이면 ESC 로 대화로 돌아온 뒤 보낸다.
+       안 그러면 이 글이 "새 작업 설명" 칸에 들어가 대화에는 아무것도 안 간다.
+       (평소에는 절대 ESC 를 보내지 않는다 — 대화 중 ESC 는 하던 작업을 끊는다) */
+    if (bgTaskScreen()) { wsSend('\x1b'); setTimeout(deliver, 260); } else deliver();
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
@@ -5879,6 +5889,30 @@ function buildPane(sess, idx) {
       term.focus();
     };
   }
+  /* 🗂 Claude Code 가 '백그라운드 작업 목록' 화면으로 넘어갔는가.
+     그 화면에서는 아래 입력칸이 대화창이 아니라 "새 작업 설명" 칸이라, 요청을 보내도
+     대화에는 안 들어가고 아무 반응이 없는 것처럼 보인다 (실제로 겪음, 2026-08-30).
+     스크롤백이 아니라 '지금 보이는 화면'만 본다 — 예전 화면이 스크롤백에 남아 있어서. */
+  const bgTaskScreen = () => {
+    if ((sess.agent || 'claude') !== 'claude') return false;
+    try {
+      const buf = term.buffer.active, tail = [];
+      for (let y = buf.baseY; y < buf.baseY + term.rows; y++) {
+        const ln = buf.getLine(y); if (ln) tail.push(ln.translateToString(true));
+      }
+      return /conversation moved to the background|describe a task for a new session/i.test(tail.join('\n'));
+    } catch (e) { return false; }
+  };
+  const bgRow = el.querySelector('.qBg'), bgBtn = bgRow && bgRow.querySelector('button');
+  if (bgBtn) {
+    bgRow.querySelector('.qBgMsg').textContent = T.qBg || '이 대화가 백그라운드 작업 목록으로 넘어갔습니다.';
+    bgBtn.textContent = T.qBgBtn || '↩ 대화로 돌아가기';
+    bgBtn.title = T.qBgT || '';
+    bgBtn.onclick = () => {
+      wsSend('\x1b');                                  // ESC = 목록에서 나와 대화로 (작업은 계속 돈다)
+      setTimeout(() => { bgRow.style.display = bgTaskScreen() ? '' : 'none'; }, 400);
+    };
+  }
   const shellOnly = () => {                       // 지금 화면이 셸 프롬프트뿐인가 (= AI 가 없다)
     const ag = sess.agent || 'claude';
     if (ag !== 'claude' && ag !== 'codex') return false;        // 셸·커스텀 세션은 프롬프트가 정상 화면이다
@@ -5899,7 +5933,11 @@ function buildPane(sess, idx) {
     if (el.classList.contains('busy')) { resumeRow.style.display = 'none'; return; }   // 작업 중이면 살아 있는 것
     resumeRow.style.display = shellOnly() ? '' : 'none';
   };
-  const resumeTimer = setInterval(watchResume, 2500);
+  const watchBg = () => {
+    if (!bgRow || !el.isConnected) return;
+    bgRow.style.display = bgTaskScreen() ? '' : 'none';
+  };
+  const resumeTimer = setInterval(() => { watchResume(); watchBg(); }, 2500);
   el.addEventListener('ptclose', () => clearInterval(resumeTimer));
 
   // 🕒 지난번에 끝낸 시각 — 브라우저에 적어둔 값을 먼저 칠하고, 서버 요청내역으로 한 번 더 맞춘다
