@@ -4281,14 +4281,17 @@ const grid = document.getElementById('grid');
 const addDlg = document.getElementById('addDlg');
 // 모델 드롭다운 표시 이름 — 값(alias)은 claude가 항상 최신으로 자동 연결하고, 숫자는 '지금 최신 버전'을 보여줄 뿐.
 // 새 버전(예: Opus 4.9)이 나오면 여기 한 줄만 바꾸면 세션 헤더·[+세션] 창 둘 다 반영됨. (2026-07 기준)
-const MODEL_LABELS = { opus: 'Opus 5', sonnet: 'Sonnet 5', haiku: 'Haiku 4.5', fable: 'Fable 5', opusplan: 'Opus Plan (5)' };
+const MODEL_LABELS = { opus: 'Opus 5', sonnet: 'Sonnet 5', haiku: 'Haiku 4.5', fable: 'Fable 5.1', opusplan: 'Opus Plan (5)' };
 // 📌 지난 버전 고정 — 위의 alias(opus/sonnet/…)는 늘 '지금 최신'으로 붙기 때문에, 예전 버전을 그대로 쓰려면
 //    정식 모델 ID 를 직접 넘겨야 한다. 계정 등급에 따라 못 쓰는 것도 있어(그때는 세션이 그 모델로 안 뜸)
 //    기본 목록과 구분되게 별도 그룹으로 보여준다.
 const MODEL_PINNED = [
   ['claude-opus-4-8', 'Opus 4.8'], ['claude-opus-4-7', 'Opus 4.7'], ['claude-opus-4-6', 'Opus 4.6'],
   ['claude-opus-4-5', 'Opus 4.5'], ['claude-opus-4-1', 'Opus 4.1'],
-  ['claude-sonnet-4-6', 'Sonnet 4.6'], ['claude-sonnet-4-5', 'Sonnet 4.5']
+  ['claude-sonnet-4-6', 'Sonnet 4.6'], ['claude-sonnet-4-5', 'Sonnet 4.5'],
+  // Fable 은 5.1 이 나왔다 — alias 'fable' 은 최신(5.1)으로 붙으므로, 버전을 못 박고 싶을 때를 위해 둘 다 둔다.
+  // (설치된 Claude Code v2.1.258 바이너리의 모델 표에서 claude-fable-5-1 / claude-fable-5 확인)
+  ['claude-fable-5-1', 'Fable 5.1'], ['claude-fable-5', 'Fable 5']
 ];
 // 세션 헤더와 [+세션] 창이 같은 목록을 쓰도록 옵션을 한 곳에서 만든다.
 function modelOptionsHtml(cur) {
