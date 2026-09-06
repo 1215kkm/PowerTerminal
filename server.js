@@ -527,18 +527,21 @@ function agentCommand(sess, fresh, resume) {
 }
 function agentCommandRaw(sess, fresh, resume) {
   const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag();
+  /* GPT(codex) 도 모델을 고를 수 있다. codex 는 최상위 옵션으로 `--model <id>` 를 받고,
+     `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다. */
+  const gpt = (sess.agent === 'codex' && sess.model && sess.model !== 'default') ? ' --model ' + sess.model : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {
       // GPT 세션 = OpenAI Codex CLI 실행. 미설치면 자동 설치 후 곧바로 실행 → 설치되면 바로 쓸 수 있게
       // (예전엔 안내만 하고 세션이 죽어, 딴 AI 갔다 GPT로 다시 와야 떴다). npm 없으면 Node.js 안내만.
       case 'codex':  return 'if (Get-Command codex -ErrorAction SilentlyContinue) { ' +
-                            (fresh ? 'codex' : 'codex resume --last; if ($LASTEXITCODE -ne 0) { codex }') + ' } ' +
+                            (fresh ? 'codex' + gpt : 'codex' + gpt + ' resume --last; if ($LASTEXITCODE -ne 0) { codex' + gpt + ' }') + ' } ' +
                             'elseif (Get-Command npm -ErrorAction SilentlyContinue) { ' +
                               'Write-Host ""; Write-Host "  GPT(codex) CLI 설치 중… 잠시만요 / Installing GPT(codex) CLI, please wait…" -ForegroundColor Cyan; ' +
                               'npm install -g "@openai/codex"; ' +
                               '$env:Path = [Environment]::GetEnvironmentVariable("Path","User") + ";" + [Environment]::GetEnvironmentVariable("Path","Machine"); ' +   // 방금 깔린 전역 bin을 PATH에 반영
-                              'if (Get-Command codex -ErrorAction SilentlyContinue) { Write-Host "  설치 완료 — 시작합니다 / Installed, starting…" -ForegroundColor Green; codex } ' +
+                              'if (Get-Command codex -ErrorAction SilentlyContinue) { Write-Host "  설치 완료 — 시작합니다 / Installed, starting…" -ForegroundColor Green; codex' + gpt + ' } ' +
                               'else { Write-Host "  설치 실패 / Install failed — 수동: npm install -g @openai/codex" -ForegroundColor Yellow } } ' +
                             'else { Write-Host ""; Write-Host "  Node.js(npm)가 필요합니다 / Node.js (npm) is required first" -ForegroundColor Yellow; ' +
                             'Write-Host "  Node 설치 후 / after Node:  npm install -g @openai/codex" -ForegroundColor Cyan }';
@@ -550,9 +553,9 @@ function agentCommandRaw(sess, fresh, resume) {
   }
   // Mac/Linux (POSIX 셸)
   switch (sess.agent) {
-    case 'codex':  return 'if command -v codex >/dev/null 2>&1; then ' + (fresh ? 'codex' : 'codex resume --last || codex') + '; ' +
+    case 'codex':  return 'if command -v codex >/dev/null 2>&1; then ' + (fresh ? 'codex' + gpt : 'codex' + gpt + ' resume --last || codex' + gpt) + '; ' +
                           'elif command -v npm >/dev/null 2>&1; then echo ""; echo "  GPT(codex) CLI 설치 중… / Installing GPT(codex) CLI…"; ' +
-                          'npm install -g @openai/codex && command -v codex >/dev/null 2>&1 && { echo "  시작합니다 / starting…"; codex; } || echo "  설치 실패 / install failed"; ' +
+                          'npm install -g @openai/codex && command -v codex >/dev/null 2>&1 && { echo "  시작합니다 / starting…"; codex' + gpt + '; } || echo "  설치 실패 / install failed"; ' +
                           'else echo ""; echo "  Node.js(npm)가 필요합니다 / Node.js (npm) is required first"; echo "  npm install -g @openai/codex"; fi';
     case 'shell':  return 'echo "shell session"';
     case 'custom': return sess.cmd || '';

@@ -4294,6 +4294,25 @@ const MODEL_PINNED = [
   ['claude-fable-5-1', 'Fable 5.1'], ['claude-fable-5', 'Fable 5']
 ];
 // 세션 헤더와 [+세션] 창이 같은 목록을 쓰도록 옵션을 한 곳에서 만든다.
+/* 🤖 GPT(codex) 모델 — codex CLI 는 `--model <id>` 로 고른다.
+   목록은 설치된 codex(v0.153.4) 안의 bundled models.json 에서 읽은 것 (이름을 지어내지 않았다).
+   'default'(자동) = 인자를 안 주는 것 → ~/.codex/config.toml 의 model 을 그대로 따른다. */
+const GPT_MODELS = [
+  ['gpt-6-astra', 'GPT-6 Astra'],
+  ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'],
+  ['gpt-5.5', 'GPT-5.5'], ['gpt-5.4', 'GPT-5.4']
+];
+function gptOptionsHtml(cur) {
+  const sel = v => (cur === v ? ' selected' : '');
+  let h = '<option value="default"' + sel('default') + '>' + esc(T.mDefault || 'Auto') + '</option>';
+  h += GPT_MODELS.map(m => '<option value="' + m[0] + '"' + sel(m[0]) + '>' + esc(m[1]) + '</option>').join('');
+  // 저장된 값이 목록에 없으면(직접 지정했거나 새 모델) 그 줄도 넣어 선택이 풀리지 않게 한다
+  if (cur && cur !== 'default' && !GPT_MODELS.some(m => m[0] === cur))
+    h += '<option value="' + esc(cur) + '" selected>' + esc(cur) + '</option>';
+  return h;
+}
+// AI 종류에 맞는 목록 — 세션 헤더와 [＋세션] 창이 이 한 곳을 같이 쓴다
+function modelOptionsFor(agent, cur) { return agent === 'codex' ? gptOptionsHtml(cur) : modelOptionsHtml(cur); }
 function modelOptionsHtml(cur) {
   const sel = v => (cur === v ? ' selected' : '');
   const main = [['default', T.mDefault], ['opus', MODEL_LABELS.opus], ['sonnet', MODEL_LABELS.sonnet],
@@ -4306,7 +4325,16 @@ function modelOptionsHtml(cur) {
     h += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`;
   return h + '</optgroup>';
 }
-document.getElementById('addModel').innerHTML = modelOptionsHtml('default');   // [+세션] 창도 같은 목록으로
+/* [＋세션] 에서 AI 를 GPT 로 바꾸면 모델 목록도 GPT 것으로 갈아 끼운다 —
+   예전엔 Claude 목록이 그대로 남아 GPT 세션에 opus/sonnet 이 붙었다. */
+function syncAddModelList() {
+  const ag = document.getElementById('addAgent'), md = document.getElementById('addModel');
+  if (!ag || !md) return;
+  const keep = md.value;
+  md.innerHTML = modelOptionsFor(ag.value, keep);
+  if (md.selectedIndex < 0) md.value = 'default';
+}
+syncAddModelList();   // [+세션] 창도 같은 목록으로
 const panes = new Map();   // id -> {el, term, fit, ws, sess}
 // 마지막으로 만졌던(커서가 있던) 세션 id — 헤더 </> 코드편집기가 이 세션을 골라 연다.
 // 없거나 이미 닫힌 세션이면 화면 맨 위 세션으로 폴백.
@@ -4489,8 +4517,9 @@ function buildPane(sess, idx) {
   const aiBadge = `<select class="aiSel" title="${T.aiPick || 'Change the AI for this session'}" style="background:${ai.color}">${AI_LIST.map(a => `<option value="${a[0]}" ${a[0] === aiCur ? 'selected' : ''}>${a[1]}</option>`).join('')}</select>`;
   // 값은 alias(opus/sonnet/…) 그대로 — claude가 항상 최신 버전으로 자동 연결. 라벨의 숫자는 '지금 최신'을 보여줄 뿐이라
   // 새 버전이 나오면 여기 MODEL_LABELS 한 곳만 갱신하면 된다. (2026-07 기준)
-  const modelSel = isClaude ? `<select class="modelSel" title="${T.modelTip}">
-      ${modelOptionsHtml(sess.model || 'default')}
+  // GPT(codex) 세션도 모델을 고른다 — 목록만 그 AI 것으로 바뀐다
+  const modelSel = (isClaude || aiCur === 'codex') ? `<select class="modelSel" title="${T.modelTip}">
+      ${modelOptionsFor(aiCur, sess.model || 'default')}
     </select>` : '';
   el.innerHTML = `
     <div class="pane-head" draggable="true">
@@ -8078,12 +8107,14 @@ async function ghLogin() {
 }
 // 세션추가 창: AI 종류에 따라 모델 선택 표시(클로드만 의미 있음), 추가 완료 확인글 표시/숨김
 function onAddAgentChange() {
-  const el = document.getElementById('addModel');
-  if (el) el.style.display = document.getElementById('addAgent').value === 'claude' ? '' : 'none';
+  // Claude 와 GPT 는 모델을 고를 수 있다 — 목록도 그 AI 것으로 갈아 끼운다
+  const el = document.getElementById('addModel'), ag = document.getElementById('addAgent').value;
+  if (el) el.style.display = (ag === 'claude' || ag === 'codex') ? '' : 'none';
+  syncAddModelList();
 }
 function curAddModel() {
-  return document.getElementById('addAgent').value === 'claude'
-    ? (document.getElementById('addModel').value || 'default') : 'default';
+  const ag = document.getElementById('addAgent').value;
+  return (ag === 'claude' || ag === 'codex') ? (document.getElementById('addModel').value || 'default') : 'default';
 }
 function showAddMsg(name) {
   const m = document.getElementById('addMsg'); if (!m) return;
