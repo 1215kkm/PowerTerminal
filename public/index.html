@@ -1375,6 +1375,7 @@
     <option value="hi" data-short="HI" data-full="हिन्दी">🌐 हिन्दी</option>
   </select>
   <button id="btnQuit" onclick="quitAll()" data-i18n-title="quitBtn" title="Quit — shut down the server" style="color:#ef4444"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></button>
+  <button onclick="window.open('/scheduler.html', '_blank', 'noopener')" title="세션별 시각·반복·한도 초기화 예약">⏱ 자동 실행</button>
   <button id="btnAdd" class="primary" onclick="openAdd()"><span class="plusBig">＋</span><span data-i18n="addSession">Session</span></button>
   </span>
 </header>
@@ -11986,5 +11987,6 @@ applyStatic();
   bootReady = true;
 })();
 </script>
+<script src="scheduler-banner.js"></script>
 </body>
 </html>

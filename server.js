@@ -635,6 +635,7 @@ function getPty(sess) {
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
+    scheduler.observe(sess.id, d);
     if (isClaude) {
       // Claude가 작업 중일 때 그리는 표시로 작업중/완료 판별 (사용량 정지 중 잔출력에 안 흔들리게).
       // 좁은 분할·폰 화면에선 하단 상태바가 잘려 'esc to interrupt'가 버퍼에 안 남음(v1.10.2까지 오완료의 원인).
@@ -883,6 +884,9 @@ app.use(express.static(path.join(ROOT, 'public')));
 // QR 라이브러리 내장 서빙 (CDN 의존 제거 — 오프라인/사내망에서도 동작)
 app.get('/vendor/qrcode.js', (req, res) =>
   res.sendFile(path.join(ROOT, 'node_modules', 'qrcode-generator', 'dist', 'qrcode.js')));
+
+const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, sessions: () => sessions, ptys, notify: broadcastStatus });
+scheduler.install(app);
 
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {
@@ -2959,6 +2963,7 @@ wss.on('connection', (ws, req) => {
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
+      scheduler.input(id, m.data);
       p.proc.write(m.data);
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
