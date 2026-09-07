@@ -657,6 +657,15 @@ function getPty(sess) {
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
       }
+      /* 🔓 codex(GPT) 는 폴더마다 처음 한 번 자체 신뢰 확인창을 띄운다 — Claude 신뢰와는 별개 저장소라,
+         이 폴더를 Claude 로는 이미 써 봤어도 codex 로 처음 켜면 또 뜬다. PT 인라인 스크롤 화면에서는
+         평범한 문장처럼 보여 눈에 잘 안 띄고, 그 사이 사용자가 보낸 진짜 요청이 이 메뉴의 숫자 선택으로
+         잘못 들어가 "요청이 안 먹힌다" 가 된다(실측: "1+1=?" 의 앞 "1" 이 메뉴 1번을 골라버림).
+         PT 로 AI 를 codex 로 바꾼 것 자체가 이 폴더를 codex 에 맡기겠다는 뜻이니, 대신 답해 준다. */
+      if (!p._codexTrustDone && /Do you trust the contents of this directory\?/.test(p.buffer)) {
+        p._codexTrustDone = true;
+        setTimeout(() => { try { proc.write('1\r'); } catch (e) {} }, 300);
+      }
     } else {
       const wasIdle = !p.busy || p.done;
       p.busy = true;
@@ -1817,6 +1826,10 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (typeof req.body.agent === 'string') {
     s.agent = req.body.agent;
     if (typeof req.body.cmd === 'string') s.cmd = req.body.cmd;
+    // 사람이 고른 재시작이지 서버가 꺼졌다 살아난 게 아니다 — resumeOnStart 가 남아 있으면
+    // 새로 뜬 세션에 '이전 작업을 이어서 하라'는 문구가 실제 메시지로 자동 제출돼 버린다(실측:
+    // 모델/AI 를 바꿨을 뿐인데 엉뚱한 응답이 하나 더 온다). 의도적 전환에서는 항상 끈다.
+    s.resumeOnStart = false;
     saveSessions();
     syncRecent(s);
     const p = ptys.get(s.id);
@@ -1837,11 +1850,14 @@ app.patch('/api/sessions/:id', (req, res) => {
   }
   if (typeof req.body.model === 'string') {
     s.model = req.body.model;
+    s.resumeOnStart = false;   // 위 agent 분기와 같은 이유 — 사람이 고른 재시작에 이어하기 문구가 끼면 안 된다
     saveSessions();
     syncRecent(s);
     // 실행 중이면 세션을 새 모델로 재시작 (실행 중 /model 은 '새 세션 기본값'만 바꿔 현재 세션은 안 바뀜)
+    // GPT(codex) 도 --model 을 받으므로 여기서 같이 재시작해야 한다 — 예전엔 claude 만 재시작해서,
+    // GPT 세션에서 모델을 골라도 값만 저장되고 지금 떠 있는 프로세스는 그대로였다.
     const p = ptys.get(s.id);
-    if (p && !p.dead && (s.agent || 'claude') === 'claude') {
+    if (p && !p.dead && ((s.agent || 'claude') === 'claude' || s.agent === 'codex')) {
       try { p.proc.kill(); } catch (e) {}
       ptys.delete(s.id);
       for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }   // 클라이언트가 자동 재접속 → 새 모델로 새 PTY 생성
