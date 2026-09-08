@@ -18,24 +18,24 @@
           const title = document.createElement('strong'), status = document.createElement('div'), actions = document.createElement('div'), note = document.createElement('div'); actions.className = 'pt-limit-actions'; note.className = 'pt-limit-note';
           title.textContent = '⏸ 사용량 한도로 대기 중';
           const make = text => { const button = document.createElement('button'); button.textContent = text; actions.append(button); return button; };
-          const resume = make('초기화 후 이어하기'), choose = make('시간 직접 지정'), cancel = make('예약 취소');
+          // '초기화 후 이어하기' 버튼은 뺐다 — 눌러도 결국 정해진 문구로 예약을 하나 거는 것뿐이라
+          // 아래 '예약설정'(옛 '시간 직접 지정')과 하는 일이 겹쳐, 버튼 두 개가 다 예약이라 헷갈렸다.
+          const choose = make('예약설정'), cancel = make('예약 취소');
           box.append(title,status,actions,note); pane.el.insertBefore(box,pane.el.children[1] || null);
-          b = {box,status,resume,choose,cancel,note}; boxes.set(id,b);
+          b = {box,status,choose,cancel,note}; boxes.set(id,b);
           choose.onclick = () => window.open('/scheduler.html?session=' + encodeURIComponent(id) + '&mode=limit', '_blank', 'noopener');
-          resume.onclick = async () => {
-            resume.disabled = true; note.textContent = '';
-            try { await request('/api/schedules','POST',{sessionId:id,mode:'limit',firstAt:b.reset ? new Date(Math.max(b.reset, Date.now()+60000)).toISOString():null,maxRuns:10,prompt:'이전에 요청한 미완료 작업을 기존 기록과 변경 파일부터 확인하고 중복 없이 이어서 진행해. 내 결정이 필요하면 멈추고 알려줘.'}); await update(); }
-            catch(e){note.textContent=e.message;resume.disabled=false;}
-          };
           cancel.onclick = async () => { try { if (b.job) await request('/api/schedules/'+b.job.id,'PATCH',{enabled:false}); await update(); } catch(e){note.textContent=e.message;} };
         }
         const state = data.states[id] || {}, job = data.jobs.find(j => j.sessionId === id && j.enabled);
         b.job = job; b.reset = state.resetAt;
-        b.box.hidden = !state.limited;
+        // 리셋 시각이 지나면 굳이 안 눌러도 바로 다시 쓸 수 있으니 배너 자체를 치운다.
+        // (s.rate 서버 값은 실제로 뭔가 보낼 때까지 안 꺼지므로, 시간 비교는 여기서 따로 한다)
+        const pastReset = state.resetAt && Date.now() >= state.resetAt;
+        b.box.hidden = !state.limited || pastReset;
         const when = state.resetAt ? new Date(state.resetAt).toLocaleString('ko-KR') : '판독하지 못했습니다. 시간을 직접 지정하세요';
         const left = state.resetAt ? ` · 약 ${Math.max(0,Math.ceil((state.resetAt-Date.now())/60000))}분 남음` : '';
         b.status.textContent = `재개 가능: ${when}${left}` + (job ? ' · 자동 재개 예약됨' : ' · PowerTerminal 예약 없음');
-        b.resume.disabled = !!job || !state.resetAt; b.cancel.hidden = !job;
+        b.cancel.hidden = !job;
       }
       for (const [id,b] of boxes) if (!b.box.isConnected) boxes.delete(id);
     } catch(e) { /* Old server before restart: keep the existing terminal usable. */ }
