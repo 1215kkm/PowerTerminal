@@ -528,8 +528,12 @@ function agentCommand(sess, fresh, resume) {
 function agentCommandRaw(sess, fresh, resume) {
   const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag();
   /* GPT(codex) 도 모델을 고를 수 있다. codex 는 최상위 옵션으로 `--model <id>` 를 받고,
-     `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다. */
-  const gpt = (sess.agent === 'codex' && sess.model && sess.model !== 'default') ? ' --model ' + sess.model : '';
+     `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다.
+     codex 도 Claude 처럼 기본이 대체화면(alt-screen) 모드다 — 매 응답마다 화면을 통째로 다시 그려서
+     스크롤백이 안 쌓이고, 보던 위치가 맨 위로 튀고(실측), PT 의 작업중/완료 판별도 지금 화면 텍스트에서
+     읽어야 하는데 매번 지워지니 놓치기 쉽다. Claude 에 --settings tui:default 를 강제하는 것과 같은
+     이유로 codex 도 --no-alt-screen(공식 지원 플래그, 확인함)으로 인라인 렌더러를 강제한다. */
+  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {

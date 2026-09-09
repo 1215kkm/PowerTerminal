@@ -4297,11 +4297,14 @@ const MODEL_PINNED = [
 // 세션 헤더와 [+세션] 창이 같은 목록을 쓰도록 옵션을 한 곳에서 만든다.
 /* 🤖 GPT(codex) 모델 — codex CLI 는 `--model <id>` 로 고른다.
    목록은 설치된 codex(v0.153.4) 안의 bundled models.json 에서 읽은 것 (이름을 지어내지 않았다).
-   'default'(자동) = 인자를 안 주는 것 → ~/.codex/config.toml 의 model 을 그대로 따른다. */
+   'default'(자동) = 인자를 안 주는 것 → ~/.codex/config.toml 의 model 을 그대로 따른다.
+   gpt-5.4 는 뺐다 — 실제로 물어보면 "The 'gpt-5.4' model is not supported when using Codex
+   with a ChatGPT account" 로 매번 거부된다(다른 5개는 실측으로 정상 동작 확인). 카탈로그엔
+   있어도 ChatGPT 계정 로그인으로는 못 쓰는 모델인 듯 — 이후 또 이런 게 나오면 같은 식으로 뺀다. */
 const GPT_MODELS = [
   ['gpt-6-astra', 'GPT-6 Astra'],
   ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'],
-  ['gpt-5.5', 'GPT-5.5'], ['gpt-5.4', 'GPT-5.4']
+  ['gpt-5.5', 'GPT-5.5']
 ];
 function gptOptionsHtml(cur) {
   const sel = v => (cur === v ? ' selected' : '');
