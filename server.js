@@ -316,8 +316,8 @@ function pruneDeadFlowLinks() {
   if (removed) { saveFlowLinks(); console.log('  🧹 없어진 폴더로 향하던 플로우 연결 ' + removed + '개 정리'); }
 }
 pruneDeadFlowLinks();
-setTimeout(() => { sweepScratch(); trimAllImages(); }, 8000);          // 부팅 직후 한 번 (시작을 늦추지 않게 8초 뒤)
-setInterval(() => { sweepScratch(); trimAllImages(); }, 6 * 3600 * 1000);
+setTimeout(() => { sweepScratch(); sweepIncognito(); trimAllImages(); }, 8000);          // 부팅 직후 한 번 (시작을 늦추지 않게 8초 뒤)
+setInterval(() => { sweepScratch(); sweepIncognito(); trimAllImages(); }, 6 * 3600 * 1000);
 
 // ---------- 🌿 worktree 격리 세션 ----------
 // 같은 폴더를 하나 더 여는 이유는 "다른 작업을 시키려고"뿐이다. 그런데 지금까진 작업 폴더가 그대로 같아서
@@ -526,18 +526,50 @@ function claudeTuiFlag() {
 const BROWSER_PORT = Number(process.env.PT_BROWSER_PORT) || 9777;
 const BROWSER_PROFILE = path.join(DATA_DIR, 'browser-profile');
 const BROWSER_MCP_NAME = 'pt_browser';
-// 성능·에뮬레이션 도구는 뺀다 — 사이트 조작엔 안 쓰는데 도구 설명이 요청마다 붙어 토큰만 먹는다.
-const BROWSER_MCP_ARGS = ['-y', 'chrome-devtools-mcp@1.9.0', '--browserUrl=http://127.0.0.1:' + BROWSER_PORT,
-  '--usageStatistics=false', '--performanceCrux=false', '--categoryPerformance=false', '--categoryEmulation=false'];
-// 윈도우의 npx 는 npx.cmd 라 codex·claude 가 바로 실행하지 못한다 → cmd /c 로 감싼다(실측 확인).
-const BROWSER_MCP_CMD = IS_WIN ? ['cmd', ['/c', 'npx', ...BROWSER_MCP_ARGS]] : ['npx', BROWSER_MCP_ARGS];
-const BROWSER_MCP_FILE = path.join(DATA_DIR, 'browser-mcp.json');
-try { fs.writeFileSync(BROWSER_MCP_FILE, JSON.stringify({ mcpServers: { [BROWSER_MCP_NAME]: { command: BROWSER_MCP_CMD[0], args: BROWSER_MCP_CMD[1] } } }, null, 2)); } catch (e) {}
+/* 🕶 시크릿창 — 세션마다 도구가 직접 깨끗한 크롬을 띄우고(--isolated), 끝나면 그 임시 프로필을 지운다.
+   지우는 건 크롬이 정상 종료될 때뿐이라, 세션이 강제로 끊기면 프로필이 남을 수 있다 → TEMP 를 PT 임시폴더
+   안으로 돌려 남은 것도 7일 정리가 치우게 한다(프로필이 쌓여 디스크가 찬 2026-08-28 사고 방지). */
+const BROWSER_INCOG_TMP = path.join(SCRATCH_DIR, 'browser-incognito');
+// 예전(v1.77.0) 값 true 는 일반창이다
+const browserMode = s => (s.browser === true || s.browser === 'normal') ? 'normal' : s.browser === 'incognito' ? 'incognito' : '';
+function browserMcp(mode) {
+  // 성능·에뮬레이션 도구는 뺀다 — 사이트 조작엔 안 쓰는데 도구 설명이 요청마다 붙어 토큰만 먹는다.
+  const args = ['-y', 'chrome-devtools-mcp@1.9.0', mode === 'incognito' ? '--isolated' : '--browserUrl=http://127.0.0.1:' + BROWSER_PORT,
+    '--usageStatistics=false', '--performanceCrux=false', '--categoryPerformance=false', '--categoryEmulation=false'];
+  // 윈도우의 npx 는 npx.cmd 라 codex·claude 가 바로 실행하지 못한다 → cmd /c 로 감싼다(실측 확인).
+  return { command: IS_WIN ? 'cmd' : 'npx', args: IS_WIN ? ['/c', 'npx', ...args] : args,
+           env: mode === 'incognito' ? { TEMP: BROWSER_INCOG_TMP, TMP: BROWSER_INCOG_TMP, TMPDIR: BROWSER_INCOG_TMP } : null };
+}
+/* 세션이 강제로 끊기면(재시작·종료) 도구가 크롬보다 먼저 죽어 임시 프로필이 남는다(실측: 2개 중 1개).
+   7일 정리는 browser-incognito 폴더를 한 덩어리로 보는데, 시크릿을 쓸 때마다 그 폴더 날짜가 갱신돼
+   안에 남은 것은 영영 안 지워진다 → 프로필만 따로 치운다. 쓰는 중인지는 이름을 바꿔 보고 판단한다:
+   윈도우는 안의 파일이 열려 있는 폴더의 이름 변경을 거부한다. 맥·리눅스는 쓰는 중이어도 바뀌므로
+   하루 넘게 손 안 탄 것만. */
+function sweepIncognito() {
+  let list = [];
+  try { list = fs.readdirSync(BROWSER_INCOG_TMP); } catch (e) { return; }
+  for (const name of list) {
+    if (!name.startsWith('puppeteer_dev_')) continue;
+    const p = path.join(BROWSER_INCOG_TMP, name);
+    try {
+      if (!IS_WIN && Date.now() - fs.statSync(p).mtimeMs < 24 * 3600 * 1000) continue;
+      fs.renameSync(p, p + '.del');
+      rmTree(p + '.del');
+    } catch (e) {}
+  }
+}
+const browserMcpFile = mode => path.join(DATA_DIR, mode === 'incognito' ? 'browser-mcp-incognito.json' : 'browser-mcp.json');
+for (const mode of ['normal', 'incognito']) {
+  const m = browserMcp(mode);
+  try { fs.writeFileSync(browserMcpFile(mode), JSON.stringify({ mcpServers: { [BROWSER_MCP_NAME]: Object.assign({ command: m.command, args: m.args }, m.env ? { env: m.env } : {}) } }, null, 2)); } catch (e) {}
+}
 function browserFlags(sess) {
-  if (!sess.browser) return '';
+  const mode = browserMode(sess);
+  if (!mode) return '';
   if ((sess.agent || 'claude') === 'claude')
-    return ' --mcp-config "' + BROWSER_MCP_FILE + '" --allowedTools mcp__' + BROWSER_MCP_NAME;
+    return ' --mcp-config "' + browserMcpFile(mode) + '" --allowedTools mcp__' + BROWSER_MCP_NAME;
   if (sess.agent !== 'codex') return '';
+  const m = browserMcp(mode);
   // codex 는 -c 로 설정을 덮어쓴다(값은 TOML). PT 가 쓰는 Windows PowerShell 5.1 은 인자 속 큰따옴표를
   // 지워 버려서, 문자열은 TOML 리터럴(작은따옴표)로 쓰고 PowerShell 작은따옴표 안에서 두 번 겹쳐 적는다.
   // default_tools_approval_mode=approve — 없으면 승인정책이 never 인 세션에서 "승인이 필요한데 정책이
@@ -545,7 +577,8 @@ function browserFlags(sess) {
   const q = IS_WIN ? (s => "''" + s + "''") : (s => '"' + s + '"');
   const w = s => " -c '" + s + "'";
   const k = 'mcp_servers.' + BROWSER_MCP_NAME + '.';
-  return w(k + 'command=' + q(BROWSER_MCP_CMD[0])) + w(k + 'args=[' + BROWSER_MCP_CMD[1].map(q).join(',') + ']')
+  return w(k + 'command=' + q(m.command)) + w(k + 'args=[' + m.args.map(q).join(',') + ']')
+       + (m.env ? Object.entries(m.env).map(([n, v]) => w(k + 'env.' + n + '=' + q(v))).join('') : '')
        + w(k + 'startup_timeout_sec=60') + w(k + 'default_tools_approval_mode=' + q('approve'));
 }
 function findBrowserExe() {
@@ -667,7 +700,12 @@ function getPty(sess) {
   const resume = isClaudeAgent && !!sess.resumeOnStart && !dupAlive;
   if (sess.resumeOnStart) { sess.resumeOnStart = false; try { saveSessions(); } catch (e) {} }
   const cmd = agentCommand(sess, dupAlive, resume);
-  if (sess.browser && (isClaudeAgent || sess.agent === 'codex')) ensureBrowser();
+  if (isClaudeAgent || sess.agent === 'codex') {
+    const bm = browserMode(sess);
+    if (bm === 'normal') ensureBrowser();
+    // 7일 정리가 폴더째 지웠을 수 있다 — 없으면 도구가 임시 프로필을 못 만든다
+    else if (bm === 'incognito') { try { fs.mkdirSync(BROWSER_INCOG_TMP, { recursive: true }); } catch (e) {} }
+  }
   // 폴더가 사라졌거나(다른 PC로 옮김·삭제·이름변경) 경로가 잘못되면 그대로 spawn 시 Windows 오류 267
   // (ERROR_DIRECTORY)로 예외가 터져 서버 전체가 종료됐다. → 홈 폴더로 대체하고 안내만 띄운다.
   let cwd = sess.path, pathWarn = '';
@@ -1900,12 +1938,14 @@ app.patch('/api/sessions/:id', (req, res) => {
     syncFlowLinks(s);   // 폴더 기준으로도 적어둔다 — 닫았다 켜도 화살표가 살아 있게
     return res.json(s);
   }
-  // 🌐 브라우저 조작 켜기/끄기 — MCP 도구는 AI 가 뜰 때만 붙일 수 있어서 재시작한다(대화는 이어짐)
-  if (typeof req.body.browser === 'boolean') {
-    s.browser = req.body.browser;
+  // 🌐 브라우저 조작 — false | 'normal'(일반창) | 'incognito'(시크릿창). MCP 도구는 AI 가 뜰 때만
+  // 붙일 수 있어서 재시작한다(대화는 이어짐)
+  if (req.body.browser !== undefined) {
+    const b = req.body.browser;
+    s.browser = (b === true || b === 'normal') ? 'normal' : b === 'incognito' ? 'incognito' : false;
     s.resumeOnStart = false;   // 아래 agent 분기와 같은 이유
     saveSessions();
-    if (s.browser) ensureBrowser();
+    if (s.browser === 'normal') ensureBrowser();
     const p = ptys.get(s.id);
     if (p && !p.dead && ((s.agent || 'claude') === 'claude' || s.agent === 'codex')) {
       try { p.proc.kill(); } catch (e) {}
@@ -3056,7 +3096,7 @@ wss.on('connection', (ws, req) => {
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
       if (isSubmitInput(m.data)) p.armed = true;
-      if (sess.browser && isSubmitInput(m.data)) ensureBrowser();
+      if (browserMode(sess) === 'normal' && isSubmitInput(m.data)) ensureBrowser();
       // Claude·codex 는 화면 마커가 busy를 결정 — 여기서 켜면 타이핑만 해도 '작업 중'이 돼 버린다
       const markerBased = !sess.agent || sess.agent === 'claude' || sess.agent === 'codex';
       const wasDone = p.done, wasBusy = p.busy;

@@ -139,6 +139,7 @@
   /* 🌐 브라우저 조작 — 꺼져 있으면 흐리게, 켜지면 청록 */
   .pane-head .brBtn { flex: 0 0 auto; opacity: .45; }
   .pane-head .brBtn.on { opacity: 1; background: #0e7490; border-color: #22d3ee; color: #fff; }
+  .pane-head .brBtn.incog { opacity: 1; background: #4c1d95; border-color: #a78bfa; color: #fff; }
   .pane-head .st { font-size: 11px; flex: 0 0 auto; }
   /* 🟠 작업 중 표시 — 웹의 ✳ 스피너처럼 PT 자체로 '살아있음'을 보여줌 (busy일 때만, 경과초 표시).
      Claude 터미널 애니메이션이 인라인 모드에선 정적이라, 이걸로 '멈춘 느낌'을 없앤다. */
@@ -873,6 +874,10 @@
   .pane-confirm .pc-btns button { padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .pane-confirm .pc-no { background: #374151; color: var(--fg); border: 1px solid var(--line); }
   .pane-confirm .pc-yes { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border: none; font-weight: 700; }
+  /* 선택지가 여럿인 창(paneChoice) — 좁은 창에서 버튼이 넘치지 않게 줄바꿈, 긴 설명은 상자 안에서 스크롤 */
+  .pane-confirm .pc-box { max-height: calc(100% - 24px); overflow-y: auto; }
+  .pane-confirm .pc-btns { flex-wrap: wrap; }
+  .pane-confirm .pc-btns button:disabled { opacity: .5; cursor: default; }
   /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
   .xterm-rows span[style*="background-color:#373737"],
   .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
@@ -2124,10 +2129,11 @@ const I18N_MORE = {
   en: {
     qBg: "This conversation moved to Claude Code's background task list — what you send goes to \"new task\", not to the conversation.", qBgBtn: "↩ Back to the conversation", qBgT: "Sends ESC to leave the task list and return to the conversation. Your background tasks keep running.", qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
-    brOffT: "🌐 Browser control is OFF — click to let this session's AI operate a dedicated Chrome window itself (no API needed)",
-    brOnT: "🌐 Browser control is ON — this session's AI can operate PT's dedicated Chrome window. Click to turn off",
-    brOnAsk: "Turn on browser control for this session ('{t}')?\n\n• The AI opens PT's dedicated Chrome window and clicks, types and reads pages itself — without asking each time\n• Any site you sign in to in that window is usable by the AI too — don't sign in to banking or payment accounts there\n• Text on web pages can try to trick the AI — keep an eye on it when working on unfamiliar sites\n• The browser tools' descriptions ride along with every request, so usage goes up a bit\n\nThe session restarts; its conversation continues.",
-    brOffAsk: "Turn off browser control for this session ('{t}')? The session restarts; its conversation continues.",
+    brOffT: "🌐 Browser control is OFF — click to let this session's AI operate a Chrome window itself (normal or incognito; no API needed)",
+    brOnT: "🌐 Browser control is ON (normal window) — sign-ins and cookies stay in PT's own Chrome window. Click to switch or turn off",
+    brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
+    brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
+    brAsk: "Pick the browser this session's AI ('{t}') will use.\n\n🌐 Normal window — one PT-only Chrome window shared by all sessions (separate from your everyday Chrome). Sign-ins, cookies and saved passwords stay, so the AI is still signed in next time. It starts empty: sign in to the sites you need once in that window yourself and click 'Save password'.\n⚠ Any account signed in there is usable by the AI too — don't sign in to banking, payment or your main email there.\n\n🕶 Incognito window — a clean new Chrome just for this session. Turning it off or restarting the session wipes sign-ins, cookies and history. Nothing is left behind, so it's safer — but sites that need a login need it every time, and passwords are not filled in for you.\n\n⚠ Either way — the AI clicks and types without asking each time. Text on web pages can try to trick it, so keep an eye on it on unfamiliar sites. The tools' descriptions ride along with every request, so usage goes up a bit.\n\nThe session restarts; its conversation continues.",
     flowDidHead: "What the previous session was asked to do:",
     flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
     mPinned: 'Older versions (pinned)',
@@ -2192,10 +2198,11 @@ const I18N_MORE = {
   ko: {
     qBg: "이 대화가 백그라운드 작업 목록으로 넘어갔습니다 — 지금 보내면 대화가 아니라 \"새 작업\" 칸으로 들어갑니다.", qBgBtn: "↩ 대화로 돌아가기", qBgT: "ESC 를 보내 작업 목록에서 빠져나와 대화로 돌아갑니다. 돌고 있는 백그라운드 작업은 그대로 유지됩니다.", qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
-    brOffT: "🌐 브라우저 조작 꺼짐 — 누르면 이 세션의 AI가 전용 크롬 창을 직접 조작합니다 (API 없어도 됨)",
-    brOnT: "🌐 브라우저 조작 켜짐 — 이 세션의 AI가 PT 전용 크롬 창을 조작합니다. 누르면 끕니다",
-    brOnAsk: "이 세션(「{t}」)에 브라우저 조작을 켤까요?\n\n• AI가 PT 전용 크롬 창을 열고 클릭·입력·페이지 읽기를 직접 합니다 (매번 묻지 않음)\n• 그 창에서 로그인한 사이트는 AI도 쓸 수 있습니다 — 은행·결제 계정은 거기서 로그인하지 마세요\n• 웹페이지 속 글이 AI를 속이려 할 수 있으니 낯선 사이트 작업은 지켜봐 주세요\n• 도구 설명이 요청마다 붙어서 사용량이 조금 더 듭니다\n\n세션이 재시작되고 대화는 이어집니다.",
-    brOffAsk: "이 세션(「{t}」)의 브라우저 조작을 끌까요? 세션이 재시작되고 대화는 이어집니다.",
+    brOffT: "🌐 브라우저 조작 꺼짐 — 누르면 이 세션의 AI가 크롬 창을 직접 조작하게 합니다 (일반창/시크릿창 선택, API 없어도 됨)",
+    brOnT: "🌐 브라우저 조작 켜짐 (일반창) — PT 전용 크롬 창에 로그인·쿠키가 남습니다. 누르면 바꾸거나 끕니다",
+    brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
+    brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
+    brAsk: "이 세션(「{t}」)의 AI가 쓸 브라우저를 고르세요.\n\n🌐 일반창 — PT 전용 크롬 창 하나를 모든 세션이 같이 씁니다 (평소 쓰는 크롬과는 별개). 로그인·쿠키·저장한 비밀번호가 남아서 다음에도 로그인된 채로 일합니다. 처음엔 비어 있으니, 필요한 사이트에 그 창에서 직접 한 번 로그인하고 '비밀번호 저장'을 눌러 두세요.\n⚠ 그 창에 로그인해 둔 계정은 AI도 쓸 수 있습니다 — 은행·결제·주 메일 계정은 로그인하지 마세요.\n\n🕶 시크릿창 — 이 세션만 쓰는 깨끗한 새 크롬을 띄우고, 끄거나 세션을 재시작하면 로그인·쿠키·기록이 모두 지워집니다. 남는 게 없어 더 안전하지만, 로그인이 필요한 사이트는 매번 새로 로그인해야 하고 비밀번호 자동입력도 안 됩니다.\n\n⚠ 공통 — AI는 클릭·입력을 매번 묻지 않고 합니다. 웹페이지 속 글이 AI를 속이려 할 수 있으니 낯선 사이트 작업은 지켜봐 주세요. 도구 설명이 요청마다 붙어 사용량이 조금 늡니다.\n\n세션이 재시작되고 대화는 이어집니다.",
     flowDidHead: "앞 세션이 받은 요청 (= 방금 한 일):",
     flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
     mPinned: '지난 버전 (고정)',
@@ -4568,7 +4575,7 @@ function buildPane(sess, idx) {
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         ${aiBadge}
         ${modelSel}
-        ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn${sess.browser ? ' on' : ''}" title="${escA(sess.browser ? (T.brOnT || '') : (T.brOffT || ''))}">🌐</button>` : ''}
+        ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
         <!-- 👤 담당 — .claude/agents 가 있는 레포에서만 채워지고, 없으면 이 자리는 비어 있다 -->
         <select class="small memberSel" title="${escA(T.memberT || '')}" style="display:none"></select>
       </div>
@@ -5193,18 +5200,31 @@ function buildPane(sess, idx) {
     // 서버가 PTY를 새 모델로 재시작하고 소켓을 닫음 → ws.onclose가 자동 재접속
   };
 
-  // 🌐 브라우저 조작 켜기/끄기 — 모델 변경과 같은 길: 서버가 재시작(대화는 이어짐)하고 소켓을 닫으면 자동 재접속
+  // 🌐 브라우저 조작 — 일반창 / 시크릿창 / 끄기 중에서 고른다. 모델 변경과 같은 길: 서버가 재시작(대화는 이어짐)하고
+  // 소켓을 닫으면 자동 재접속. 예전(v1.77.0) 값 true 는 일반창.
   const brBtn = el.querySelector('.brBtn');
-  if (brBtn) brBtn.onclick = async ev => {
-    ev.stopPropagation();
-    const next = !sess.browser;
-    const msg = ((next ? T.brOnAsk : T.brOffAsk) || '').replace('{t}', sess.title || '');
-    if (!(await paneConfirm(el, msg))) return;
-    sess.browser = next;
-    brBtn.classList.toggle('on', next);
-    brBtn.title = next ? (T.brOnT || '') : (T.brOffT || '');
-    await api('PATCH', '/api/sessions/' + sess.id, { browser: next });
+  const brMode = () => (sess.browser === true || sess.browser === 'normal') ? 'normal' : sess.browser === 'incognito' ? 'incognito' : '';
+  const paintBr = () => {
+    const m = brMode();
+    brBtn.classList.toggle('on', m === 'normal');
+    brBtn.classList.toggle('incog', m === 'incognito');
+    brBtn.textContent = m === 'incognito' ? '🕶' : '🌐';
+    brBtn.title = m === 'normal' ? (T.brOnT || '') : m === 'incognito' ? (T.brIncT || '') : (T.brOffT || '');
   };
+  if (brBtn) {
+    paintBr();
+    brBtn.onclick = async ev => {
+      ev.stopPropagation();
+      const cur = brMode();
+      const choices = [['normal', '🌐 ' + (T.brNormal || 'Normal window')], ['incognito', '🕶 ' + (T.brIncog || 'Incognito window')]];
+      if (cur) choices.unshift(['', T.brOff || 'Turn off']);
+      const pick = await paneChoice(el, (T.brAsk || '').replace('{t}', sess.title || ''), choices, cur);
+      if (pick === null || pick === cur) return;
+      sess.browser = pick || false;
+      paintBr();
+      await api('PATCH', '/api/sessions/' + sess.id, { browser: pick || false });
+    };
+  }
 
   // ＋ (마우스 올렸을 때의 번호 자리) — 같은 폴더로 세션 하나 더. git 레포면 서버가 worktree 로 분리해
   //   두 세션이 같은 파일을 동시에 건드려 충돌하는 일이 없다. Shift·우클릭 = 같은 폴더 그대로.
@@ -11612,6 +11632,32 @@ function paneConfirm(paneEl, msg) {
     ov.addEventListener('click', e => { if (e.target === ov) done(false); });   // 바깥 클릭 = 취소
     paneEl.appendChild(ov);
     ov.querySelector('.pc-yes').focus();
+  });
+}
+// 세션 안 선택창 — choices: [[값, 라벨], …]. 고른 값을, 취소·바깥 클릭이면 null 을 준다. 지금 값(cur)은 ✓ 표시 후 비활성.
+function paneChoice(paneEl, msg, choices, cur) {
+  return new Promise(resolve => {
+    paneEl.querySelectorAll('.pane-confirm').forEach(n => n.remove());
+    const ov = document.createElement('div');
+    ov.className = 'pane-confirm';
+    ov.innerHTML = '<div class="pc-box"><div class="pc-msg"></div><div class="pc-btns"></div></div>';
+    ov.querySelector('.pc-msg').textContent = msg;
+    const btns = ov.querySelector('.pc-btns');
+    const done = v => { ov.remove(); resolve(v); };
+    const add = (cls, label, v) => {
+      const b = document.createElement('button');
+      b.className = cls; b.textContent = label;
+      b.onclick = e => { e.stopPropagation(); done(v); };
+      btns.appendChild(b);
+      return b;
+    };
+    add('pc-no', T.cancel || 'Cancel', null);
+    choices.forEach(([v, label]) => {
+      const b = add(v ? 'pc-yes' : 'pc-no', label + (v && v === cur ? ' ✓' : ''), v);
+      if (v && v === cur) b.disabled = true;
+    });
+    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
+    paneEl.appendChild(ov);
   });
 }
 // 📋 클립보드 복사 + 토스트 (https/localhost가 아니면 구식 execCommand 폴백)
