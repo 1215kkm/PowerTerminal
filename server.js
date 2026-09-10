@@ -65,11 +65,22 @@ function sweepScratch() {
       const st = fs.statSync(p);
       if (Date.now() - st.mtimeMs < SCRATCH_KEEP_MS) continue;
       const size = st.isDirectory() ? dirSize(p) : st.size;
-      fs.rmSync(p, { recursive: true, force: true });
+      st.isDirectory() ? rmTree(p) : fs.unlinkSync(p);
       freed += size; n++;
     } catch (e) {}
   }
   if (n) console.log('  🧹 임시폴더 정리 — ' + n + '개 · ' + (freed / 1048576).toFixed(0) + 'MB (7일 지난 것)');
+}
+/* ⚠ fs.rmSync 를 쓰지 않는다 — Node 24(v24.13.0 실측)의 rmSync 는 경로에 한글이 있으면 예외도 없이
+   프로세스를 즉사시킨다(0xC0000409, try/catch 로 못 막음, 없는 경로여도). 임시폴더는
+   C:\Users\<한글이름>\...\pt-scratch 라서, 7일 지난 항목이 생기면 부팅 8초 뒤 정리에서 서버가 죽고
+   모든 세션이 끊긴다. readdir+unlink+rmdir 는 같은 경로에서 정상 동작한다(실측). */
+function rmTree(d) {
+  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const f = path.join(d, e.name);
+    e.isDirectory() ? rmTree(f) : fs.unlinkSync(f);
+  }
+  fs.rmdirSync(d);
 }
 function dirSize(p) {
   let t = 0;
@@ -356,6 +367,8 @@ function copyTeamFiles(repoTop, dir) {
       try { hasTeam = fs.readdirSync(path.join(src, 'agents')).some(f => /\.md$/i.test(f)); } catch (e) { hasTeam = false; }
     }
     if (!hasTeam) return false;
+    // ⚠ filter 를 빼지 말 것 — Node 24 의 cpSync 는 filter 가 없으면 C++ 경로를 타서 한글 경로(.pt-worktrees 가
+    //   C:\Users\<한글이름> 아래)에서 프로세스를 즉사시킨다(실측). filter 가 있으면 JS 구현으로 돌아 안전하다.
     fs.cpSync(src, path.join(dir, '.claude'), {
       recursive: true, force: false, errorOnExist: false,
       filter: p => !/[\\/](node_modules|\.git)$/i.test(p) && !/\.lock$/i.test(p),   // 잠금파일·군더더기는 빼고
@@ -505,6 +518,62 @@ function claudeTuiFlag() {
   try { if (fs.existsSync(TUI_FILE)) return ' --settings "' + TUI_FILE + '"'; } catch (e) {}
   return '';
 }
+/* 🌐 브라우저 조작 — API 가 없는 사이트도 AI(Claude·GPT)가 사람처럼 열고·클릭하고·입력하게 한다.
+   PT 가 전용 프로필로 크롬을 원격조종 포트와 함께 하나 띄우고, 🌐 를 켠 세션의 AI 에 구글 공식
+   chrome-devtools-mcp 를 MCP 도구로 꽂아 그 크롬에 붙게 한다. 세션이 여럿이어도 크롬은 하나 —
+   로그인은 그 창에서 한 번만 하면 되고, pageIdRouting(기본값)이 세션마다 자기 탭만 건드리게 한다.
+   프로필은 늘 같은 폴더 하나를 재사용한다(매번 새로 만들면 쌓여 디스크가 찬다 — 2026-08-28 사고). */
+const BROWSER_PORT = Number(process.env.PT_BROWSER_PORT) || 9777;
+const BROWSER_PROFILE = path.join(DATA_DIR, 'browser-profile');
+const BROWSER_MCP_NAME = 'pt_browser';
+// 성능·에뮬레이션 도구는 뺀다 — 사이트 조작엔 안 쓰는데 도구 설명이 요청마다 붙어 토큰만 먹는다.
+const BROWSER_MCP_ARGS = ['-y', 'chrome-devtools-mcp@1.9.0', '--browserUrl=http://127.0.0.1:' + BROWSER_PORT,
+  '--usageStatistics=false', '--performanceCrux=false', '--categoryPerformance=false', '--categoryEmulation=false'];
+// 윈도우의 npx 는 npx.cmd 라 codex·claude 가 바로 실행하지 못한다 → cmd /c 로 감싼다(실측 확인).
+const BROWSER_MCP_CMD = IS_WIN ? ['cmd', ['/c', 'npx', ...BROWSER_MCP_ARGS]] : ['npx', BROWSER_MCP_ARGS];
+const BROWSER_MCP_FILE = path.join(DATA_DIR, 'browser-mcp.json');
+try { fs.writeFileSync(BROWSER_MCP_FILE, JSON.stringify({ mcpServers: { [BROWSER_MCP_NAME]: { command: BROWSER_MCP_CMD[0], args: BROWSER_MCP_CMD[1] } } }, null, 2)); } catch (e) {}
+function browserFlags(sess) {
+  if (!sess.browser) return '';
+  if ((sess.agent || 'claude') === 'claude')
+    return ' --mcp-config "' + BROWSER_MCP_FILE + '" --allowedTools mcp__' + BROWSER_MCP_NAME;
+  if (sess.agent !== 'codex') return '';
+  // codex 는 -c 로 설정을 덮어쓴다(값은 TOML). PT 가 쓰는 Windows PowerShell 5.1 은 인자 속 큰따옴표를
+  // 지워 버려서, 문자열은 TOML 리터럴(작은따옴표)로 쓰고 PowerShell 작은따옴표 안에서 두 번 겹쳐 적는다.
+  // default_tools_approval_mode=approve — 없으면 승인정책이 never 인 세션에서 "승인이 필요한데 정책이
+  // never" 로 모든 브라우저 호출이 거부된다(실측). 🌐 를 켠 것 자체가 조작을 허락한 것이다.
+  const q = IS_WIN ? (s => "''" + s + "''") : (s => '"' + s + '"');
+  const w = s => " -c '" + s + "'";
+  const k = 'mcp_servers.' + BROWSER_MCP_NAME + '.';
+  return w(k + 'command=' + q(BROWSER_MCP_CMD[0])) + w(k + 'args=[' + BROWSER_MCP_CMD[1].map(q).join(',') + ']')
+       + w(k + 'startup_timeout_sec=60') + w(k + 'default_tools_approval_mode=' + q('approve'));
+}
+function findBrowserExe() {
+  const pf = process.env.ProgramFiles || 'C:\\Program Files', pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const list = IS_WIN ? [path.join(pf, 'Google\\Chrome\\Application\\chrome.exe'), path.join(pf86, 'Google\\Chrome\\Application\\chrome.exe'),
+                         process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Google\\Chrome\\Application\\chrome.exe'),
+                         path.join(pf86, 'Microsoft\\Edge\\Application\\msedge.exe'), path.join(pf, 'Microsoft\\Edge\\Application\\msedge.exe')]
+    : process.platform === 'darwin' ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                                       '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', '/Applications/Chromium.app/Contents/MacOS/Chromium']
+    : ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium', '/usr/bin/microsoft-edge'];
+  return list.find(p => { try { return p && fs.existsSync(p); } catch (e) { return false; } }) || '';
+}
+// 켤 때·세션이 뜰 때·🌐 세션에 요청을 보낼 때 부른다 — 사용자가 창을 닫아 버렸어도 다음 요청 때 다시 뜬다.
+// 5초에 한 번만 확인한다: 크롬이 포트를 여는 데 1~2초 걸려, 그 사이 또 부르면 창이 두 개 뜬다.
+let browserCheckAt = 0;
+async function ensureBrowser() {
+  if (Date.now() - browserCheckAt < 5000) return;
+  browserCheckAt = Date.now();
+  try { if ((await fetch('http://127.0.0.1:' + BROWSER_PORT + '/json/version', { signal: AbortSignal.timeout(1500) })).ok) return; } catch (e) {}
+  const exe = findBrowserExe();
+  if (!exe) { console.log('  🌐 Chrome/Edge 를 찾지 못했습니다 — 브라우저 조작을 쓰려면 Chrome 을 설치하세요'); return; }
+  try {
+    const c = spawn(exe, ['--remote-debugging-port=' + BROWSER_PORT, '--user-data-dir=' + BROWSER_PROFILE,
+                          '--no-first-run', '--no-default-browser-check', 'about:blank'], { detached: true, stdio: 'ignore' });
+    c.on('error', e => console.log('  🌐 브라우저 실행 실패: ' + (e && e.message)));
+    c.unref();
+  } catch (e) { console.log('  🌐 브라우저 실행 실패: ' + (e && e.message)); }
+}
 // fresh=true: 같은 폴더에 이미 살아있는 세션이 있을 때 — --continue를 붙이면 그 세션의 대화를
 // 이어받아 버려서(Claude Code는 대화를 '폴더 단위'로 저장) 두 창이 같은 대화를 공유하게 됨 → 새 대화로 시작.
 // resume=true: 작업 중에 서버가 꺼졌던 세션 — 재개 문구를 실행 인자로 넣어 뜨자마자 이어서 작업.
@@ -526,14 +595,14 @@ function agentCommand(sess, fresh, resume) {
   return worktreePrep(sess) + agentCommandRaw(sess, fresh, resume);
 }
 function agentCommandRaw(sess, fresh, resume) {
-  const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag();
+  const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag() + browserFlags(sess);
   /* GPT(codex) 도 모델을 고를 수 있다. codex 는 최상위 옵션으로 `--model <id>` 를 받고,
      `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다.
      codex 도 Claude 처럼 기본이 대체화면(alt-screen) 모드다 — 매 응답마다 화면을 통째로 다시 그려서
      스크롤백이 안 쌓이고, 보던 위치가 맨 위로 튀고(실측), PT 의 작업중/완료 판별도 지금 화면 텍스트에서
      읽어야 하는데 매번 지워지니 놓치기 쉽다. Claude 에 --settings tui:default 를 강제하는 것과 같은
      이유로 codex 도 --no-alt-screen(공식 지원 플래그, 확인함)으로 인라인 렌더러를 강제한다. */
-  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') : '';
+  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + browserFlags(sess) : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {
@@ -598,6 +667,7 @@ function getPty(sess) {
   const resume = isClaudeAgent && !!sess.resumeOnStart && !dupAlive;
   if (sess.resumeOnStart) { sess.resumeOnStart = false; try { saveSessions(); } catch (e) {} }
   const cmd = agentCommand(sess, dupAlive, resume);
+  if (sess.browser && (isClaudeAgent || sess.agent === 'codex')) ensureBrowser();
   // 폴더가 사라졌거나(다른 PC로 옮김·삭제·이름변경) 경로가 잘못되면 그대로 spawn 시 Windows 오류 267
   // (ERROR_DIRECTORY)로 예외가 터져 서버 전체가 종료됐다. → 홈 폴더로 대체하고 안내만 띄운다.
   let cwd = sess.path, pathWarn = '';
@@ -1830,6 +1900,20 @@ app.patch('/api/sessions/:id', (req, res) => {
     syncFlowLinks(s);   // 폴더 기준으로도 적어둔다 — 닫았다 켜도 화살표가 살아 있게
     return res.json(s);
   }
+  // 🌐 브라우저 조작 켜기/끄기 — MCP 도구는 AI 가 뜰 때만 붙일 수 있어서 재시작한다(대화는 이어짐)
+  if (typeof req.body.browser === 'boolean') {
+    s.browser = req.body.browser;
+    s.resumeOnStart = false;   // 아래 agent 분기와 같은 이유
+    saveSessions();
+    if (s.browser) ensureBrowser();
+    const p = ptys.get(s.id);
+    if (p && !p.dead && ((s.agent || 'claude') === 'claude' || s.agent === 'codex')) {
+      try { p.proc.kill(); } catch (e) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }
+    }
+    return res.json(s);
+  }
   // 세션에 연결된 AI(agent) 변경 — 실행 중이면 새 AI로 세션 재시작
   if (typeof req.body.agent === 'string') {
     s.agent = req.body.agent;
@@ -2972,6 +3056,7 @@ wss.on('connection', (ws, req) => {
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
       if (isSubmitInput(m.data)) p.armed = true;
+      if (sess.browser && isSubmitInput(m.data)) ensureBrowser();
       // Claude·codex 는 화면 마커가 busy를 결정 — 여기서 켜면 타이핑만 해도 '작업 중'이 돼 버린다
       const markerBased = !sess.agent || sess.agent === 'claude' || sess.agent === 'codex';
       const wasDone = p.done, wasBusy = p.busy;
