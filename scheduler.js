@@ -19,7 +19,9 @@ function resetAt(text, now) {
   return at + 60000;
 }
 
-function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Date.now }) {
+// enterDelay(sessionId, written): 텍스트를 쓴 뒤 Enter 까지 기다릴 ms. codex 는 몰려 들어온 글자 직후의 Enter 를
+// 줄바꿈으로 삼키므로 서버가 세션 종류·길이에 맞춰 알려 준다.
+function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Date.now, enterDelay = () => 100 }) {
   const file = path.join(dataDir, 'schedules.json');
   let jobs = [];
   let storageError = '';
@@ -127,8 +129,9 @@ function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Dat
       try {
         const text = j.prompt + '\n기존 승인 범위 안에서만 진행하세요. 요청한 모든 작업이 끝나면 PT_DONE_ 뒤에 예약 번호 ' + j.id + '를 붙이고 전체를 대괄호로 감싼 코드를 한 줄로 출력하세요. 미완료 또는 한도 초과일 때는 출력하지 마세요.';
         s.rate = false; s.reset = null; s.text = ''; s.ready = false;
-        p.proc.write(text.replace(/\r?\n/g, '\x1b\r'));
-        await new Promise(r => setTimeout(r, 100));
+        const written = text.replace(/\r?\n/g, '\x1b\r');
+        p.proc.write(written);
+        await new Promise(r => setTimeout(r, enterDelay(j.sessionId, written)));
         p.proc.write('\r'); p.armed = true; p.done = false; p.busy = true; p.lastMarker = now(); notify(j.sessionId, p);
         j.count++; j.lastRun = now(); j.awaiting = true;
         j.nextAt = j.mode === 'interval' ? now() + j.minutes * 60000 : null;

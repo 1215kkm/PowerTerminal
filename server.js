@@ -755,6 +755,30 @@ function agentCommandRaw(sess, fresh, resume) {
   }
 }
 
+/* ⏎ codex(GPT) 는 글자가 몰려 들어오면 붙여넣기로 보고, 마지막 글자 뒤 120ms 안에 온 Enter 는 제출이 아니라
+   줄바꿈으로 넣는다(codex paste_burst.rs 의 PASTE_ENTER_SUPPRESS_WINDOW). PT 는 요청을 "텍스트 → 80ms 뒤 Enter"
+   로 보내서 긴 요청이 입력칸에 그대로 남았다(실측 571자: 80ms 0/2, 250·450ms 4/4 — codex 가 글자를 다 받는 데만
+   ~200ms). 그래서 codex 세션에선 텍스트 직후 온 Enter 를 글자 수에 비례해 늦추고, 그 사이 들어온 입력은 순서대로
+   뒤에 붙인다. codex 의 붙여넣기 감지 자체를 끄는 설정(disable_paste_burst)도 있지만, 그러면 터미널 영역에 여러 줄을
+   붙여넣을 때 첫 줄에서 바로 제출돼 버려서 쓰지 않는다. */
+function codexEnterDelay(len) { return Math.max(300, 250 + len * 0.6); }
+function writeIn(sess, p, data) {
+  if (sess.agent !== 'codex') { p.proc.write(data); return; }
+  if (p.inHold) { p.inHold.push(data); return; }
+  const now = Date.now();
+  if (data === '\r' && p.lastTextAt && now - p.lastTextAt < codexEnterDelay(p.lastTextLen)) {
+    p.inHold = [];
+    setTimeout(() => {
+      const q = p.inHold; p.inHold = null;
+      try { p.proc.write('\r'); } catch (e) {}
+      for (const d of q) writeIn(sess, p, d);
+    }, p.lastTextAt + codexEnterDelay(p.lastTextLen) - now);
+    return;
+  }
+  if (data !== '\r' && data.length >= 3) { p.lastTextAt = now; p.lastTextLen = data.length; }
+  p.proc.write(data);
+}
+
 function getPty(sess) {
   let p = ptys.get(sess.id);
   if (p && !p.dead) return p;
@@ -847,7 +871,11 @@ function getPty(sess) {
          평범한 문장처럼 보여 눈에 잘 안 띄고, 그 사이 사용자가 보낸 진짜 요청이 이 메뉴의 숫자 선택으로
          잘못 들어가 "요청이 안 먹힌다" 가 된다(실측: "1+1=?" 의 앞 "1" 이 메뉴 1번을 골라버림).
          PT 로 AI 를 codex 로 바꾼 것 자체가 이 폴더를 codex 에 맡기겠다는 뜻이니, 대신 답해 준다. */
-      if (!p._codexTrustDone && /Do you trust the contents of this directory\?/.test(p.buffer)) {
+      // codex 0.154 부터는 이 창을 공백 대신 커서이동으로 그려 원문이 "Do\x1b[1Cyou…" 처럼 된다 → 공백 그대로
+      // 찾다가 창을 놓쳤고, 첫 요청이 메뉴로 들어가 codex 가 꺼진 뒤 이후 요청이 PowerShell 명령으로 실행됐다(실측).
+      // 제어문자·공백을 걷어내고 비교한다. 이 창은 뜰 때만 나오니 시작 60초만 본다.
+      if (!p._codexTrustDone && Date.now() - p.spawnAt < 60000 &&
+          /Doyoutrustthecontentsofthisdirectory\?/.test(p.buffer.slice(-4000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, ''))) {
         p._codexTrustDone = true;
         setTimeout(() => { try { proc.write('1\r'); } catch (e) {} }, 300);
       }
@@ -1069,7 +1097,8 @@ app.use(express.static(path.join(ROOT, 'public')));
 app.get('/vendor/qrcode.js', (req, res) =>
   res.sendFile(path.join(ROOT, 'node_modules', 'qrcode-generator', 'dist', 'qrcode.js')));
 
-const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, sessions: () => sessions, ptys, notify: broadcastStatus });
+const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, sessions: () => sessions, ptys, notify: broadcastStatus,
+  enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : 100; } });
 scheduler.install(app);
 
 app.get('/api/sessions', (req, res) => {
@@ -3176,7 +3205,7 @@ wss.on('connection', (ws, req) => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
       scheduler.input(id, m.data);
-      p.proc.write(m.data);
+      writeIn(sess, p, m.data);
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
       if (isSubmitInput(m.data)) p.armed = true;
