@@ -883,6 +883,9 @@
         background: #0b1220; color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
         font: 12.5px/1.55 ui-monospace, Consolas, monospace; resize: vertical; }
   html.light .pane-confirm .br-rules { background: #fff; }
+  .pane-confirm .pc-input { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px;
+        background: #0b1220; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
+  html.light .pane-confirm .pc-input { background: #fff; }
   /* 🗒 내가 보낸 요청 — Claude Code가 회색(#373737) 상자로 그리는 내 메시지를 밝은 종이 + 진한 글자로 재칠 */
   .xterm-rows span[style*="background-color:#373737"],
   .xterm-rows span[style*="background-color: rgb(55, 55, 55)"] {
@@ -2139,6 +2142,9 @@ const I18N_MORE = {
     brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
     brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
+    brProfileDefault: "Default", brProfileNew: "New account window", brProfileInUse: "in use", brProfileCreate: "Create",
+    brProfileAsk: "Which account window should this session use?\n\nOne Chrome window keeps only one sign-in per site, so two accounts on the same shop need two windows. Changing just the ID in one window fails, because the saved password belongs to the other account — and repeated failures can lock the account.\n\nMake an account window, sign in there once yourself, and from then on the AI keeps working as that account without ever touching the password.\nEach window runs its own Chrome (0.3-0.6GB), started only while a session uses it.",
+    brProfileNameAsk: "Name this account window (e.g. Toypang, Health Shop).\nIt opens as an empty Chrome window: sign in to the sites you need there and click 'Save password'.",
     brRulesHead: "🌐 Rules the AI follows when it uses the browser. Edit them freely.\nSaving applies to sessions started from now on, and running sessions re-read this file right before anything hard to undo (paying, sending…).\n⚠ These are instructions to the AI, not a hard block — a web page that tricks the AI could still get it to break them, so watch important work. (Only opening the PT screen itself is blocked by the tool.)\nFile: {p}",
     brAsk: "Pick the browser this session's AI ('{t}') will use.\n\n🌐 Normal window — one PT-only Chrome window shared by all sessions (separate from your everyday Chrome). Sign-ins, cookies and saved passwords stay, so the AI is still signed in next time. It starts empty: sign in to the sites you need once in that window yourself and click 'Save password'.\n⚠ Any account signed in there is usable by the AI too — don't sign in to banking, payment or your main email there.\n\n🕶 Incognito window — a clean new Chrome just for this session. Turning it off or restarting the session wipes sign-ins, cookies and history. Nothing is left behind, so it's safer — but sites that need a login need it every time, and passwords are not filled in for you.\n\n⚠ Either way — the AI clicks and types without asking each time. Text on web pages can try to trick it, so keep an eye on it on unfamiliar sites. The tools' descriptions ride along with every request, so usage goes up a bit.\n\n📝 Edit rules — write down what the AI must follow when it uses the browser (ask before paying or sending, etc.). Default rules are already in there.\n\nThe session restarts; its conversation continues.",
     flowDidHead: "What the previous session was asked to do:",
@@ -2210,6 +2216,9 @@ const I18N_MORE = {
     brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
     brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
+    brProfileDefault: "기본", brProfileNew: "새 계정 창", brProfileInUse: "사용중", brProfileCreate: "만들기",
+    brProfileAsk: "이 세션은 어느 계정 창을 쓸까요?\n\n크롬 창 하나에는 사이트당 로그인이 하나만 남아요. 그래서 같은 쇼핑몰의 계정 두 개를 오가려면 창을 따로 둬야 합니다. 한 창에서 아이디만 바꿔 로그인하면 저장된 비밀번호가 달라 실패하고, 반복되면 계정이 잠길 수 있어요.\n\n계정 창을 만들고 거기서 한 번만 직접 로그인해 두면, 다음부터 AI가 비밀번호를 만지지 않고 그 계정으로 계속 작업합니다.\n창마다 크롬이 하나씩 뜹니다 (메모리 0.3~0.6GB) — 그 창을 쓰는 세션이 있을 때만.",
+    brProfileNameAsk: "새 계정 창 이름을 적으세요 (예: 토이팡, 건강식품몰).\n만들면 빈 크롬 창이 뜹니다. 그 창에서 필요한 사이트에 직접 로그인하고 '비밀번호 저장'을 눌러 두세요.",
     brRulesHead: "🌐 브라우저를 쓸 때 AI가 지킬 규칙이에요. 자유롭게 고치세요.\n저장하면 새로 켜는 세션부터 적용되고, 켜져 있는 세션도 결제·전송처럼 되돌리기 어려운 동작 직전에 이 파일을 다시 읽어요.\n⚠ AI에게 주는 지시일 뿐 강제로 막는 장치는 아니에요 — 웹페이지가 AI를 속이면 어길 수도 있으니 중요한 작업은 지켜봐 주세요. (PT 화면을 여는 것만은 도구에서 강제로 막아 둠)\n파일: {p}",
     brAsk: "이 세션(「{t}」)의 AI가 쓸 브라우저를 고르세요.\n\n🌐 일반창 — PT 전용 크롬 창 하나를 모든 세션이 같이 씁니다 (평소 쓰는 크롬과는 별개). 로그인·쿠키·저장한 비밀번호가 남아서 다음에도 로그인된 채로 일합니다. 처음엔 비어 있으니, 필요한 사이트에 그 창에서 직접 한 번 로그인하고 '비밀번호 저장'을 눌러 두세요.\n⚠ 그 창에 로그인해 둔 계정은 AI도 쓸 수 있습니다 — 은행·결제·주 메일 계정은 로그인하지 마세요.\n\n🕶 시크릿창 — 이 세션만 쓰는 깨끗한 새 크롬을 띄우고, 끄거나 세션을 재시작하면 로그인·쿠키·기록이 모두 지워집니다. 남는 게 없어 더 안전하지만, 로그인이 필요한 사이트는 매번 새로 로그인해야 하고 비밀번호 자동입력도 안 됩니다.\n\n⚠ 공통 — AI는 클릭·입력을 매번 묻지 않고 합니다. 웹페이지 속 글이 AI를 속이려 할 수 있으니 낯선 사이트 작업은 지켜봐 주세요. 도구 설명이 요청마다 붙어 사용량이 조금 늡니다.\n\n📝 규칙 편집 — 브라우저를 쓸 때 AI가 지킬 규칙(결제·전송 전에 묻기 등)을 적어 둡니다. 기본 규칙이 미리 들어 있어요.\n\n세션이 재시작되고 대화는 이어집니다.",
     flowDidHead: "앞 세션이 받은 요청 (= 방금 한 일):",
@@ -5218,7 +5227,8 @@ function buildPane(sess, idx) {
     brBtn.classList.toggle('on', m === 'normal');
     brBtn.classList.toggle('incog', m === 'incognito');
     brBtn.textContent = m === 'incognito' ? '🕶' : '🌐';
-    brBtn.title = m === 'normal' ? (T.brOnT || '') : m === 'incognito' ? (T.brIncT || '') : (T.brOffT || '');
+    brBtn.title = m === 'normal' ? ((T.brOnT || '') + ' · 👤 ' + ((sess.browserProfile || '').trim() || (T.brProfileDefault || '기본')))
+                : m === 'incognito' ? (T.brIncT || '') : (T.brOffT || '');
   };
   if (brBtn) {
     paintBr();
@@ -5230,10 +5240,27 @@ function buildPane(sess, idx) {
       choices.unshift(['rules', '📝 ' + (T.brRules || 'Rules'), 'pc-no']);
       const pick = await paneChoice(el, (T.brAsk || '').replace('{t}', sess.title || ''), choices, cur);
       if (pick === 'rules') { openBrowserRules(el); return; }
-      if (pick === null || pick === cur) return;
+      if (pick === null || (pick === cur && pick !== 'normal')) return;
+      // 👤 일반창은 계정마다 창(크롬 프로필)이 따로 — 어느 계정 창을 쓸지 고른다
+      let profile = (sess.browserProfile || '').trim();
+      if (pick === 'normal') {
+        const def = T.brProfileDefault || '기본';
+        const list = (await api('GET', '/api/browser-profiles')) || [];
+        const choices2 = list.map(p => [p.name, '👤 ' + p.name + (p.inUse ? ' ·' + (T.brProfileInUse || 'in use') : '')]);
+        choices2.push(['__new__', '＋ ' + (T.brProfileNew || 'New account window'), 'pc-no']);
+        const pick2 = await paneChoice(el, T.brProfileAsk || '', choices2, cur === 'normal' ? (profile || def) : null);
+        if (pick2 === null) return;
+        if (pick2 === '__new__') {
+          const name = await panePrompt(el, T.brProfileNameAsk || '', '', T.brProfileCreate || 'Create');
+          if (!name) return;
+          profile = name;
+        } else profile = pick2 === def ? '' : pick2;
+        if (cur === 'normal' && profile === (sess.browserProfile || '').trim()) return;   // 그대로면 재시작 안 함
+      }
       sess.browser = pick || false;
+      sess.browserProfile = profile;
       paintBr();
-      await api('PATCH', '/api/sessions/' + sess.id, { browser: pick || false });
+      await api('PATCH', '/api/sessions/' + sess.id, { browser: pick || false, browserProfile: profile });
     };
   }
 
@@ -11663,12 +11690,36 @@ function paneChoice(paneEl, msg, choices, cur) {
       return b;
     };
     add('pc-no', T.cancel || 'Cancel', null);
-    choices.forEach(([v, label, cls]) => {
-      const b = add(cls || (v ? 'pc-yes' : 'pc-no'), label + (v && v === cur ? ' ✓' : ''), v);
-      if (v && v === cur) b.disabled = true;
+    // 지금 값은 ✓ 로만 표시하고 누를 수는 있게 둔다 — 일반창은 다시 눌러야 계정 창을 바꿀 수 있다
+    choices.forEach(([v, label, cls]) => add(cls || (v ? 'pc-yes' : 'pc-no'), label + (v && v === cur ? ' ✓' : ''), v));
+    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
+    paneEl.appendChild(ov);
+  });
+}
+// 세션 안 입력창 — 확인이면 적은 값, 취소·바깥 클릭이면 null
+function panePrompt(paneEl, msg, value, okLabel) {
+  return new Promise(resolve => {
+    paneEl.querySelectorAll('.pane-confirm').forEach(n => n.remove());
+    const ov = document.createElement('div');
+    ov.className = 'pane-confirm';
+    ov.innerHTML = '<div class="pc-box"><div class="pc-msg"></div><input class="pc-input" type="text" spellcheck="false"><div class="pc-btns"></div></div>';
+    ov.querySelector('.pc-msg').textContent = msg;
+    const inp = ov.querySelector('.pc-input');
+    inp.value = value || '';
+    // 여기서 친 글자가 터미널이나 단축키 처리로 새지 않게
+    ['keydown', 'keypress', 'keyup', 'paste'].forEach(t => inp.addEventListener(t, e => e.stopPropagation()));
+    const done = v => { ov.remove(); resolve(v); };
+    const btns = ov.querySelector('.pc-btns');
+    const mk = (cls, label, fn) => { const b = document.createElement('button'); b.className = cls; b.textContent = label; b.onclick = e => { e.stopPropagation(); fn(); }; btns.appendChild(b); };
+    mk('pc-no', T.cancel || 'Cancel', () => done(null));
+    mk('pc-yes', okLabel || T.ok || T.confirm || 'OK', () => done(inp.value.trim() || null));
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); done(inp.value.trim() || null); }
+      else if (e.key === 'Escape') { e.preventDefault(); done(null); }
     });
     ov.addEventListener('click', e => { if (e.target === ov) done(null); });
     paneEl.appendChild(ov);
+    inp.focus();
   });
 }
 // 📝 브라우저 규칙 편집 — 🌐 를 켠 세션의 AI 가 지킬 규칙 파일(~/.powerterminal/browser-rules.md)

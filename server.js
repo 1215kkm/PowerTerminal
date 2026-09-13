@@ -524,17 +524,40 @@ function claudeTuiFlag() {
    로그인은 그 창에서 한 번만 하면 되고, pageIdRouting(기본값)이 세션마다 자기 탭만 건드리게 한다.
    프로필은 늘 같은 폴더 하나를 재사용한다(매번 새로 만들면 쌓여 디스크가 찬다 — 2026-08-28 사고). */
 const BROWSER_PORT = Number(process.env.PT_BROWSER_PORT) || 9777;
-const BROWSER_PROFILE = path.join(DATA_DIR, 'browser-profile');
+const BROWSER_PROFILE = path.join(DATA_DIR, 'browser-profile');            // 기본 창 (예전부터 쓰던 자리)
+const BROWSER_PROFILES_DIR = path.join(DATA_DIR, 'browser-profiles');      // 계정별 창
 const BROWSER_MCP_NAME = 'pt_browser';
+/* 👤 계정별 창 — 크롬 프로필 하나에는 사이트당 로그인이 하나만 남는다. 그래서 같은 쇼핑몰의 계정 두 개를
+   오가려면 창(프로필)이 둘이어야 한다. 한 창에서 아이디만 바꿔 로그인하려 하면 저장된 비밀번호가 안 맞아
+   실패하고, 반복되면 계정이 잠긴다(실사용에서 그래서 막혔다). 계정마다 한 번씩만 로그인해 두면 이후로는
+   AI 가 비밀번호를 만질 일 없이 그 창에서 계속 작업한다.
+   창마다 크롬이 하나씩 뜬다(메모리 0.3~0.6GB) — 그 창을 쓰는 세션이 있을 때만 띄운다.
+   포트는 config 에 적어 고정한다(매번 달라지면 떠 있는 크롬을 못 찾는다). */
+const profileSlug = name => String(name || '').trim().toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+function browserProfile(name) {
+  const slug = profileSlug(name);
+  if (!slug || slug === 'default' || slug === '기본') return { name: '기본', slug: '', dir: BROWSER_PROFILE, port: BROWSER_PORT };
+  config.browserProfiles = config.browserProfiles || {};
+  let e = config.browserProfiles[slug];
+  if (!e) {
+    const used = new Set([BROWSER_PORT, ...Object.values(config.browserProfiles).map(x => x.port)]);
+    let port = BROWSER_PORT; while (used.has(port)) port++;
+    e = { name: String(name).trim().slice(0, 40), port };
+    config.browserProfiles[slug] = e;
+    try { saveConfig(); } catch (err) {}
+  }
+  return { name: e.name, slug, dir: path.join(BROWSER_PROFILES_DIR, slug), port: e.port };
+}
+const sessProfile = sess => browserProfile(sess.browserProfile);
 /* 🕶 시크릿창 — 세션마다 도구가 직접 깨끗한 크롬을 띄우고(--isolated), 끝나면 그 임시 프로필을 지운다.
    지우는 건 크롬이 정상 종료될 때뿐이라, 세션이 강제로 끊기면 프로필이 남을 수 있다 → TEMP 를 PT 임시폴더
    안으로 돌려 남은 것도 7일 정리가 치우게 한다(프로필이 쌓여 디스크가 찬 2026-08-28 사고 방지). */
 const BROWSER_INCOG_TMP = path.join(SCRATCH_DIR, 'browser-incognito');
 // 예전(v1.77.0) 값 true 는 일반창이다
 const browserMode = s => (s.browser === true || s.browser === 'normal') ? 'normal' : s.browser === 'incognito' ? 'incognito' : '';
-function browserMcp(mode) {
+function browserMcp(mode, prof) {
   // 성능·에뮬레이션 도구는 뺀다 — 사이트 조작엔 안 쓰는데 도구 설명이 요청마다 붙어 토큰만 먹는다.
-  const args = ['-y', 'chrome-devtools-mcp@1.9.0', mode === 'incognito' ? '--isolated' : '--browserUrl=http://127.0.0.1:' + BROWSER_PORT,
+  const args = ['-y', 'chrome-devtools-mcp@1.9.0', mode === 'incognito' ? '--isolated' : '--browserUrl=http://127.0.0.1:' + prof.port,
     '--usageStatistics=false', '--performanceCrux=false', '--categoryPerformance=false', '--categoryEmulation=false',
     // PT 화면 자체는 못 열게 도구 차원에서 막는다 — 이 PC 에선 PT 가 토큰 없이 열리고, 열리면 다른 세션에
     // 명령을 칠 수 있다(웹페이지에 속은 AI 의 우회로). 규칙 파일은 지시일 뿐이라 여기선 강제 차단을 쓴다.
@@ -561,10 +584,13 @@ function sweepIncognito() {
     } catch (e) {}
   }
 }
-const browserMcpFile = mode => path.join(DATA_DIR, mode === 'incognito' ? 'browser-mcp-incognito.json' : 'browser-mcp.json');
-for (const mode of ['normal', 'incognito']) {
-  const m = browserMcp(mode);
-  try { fs.writeFileSync(browserMcpFile(mode), JSON.stringify({ mcpServers: { [BROWSER_MCP_NAME]: Object.assign({ command: m.command, args: m.args }, m.env ? { env: m.env } : {}) } }, null, 2)); } catch (e) {}
+// 창(프로필)마다 붙을 크롬이 달라 MCP 설정 파일도 따로 쓴다 — 세션이 뜰 때 그때 기록한다.
+const browserMcpFile = (mode, prof) => path.join(DATA_DIR,
+  mode === 'incognito' ? 'browser-mcp-incognito.json' : 'browser-mcp' + (prof && prof.slug ? '-' + prof.slug : '') + '.json');
+function writeBrowserMcp(mode, prof) {
+  const m = browserMcp(mode, prof), f = browserMcpFile(mode, prof);
+  try { fs.writeFileSync(f, JSON.stringify({ mcpServers: { [BROWSER_MCP_NAME]: Object.assign({ command: m.command, args: m.args }, m.env ? { env: m.env } : {}) } }, null, 2)); } catch (e) {}
+  return f;
 }
 /* 📝 브라우저 규칙 — 🌐 를 켠 세션의 AI 가 지킬 규칙. 사용자가 PT(🌐 → 규칙 편집)나 아무 편집기로 고친다.
    AI 가 뜰 때 시스템 지시로 넣고(Claude: --append-system-prompt-file, codex: developer_instructions — 둘 다 실측),
@@ -598,6 +624,7 @@ const BROWSER_RULES_DEFAULT = [
   '- PowerTerminal 화면(이 PC 의 PT 주소)은 열지 않는다 — 다른 세션을 조작하는 길이 된다',
   '',
   '## 일반창일 때 (로그인이 계속 남는 창)',
+  '- 이 창은 한 계정 전용이다. 로그인 화면에 다른 계정이 자동으로 채워져 있으면 아이디만 바꿔 로그인하려 하지 않는다 — 저장된 비밀번호가 달라 실패하고 반복되면 계정이 잠긴다. 그 계정용 창이 필요하다고 사용자에게 알린다',
   '- 사용자가 로그인해 둔 계정들이 있다. 작업과 관계없는 계정·탭은 건드리지 않는다',
   '- 로그아웃하거나 쿠키·방문 기록을 지우지 않는다',
   '- 사용자가 직접 연 탭은 닫지 않는다. 작업은 새 탭에서 한다',
@@ -610,12 +637,13 @@ const BROWSER_RULES_DEFAULT = [
   ''
 ].join('\n');
 try { if (!fs.existsSync(BROWSER_RULES_FILE)) fs.writeFileSync(BROWSER_RULES_FILE, BROWSER_RULES_DEFAULT); } catch (e) {}
-function browserRulesPrompt(mode, withRules) {
+function browserRulesPrompt(mode, prof, withRules) {
   let rules = '';
   if (withRules) { try { rules = fs.readFileSync(BROWSER_RULES_FILE, 'utf8').trim(); } catch (e) {} }
   const modeLine = mode === 'incognito'
     ? '시크릿창 — 이 세션만 쓰는 깨끗한 크롬이다. 끄거나 재시작하면 로그인·쿠키·기록이 모두 지워진다.'
-    : '일반창 — PT 전용 크롬 하나를 모든 세션이 같이 쓴다. 사용자가 로그인해 둔 계정과 쿠키가 남아 있다.';
+    : '일반창 「' + ((prof && prof.name) || '기본') + '」 — 이 이름의 창 전용 크롬이다. 여기 로그인해 둔 계정이 그대로 유지되고, 다른 계정은 각자의 창에 따로 로그인돼 있다.'
+      + ' 다른 계정이 필요하면 이 창에서 아이디만 바꿔 로그인하려 하지 말고(저장된 비밀번호가 달라 실패하고 계정이 잠길 수 있다) 그 계정 창이 필요하다고 사용자에게 알린다.';
   return ['[PowerTerminal 브라우저 규칙]',
     '이 세션에는 pt_browser 브라우저 도구가 있다. 현재 모드: ' + modeLine,
     '웹사이트를 열거나 조작하는 일은 pt_browser 도구로 한다 (로그인이 필요한 사이트는 웹 가져오기·curl 로는 안 된다).',
@@ -626,18 +654,20 @@ function browserRulesPrompt(mode, withRules) {
 function browserFlags(sess) {
   const mode = browserMode(sess);
   if (!mode) return '';
+  const prof = mode === 'normal' ? sessProfile(sess) : null;
+  const tag = mode + (prof && prof.slug ? '-' + prof.slug : '');
   if ((sess.agent || 'claude') === 'claude') {
-    const f = path.join(DATA_DIR, 'browser-rules-' + mode + '.prompt.md');
-    try { fs.writeFileSync(f, browserRulesPrompt(mode, true)); } catch (e) {}
-    return ' --mcp-config "' + browserMcpFile(mode) + '" --allowedTools mcp__' + BROWSER_MCP_NAME + ' --append-system-prompt-file "' + f + '"';
+    const f = path.join(DATA_DIR, 'browser-rules-' + tag + '.prompt.md');
+    try { fs.writeFileSync(f, browserRulesPrompt(mode, prof, true)); } catch (e) {}
+    return ' --mcp-config "' + writeBrowserMcp(mode, prof) + '" --allowedTools mcp__' + BROWSER_MCP_NAME + ' --append-system-prompt-file "' + f + '"';
   }
   if (sess.agent !== 'codex') return '';
-  const m = browserMcp(mode);
+  const m = browserMcp(mode, prof);
   // 규칙은 developer_instructions 로. 윈도우 PowerShell 5.1 은 인자 속 큰따옴표를 망가뜨리므로 여러 줄 TOML
   // 리터럴(''' … ''')에 담고 큰따옴표는 ”로 바꾼다. 맥·리눅스는 한 줄 TOML 문자열(JSON 표기)로.
   // 명령줄 길이 한도 때문에 너무 길면 규칙 본문은 빼고 "원본 파일을 읽어라"만 넣는다.
-  let rp = browserRulesPrompt(mode, true);
-  if (rp.length > 12000) rp = browserRulesPrompt(mode, false);
+  let rp = browserRulesPrompt(mode, prof, true);
+  if (rp.length > 12000) rp = browserRulesPrompt(mode, prof, false);
   const di = IS_WIN
     ? "developer_instructions='''\n" + rp.replace(/\r/g, '').replace(/"/g, '”').replace(/'''/g, "' ' '") + "\n'''"
     : 'developer_instructions=' + JSON.stringify(rp);
@@ -665,18 +695,20 @@ function findBrowserExe() {
 }
 // 켤 때·세션이 뜰 때·🌐 세션에 요청을 보낼 때 부른다 — 사용자가 창을 닫아 버렸어도 다음 요청 때 다시 뜬다.
 // 5초에 한 번만 확인한다: 크롬이 포트를 여는 데 1~2초 걸려, 그 사이 또 부르면 창이 두 개 뜬다.
-let browserCheckAt = 0;
-async function ensureBrowser() {
-  if (Date.now() - browserCheckAt < 5000) return;
-  browserCheckAt = Date.now();
-  try { if ((await fetch('http://127.0.0.1:' + BROWSER_PORT + '/json/version', { signal: AbortSignal.timeout(1500) })).ok) return; } catch (e) {}
+const browserCheckAt = new Map();   // 창(포트)별 마지막 확인 시각
+async function ensureBrowser(prof) {
+  const p = prof || browserProfile('');
+  if (Date.now() - (browserCheckAt.get(p.port) || 0) < 5000) return;
+  browserCheckAt.set(p.port, Date.now());
+  try { if ((await fetch('http://127.0.0.1:' + p.port + '/json/version', { signal: AbortSignal.timeout(1500) })).ok) return; } catch (e) {}
   const exe = findBrowserExe();
   if (!exe) { console.log('  🌐 Chrome/Edge 를 찾지 못했습니다 — 브라우저 조작을 쓰려면 Chrome 을 설치하세요'); return; }
   try {
-    const c = spawn(exe, ['--remote-debugging-port=' + BROWSER_PORT, '--user-data-dir=' + BROWSER_PROFILE,
+    const c = spawn(exe, ['--remote-debugging-port=' + p.port, '--user-data-dir=' + p.dir,
                           '--no-first-run', '--no-default-browser-check', 'about:blank'], { detached: true, stdio: 'ignore' });
     c.on('error', e => console.log('  🌐 브라우저 실행 실패: ' + (e && e.message)));
     c.unref();
+    console.log('  🌐 브라우저 창 「' + p.name + '」 실행 (포트 ' + p.port + ')');
   } catch (e) { console.log('  🌐 브라우저 실행 실패: ' + (e && e.message)); }
 }
 // fresh=true: 같은 폴더에 이미 살아있는 세션이 있을 때 — --continue를 붙이면 그 세션의 대화를
@@ -798,7 +830,7 @@ function getPty(sess) {
   const cmd = agentCommand(sess, dupAlive, resume);
   if (isClaudeAgent || sess.agent === 'codex') {
     const bm = browserMode(sess);
-    if (bm === 'normal') ensureBrowser();
+    if (bm === 'normal') ensureBrowser(sessProfile(sess));
     // 7일 정리가 폴더째 지웠을 수 있다 — 없으면 도구가 임시 프로필을 못 만든다
     else if (bm === 'incognito') { try { fs.mkdirSync(BROWSER_INCOG_TMP, { recursive: true }); } catch (e) {} }
   }
@@ -1646,6 +1678,12 @@ app.post('/api/settings', (req, res) => {
   if (dirty) saveConfig();
   res.json({ ok: true, ...settingsView() });
 });
+// 👤 계정별 창 목록 (🌐 → 일반창에서 고른다). 세션이 쓰는 중인 창도 표시한다.
+app.get('/api/browser-profiles', (req, res) => {
+  const names = ['', ...Object.values(config.browserProfiles || {}).map(e => e.name)];
+  const used = new Set(sessions.filter(s => browserMode(s) === 'normal').map(s => sessProfile(s).slug));
+  res.json(names.map(n => { const p = browserProfile(n); return { name: p.name, slug: p.slug, port: p.port, inUse: used.has(p.slug) }; }));
+});
 // 📝 브라우저 규칙 읽기/저장 (🌐 → 규칙 편집)
 app.get('/api/browser-rules', (req, res) => {
   let text = BROWSER_RULES_DEFAULT;
@@ -2053,12 +2091,14 @@ app.patch('/api/sessions/:id', (req, res) => {
   }
   // 🌐 브라우저 조작 — false | 'normal'(일반창) | 'incognito'(시크릿창). MCP 도구는 AI 가 뜰 때만
   // 붙일 수 있어서 재시작한다(대화는 이어짐)
-  if (req.body.browser !== undefined) {
+  if (req.body.browser !== undefined || typeof req.body.browserProfile === 'string') {
     const b = req.body.browser;
-    s.browser = (b === true || b === 'normal') ? 'normal' : b === 'incognito' ? 'incognito' : false;
+    if (b !== undefined) s.browser = (b === true || b === 'normal') ? 'normal' : b === 'incognito' ? 'incognito' : false;
+    // 👤 계정별 창 — 빈 값이면 기본 창
+    if (typeof req.body.browserProfile === 'string') s.browserProfile = req.body.browserProfile.trim().slice(0, 40);
     s.resumeOnStart = false;   // 아래 agent 분기와 같은 이유
     saveSessions();
-    if (s.browser === 'normal') ensureBrowser();
+    if (s.browser === 'normal') ensureBrowser(sessProfile(s));
     const p = ptys.get(s.id);
     if (p && !p.dead && ((s.agent || 'claude') === 'claude' || s.agent === 'codex')) {
       try { p.proc.kill(); } catch (e) {}
@@ -3209,7 +3249,7 @@ wss.on('connection', (ws, req) => {
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
       if (isSubmitInput(m.data)) p.armed = true;
-      if (browserMode(sess) === 'normal' && isSubmitInput(m.data)) ensureBrowser();
+      if (browserMode(sess) === 'normal' && isSubmitInput(m.data)) ensureBrowser(sessProfile(sess));
       // Claude·codex 는 화면 마커가 busy를 결정 — 여기서 켜면 타이핑만 해도 '작업 중'이 돼 버린다
       const markerBased = !sess.agent || sess.agent === 'claude' || sess.agent === 'codex';
       const wasDone = p.done, wasBusy = p.busy;
