@@ -883,6 +883,18 @@
         background: #0b1220; color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
         font: 12.5px/1.55 ui-monospace, Consolas, monospace; resize: vertical; }
   html.light .pane-confirm .br-rules { background: #fff; }
+  /* 🔑 로그인 보관함 */
+  .pane-confirm .vt-list { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; max-height: 32vh; overflow-y: auto; }
+  .pane-confirm .vt-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+  .pane-confirm .vt-row b { white-space: nowrap; }
+  .pane-confirm .vt-row .vt-meta { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pane-confirm .vt-row button { flex: none; }
+  .pane-confirm .vt-empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+  .pane-confirm .vt-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 6px; margin-top: 10px; }
+  .pane-confirm .vt-form input { min-width: 0; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; }
+  .pane-confirm .vt-log { margin-top: 10px; font-size: 12px; color: var(--muted); max-height: 18vh; overflow-y: auto; white-space: pre-wrap; }
+  @media (max-width: 640px) { .pane-confirm .vt-form { grid-template-columns: 1fr 1fr; } }
+  html.light .pane-confirm .vt-form input { background: #fff; }
   .pane-confirm .pc-input { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px;
         background: #0b1220; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
   html.light .pane-confirm .pc-input { background: #fff; }
@@ -2149,6 +2161,13 @@ const I18N_MORE = {
     brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
     brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
+    vault: "Login vault", vaultName: "Name (e.g. Toypang)", vaultDomain: "Site (e.g. cafe24.com)", vaultUser: "Username", vaultPw: "Password",
+    vaultPwKeep: "Password (blank = keep)", vaultAdd: "Save", vaultUpdate: "Update", vaultEdit: "Edit", vaultDel: "Delete", vaultDelSure: "Really delete?",
+    vaultClose: "Close", vaultSaved: "Saved to the login vault", vaultEmpty: "No saved logins yet. Add one below.", vaultUsed: "last used",
+    vaultLogHead: "Recent use by AI", vaultLocalOnly: "The login vault only opens on the PC running PowerTerminal (passwords never travel to your phone).",
+    vaultErr_name: "Enter a name", vaultErr_domain: "Enter the site address (e.g. cafe24.com)", vaultErr_username: "Enter the username",
+    vaultErr_password: "Enter the password", vaultErr_dup: "That name is already used", vaultErr_gone: "That login was already deleted",
+    vaultHead: "🔑 Logins the AI can use without seeing the password — like Aside Vault.\nWhen a browser session hits a login page, the AI calls the login tool with a name. PowerTerminal checks that the open tab is really on the saved site (subdomains included), then types the username and password into the form itself. Other sites are refused, so a fake login page gets nothing.\nPasswords are encrypted on this PC and never shown again — not to you, not to the AI. Works in normal browser windows (not incognito). Captchas and phone/app codes still need you.\n⚠ Anyone with access to this Windows account could decrypt them, same as Chrome's saved passwords.",
     brProfileDefault: "Default", brProfileNew: "New account window", brProfileInUse: "in use", brProfileCreate: "Create",
     gbUpMenu: "Upload to GitHub (pull request)", gbOpenPr: "Open pull request page", gbCtxHint: "Right-click: upload to GitHub (pull request)",
     gbUpNoRepo: "Not connected to a GitHub repository (origin)",
@@ -2250,6 +2269,13 @@ const I18N_MORE = {
     brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
     brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
+    vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "사이트 (예: cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
+    vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
+    vaultClose: "닫기", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
+    vaultLogHead: "AI 최근 사용 기록", vaultLocalOnly: "로그인 보관함은 PowerTerminal 이 켜진 PC 에서만 열려요 (비밀번호가 폰으로 오가지 않게).",
+    vaultErr_name: "이름을 적어 주세요", vaultErr_domain: "사이트 주소를 적어 주세요 (예: cafe24.com)", vaultErr_username: "아이디를 적어 주세요",
+    vaultErr_password: "비밀번호를 적어 주세요", vaultErr_dup: "이미 있는 이름이에요", vaultErr_gone: "이미 삭제된 로그인이에요",
+    vaultHead: "🔑 AI 가 비밀번호를 보지 않고 쓰는 로그인이에요 (Aside 의 보관함과 같은 방식).\n브라우저 세션이 로그인 화면을 만나면 AI 가 이름으로 로그인 도구를 불러요. 그러면 PowerTerminal 이 열린 탭이 정말 저장한 사이트(하위 도메인 포함)인지 확인한 뒤, 아이디·비밀번호를 입력칸에 직접 넣어요. 다른 사이트면 거절하니 가짜 로그인 페이지에는 안 들어가요.\n비밀번호는 이 PC 에 암호화해 두고, 저장한 뒤로는 사용자에게도 AI 에게도 다시 보여주지 않아요. 일반창에서만 쓸 수 있어요 (시크릿창 X). 캡차·문자/앱 인증은 여전히 직접 해 주세요.\n⚠ 이 Windows 계정에 접근할 수 있는 사람은 풀 수 있어요 — 크롬 저장 비밀번호와 같은 수준이에요.",
     brProfileDefault: "기본", brProfileNew: "새 계정 창", brProfileInUse: "사용중", brProfileCreate: "만들기",
     gbUpMenu: "GitHub에 올리기 (PR)", gbOpenPr: "PR 페이지 열기", gbCtxHint: "우클릭: GitHub에 올리기 (PR)",
     gbUpNoRepo: "GitHub 저장소(origin)가 연결돼 있지 않아요",
@@ -5376,8 +5402,10 @@ function buildPane(sess, idx) {
       const choices = [['normal', '🌐 ' + (T.brNormal || 'Normal window')], ['incognito', '🕶 ' + (T.brIncog || 'Incognito window')]];
       if (cur) choices.unshift(['', T.brOff || 'Turn off']);
       choices.unshift(['rules', '📝 ' + (T.brRules || 'Rules'), 'pc-no']);
+      choices.unshift(['vault', '🔑 ' + (T.vault || 'Login vault'), 'pc-no']);
       const pick = await paneChoice(el, (T.brAsk || '').replace('{t}', sess.title || ''), choices, cur);
       if (pick === 'rules') { openBrowserRules(el); return; }
+      if (pick === 'vault') { openVault(el); return; }
       if (pick === null || (pick === cur && pick !== 'normal')) return;
       // 👤 일반창은 계정마다 창(크롬 프로필)이 따로 — 어느 계정 창을 쓸지 고른다
       let profile = (sess.browserProfile || '').trim();
@@ -12009,6 +12037,88 @@ async function openBrowserRules(paneEl) {
   });
   paneEl.appendChild(ov);
   ta.focus();
+}
+// 🔑 로그인 보관함 — AI 가 비밀번호를 보지 않고 로그인하도록 PT 가 들고 있는 계정들 (서버: /api/vault).
+// 이 PC 에서만 열린다 — 비밀번호가 원격(폰)으로 오가지 않게. 서버는 비밀번호를 절대 돌려주지 않는다(수정 시 빈칸 = 그대로).
+async function openVault(paneEl) {
+  const r = await api('GET', '/api/vault');
+  if (r && r.error === 'local_only') { flashToast('⚠ ' + (T.vaultLocalOnly || 'Open this on the PC running PowerTerminal')); return; }
+  if (!r || !Array.isArray(r.entries)) { flashToast('⚠ ' + ((r && r.error) || 'vault')); return; }
+  paneEl.querySelectorAll('.pane-confirm').forEach(n => n.remove());
+  const ov = document.createElement('div');
+  ov.className = 'pane-confirm';
+  ov.innerHTML = '<div class="pc-box pc-wide"><div class="pc-msg"></div><div class="vt-list"></div>' +
+    '<div class="vt-form"><input class="vt-name" maxlength="40"><input class="vt-domain" maxlength="200">' +
+    '<input class="vt-user" maxlength="200" autocomplete="off"><input class="vt-pw" type="password" maxlength="500" autocomplete="new-password">' +
+    '<button class="pc-yes vt-add"></button></div><div class="vt-log"></div><div class="pc-btns"></div></div>';
+  const $ = s => ov.querySelector(s);
+  $('.pc-msg').textContent = T.vaultHead || '';
+  const fields = [['.vt-name', T.vaultName || 'Name (e.g. Toypang)'], ['.vt-domain', T.vaultDomain || 'Site (e.g. cafe24.com)'],
+                  ['.vt-user', T.vaultUser || 'Username'], ['.vt-pw', T.vaultPw || 'Password']];
+  // 여기서 친 글자·붙여넣기가 터미널이나 단축키 처리로 새지 않게
+  fields.forEach(([s, ph]) => { $(s).placeholder = ph; ['keydown', 'keypress', 'keyup', 'paste'].forEach(t => $(s).addEventListener(t, e => e.stopPropagation())); });
+  let editId = '';
+  const resetForm = () => {
+    editId = '';
+    fields.forEach(([s, ph]) => { $(s).value = ''; $(s).placeholder = ph; });
+    $('.vt-add').textContent = T.vaultAdd || 'Save';
+  };
+  const when = ms => ms ? new Date(ms).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const paint = data => {
+    const list = $('.vt-list');
+    list.innerHTML = '';
+    if (!data.entries.length) {
+      const d = document.createElement('div'); d.className = 'vt-empty'; d.textContent = T.vaultEmpty || 'No saved logins yet.';
+      list.appendChild(d);
+    }
+    data.entries.forEach(e => {
+      const row = document.createElement('div'); row.className = 'vt-row';
+      const b = document.createElement('b'); b.textContent = e.name;
+      const meta = document.createElement('span'); meta.className = 'vt-meta';
+      meta.textContent = e.domain + ' · ' + e.username + (e.lastUsed ? ' · ' + (T.vaultUsed || 'last used') + ' ' + when(e.lastUsed) : '');
+      const ed = document.createElement('button'); ed.className = 'pc-no'; ed.textContent = T.vaultEdit || 'Edit';
+      ed.onclick = ev => {
+        ev.stopPropagation();
+        editId = e.id;
+        $('.vt-name').value = e.name; $('.vt-domain').value = e.domain; $('.vt-user').value = e.username;
+        $('.vt-pw').value = ''; $('.vt-pw').placeholder = T.vaultPwKeep || 'Password (blank = keep)';
+        $('.vt-add').textContent = T.vaultUpdate || 'Update';
+        $('.vt-pw').focus();
+      };
+      // 확인창 대신 두 번 누르기 — 창 위에 창을 또 띄우면 이 창이 닫힌다
+      const del = document.createElement('button'); del.className = 'pc-no'; del.textContent = T.vaultDel || 'Delete';
+      del.onclick = async ev => {
+        ev.stopPropagation();
+        if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = T.vaultDelSure || 'Really delete?'; return; }
+        const res = await api('DELETE', '/api/vault/' + encodeURIComponent(e.id));
+        if (res && Array.isArray(res.entries)) { if (editId === e.id) resetForm(); paint(res); }
+        else flashToast('⚠ ' + ((res && res.error) || 'delete failed'));
+      };
+      row.append(b, meta, ed, del);
+      list.appendChild(row);
+    });
+    const log = (data.log || []).slice(0, 12);
+    $('.vt-log').textContent = log.length
+      ? (T.vaultLogHead || 'Recent use by AI') + '\n' + log.map(l => when(l.at) + '  ' + (l.ok ? '✓' : '✗') + ' ' + l.name +
+          (l.host ? ' → ' + l.host : '') + (l.ok ? '' : ' — ' + String(l.msg || '').slice(0, 90))).join('\n')
+      : '';
+  };
+  paint(r);
+  resetForm();
+  $('.vt-add').onclick = async ev => {
+    ev.stopPropagation();
+    const res = await api('POST', '/api/vault', { id: editId, name: $('.vt-name').value.trim(), domain: $('.vt-domain').value.trim(),
+                                                 username: $('.vt-user').value.trim(), password: $('.vt-pw').value });
+    if (res && Array.isArray(res.entries)) { paint(res); resetForm(); flashToast(T.vaultSaved || 'Saved'); }
+    else flashToast('⚠ ' + ((res && T['vaultErr_' + res.error]) || (res && res.error) || 'save failed'));
+  };
+  $('.vt-pw').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('.vt-add').click(); } });
+  const close = document.createElement('button');
+  close.className = 'pc-no'; close.textContent = T.vaultClose || 'Close';
+  close.onclick = e => { e.stopPropagation(); $('.vt-pw').value = ''; ov.remove(); };
+  $('.pc-btns').appendChild(close);
+  paneEl.appendChild(ov);
+  $('.vt-name').focus();
 }
 // 📋 클립보드 복사 + 토스트 (https/localhost가 아니면 구식 execCommand 폴백)
 function copyTxt(t) {
