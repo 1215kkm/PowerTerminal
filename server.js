@@ -3041,6 +3041,30 @@ app.get('/api/sessions/:id/pr-state', async (req, res) => {
   try { res.json(await prStateOf(s)); }
   catch (e) { res.json({ error: 'git 상태를 읽지 못했어요: ' + String(e.stderr || e.message || '').trim().slice(0, 200) }); }
 });
+// 진행 상황 — 화면이 0.5초마다 물어본다(올리기·합치기). 큰 파일 푸시는 몇 분씩 걸려 멈춘 것처럼 보였다.
+const prProgress = new Map();   // 세션 id → { kind, steps, cur, pct }
+const setProg = (id, o) => prProgress.set(id, Object.assign(prProgress.get(id) || {}, o));
+app.get('/api/sessions/:id/pr-progress', (req, res) => res.json(prProgress.get(req.params.id) || null));
+// git push 를 스트리밍으로 돌려 "Writing objects: 45%" 를 읽는다 (--progress: 터미널이 아니어도 진행률을 쓰게 한다)
+function gitPushProgress(cwd, branch, onPct) {
+  return new Promise((resolve, reject) => {
+    // GIT_TERMINAL_PROMPT=0 — 인증이 없을 때 아이디를 물으며 끝없이 기다리지 말고 바로 실패
+    const p = spawn('git', ['push', '--progress', '-u', 'origin', branch],
+      { cwd, windowsHide: true, env: Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0' }) });
+    let err = '';
+    const kill = setTimeout(() => { try { p.kill(); } catch (e) {} }, 30 * 60000);
+    p.stdout.on('data', () => {});
+    p.stderr.on('data', d => {
+      const s = String(d);
+      err = (err + s).slice(-4000);
+      const all = [...s.matchAll(/(Counting|Compressing|Writing) objects:\s+(\d+)%/g)];
+      const m = all[all.length - 1];
+      if (m) { const n = +m[2]; onPct(Math.round(m[1] === 'Writing' ? 30 + n * 0.7 : m[1] === 'Compressing' ? 10 + n * 0.2 : n * 0.1)); }
+    });
+    p.on('error', e => { clearTimeout(kill); reject(e); });
+    p.on('close', code => { clearTimeout(kill); code === 0 ? resolve() : reject(Object.assign(new Error('git push 실패'), { stderr: err })); });
+  });
+}
 app.post('/api/sessions/:id/pr-upload', async (req, res) => {
   const s = sessions.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({ error: 'no session' });
@@ -3056,18 +3080,23 @@ app.post('/api/sessions/:id/pr-upload', async (req, res) => {
     if (st.nothing) return res.json({ error: '올릴 변경사항이 없어요' });
     const title = String((req.body && req.body.title) || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200) || ('변경사항 ' + st.files.length + '개 반영');
     branch = st.branch;
+    const steps = [...(st.onBase ? ['branch'] : []), ...(st.files.length ? ['commit'] : []), 'push', ...(st.onBase || !st.prUrl ? ['pr'] : [])];
+    prProgress.set(s.id, { kind: 'upload', steps, cur: steps[0], pct: 0 });
     if (st.onBase) {
       const d = new Date(), z = n => String(n).padStart(2, '0');
       branch = 'pt/pr-' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds());
       await git(s.path, ['switch', '-c', branch], 15000);
     }
     if (st.files.length) {
+      setProg(s.id, { cur: 'commit', pct: 0 });
       await git(s.path, ['add', '-A'], 60000);
       await git(s.path, ['commit', '-m', title], 60000);
     }
-    await git(s.path, ['push', '-u', 'origin', branch], 180000);
+    setProg(s.id, { cur: 'push', pct: 0 });
+    await gitPushProgress(s.path, branch, pct => setProg(s.id, { pct }));
     let url = st.onBase ? '' : st.prUrl, created = false;
     if (!url) {
+      setProg(s.id, { cur: 'pr', pct: 0 });
       const body = 'PowerTerminal 에서 올림 — `' + branch + '` → `' + st.base + '`';
       const out = await execFileA(ghBin(), ['pr', 'create', '--repo', st.repo, '--base', st.base, '--head', branch, '--title', title, '--body', body],
         { cwd: s.path, encoding: 'utf8', timeout: 60000, windowsHide: true });
@@ -3079,7 +3108,61 @@ app.post('/api/sessions/:id/pr-upload', async (req, res) => {
   } catch (e) {
     gitCache.delete(s.id);
     res.json({ error: (branch ? '[' + branch + '] ' : '') + String(e.stderr || e.message || '').trim().slice(0, 500) });
-  } finally { prUploading.delete(s.id); }
+  } finally { prUploading.delete(s.id); prProgress.delete(s.id); }
+});
+/* ✅ PR 합치기 — GitHub 에서 PR 을 기본 브랜치에 합치고, PT 가 만든 PR 브랜치(pt/pr-…)에 있던 폴더는 기본 브랜치로
+   돌려 받아온다. 안 하면 폴더가 PR 브랜치에 남고, 로컬 main 은 GitHub 의 합침 커밋이 없어 한 칸 뒤처진다
+   (파일 내용은 같아도 기록이 달라서, 그대로 main 에서 작업하면 다음 푸시가 거절된다). */
+app.post('/api/sessions/:id/pr-merge', async (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  if (prUploading.has(s.id)) return res.json({ error: '이미 진행 중이에요' });
+  prUploading.add(s.id);
+  try {
+    const st = await prStateOf(s);
+    if (!st.repo) return res.json({ error: 'GitHub 저장소(origin)가 연결돼 있지 않아요' });
+    if (!st.login) return res.json({ code: 'not_authed', error: 'GitHub 에 로그인돼 있지 않아요' });
+    const url = String((req.body && req.body.url) || '').trim() || st.prUrl;
+    if (!/\/pull\/\d+/.test(url)) return res.json({ error: '합칠 열린 PR 이 없어요' });
+    // gh 를 저장소 폴더 안에서 돌리면 로컬 브랜치를 건드릴 수 있어서, 폴더 밖에서 URL 로만 부른다
+    const gh = (a, t) => execFileA(ghBin(), a, { cwd: os.tmpdir(), encoding: 'utf8', timeout: t || 60000, windowsHide: true });
+    const pv = JSON.parse(await gh(['pr', 'view', url, '--json', 'state,headRefName,headRefOid,baseRefName']));
+    if (pv.state === 'CLOSED') return res.json({ error: '이 PR 은 닫혀 있어요' });
+    const onHead = st.branch === pv.headRefName;
+    // 올린 뒤 이 폴더에서 더 바뀐 게 있으면(AI 가 계속 작업하는 등) 그건 PR 에 없다 — 먼저 올리게 한다
+    if (onHead && st.files.length) return res.json({ error: '아직 안 올린 변경 파일이 ' + st.files.length + '개 있어요 — 먼저 올리기를 한 뒤 합치세요' });
+    if (onHead && st.ahead) return res.json({ error: '아직 GitHub 에 안 올린 커밋이 ' + st.ahead + '개 있어요 — 먼저 올리기를 한 뒤 합치세요' });
+    const base = pv.baseRefName || st.base;
+    const back = onHead && /^pt\/pr-/.test(st.branch) && !s.worktree;
+    prProgress.set(s.id, { kind: 'merge', steps: ['merge', ...(back ? ['switch', 'pull', 'cleanup'] : [])], cur: 'merge', pct: 0 });
+    if (pv.state !== 'MERGED') {
+      // --match-head-commit: 방금 확인한 PR 끝 커밋이 그 사이 바뀌었으면 합치지 않는다
+      await gh(['pr', 'merge', url, '--merge', '--match-head-commit', pv.headRefOid], 120000);
+      // 필수 검사가 걸린 저장소면 gh 가 바로 합치지 않고 '자동 합치기'만 걸어 둔다 — 실제로 합쳐졌을 때만 폴더를 옮긴다
+      if (JSON.parse(await gh(['pr', 'view', url, '--json', 'state'])).state !== 'MERGED') {
+        gitCache.delete(s.id);
+        return res.json({ ok: true, merged: false, url });
+      }
+    }
+    let switched = false, note = '';
+    if (back) {
+      try {
+        setProg(s.id, { cur: 'switch' });
+        await git(s.path, ['switch', base], 15000);
+        switched = true;
+        setProg(s.id, { cur: 'pull' });
+        await git(s.path, ['pull', '--ff-only', 'origin', base], 180000);
+        setProg(s.id, { cur: 'cleanup' });
+        try { await git(s.path, ['branch', '-d', st.branch], 15000); } catch (e) {}
+        try { await git(s.path, ['push', 'origin', '--delete', st.branch], 60000); } catch (e) {}   // GitHub 가 이미 지웠으면 실패해도 그만
+      } catch (e) { note = String(e.stderr || e.message || '').trim().slice(0, 300); }
+    }
+    gitCache.delete(s.id);
+    res.json({ ok: true, merged: true, url, base, branch: st.branch, switched, note });
+  } catch (e) {
+    gitCache.delete(s.id);
+    res.json({ error: String(e.stderr || e.message || '').trim().slice(0, 500) });
+  } finally { prUploading.delete(s.id); prProgress.delete(s.id); }
 });
 
 // 서버 완전 종료 — 브라우저의 🔌 종료 버튼에서 호출.
