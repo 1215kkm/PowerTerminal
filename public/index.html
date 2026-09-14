@@ -2143,6 +2143,24 @@ const I18N_MORE = {
     brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
     brProfileDefault: "Default", brProfileNew: "New account window", brProfileInUse: "in use", brProfileCreate: "Create",
+    gbUpMenu: "Upload to GitHub (pull request)", gbOpenPr: "Open pull request page", gbCtxHint: "Right-click: upload to GitHub (pull request)",
+    gbUpNoRepo: "Not connected to a GitHub repository (origin)",
+    gbUpLogin: "You're not signed in to GitHub.\nSign in from ＋ Session → GitHub repositories, then try again.",
+    gbUpSecrets: "Stopped: these look like secret files and would be uploaded:\n{f}\n\nOnce on GitHub they are hard to scrub from history. Add them to .gitignore (if git already tracks one: git rm --cached <file>) and try again.",
+    gbUpNothing: "Nothing to upload",
+    gbUpHead: "⬆ Upload to GitHub ({repo}) and open a pull request.",
+    gbUpOnBase: "You're on {base}. Instead of pushing straight to {base}, a new branch (pt/pr-date) is created, committed and pushed, and a pull request into {base} is opened. This folder switches to that new branch.",
+    gbUpBranch: "Pull request from {b} into {base}",
+    gbUpExisting: "This branch already has an open pull request, so the commit is added to it instead of opening a new one.",
+    gbUpFiles: "{n} changed files will be committed — all of them. Cancel if you see anything that shouldn't go up:",
+    gbUpCommits: "Uploads {n} commits that aren't on GitHub yet.",
+    gbUpMore: "+{n} more",
+    gbUpBusy: "This session's AI is still working, so files may be uploaded mid-change. Safer to upload once it finishes.",
+    gbUpTitle: "Pull request title (also the commit message):", gbUpTitleCommit: "Commit message:",
+    gbUpDefTitle: "Update {n} files", gbUpGo: "Upload", gbUpIng: "Uploading to GitHub…",
+    gbUpDoneNew: "Pull request created ({b})", gbUpDoneAdd: "Added to the open pull request ({b})",
+    gbUpSwitched: "This folder is now on {b}. After the pull request is merged, go back to {base} and pull (git switch {base} → git pull).",
+    gbUpOpen: "Open pull request", gbUpClose: "Close", gbUpFail: "Upload failed.",
     brProfileAsk: "Which account window should this session use?\n\nOne Chrome window keeps only one sign-in per site, so two accounts on the same shop need two windows. Changing just the ID in one window fails, because the saved password belongs to the other account — and repeated failures can lock the account.\n\nMake an account window, sign in there once yourself, and from then on the AI keeps working as that account without ever touching the password.\nEach window runs its own Chrome (0.3-0.6GB), started only while a session uses it.",
     brProfileNameAsk: "Name this account window (e.g. Toypang, Health Shop).\nIt opens as an empty Chrome window: sign in to the sites you need there and click 'Save password'.",
     brRulesHead: "🌐 Rules the AI follows when it uses the browser. Edit them freely.\nSaving applies to sessions started from now on, and running sessions re-read this file right before anything hard to undo (paying, sending…).\n⚠ These are instructions to the AI, not a hard block — a web page that tricks the AI could still get it to break them, so watch important work. (Only opening the PT screen itself is blocked by the tool.)\nFile: {p}",
@@ -2217,6 +2235,24 @@ const I18N_MORE = {
     brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
     brProfileDefault: "기본", brProfileNew: "새 계정 창", brProfileInUse: "사용중", brProfileCreate: "만들기",
+    gbUpMenu: "GitHub에 올리기 (PR)", gbOpenPr: "PR 페이지 열기", gbCtxHint: "우클릭: GitHub에 올리기 (PR)",
+    gbUpNoRepo: "GitHub 저장소(origin)가 연결돼 있지 않아요",
+    gbUpLogin: "GitHub에 로그인돼 있지 않아요.\n＋ 세션 → GitHub 저장소 목록에서 로그인한 뒤 다시 시도하세요.",
+    gbUpSecrets: "비밀 파일로 보이는 것이 올라갈 목록에 있어서 멈췄어요:\n{f}\n\n한 번 GitHub에 올라가면 기록에서 지우기 어렵습니다. 이 파일들을 .gitignore 에 넣고(이미 git이 추적 중이면 git rm --cached 파일이름) 다시 시도하세요.",
+    gbUpNothing: "올릴 변경사항이 없어요",
+    gbUpHead: "⬆ GitHub({repo})에 올려서 PR을 만듭니다.",
+    gbUpOnBase: "지금 {base} 브랜치예요. {base}에 바로 올리지 않고 새 브랜치(pt/pr-날짜)를 만들어 거기에 커밋·푸시한 뒤, {base}로 가는 PR을 만들어요. 이 폴더는 그 새 브랜치로 바뀝니다.",
+    gbUpBranch: "브랜치 {b} → {base} 로 가는 PR",
+    gbUpExisting: "이 브랜치에 이미 열린 PR이 있어서, 새로 만들지 않고 그 PR에 커밋이 추가돼요.",
+    gbUpFiles: "커밋할 변경 파일 {n}개 — 전부 올라갑니다. 올리면 안 되는 파일이 보이면 취소하세요:",
+    gbUpCommits: "아직 안 올린 커밋 {n}개를 올려요.",
+    gbUpMore: "외 {n}개",
+    gbUpBusy: "이 세션의 AI가 아직 작업 중이에요. 파일이 바뀌는 도중의 상태가 올라갈 수 있으니 끝난 뒤 올리는 게 안전해요.",
+    gbUpTitle: "PR 제목 (커밋 메시지로도 씁니다):", gbUpTitleCommit: "커밋 메시지:",
+    gbUpDefTitle: "변경사항 {n}개 반영", gbUpGo: "올리기", gbUpIng: "GitHub에 올리는 중…",
+    gbUpDoneNew: "PR을 만들었어요 ({b})", gbUpDoneAdd: "열려 있던 PR에 올렸어요 ({b})",
+    gbUpSwitched: "이 폴더는 이제 {b} 브랜치예요. PR이 합쳐진 뒤엔 {base}로 돌아가서 받아오면 됩니다 (git switch {base} → git pull).",
+    gbUpOpen: "PR 열기", gbUpClose: "닫기", gbUpFail: "올리지 못했어요.",
     brProfileAsk: "이 세션은 어느 계정 창을 쓸까요?\n\n크롬 창 하나에는 사이트당 로그인이 하나만 남아요. 그래서 같은 쇼핑몰의 계정 두 개를 오가려면 창을 따로 둬야 합니다. 한 창에서 아이디만 바꿔 로그인하면 저장된 비밀번호가 달라 실패하고, 반복되면 계정이 잠길 수 있어요.\n\n계정 창을 만들고 거기서 한 번만 직접 로그인해 두면, 다음부터 AI가 비밀번호를 만지지 않고 그 계정으로 계속 작업합니다.\n창마다 크롬이 하나씩 뜹니다 (메모리 0.3~0.6GB) — 그 창을 쓰는 세션이 있을 때만.",
     brProfileNameAsk: "새 계정 창 이름을 적으세요 (예: 토이팡, 건강식품몰).\n만들면 빈 크롬 창이 뜹니다. 그 창에서 필요한 사이트에 직접 로그인하고 '비밀번호 저장'을 눌러 두세요.",
     brRulesHead: "🌐 브라우저를 쓸 때 AI가 지킬 규칙이에요. 자유롭게 고치세요.\n저장하면 새로 켜는 세션부터 적용되고, 켜져 있는 세션도 결제·전송처럼 되돌리기 어려운 동작 직전에 이 파일을 다시 읽어요.\n⚠ AI에게 주는 지시일 뿐 강제로 막는 장치는 아니에요 — 웹페이지가 AI를 속이면 어길 수도 있으니 중요한 작업은 지켜봐 주세요. (PT 화면을 여는 것만은 도구에서 강제로 막아 둠)\n파일: {p}",
@@ -5580,8 +5616,10 @@ function buildPane(sess, idx) {
 
   // 🌿 브랜치 표시줄 — git 레포면 입력창 위에 얇게 항상. 클릭 = 그 브랜치의 PR 페이지(열린 PR 있으면 그것, 없으면 새 PR).
   const gitBar = el.querySelector('.gitbar');
+  let lastGit = {};
   const refreshGit = async () => {
     const g = await api('GET', '/api/git-info?id=' + sess.id) || {};
+    lastGit = g;
     const localTag = `<span class="gb-repo gb-local">📁 ${esc(T.gbLocal || 'local')}</span>`;   // GitHub 미연결 표시
     if (!g.git) {   // 깃 저장소가 아닌 폴더 — 숨기지 않고 '로컬'로 표시
       gitBar.innerHTML = `<span style="opacity:.6">${localTag}</span>`;
@@ -5595,9 +5633,81 @@ function buildPane(sess, idx) {
     bits.push(g.repo ? `<span class="gb-repo">${esc(g.repo)}</span>` : localTag);   // GitHub 리모트 있으면 레포명, 없으면 '로컬'
     gitBar.innerHTML = bits.join('');
     gitBar.style.display = 'flex';
-    gitBar.title = g.prUrl ? (T.gbPrT || 'Open the pull request page for this branch') : '';
+    gitBar.title = [g.prUrl ? (T.gbPrT || 'Open the pull request page for this branch') : '',
+                    g.repo ? (T.gbCtxHint || 'Right-click: upload to GitHub (pull request)') : ''].filter(Boolean).join('\n');
     gitBar.style.cursor = g.prUrl ? 'pointer' : 'default';
     gitBar.onclick = ev => { ev.stopPropagation(); if (g.prUrl) window.open(g.prUrl, '_blank', 'noopener'); };
+  };
+  // ⬆ 우클릭 — GitHub 에 올리기(PR) / PR 페이지 열기
+  let prBusy = false;
+  const uploadPr = async () => {
+    if (prBusy) return;
+    const close = T.gbUpClose || 'Close';
+    const st = await api('GET', '/api/sessions/' + sess.id + '/pr-state');
+    if (!st || st.error) return flashToast('⚠ ' + ((st && st.error) || 'git'));
+    if (!st.repo) return flashToast('⚠ ' + (T.gbUpNoRepo || 'Not connected to a GitHub repository'));
+    if (!st.login) { await paneChoice(el, T.gbUpLogin || 'Not signed in to GitHub.', [], null, close); return; }
+    if (st.secrets && st.secrets.length) {
+      await paneChoice(el, (T.gbUpSecrets || '{f}').replace('{f}', st.secrets.slice(0, 10).map(f => '  • ' + f).join('\n')), [], null, close);
+      return;
+    }
+    if (st.nothing) return flashToast(T.gbUpNothing || 'Nothing to upload');
+    const list = st.files.slice(0, 12).map(f => '  • ' + f).join('\n')
+               + (st.files.length > 12 ? '\n  … ' + (T.gbUpMore || '+{n} more').replace('{n}', st.files.length - 12) : '');
+    const lines = [(T.gbUpHead || '{repo}').replace('{repo}', st.repo),
+      st.onBase ? (T.gbUpOnBase || '').replace(/\{base\}/g, st.base) : (T.gbUpBranch || '{b} → {base}').replace('{b}', st.branch).replace('{base}', st.base),
+      st.prUrl ? (T.gbUpExisting || '') : '',
+      st.files.length ? (T.gbUpFiles || '{n}').replace('{n}', st.files.length) + '\n' + list : (T.gbUpCommits || '{n}').replace('{n}', st.ahead || st.aheadBase),
+      st.busy ? '⚠ ' + (T.gbUpBusy || '') : '',
+      st.prUrl ? (T.gbUpTitleCommit || 'Commit message:') : (T.gbUpTitle || 'Pull request title:')];
+    const def = st.files.length ? (T.gbUpDefTitle || 'Update {n} files').replace('{n}', st.files.length) : st.branch;
+    const title = await panePrompt(el, lines.filter(Boolean).join('\n\n'), def, '⬆ ' + (T.gbUpGo || 'Upload'));
+    if (!title) return;
+    prBusy = true;
+    flashToast('⬆ ' + (T.gbUpIng || 'Uploading to GitHub…'));
+    try {
+      const r = await api('POST', '/api/sessions/' + sess.id + '/pr-upload', { title }, 240000);
+      prBusy = false;
+      refreshGit();   // 결과창을 닫기 전에도 아래 git 줄이 새 브랜치·0개로 바로 바뀌게
+      if (r && r.ok) {
+        const what = (r.created ? (T.gbUpDoneNew || 'Pull request created ({b})') : (T.gbUpDoneAdd || 'Added to the open pull request ({b})')).replace('{b}', r.branch);
+        const msg = '✓ ' + what + (r.switched ? '\n\n' + (T.gbUpSwitched || '').replace(/\{b\}/g, r.branch).replace(/\{base\}/g, r.base) : '') + (r.url ? '\n\n' + r.url : '');
+        // 새 탭은 사용자가 누른 버튼에서 연다 — 응답을 기다린 뒤 바로 열면 팝업 차단에 걸린다
+        if ((await paneChoice(el, msg, r.url ? [['open', '🔗 ' + (T.gbUpOpen || 'Open pull request')]] : [], null, close)) === 'open') window.open(r.url, '_blank', 'noopener');
+      } else if (r && r.code === 'secrets') {
+        await paneChoice(el, (T.gbUpSecrets || '{f}').replace('{f}', (r.files || []).slice(0, 10).map(f => '  • ' + f).join('\n')), [], null, close);
+      } else {
+        await paneChoice(el, '⚠ ' + (T.gbUpFail || 'Upload failed.') + '\n\n' + ((r && r.error) || 'error'), [], null, close);
+      }
+    } finally { prBusy = false; refreshGit(); }
+  };
+  gitBar.oncontextmenu = ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    const g = lastGit || {};
+    let m = document.getElementById('cmCtx');
+    if (!m) { m = document.createElement('div'); m.id = 'cmCtx'; document.body.appendChild(m); }
+    const items = [];
+    if (g.git && g.repo) items.push(['up', '⬆ ' + (T.gbUpMenu || 'Upload to GitHub (pull request)')]);
+    if (g.prUrl) items.push(['open', '🔗 ' + (T.gbOpenPr || 'Open pull request page')]);
+    if (!items.length) items.push(['', T.gbUpNoRepo || 'Not connected to a GitHub repository']);
+    m.innerHTML = '<div class="cx-head">' + esc(g.repo || T.gbLocal || 'local') + '</div>'
+      + items.map(([a, t]) => '<div class="cx-it" data-a="' + a + '"' + (a ? '' : ' style="opacity:.6;cursor:default"') + '>' + esc(t) + '</div>').join('');
+    m.querySelectorAll('.cx-it').forEach(it => {
+      it.onclick = () => {
+        cmCtxHide();
+        if (it.dataset.a === 'open') window.open(g.prUrl, '_blank', 'noopener');
+        else if (it.dataset.a === 'up') uploadPr();
+      };
+    });
+    m.style.display = 'block';
+    // 입력창 바로 위 줄이라 메뉴는 위로 펼친다
+    const w = m.offsetWidth || 190, h = m.offsetHeight || 80;
+    m.style.left = Math.max(4, Math.min(ev.clientX, window.innerWidth - w - 6)) + 'px';
+    m.style.top = Math.max(4, Math.min(ev.clientY - h, window.innerHeight - h - 6)) + 'px';
+    setTimeout(() => {
+      document.addEventListener('click', cmCtxHide, { once: true });
+      document.addEventListener('contextmenu', cmCtxHide, { once: true });
+    }, 0);
   };
   refreshGit();
   const gitTimer = setInterval(refreshGit, 20000);   // 브랜치·변경사항 주기 갱신 (서버 8초 캐시)
@@ -11673,7 +11783,7 @@ function paneConfirm(paneEl, msg) {
   });
 }
 // 세션 안 선택창 — choices: [[값, 라벨], …]. 고른 값을, 취소·바깥 클릭이면 null 을 준다. 지금 값(cur)은 ✓ 표시 후 비활성.
-function paneChoice(paneEl, msg, choices, cur) {
+function paneChoice(paneEl, msg, choices, cur, cancelLabel) {
   return new Promise(resolve => {
     paneEl.querySelectorAll('.pane-confirm').forEach(n => n.remove());
     const ov = document.createElement('div');
@@ -11689,7 +11799,7 @@ function paneChoice(paneEl, msg, choices, cur) {
       btns.appendChild(b);
       return b;
     };
-    add('pc-no', T.cancel || 'Cancel', null);
+    add('pc-no', cancelLabel || T.cancel || 'Cancel', null);
     // 지금 값은 ✓ 로만 표시하고 누를 수는 있게 둔다 — 일반창은 다시 눌러야 계정 창을 바꿀 수 있다
     choices.forEach(([v, label, cls]) => add(cls || (v ? 'pc-yes' : 'pc-no'), label + (v && v === cur ? ' ✓' : ''), v));
     ov.addEventListener('click', e => { if (e.target === ov) done(null); });
@@ -11704,6 +11814,7 @@ function panePrompt(paneEl, msg, value, okLabel) {
     ov.className = 'pane-confirm';
     ov.innerHTML = '<div class="pc-box"><div class="pc-msg"></div><input class="pc-input" type="text" spellcheck="false"><div class="pc-btns"></div></div>';
     ov.querySelector('.pc-msg').textContent = msg;
+    if (msg.length > 260) ov.querySelector('.pc-box').classList.add('pc-wide');   // 파일 목록 같은 긴 설명
     const inp = ov.querySelector('.pc-input');
     inp.value = value || '';
     // 여기서 친 글자가 터미널이나 단축키 처리로 새지 않게

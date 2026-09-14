@@ -1375,6 +1375,7 @@ function findExe(name, candidates) {
 }
 // gh 경로를 호출마다 다시 탐색 — 설치 직후 PowerTerminal 재시작 없이도 '다시 시도'가 먹히게
 function ghBin() {
+  if (process.env.PT_GH_BIN) return process.env.PT_GH_BIN;   // 테스트용 — 진짜 GitHub 에 PR 을 만들지 않고 흐름을 검증
   const home = (() => { try { return os.homedir(); } catch (e) { return ''; } })();
   return findExe('gh', [
     path.join(process.env.ProgramFiles || '', 'GitHub CLI', 'gh.exe'),
@@ -2988,6 +2989,97 @@ app.post('/api/sessions/:id/merge-worktree', async (req, res) => {
   } catch (e) {
     res.json({ error: (e.stderr || e.message || '').toString().slice(0, 400) });
   }
+});
+
+/* ⬆ GitHub 에 올리기 — git 줄 우클릭. 변경 파일 커밋 → 브랜치 푸시 → PR 생성(이 브랜치에 열린 PR 이 있으면 거기에 추가).
+   · 기본 브랜치(main 등)에 있으면 거기로 직접 올리지 않고 새 브랜치(pt/pr-날짜)를 만들어 올린다 — PR 은 다른
+     브랜치에서 기본 브랜치로 가야 하고, main 에 바로 푸시하면 검토 없이 반영돼 버린다.
+   · 비밀 파일(.env·키·인증서)이 커밋될 목록에 있으면 멈춘다 — 한 번 올라가면 기록에서 지우기 어렵다. */
+const PR_SECRET_RE = /(^|\/)(\.env(\.[^/]*)?|[^/]*\.(pem|key|p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)|credentials(\.json)?|service-account[^/]*\.json|\.npmrc|\.pypirc)$/i;
+const prUploading = new Set();
+async function prStateOf(s) {
+  const run = (a, t) => git(s.path, a, t || 15000).then(o => o.trim());
+  const gh = (a, t) => execFileA(ghBin(), a, { encoding: 'utf8', timeout: t || 10000, windowsHide: true }).then(o => o.trim());
+  const branch = await run(['rev-parse', '--abbrev-ref', 'HEAD']);
+  let remote = ''; try { remote = await run(['config', '--get', 'remote.origin.url']); } catch (e) {}
+  const m = remote.match(/github\.com[/:]([^/]+\/[^/]+?)(\.git)?\/?$/i);
+  const repo = m ? m[1] : '';
+  let base = '';
+  try { base = (await run(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'])).replace(/^origin\//, ''); } catch (e) {}
+  if (!base && repo) { try { base = await gh(['repo', 'view', repo, '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name']); } catch (e) {} }
+  if (!base) base = 'main';
+  // -z: 한글 파일 이름을 따옴표·8진수로 바꾸지 않는다. 이름 바꾸기(R)·복사(C)는 "새이름\0옛이름" 두 칸을 쓴다.
+  const parts = (await git(s.path, ['status', '--porcelain', '-z', '-uall'], 15000)).split('\0');
+  const files = [];
+  for (let i = 0; i < parts.length; i++) { const e = parts[i]; if (e.length < 4) continue; files.push(e.slice(3)); if (/^[RC]/.test(e)) i++; }
+  // ahead: 아직 GitHub 에 없는 커밋 — 이 브랜치의 원격 기준(원격 브랜치가 없으면 기본 브랜치 기준).
+  // aheadBase: 기본 브랜치에 없는 커밋 — 이미 올린 브랜치라도 열린 PR 이 없으면 PR 을 만들 거리가 된다.
+  let aheadBase = 0, ahead = -1;
+  try { aheadBase = +(await run(['rev-list', '--count', 'origin/' + base + '..HEAD'])) || 0; } catch (e) {}
+  try { ahead = +(await run(['rev-list', '--count', '@{upstream}..HEAD'])) || 0; } catch (e) {}
+  if (ahead < 0) ahead = aheadBase;
+  let login = '';
+  try { login = await gh(['api', 'user', '-q', '.login'], 8000); } catch (e) {}
+  let prUrl = '';
+  if (repo && login && branch !== base && branch !== 'HEAD') {
+    try {
+      const j = JSON.parse(await gh(['pr', 'list', '--repo', repo, '--head', branch, '--state', 'open', '--json', 'url', '--limit', '1']));
+      if (Array.isArray(j) && j[0] && j[0].url) prUrl = j[0].url;
+    } catch (e) {}
+  }
+  const p = ptys.get(s.id);
+  // 셸·직접명령 세션은 출력만 있어도 busy 라서 경고가 늘 뜬다 — AI 세션만 본다
+  const isAi = !s.agent || s.agent === 'claude' || s.agent === 'codex';
+  const onBase = branch === base;
+  return { branch, base, repo, files, secrets: files.filter(f => PR_SECRET_RE.test(f)), ahead, aheadBase, login, prUrl, onBase,
+           nothing: !files.length && !ahead && (onBase || !!prUrl || !aheadBase),
+           busy: !!(isAi && p && !p.dead && p.busy && !p.done) };
+}
+app.get('/api/sessions/:id/pr-state', async (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  try { res.json(await prStateOf(s)); }
+  catch (e) { res.json({ error: 'git 상태를 읽지 못했어요: ' + String(e.stderr || e.message || '').trim().slice(0, 200) }); }
+});
+app.post('/api/sessions/:id/pr-upload', async (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  if (prUploading.has(s.id)) return res.json({ error: '이미 올리는 중이에요' });
+  prUploading.add(s.id);
+  let branch = '';
+  try {
+    const st = await prStateOf(s);
+    if (!st.repo) return res.json({ error: 'GitHub 저장소(origin)가 연결돼 있지 않아요' });
+    if (!st.login) return res.json({ code: 'not_authed', error: 'GitHub 에 로그인돼 있지 않아요' });
+    if (st.branch === 'HEAD') return res.json({ error: '브랜치가 아닌 커밋에 있어요(detached HEAD) — 브랜치로 옮긴 뒤 다시 시도하세요' });
+    if (st.secrets.length) return res.json({ code: 'secrets', files: st.secrets, error: '비밀 파일로 보이는 것이 있어 멈췄어요' });
+    if (st.nothing) return res.json({ error: '올릴 변경사항이 없어요' });
+    const title = String((req.body && req.body.title) || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200) || ('변경사항 ' + st.files.length + '개 반영');
+    branch = st.branch;
+    if (st.onBase) {
+      const d = new Date(), z = n => String(n).padStart(2, '0');
+      branch = 'pt/pr-' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds());
+      await git(s.path, ['switch', '-c', branch], 15000);
+    }
+    if (st.files.length) {
+      await git(s.path, ['add', '-A'], 60000);
+      await git(s.path, ['commit', '-m', title], 60000);
+    }
+    await git(s.path, ['push', '-u', 'origin', branch], 180000);
+    let url = st.onBase ? '' : st.prUrl, created = false;
+    if (!url) {
+      const body = 'PowerTerminal 에서 올림 — `' + branch + '` → `' + st.base + '`';
+      const out = await execFileA(ghBin(), ['pr', 'create', '--repo', st.repo, '--base', st.base, '--head', branch, '--title', title, '--body', body],
+        { cwd: s.path, encoding: 'utf8', timeout: 60000, windowsHide: true });
+      url = (out.match(/https:\/\/github\.com\/\S+\/pull\/\d+/) || [])[0] || out.trim().split('\n').pop();
+      created = true;
+    }
+    gitCache.delete(s.id);
+    res.json({ ok: true, url, branch, base: st.base, committed: st.files.length, switched: st.onBase, created });
+  } catch (e) {
+    gitCache.delete(s.id);
+    res.json({ error: (branch ? '[' + branch + '] ' : '') + String(e.stderr || e.message || '').trim().slice(0, 500) });
+  } finally { prUploading.delete(s.id); }
 });
 
 // 서버 완전 종료 — 브라우저의 🔌 종료 버튼에서 호출.
