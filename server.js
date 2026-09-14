@@ -784,7 +784,19 @@ function vaultDomain(s) {
   return /^[a-z0-9.-]+$/.test(h) && h.includes('.') ? h : '';
 }
 const vaultHostOk = (host, dom) => { const h = String(host || '').toLowerCase(); return !!dom && (h === dom || h.endsWith('.' + dom)); };
-const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, username: e.username, updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0 });
+// 한 로그인에 주소가 여러 개일 수 있다 — 쇼핑몰(ecudemo1.cafe24.com)과 로그인 화면(eclogin.cafe24.com)이 다른 곳이 흔하다
+// (2026-09-15 실사용: 카페24 몰 주소로 저장 → 관리자 로그인 화면에서 거절 → AI 가 사람에게 되돌림).
+// domain = 처음 적은 주소, hosts = 더 허용한 주소들(입력칸에 쉼표로 적거나, 보관함 창의 거절 기록 옆 [허용]).
+const vaultDomains = e => [e.domain, ...(Array.isArray(e.hosts) ? e.hosts : [])].filter(Boolean);
+// 같은 회사 주소인지 — 거절됐을 때 [허용] 버튼을 띄울지 정하는 데만 쓴다(허용은 사용자가 직접 누른다).
+// co.kr·com.au 처럼 끝 두 칸이 공용 이름이면 세 칸을 본다.
+function vaultSite(host) {
+  const p = String(host || '').toLowerCase().split('.');
+  const two = p.slice(-2).join('.');
+  return /^(co|or|go|ac|ne|re|pe|com|net|org|gov|edu)\.[a-z]{2}$/.test(two) ? p.slice(-3).join('.') : two;
+}
+const vaultSameSite = (host, dom) => !!host && !!dom && vaultSite(host) === vaultSite(dom);
+const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, hosts: vaultDomains(e).slice(1), username: e.username, updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0 });
 function vaultLog(o) {
   try {
     const line = JSON.stringify(Object.assign({ at: Date.now() }, o)) + '\n';
@@ -876,14 +888,23 @@ async function vaultFill({ profile, name, pageUrl, submit }) {
     pages = (await r.json()).filter(t => t.type === 'page' && t.webSocketDebuggerUrl);
   } catch (e) { return done(false, 'The browser window "' + prof.name + '" is not running. Open the login page with the browser tool first.'); }
   const hostOf = u => { try { return new URL(u).hostname.toLowerCase(); } catch (e) { return ''; } };
+  const doms = vaultDomains(entry);
+  const domOf = t => doms.find(d => vaultHostOk(hostOf(t.url), d)) || '';
   const byUrl = pageUrl ? pages.filter(t => t.url === pageUrl || t.url.startsWith(pageUrl)) : pages;
-  const cand = byUrl.filter(t => vaultHostOk(hostOf(t.url), entry.domain));
+  const cand = byUrl.filter(t => domOf(t));
   if (!cand.length) {
-    if (pageUrl && byUrl.length) {
-      return done(false, 'Refused: that tab is on ' + hostOf(byUrl[0].url) + ', but "' + entry.name + '" is saved for ' + entry.domain +
-        '. Passwords are only typed into the saved site (phishing guard). Stop and tell the user.', { host: hostOf(byUrl[0].url) });
+    // 저장한 주소가 아닌 탭. 같은 회사 주소(쇼핑몰 ecudemo1.cafe24.com ↔ 로그인 eclogin.cafe24.com)면 채우지는 않되
+    // 보관함 창에 [허용] 버튼이 뜨게 기록한다 — 사용자가 한 번 누르면 다음부터는 AI 가 혼자 끝낸다.
+    const other = (pageUrl ? byUrl : pages.filter(t => doms.some(d => vaultSameSite(hostOf(t.url), d)))).find(t => /^https?:/.test(t.url));
+    if (other) {
+      const h = hostOf(other.url), allow = doms.some(d => vaultSameSite(h, d));
+      return done(false, 'Refused: the tab is on ' + h + ', but "' + entry.name + '" is saved for ' + doms.join(', ') +
+        '. Passwords are only typed into the saved sites (phishing guard). ' +
+        (allow ? 'If ' + h + ' is the real login page for this account, ask the user to press "Allow ' + h + '" in PowerTerminal ' +
+                 '(🌐 → 🔑 Login vault, next to this refusal), then call login again. Do not try any other way.'
+               : 'That is not the same company as the saved sites. Stop and tell the user.'), { host: h, allow });
     }
-    return done(false, 'No open tab on ' + entry.domain + '. Open its login page with the browser tool, then call login again.');
+    return done(false, 'No open tab on ' + doms.join(', ') + '. Open its login page with the browser tool, then call login again.');
   }
   // 그 도메인 탭 중 입력칸이 있는 탭만. 여러 개면 어느 탭인지 AI 에게 되묻는다(엉뚱한 탭에 채우지 않게).
   // 탭을 연 직후엔 아직 그려지는 중이라 칸이 안 보일 수 있다(실측: 연 뒤 1.5초에 못 찾음) → 최대 약 4초 동안 다시 본다.
@@ -895,7 +916,7 @@ async function vaultFill({ profile, name, pageUrl, submit }) {
       let c = null;
       try {
         c = await cdpConnect(t.webSocketDebuggerUrl);
-        const v = ((await c.send('Runtime.evaluate', { expression: VAULT_FIND_JS(entry.domain), returnByValue: true })).result || {}).value || {};
+        const v = ((await c.send('Runtime.evaluate', { expression: VAULT_FIND_JS(domOf(t)), returnByValue: true })).result || {}).value || {};
         seen.push(v);
         if (v.user || v.pw) { hits.push({ t, c, v }); c = null; }
       } catch (e) { seen.push({ error: e && e.message }); }
@@ -915,7 +936,7 @@ async function vaultFill({ profile, name, pageUrl, submit }) {
   try {
     await c.send('Page.bringToFront').catch(() => {});
     const put = async (which, text) => {
-      const r = await c.send('Runtime.evaluate', { expression: VAULT_FOCUS_JS(entry.domain, which), returnByValue: true });
+      const r = await c.send('Runtime.evaluate', { expression: VAULT_FOCUS_JS(domOf(t), which), returnByValue: true });
       if (!(r.result && r.result.value)) throw new Error('the page changed before filling');
       await c.send('Input.insertText', { text });
     };
@@ -1933,10 +1954,13 @@ app.get('/api/vault', (req, res) => { if (vaultLocal(req, res)) res.json(vaultVi
 app.post('/api/vault', (req, res) => {
   if (!vaultLocal(req, res)) return;
   const b = req.body || {};
-  const name = String(b.name || '').trim().slice(0, 40), domain = vaultDomain(b.domain), username = String(b.username || '').trim().slice(0, 200);
+  const name = String(b.name || '').trim().slice(0, 40), username = String(b.username || '').trim().slice(0, 200);
+  // 사이트 칸은 쉼표·공백으로 여러 주소 — 한 사이트에 접속 주소가 여럿인 곳(쇼핑몰 주소와 로그인 화면 주소가 다른 곳)
+  const rawSites = String(b.domain || '').split(/[,\s]+/).filter(Boolean);
+  const sites = [...new Set(rawSites.map(vaultDomain))];
   const password = typeof b.password === 'string' ? b.password : '';
   if (!name) return res.status(400).json({ error: 'name' });
-  if (!domain) return res.status(400).json({ error: 'domain' });
+  if (!rawSites.length || sites.includes('') || sites.length > 20) return res.status(400).json({ error: 'domain' });
   if (!username) return res.status(400).json({ error: 'username' });
   if (password.length > 500) return res.status(400).json({ error: 'password' });
   const list = vaultLoad();
@@ -1946,11 +1970,28 @@ app.post('/api/vault', (req, res) => {
   if (!cur && !password) return res.status(400).json({ error: 'password' });
   try {
     const e = cur || { id: crypto.randomBytes(6).toString('hex') };
-    Object.assign(e, { name, domain, username, updatedAt: Date.now() });
+    Object.assign(e, { name, domain: sites[0], hosts: sites.slice(1), username, updatedAt: Date.now() });
     if (password) e.secret = vaultSeal(password);          // 수정 때 빈칸이면 기존 비밀번호 유지
     if (!cur) list.push(e);
     vaultSave(list);
   } catch (err) { return res.status(500).json({ error: String(err && err.message) }); }
+  res.json(vaultView());
+});
+// 보관함 창의 거절 기록 옆 [허용] — 그 로그인에 주소 하나를 더한다. 같은 회사 주소만 받는다
+// (다른 회사 주소를 더하려면 수정 칸에 직접 적어야 한다 — 버튼 한 번으로 엉뚱한 사이트가 열리지 않게).
+app.post('/api/vault/allow', (req, res) => {
+  if (!vaultLocal(req, res)) return;
+  const b = req.body || {};
+  const host = vaultDomain(b.host);
+  const list = vaultLoad();
+  const e = list.find(x => x.id === b.id);
+  if (!e) return res.status(404).json({ error: 'gone' });
+  if (!host || !vaultDomains(e).some(d => vaultSameSite(host, d))) return res.status(400).json({ error: 'domain' });
+  if (!vaultDomains(e).includes(host)) {
+    e.hosts = [...(Array.isArray(e.hosts) ? e.hosts : []), host];
+    e.updatedAt = Date.now();
+    try { vaultSave(list); } catch (err) { return res.status(500).json({ error: String(err && err.message) }); }
+  }
   res.json(vaultView());
 });
 app.delete('/api/vault/:id', (req, res) => {

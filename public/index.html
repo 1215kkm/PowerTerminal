@@ -895,6 +895,7 @@
   .pane-confirm .vt-log { margin-top: 10px; font-size: 12px; color: var(--muted); max-height: 18vh; overflow-y: auto; white-space: pre-wrap; }
   @media (max-width: 640px) { .pane-confirm .vt-form { grid-template-columns: 1fr 1fr; } }
   html.light .pane-confirm .vt-form input { background: #fff; }
+  .pane-confirm .vt-log .vt-allow { margin-left: 8px; padding: 2px 10px; font-size: 12px; white-space: nowrap; }
   .pane-confirm .pc-input { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px;
         background: #0b1220; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
   html.light .pane-confirm .pc-input { background: #fff; }
@@ -2161,13 +2162,14 @@ const I18N_MORE = {
     brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
     brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
-    vault: "Login vault", vaultName: "Name (e.g. Toypang)", vaultDomain: "Site (e.g. cafe24.com)", vaultUser: "Username", vaultPw: "Password",
+    vault: "Login vault", vaultName: "Name (e.g. Toypang)", vaultDomain: "Login page address(es), comma-separated (e.g. eclogin.cafe24.com)", vaultUser: "Username", vaultPw: "Password",
+    vaultAllow: "Allow {h}", vaultAllowed: "Allowed {h} for this login",
     vaultPwKeep: "Password (blank = keep)", vaultAdd: "Save", vaultUpdate: "Update", vaultEdit: "Edit", vaultDel: "Delete", vaultDelSure: "Really delete?",
     vaultClose: "Close", vaultSaved: "Saved to the login vault", vaultEmpty: "No saved logins yet. Add one below.", vaultUsed: "last used",
     vaultLogHead: "Recent use by AI", vaultLocalOnly: "The login vault only opens on the PC running PowerTerminal (passwords never travel to your phone).",
-    vaultErr_name: "Enter a name", vaultErr_domain: "Enter the site address (e.g. cafe24.com)", vaultErr_username: "Enter the username",
+    vaultErr_name: "Enter a name", vaultErr_domain: "That address is not valid (e.g. eclogin.cafe24.com — comma for several). Allow only works for the same company's addresses", vaultErr_username: "Enter the username",
     vaultErr_password: "Enter the password", vaultErr_dup: "That name is already used", vaultErr_gone: "That login was already deleted",
-    vaultHead: "🔑 Logins the AI can use without seeing the password — like Aside Vault.\nWhen a browser session hits a login page, the AI calls the login tool with a name. PowerTerminal checks that the open tab is really on the saved site (subdomains included), then types the username and password into the form itself. Other sites are refused, so a fake login page gets nothing.\nPasswords are encrypted on this PC and never shown again — not to you, not to the AI. Works in normal browser windows (not incognito). Captchas and phone/app codes still need you.\n⚠ Anyone with access to this Windows account could decrypt them, same as Chrome's saved passwords.",
+    vaultHead: "🔑 Logins the AI can use without seeing the password — like Aside Vault.\nWhen a browser session hits a login page, the AI calls the login tool with a name. PowerTerminal checks that the open tab is really on a saved address (subdomains included), then types the username and password into the form itself. Other addresses are refused, so a fake login page gets nothing.\nIf one site uses several addresses (Cafe24: the shop address differs from the login page eclogin.cafe24.com), list them with commas, or press [Allow] next to the refusal below once. Avoid broad entries like cafe24.com — they would also match other people's Cafe24 shops.\nPasswords are encrypted on this PC and never shown again — not to you, not to the AI. Works in normal browser windows (not incognito). Captchas and phone/app codes still need you.\n⚠ Anyone with access to this Windows account could decrypt them, same as Chrome's saved passwords.",
     brProfileDefault: "Default", brProfileNew: "New account window", brProfileInUse: "in use", brProfileCreate: "Create",
     gbUpMenu: "Upload to GitHub (pull request)", gbOpenPr: "Open pull request page", gbCtxHint: "Right-click: upload to GitHub (pull request)",
     gbUpNoRepo: "Not connected to a GitHub repository (origin)",
@@ -2269,13 +2271,14 @@ const I18N_MORE = {
     brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
     brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
-    vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "사이트 (예: cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
+    vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "로그인 화면 주소, 여러 개면 쉼표 (예: eclogin.cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
+    vaultAllow: "{h} 허용", vaultAllowed: "{h} 도 이 로그인에 허용했어요",
     vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
     vaultClose: "닫기", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
     vaultLogHead: "AI 최근 사용 기록", vaultLocalOnly: "로그인 보관함은 PowerTerminal 이 켜진 PC 에서만 열려요 (비밀번호가 폰으로 오가지 않게).",
-    vaultErr_name: "이름을 적어 주세요", vaultErr_domain: "사이트 주소를 적어 주세요 (예: cafe24.com)", vaultErr_username: "아이디를 적어 주세요",
+    vaultErr_name: "이름을 적어 주세요", vaultErr_domain: "주소가 올바르지 않아요 (예: eclogin.cafe24.com — 여러 개면 쉼표). [허용] 은 같은 회사 주소만 돼요", vaultErr_username: "아이디를 적어 주세요",
     vaultErr_password: "비밀번호를 적어 주세요", vaultErr_dup: "이미 있는 이름이에요", vaultErr_gone: "이미 삭제된 로그인이에요",
-    vaultHead: "🔑 AI 가 비밀번호를 보지 않고 쓰는 로그인이에요 (Aside 의 보관함과 같은 방식).\n브라우저 세션이 로그인 화면을 만나면 AI 가 이름으로 로그인 도구를 불러요. 그러면 PowerTerminal 이 열린 탭이 정말 저장한 사이트(하위 도메인 포함)인지 확인한 뒤, 아이디·비밀번호를 입력칸에 직접 넣어요. 다른 사이트면 거절하니 가짜 로그인 페이지에는 안 들어가요.\n비밀번호는 이 PC 에 암호화해 두고, 저장한 뒤로는 사용자에게도 AI 에게도 다시 보여주지 않아요. 일반창에서만 쓸 수 있어요 (시크릿창 X). 캡차·문자/앱 인증은 여전히 직접 해 주세요.\n⚠ 이 Windows 계정에 접근할 수 있는 사람은 풀 수 있어요 — 크롬 저장 비밀번호와 같은 수준이에요.",
+    vaultHead: "🔑 AI 가 비밀번호를 보지 않고 쓰는 로그인이에요 (Aside 의 보관함과 같은 방식).\n브라우저 세션이 로그인 화면을 만나면 AI 가 이름으로 로그인 도구를 불러요. 그러면 PowerTerminal 이 열린 탭이 정말 저장한 주소(하위 도메인 포함)인지 확인한 뒤, 아이디·비밀번호를 입력칸에 직접 넣어요. 다른 주소면 거절하니 가짜 로그인 페이지에는 안 들어가요.\n한 사이트에 접속 주소가 여럿이면(카페24: 쇼핑몰 주소 ≠ 로그인 화면 eclogin.cafe24.com) 쉼표로 같이 적거나, 거절됐을 때 아래 기록 옆 [허용] 을 한 번 누르세요. cafe24.com 처럼 넓게 적으면 남의 카페24 쇼핑몰에도 입력될 수 있으니 실제 로그인 화면 주소를 적으세요.\n비밀번호는 이 PC 에 암호화해 두고, 저장한 뒤로는 사용자에게도 AI 에게도 다시 보여주지 않아요. 일반창에서만 쓸 수 있어요 (시크릿창 X). 캡차·문자/앱 인증은 여전히 직접 해 주세요.\n⚠ 이 Windows 계정에 접근할 수 있는 사람은 풀 수 있어요 — 크롬 저장 비밀번호와 같은 수준이에요.",
     brProfileDefault: "기본", brProfileNew: "새 계정 창", brProfileInUse: "사용중", brProfileCreate: "만들기",
     gbUpMenu: "GitHub에 올리기 (PR)", gbOpenPr: "PR 페이지 열기", gbCtxHint: "우클릭: GitHub에 올리기 (PR)",
     gbUpNoRepo: "GitHub 저장소(origin)가 연결돼 있지 않아요",
@@ -12075,12 +12078,12 @@ async function openVault(paneEl) {
       const row = document.createElement('div'); row.className = 'vt-row';
       const b = document.createElement('b'); b.textContent = e.name;
       const meta = document.createElement('span'); meta.className = 'vt-meta';
-      meta.textContent = e.domain + ' · ' + e.username + (e.lastUsed ? ' · ' + (T.vaultUsed || 'last used') + ' ' + when(e.lastUsed) : '');
+      meta.textContent = [e.domain, ...(e.hosts || [])].join(', ') + ' · ' + e.username + (e.lastUsed ? ' · ' + (T.vaultUsed || 'last used') + ' ' + when(e.lastUsed) : '');
       const ed = document.createElement('button'); ed.className = 'pc-no'; ed.textContent = T.vaultEdit || 'Edit';
       ed.onclick = ev => {
         ev.stopPropagation();
         editId = e.id;
-        $('.vt-name').value = e.name; $('.vt-domain').value = e.domain; $('.vt-user').value = e.username;
+        $('.vt-name').value = e.name; $('.vt-domain').value = [e.domain, ...(e.hosts || [])].join(', '); $('.vt-user').value = e.username;
         $('.vt-pw').value = ''; $('.vt-pw').placeholder = T.vaultPwKeep || 'Password (blank = keep)';
         $('.vt-add').textContent = T.vaultUpdate || 'Update';
         $('.vt-pw').focus();
@@ -12097,11 +12100,34 @@ async function openVault(paneEl) {
       row.append(b, meta, ed, del);
       list.appendChild(row);
     });
+    const logEl = $('.vt-log');
+    logEl.innerHTML = '';
     const log = (data.log || []).slice(0, 12);
-    $('.vt-log').textContent = log.length
-      ? (T.vaultLogHead || 'Recent use by AI') + '\n' + log.map(l => when(l.at) + '  ' + (l.ok ? '✓' : '✗') + ' ' + l.name +
-          (l.host ? ' → ' + l.host : '') + (l.ok ? '' : ' — ' + String(l.msg || '').slice(0, 90))).join('\n')
-      : '';
+    if (log.length) { const h = document.createElement('div'); h.textContent = T.vaultLogHead || 'Recent use by AI'; logEl.appendChild(h); }
+    const offered = new Set();
+    log.forEach(l => {
+      const line = document.createElement('div');
+      line.textContent = when(l.at) + '  ' + (l.ok ? '✓' : '✗') + ' ' + l.name + (l.host ? ' → ' + l.host : '') +
+        (l.ok ? '' : ' — ' + String(l.msg || '').slice(0, 90));
+      // 같은 회사의 다른 주소라 거절된 경우 [허용] — 한 사이트에 접속 주소가 여럿인 곳(카페24 몰 ↔ eclogin 등).
+      // 이미 허용한 주소거나 그 로그인이 지워졌으면 안 띄운다.
+      const ent = l.allow && l.host ? data.entries.find(x => x.name === l.name) : null;
+      const key = ent ? ent.id + '|' + l.host : '';
+      if (ent && ![ent.domain, ...(ent.hosts || [])].includes(l.host) && !offered.has(key)) {
+        offered.add(key);
+        const ab = document.createElement('button');
+        ab.className = 'pc-yes vt-allow';
+        ab.textContent = (T.vaultAllow || 'Allow {h}').replace('{h}', l.host);
+        ab.onclick = async ev => {
+          ev.stopPropagation();
+          const res = await api('POST', '/api/vault/allow', { id: ent.id, host: l.host });
+          if (res && Array.isArray(res.entries)) { paint(res); flashToast((T.vaultAllowed || 'Allowed {h}').replace('{h}', l.host)); }
+          else flashToast('⚠ ' + ((res && T['vaultErr_' + res.error]) || (res && res.error) || 'allow failed'));
+        };
+        line.appendChild(ab);
+      }
+      logEl.appendChild(line);
+    });
   };
   paint(r);
   resetForm();
