@@ -142,6 +142,7 @@ function paintRepeat() {
   paintFolderPreview();
 }
 function paintFolderPreview() {
+  if (!draft) return;
   const topic = (draft.topics.find(t => !t.used) || {}).text || '(주제 없음)';
   const d = new Date(), p = n => String(n).padStart(2, '0');
   const name = ($('fFolder').value || '').replace(/\{주제\}/g, topic).replace(/\{날짜\}/g, d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())).replace(/\{회차\}/g, (draft.count || 0) + 1).replace(/\{루틴 이름\}/g, $('fName').value || '');
@@ -181,11 +182,16 @@ function paintSteps() {
     const modelOpts = models.map(([v, l]) => `<option value="${esc(v)}"${v === s.model ? ' selected' : ''}>${esc(l)}</option>`).join('') + (models.some(m => m[0] === s.model) ? '' : `<option value="${esc(s.model)}" selected>${esc(s.model)}</option>`);
     const profOpts = ['<option value="">기본 창</option>'].concat(profiles.filter(p => p.slug).map(p => `<option value="${esc(p.name)}"${p.name === s.browserProfile ? ' selected' : ''}>${esc(p.name)}</option>`)).join('');
     const backOpts = ['<option value="-1">되돌리기 없음</option>'].concat(draft.steps.slice(0, i).map((b, j) => `<option value="${j}"${s.backTo === j ? ' selected' : ''}>${j + 1}단계 「${esc(b.name || (j + 1) + '단계')}」 로</option>`)).join('');
+    // 저장된 단계(지시문이 있는)는 접어서 연다 — 글자 벽을 줄이고, 머리줄·요약을 누르면 펼친다
+    if (s._open === undefined) s._open = !s.prompt;
+    li.classList.toggle('collapsed', !s._open);
+    const browserTxt = s.browser === 'normal' ? '🌐 ' + (s.browserProfile || '기본 창') : s.browser === 'incognito' ? '🕶 시크릿' : '';
     li.innerHTML = `<div class="st-head"><span class="st-no">${i + 1}</span><input data-k="name" placeholder="단계 이름 (예: 배너 이미지)" maxlength="40" value="${esc(s.name)}">
         <select data-k="agent" class="ai-${esc(s.agent)}"><option value="claude"${s.agent === 'claude' ? ' selected' : ''}>Claude</option><option value="codex"${s.agent === 'codex' ? ' selected' : ''}>GPT</option>${data.testMode ? `<option value="custom"${s.agent === 'custom' ? ' selected' : ''}>Custom</option>` : ''}</select>
         <select data-k="model">${modelOpts}</select>
         <span class="sp"></span>
-        <button type="button" class="btn ghost tiny" data-mv="-1" title="위로"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn ghost tiny" data-mv="1" title="아래로"${i < draft.steps.length - 1 ? '' : ' disabled'}>↓</button><button type="button" class="btn ghost tiny danger" data-del="1" title="이 단계 빼기"${draft.steps.length > 1 ? '' : ' disabled'}>✕</button></div>
+        <button type="button" class="btn ghost tiny" data-mv="-1" title="위로"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn ghost tiny" data-mv="1" title="아래로"${i < draft.steps.length - 1 ? '' : ' disabled'}>↓</button><button type="button" class="btn ghost tiny danger" data-del="1" title="이 단계 빼기"${draft.steps.length > 1 ? '' : ' disabled'}>✕</button><button type="button" class="tgl" data-tgl="1" title="접기/펼치기">${s._open ? '▲ 접기' : '▼ 펼치기'}</button></div>
+      <div class="st-sum" data-tgl="1" title="누르면 펼치기">${browserTxt ? `<span class="st-badge">${esc(browserTxt)}</span>` : ''}${s.sameSession ? '<span class="st-badge">앞 단계 세션 이어서</span>' : ''}${s.backTo >= 0 ? `<span class="st-badge">못 미치면 ${s.backTo + 1}단계로</span>` : ''}<span class="pv">${esc(s.prompt.replace(/\s+/g, ' ').slice(0, 90) || '(지시문 없음)')}</span></div>
       <div class="st-body">
         <div class="fld"><label>브라우저</label><select data-k="browser"><option value=""${!s.browser ? ' selected' : ''}>끔</option><option value="incognito"${s.browser === 'incognito' ? ' selected' : ''}>🕶 시크릿창</option><option value="normal"${s.browser === 'normal' ? ' selected' : ''}>🌐 일반창 (로그인 유지 · 🔑 보관함)</option></select></div>
         <div class="fld" ${s.browser === 'normal' ? '' : 'hidden'}><label>계정 창</label><select data-k="browserProfile">${profOpts}</select></div>
@@ -215,6 +221,7 @@ function paintSteps() {
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', apply);
       if (k === 'prompt') el.addEventListener('focus', () => { lastPromptTA = el; });
     });
+    li.querySelectorAll('[data-tgl]').forEach(el => el.onclick = ev => { if (ev.target.closest('input,select,textarea,[data-mv],[data-del]')) return; s._open = !s._open; paintSteps(); });
     li.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const j = i + Number(b.dataset.mv); [draft.steps[i], draft.steps[j]] = [draft.steps[j], draft.steps[i]]; fixBackRefs(); paintSteps(); });
     li.querySelector('[data-del]').onclick = () => { if (s.prompt && !confirm('이 단계를 뺄까요?')) return; draft.steps.splice(i, 1); fixBackRefs(); paintSteps(); };
     ol.appendChild(li);
@@ -238,7 +245,8 @@ function collect() {
     schedule: { repeat: rep, time: $('fTime').value, minutes: Number($('fMinutes').value), at: $('fAt').value ? new Date($('fAt').value).toISOString() : '',
                 weekdays: [...$('wds').querySelectorAll('input:checked')].map(i => Number(i.value)) },
     maxRuns: Number($('fMaxRuns').value), stepTimeoutMin: Number($('fTimeout').value), waitOnLimit: $('fWait').checked, closeWhenDone: $('fClose').checked,
-    baseDir: $('fBaseDir').value.trim(), folder: $('fFolder').value.trim(), topics: draft.topics, steps: draft.steps };
+    baseDir: $('fBaseDir').value.trim(), folder: $('fFolder').value.trim(), topics: draft.topics,
+    steps: draft.steps.map(s => { const c = Object.assign({}, s); delete c._open; return c; }) };   // _open 은 화면 접기 상태일 뿐
 }
 $('form').onsubmit = async ev => {
   ev.preventDefault();
@@ -292,6 +300,50 @@ function paintRuns() {
 }
 
 function paintAll() { paintList(); paintEditor(); }
+
+// ---------- 📂 폴더 찾기 (PT 의 /api/browse 를 그대로 씀) ----------
+let pickDir = '';
+async function pickOpen(start) {
+  $('pick').hidden = false;
+  // 입력칸의 폴더가 아직 없으면(기본값 pt-routines 등) 있는 상위 폴더까지 올라가서 연다 — 없으면 드라이브 목록
+  let dir = start || '';
+  for (let i = 0; i < 6; i++) {
+    if (await pickLoad(dir, true)) return;
+    const up = dir.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '');
+    if (!dir || up === dir) break;
+    dir = /^[A-Za-z]:$/.test(up) ? up + '\\' : up;
+  }
+  await pickLoad('');
+}
+async function pickLoad(dir, quiet) {
+  let j;
+  try { j = await api('/api/browse?dir=' + encodeURIComponent(dir)); } catch (e) { if (!quiet) say('폴더를 열 수 없습니다: ' + e.message, true); return false; }
+  pickDir = j.dir || '';
+  $('pickCur').textContent = pickDir || '드라이브 선택';
+  $('pickUp').disabled = j.parent === null || (j.parent === '' && pickDir === '');
+  $('pickUp').dataset.parent = j.parent === null ? '' : j.parent;
+  $('pickUse').disabled = !pickDir;
+  const list = $('pickList'); list.innerHTML = '';
+  if (!j.folders.length) list.innerHTML = '<div class="pick-empty">하위 폴더가 없습니다 — 이 폴더를 선택하거나 새 폴더를 만드세요.</div>';
+  for (const f of j.folders) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = '📁 ' + f.name; b.title = f.name;
+    b.onclick = () => pickLoad(pickDir ? (pickDir.endsWith(j.sep) ? pickDir + f.name : pickDir + j.sep + f.name) : f.name);
+    list.appendChild(b);
+  }
+  return true;
+}
+$('btnPickDir').onclick = () => pickOpen($('fBaseDir').value.trim() || '');
+$('pickUp').onclick = () => pickLoad($('pickUp').dataset.parent || '');
+$('pickClose').onclick = () => { $('pick').hidden = true; };
+$('pick').addEventListener('click', ev => { if (ev.target === $('pick')) $('pick').hidden = true; });
+$('pickUse').onclick = () => { if (!pickDir) return; $('fBaseDir').value = pickDir; $('fBaseDir').dispatchEvent(new Event('input')); $('pick').hidden = true; say('작업 폴더 위치를 골랐습니다 — 저장을 눌러야 반영됩니다'); };
+async function pickMk() {
+  const name = $('pickNew').value.trim(); if (!name || !pickDir) return;
+  try { const j = await api('/api/mkdir', 'POST', { dir: pickDir, name }); $('pickNew').value = ''; await pickLoad(j.dir || pickDir); }
+  catch (e) { say(e.message, true); }
+}
+$('pickMk').onclick = pickMk;
+$('pickNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pickMk(); } });
 
 // 10초마다 서버 상태를 다시 읽는다 — 편집 중인 폼은 건드리지 않고 목록·회차 기록만 갱신
 async function refresh(first) {
