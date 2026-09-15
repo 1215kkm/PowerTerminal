@@ -260,7 +260,11 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
      세션을 닫고 초기화 시각("usage to reset after 18:47")까지 기다렸다가 새 세션으로 다시 시작한다. */
   function codexLimitAt(text, t) {
     const flat = plain(text);
-    if (!/usage limit reset available|Continue with [A-Za-z ]*Reserve|switched to [A-Za-z ]*Reserve[^\n]*usage limit|usage limits?\.?\s*$/im.test(flat)) return 0;
+    // "usage limit reset available"(리셋권 안내) 는 정상 작동 중에도 계속 떠 있다 — 그걸로 잡으면 멀쩡한 세션을 1시간 세운다(2026-09-16 실측).
+    // 입력을 실제로 막는 선택 메뉴(저성능 모델로 계속 + Enter 확인)나 '자동 전환됨' 문구만 본다.
+    const menu = /Continue with [A-Za-z ]*Reserve/i.test(flat) && /Press enter to confirm/i.test(flat);
+    const switched = /switched to [A-Za-z ]*Reserve[^\n]{0,80}usage limit/i.test(flat);
+    if (!menu && !switched) return 0;
     const m = flat.match(/reset after (\d{1,2}):(\d{2})/i);
     if (!m) return t + 60 * 60000;
     const d = new Date(t); d.setHours(Number(m[1]), Number(m[2]), 0, 0);
