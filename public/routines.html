@@ -180,6 +180,15 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pick-foot input{flex:1;min-width:140px;border:1px dashed var(--line);background:transparent;border-radius:8px;padding:5px 10px}
 .pick-empty{grid-column:1/-1;color:var(--muted);padding:14px;font-size:13px}
 
+/* ▶ 진행 중 창 */
+.live{background:var(--panel);border:1px solid var(--accent-line);border-radius:12px;margin-bottom:18px;overflow:hidden}
+.live-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+.live-head b{overflow-wrap:anywhere}
+.live-step{color:var(--muted);font-size:13px}
+.live-term{margin:0;padding:10px 14px;background:var(--code);color:var(--fg);font-family:var(--mono);font-size:12px;line-height:1.55;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.live.folded .live-term,.live.folded .live-foot{display:none}
+.live-foot{padding:8px 14px;color:var(--faint);font-size:12px;font-family:var(--mono);overflow-wrap:anywhere;border-top:1px solid var(--line-soft)}
+
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
 .toast.show{opacity:1}
 .toast.bad{background:var(--bad);color:#fff}
@@ -203,6 +212,21 @@ button,input,select,textarea{font:inherit;color:inherit}
     <h1>루틴</h1>
     <p>정해진 시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행합니다. PT 화면을 닫아도 서버가 다음 단계로 넘깁니다. PC와 PowerTerminal은 켜져 있어야 합니다.</p>
   </div>
+
+  <!-- ▶ 지금 도는 회차 — 어느 단계인지, 터미널에 뭐가 찍히는지 여기서 바로 보인다 -->
+  <section class="live" id="live" hidden aria-label="진행 중인 회차">
+    <div class="live-head">
+      <span class="chip run" id="liveChip"></span>
+      <b id="liveName"></b>
+      <span class="live-step" id="liveStep"></span>
+      <span class="sp"></span>
+      <a class="btn" id="liveOpen" href="/" target="_blank" rel="noopener">터미널에서 보기 ↗</a>
+      <button class="btn ghost danger" id="liveStop" type="button">멈추기</button>
+      <button class="btn ghost" id="liveFold" type="button">접기</button>
+    </div>
+    <pre class="live-term" id="liveTerm">터미널에 붙는 중…</pre>
+    <div class="live-foot" id="liveFolder"></div>
+  </section>
 
   <div class="app">
     <aside class="list" aria-label="루틴 목록">

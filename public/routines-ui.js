@@ -95,8 +95,10 @@ function select(id) {
   if (!r) { selId = null; draft = null; paintAll(); return; }
   draft = JSON.parse(JSON.stringify(r));
   draft.schedule = Object.assign({ time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, draft.schedule);
-  savedJson = JSON.stringify(collect());
+  // ⚠ 저장 기준값은 화면을 다 그린 뒤에 읽는다 — 그리기 전에 읽으면 앞 루틴의 값이 담겨 늘 '변경됨'이 되고
+  //   [지금 한 번 실행] 이 계속 "먼저 저장하세요" 만 띄운다 (2026-09-16 실사용 신고)
   paintAll();
+  savedJson = JSON.stringify(collect());
 }
 let savedJson = '';
 const dirty = () => selId && JSON.stringify(collect()) !== savedJson;
@@ -256,8 +258,9 @@ $('form').onsubmit = async ev => {
     data = j; selId = j.selected;
     draft = JSON.parse(JSON.stringify(data.routines.find(x => x.id === selId)));
     draft.schedule = Object.assign({ time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, draft.schedule);
-    savedJson = JSON.stringify(collectFrom(draft));
-    paintAll(); say('저장했습니다');
+    paintAll();
+    savedJson = JSON.stringify(collect());
+    say('저장했습니다');
   } catch (e) { say(e.message, true); }
 };
 function collectFrom(r) { return { name: r.name, schedule: r.schedule, maxRuns: r.maxRuns, stepTimeoutMin: r.stepTimeoutMin, waitOnLimit: r.waitOnLimit, closeWhenDone: r.closeWhenDone, baseDir: r.baseDir, folder: r.folder, topics: r.topics, steps: r.steps }; }
@@ -299,7 +302,58 @@ function paintRuns() {
   }
 }
 
-function paintAll() { paintList(); paintEditor(); }
+function paintAll() { paintList(); paintEditor(); paintLive(); }
+
+/* ▶ 진행 중 창 — 지금 도는 회차의 단계와 그 세션 터미널을 그대로 보여 준다.
+   루틴 화면만 보고 있으면 "어디서 도는지" 가 안 보여서(2026-09-16 실사용 신고) 여기에 붙였다.
+   터미널 소켓은 읽기 전용으로만 쓴다 — 이 화면에서는 입력을 보내지 않는다. */
+let liveWs = null, liveSess = null, liveBuf = '';
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+const stripAnsi = s => s.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\x1b[=>]/g, '').replace(/\r/g, '\n');
+function liveClose() { if (liveWs) { try { liveWs.close(); } catch (e) {} liveWs = null; } liveSess = null; liveBuf = ''; }
+function liveAttach(sessId) {
+  if (liveSess === sessId && liveWs && liveWs.readyState <= 1) return;
+  liveClose();
+  liveSess = sessId;
+  const term = $('liveTerm');
+  term.textContent = '터미널에 붙는 중…';
+  try {
+    liveWs = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/term?id=' + encodeURIComponent(sessId) + '&token=' + TOKEN);
+  } catch (e) { term.textContent = '터미널에 붙지 못했습니다: ' + e.message; return; }
+  liveWs.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type !== 'out') return;
+    liveBuf = (liveBuf + stripAnsi(m.data)).slice(-6000);
+    const lines = liveBuf.split('\n').filter(l => l.trim()).slice(-14);
+    const stick = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
+    term.textContent = lines.join('\n');
+    if (stick) term.scrollTop = term.scrollHeight;
+  };
+  liveWs.onclose = () => { if (liveSess === sessId) term.textContent += '\n[세션 연결이 끊겼습니다]'; };
+}
+function paintLive() {
+  const run = data.runs.filter(r => r.status === 'running').slice(-1)[0];
+  const box = $('live');
+  if (!run) { box.hidden = true; liveClose(); return; }
+  const a = run.attempts[run.attempts.length - 1] || {};
+  const r = data.routines.find(x => x.id === run.routineId);
+  box.hidden = false;
+  $('liveChip').textContent = run.n + '회차 진행 중';
+  $('liveName').textContent = run.name + (run.topic ? ' · ' + run.topic : '');
+  const started = a.startedAt || a.createdAt || run.startedAt;
+  $('liveStep').textContent = (a.step + 1) + '/' + ((r && r.steps.length) || '?') + ' ' + (a.name || '') +
+    ' · ' + ({ starting: '세션 준비 중', sending: '요청 보내는 중', sent: '작업 중', limit: '사용량 한도 대기' }[a.status] || a.status) +
+    ' · ' + mins((data.now || Date.now()) - started) + ' 째';
+  $('liveFolder').textContent = '작업 폴더: ' + run.folder;
+  $('liveStop').dataset.run = run.id;
+  if (a.sessionId) liveAttach(a.sessionId); else { liveClose(); $('liveTerm').textContent = a.status === 'limit' ? '사용량 한도가 풀리길 기다리는 중 — 세션은 닫아 두었습니다.' : '세션을 띄우는 중…'; }
+}
+$('liveStop').onclick = async ev => {
+  const id = ev.target.dataset.run; if (!id) return;
+  if (!confirm('지금 도는 회차를 멈출까요? 세션은 열어 둡니다.')) return;
+  try { data = await api('/api/routines/runs/' + id + '/stop', 'POST', {}); paintAll(); say('회차를 멈췄습니다'); } catch (e) { say(e.message, true); }
+};
+$('liveFold').onclick = () => { const f = $('live').classList.toggle('folded'); $('liveFold').textContent = f ? '펼치기' : '접기'; };
 
 // ---------- 📂 폴더 찾기 (PT 의 /api/browse 를 그대로 씀) ----------
 let pickDir = '';
@@ -354,10 +408,12 @@ async function refresh(first) {
     if (first) {
       profiles = await api('/api/browser-profiles').catch(() => []);
       if (data.routines.length) select(data.routines[0].id); else paintAll();
-    } else if (draft && selId !== 'new') { paintList(); const r = data.routines.find(x => x.id === selId); if (!r) { selId = null; draft = null; paintAll(); } else { paintRuns(); paintEditorStatusOnly(r); } }
-    else paintList();
+    } else if (draft && selId !== 'new') { paintList(); paintLive(); const r = data.routines.find(x => x.id === selId); if (!r) { selId = null; draft = null; paintAll(); } else { paintRuns(); paintEditorStatusOnly(r); } }
+    else { paintList(); paintLive(); }
   } catch (e) { if (first) say('루틴 서버에 연결할 수 없습니다: ' + e.message, true); }
 }
+// 진행 중 창의 '몇 분째' 는 1초마다 갱신 (서버를 다시 부르지 않고 화면만)
+setInterval(() => { if (!$('live').hidden && data.now) { data.now += 1000; paintLive(); } }, 1000);
 function paintEditorStatusOnly(r) {
   const run = runOf(r), st = $('edStatus');
   st.innerHTML = `<span>회차 <b class="num">${r.count || 0}</b> / ${r.maxRuns}</span>` +
