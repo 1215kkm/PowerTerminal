@@ -280,9 +280,20 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     note(run, (a.step + 1) + '단계: ' + why + ' — ' + new Date(at).toLocaleString('ko-KR') + ' 에 새 세션으로 다시 시작합니다');
     save();
   }
-  // AI 가 입력을 받을 준비가 됐나 — 화면 아래 입력 안내가 보이고, 막 뜬 참이 아니고, 작업 표시가 잠잠할 때
+  /* 화면에 확인창이 떠 있나 — 그 위에 글을 보내면 창의 선택지로 먹혀 사라진다(2026-09-16 실사용: codex 훅 승인창).
+     아래 창들은 server.js 가 루틴 세션에 한해 대신 답해 주므로, 여기서는 답이 처리될 때까지 보내지 않고 기다리기만 한다. */
+  function blockedScreen(p) {
+    if (!p || !p.buffer) return '';
+    const flat = p.buffer.slice(-3000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
+    if (/hooks?needs?review|Pressttotrust/i.test(flat)) return '훅 승인 확인창';
+    if (/Doyoutrustthecontents|Isthisaprojectyoucreated|Yes,Itrustthisfolder/i.test(flat)) return '폴더 신뢰 확인창';
+    if (/Updateavailable/i.test(flat)) return '업데이트 안내';
+    return '';
+  }
+  // AI 가 입력을 받을 준비가 됐나 — 화면 아래 입력 안내가 보이고, 막 뜬 참이 아니고, 작업 표시가 잠잠하고, 확인창이 없을 때
   function readyToSend(p, s, agent, t) {
     if (!s.ready || s.dirty) return false;
+    if (blockedScreen(p)) return false;
     if (t - (p.spawnAt || 0) < 8000) return false;
     if (t - (p.lastMarker || 0) < 6000) return false;
     // codex 는 상태줄을 계속 다시 그려 출력이 끊기지 않는다 — 작업 표시(lastMarker)만 본다
@@ -300,7 +311,8 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
            + (a.fixReport || '(지적 내용 파일이 비어 있습니다 — ' + reportRel(a.fixFrom) + ' 를 확인하세요)') + '\n\n--- 원래 지시문 ---\n' + body;
     }
     a.status = 'sending';
-    try { await sendText(a.sessionId, body + footer(run, r, a, step)); }
+    a.text = body + footer(run, r, a, step);   // 확인창에 먹혔을 때 그대로 다시 보내려고 기억해 둔다
+    try { await sendText(a.sessionId, a.text); }
     catch (e) { a.status = 'failed'; a.endedAt = now(); finish(run, 'failed', (a.step + 1) + '단계 지시문을 보내지 못했습니다: ' + e.message); return; }
     a.status = 'sent'; a.sentAt = now(); a.tries = 1;
     note(run, (a.step + 1) + '단계 「' + step.name + '」 에 지시문을 보냈습니다');
@@ -367,6 +379,8 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       if (!p || p.dead) { fail('세션이 꺼졌습니다 (AI 설치·로그인을 확인하세요)'); return; }
       if (step.agent === 'codex') { const at = codexLimitAt(p.buffer.slice(-5000), t); if (at) { relaunchLater(run, r, a, step, at, 'GPT 사용량 한도 메뉴가 떴습니다'); return; } }
       if (t - a.startedAt > r.stepTimeoutMin * MIN) { fail(r.stepTimeoutMin + '분 안에 입력 준비가 안 됐습니다 — 세션을 열어 로그인·확인창·업데이트 안내를 보세요'); return; }
+      const blocked = blockedScreen(p);
+      if (blocked && a.blockedNote !== blocked) { a.blockedNote = blocked; note(run, (a.step + 1) + '단계: ' + blocked + '이 떠 있어 기다리는 중 — 자동으로 답합니다'); save(); }
       if (readyToSend(p, s, step.agent, t)) await sendStep(run, r, a, step);
       return;
     }
@@ -396,6 +410,17 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
         return;
       }
       if (t - a.sentAt > r.stepTimeoutMin * MIN) { fail(r.stepTimeoutMin + '분 안에 끝나지 않았습니다 — 세션을 열어 어디서 멈췄는지 보세요'); return; }
+      /* 보낸 지시문이 확인창에 먹혀 사라지면 AI 는 아무 일도 시작하지 않는다 — 90초 동안 '작업 중' 표시가 한 번도
+         없었고 입력 준비 상태면 한 번 더 보낸다(최대 2번). 실제로 일하는 중이면 lastMarker 가 갱신돼 여기 안 걸린다. */
+      if ((a.tries || 1) < 2 && t - a.sentAt > 90000 && (p.lastMarker || 0) < a.sentAt && a.text) {
+        if (readyToSend(p, s, step.agent, t)) {
+          a.tries = (a.tries || 1) + 1;
+          note(run, (a.step + 1) + '단계: 90초 동안 반응이 없어 지시문을 다시 보냅니다 (' + a.tries + '번째)');
+          try { await sendText(a.sessionId, a.text); a.sentAt = now(); } catch (e) { fail('지시문을 다시 보내지 못했습니다 — ' + e.message); }
+          save();
+        }
+        return;
+      }
       return;
     }
 

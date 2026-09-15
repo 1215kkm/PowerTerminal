@@ -297,12 +297,21 @@ function paintRuns() {
       <span><span class="chip ${st[0]}">${esc(st[1])}${run.endedAt ? ' ' + mins(run.endedAt - run.startedAt) : ''}</span></span>
       <div class="detail">${run.topic ? `<span>주제 「${esc(run.topic)}」</span>` : ''}<span class="folder" title="누르면 경로 복사">${esc(run.folder)}</span><span>${esc(run.note || '')}</span></div>
       <details><summary>진행 기록 ${(run.log || []).length}줄</summary>${(run.log || []).map(l => `<div><span class="num">${esc(when(l.at))}</span> ${esc(l.msg)}</div>`).join('')}</details>`;
-    el.querySelector('.folder').onclick = () => { navigator.clipboard.writeText(run.folder).then(() => say('경로를 복사했습니다'), () => {}); };
+    el.querySelector('.folder').onclick = () => openFolder(run.folder);
     box.appendChild(el);
   }
 }
 
 function paintAll() { paintList(); paintEditor(); paintLive(); }
+
+// 경로를 누르면 그 폴더를 탐색기로 연다 (PT 가 이미 쓰는 /api/open-folder). 폰에서는 열 수 없어 경로만 복사한다.
+async function openFolder(dir) {
+  try { await api('/api/open-folder', 'POST', { path: dir }); say('폴더를 열었습니다'); }
+  catch (e) {
+    try { await navigator.clipboard.writeText(dir); say('이 기기에서는 폴더를 못 열어 경로만 복사했습니다'); }
+    catch (e2) { say('폴더를 열지 못했습니다: ' + e.message, true); }
+  }
+}
 
 /* ▶ 진행 중 창 — 지금 도는 회차의 단계와 그 세션 터미널을 그대로 보여 준다.
    루틴 화면만 보고 있으면 "어디서 도는지" 가 안 보여서(2026-09-16 실사용 신고) 여기에 붙였다.
@@ -344,7 +353,11 @@ function paintLive() {
   $('liveStep').textContent = (a.step + 1) + '/' + ((r && r.steps.length) || '?') + ' ' + (a.name || '') +
     ' · ' + ({ starting: '세션 준비 중', sending: '요청 보내는 중', sent: '작업 중', limit: '사용량 한도 대기' }[a.status] || a.status) +
     ' · ' + mins((data.now || Date.now()) - started) + ' 째';
-  $('liveFolder').textContent = '작업 폴더: ' + run.folder;
+  $('liveFolder').innerHTML = '작업 폴더: <button type="button" class="pathbtn" id="liveFolderBtn"></button>';
+  const fb = $('liveFolderBtn');
+  fb.textContent = run.folder;
+  fb.title = '누르면 이 폴더를 엽니다';
+  fb.onclick = () => openFolder(run.folder);
   $('liveStop').dataset.run = run.id;
   if (a.sessionId) liveAttach(a.sessionId); else { liveClose(); $('liveTerm').textContent = a.status === 'limit' ? '사용량 한도가 풀리길 기다리는 중 — 세션은 닫아 두었습니다.' : '세션을 띄우는 중…'; }
 }

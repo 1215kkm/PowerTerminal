@@ -1310,6 +1310,17 @@ function getPty(sess) {
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
       }
+      /* 🔁 루틴 세션 — codex 는 그 폴더의 훅(.codex/hooks.json)을 처음 볼 때 "1 hook needs review … Press t to trust"
+         화면에서 멈춘다. 사람이 없는 시간에 도는 루틴은 여기서 굳고, 그 사이 들어간 요청은 이 화면에 먹혀 사라진다
+         (2026-09-16 실사용: km-cafe24 의 강팀 훅). 루틴에 그 폴더를 맡긴 것 자체가 그 폴더의 훅을 쓰겠다는 뜻이라
+         대신 t(신뢰)를 눌러 준다 — 한 번 누르면 codex 가 기억한다. 일반 세션은 사람이 직접 판단하도록 그대로 둔다. */
+      if (sess.routineRun && Date.now() - (p._codexHookAt || 0) > 20000) {
+        const flatH = p.buffer.slice(-3000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
+        if (/hooks?needs?review|Pressttotrust/i.test(flatH)) {
+          p._codexHookAt = Date.now();
+          setTimeout(() => { try { proc.write('t'); } catch (e) {} }, 500);
+        }
+      }
       /* 🔓 codex(GPT) 는 폴더마다 처음 한 번 자체 신뢰 확인창을 띄운다 — Claude 신뢰와는 별개 저장소라,
          이 폴더를 Claude 로는 이미 써 봤어도 codex 로 처음 켜면 또 뜬다. PT 인라인 스크롤 화면에서는
          평범한 문장처럼 보여 눈에 잘 안 띄고, 그 사이 사용자가 보낸 진짜 요청이 이 메뉴의 숫자 선택으로

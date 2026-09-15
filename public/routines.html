@@ -187,7 +187,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .live-step{color:var(--muted);font-size:13px}
 .live-term{margin:0;padding:10px 14px;background:var(--code);color:var(--fg);font-family:var(--mono);font-size:12px;line-height:1.55;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .live.folded .live-term,.live.folded .live-foot{display:none}
-.live-foot{padding:8px 14px;color:var(--faint);font-size:12px;font-family:var(--mono);overflow-wrap:anywhere;border-top:1px solid var(--line-soft)}
+.live-foot{padding:8px 14px;color:var(--faint);font-size:12px;overflow-wrap:anywhere;border-top:1px solid var(--line-soft)}
+.pathbtn{border:0;background:transparent;color:var(--accent);font-family:var(--mono);font-size:12px;cursor:pointer;padding:0;text-decoration:underline;overflow-wrap:anywhere;text-align:left}
+.pathbtn:hover{color:var(--fg)}
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
 .toast.show{opacity:1}
