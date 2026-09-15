@@ -113,7 +113,11 @@ function normalize(b, prev) {
     const browser = ['normal', 'incognito'].includes(st.browser) ? st.browser : '';
     const backTo = st.backTo === undefined || st.backTo === null || st.backTo === '' ? -1 : Number(st.backTo);
     if (!Number.isInteger(backTo) || backTo < -1 || backTo >= i) err(k + '되돌려 보낼 단계는 앞 단계만 고를 수 있습니다');
+    // 앞 단계 세션을 이어서 쓰기 — 같은 AI 에게 결과물을 보고 추가 요청을 할 때(대화 맥락 유지). 첫 단계·다른 AI 면 불가.
+    const sameSession = !!st.sameSession;
+    if (sameSession && (i === 0 || steps[i - 1].agent !== st.agent)) err(k + '"앞 단계 세션 이어서" 는 바로 앞 단계와 같은 AI 일 때만 됩니다');
     const out = {
+      sameSession,
       id: /^[0-9a-f]{6,12}$/.test(st.id || '') ? st.id : hex(4),
       name: String(st.name || '').trim().slice(0, 40) || (i + 1) + '단계',
       agent: st.agent,
@@ -163,10 +167,13 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
   const reportRel = i => '.routine/step-' + (i + 1) + '.md';
   const findRoutine = id => { const r = db.routines.find(x => x.id === id); if (!r) throw Error('루틴을 찾을 수 없습니다'); return r; };
 
-  function addAttempt(run, r, i, fixFrom, fixReport) {
+  // reuseSession: "앞 단계 세션 이어서" 단계 — 앞 단계 세션을 그대로 받아 새로 띄우지 않는다
+  function addAttempt(run, r, i, fixFrom, fixReport, reuseSession) {
     run.cur = i;
+    const t = now();
     run.attempts.push({ step: i, name: r.steps[i].name, agent: r.steps[i].agent, token: hex(4), status: 'starting',
-                        sessionId: null, createdAt: now(), fixFrom: fixFrom == null ? null : fixFrom, fixReport: fixReport || '' });
+                        sessionId: reuseSession || null, startedAt: reuseSession ? t : undefined, createdAt: t,
+                        fixFrom: fixFrom == null ? null : fixFrom, fixReport: fixReport || '' });
   }
 
   function startRun(r, manual) {
@@ -307,10 +314,12 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     run.lastReport = rep
       ? (a.step + 1) + '단계 「' + r.steps[a.step].name + '」 보고 (' + reportRel(a.step) + '):\n' + rep
       : (a.step + 1) + '단계 「' + r.steps[a.step].name + '」 는 보고 파일을 남기지 않았습니다. 작업 폴더를 직접 확인하세요.';
-    closeIfWanted(r, a);
-    if (a.step + 1 >= r.steps.length) { finish(run, 'done', run.n + '회차를 모두 마쳤습니다 (' + mins(t - run.startedAt) + ')'); return; }
-    addAttempt(run, r, a.step + 1);
-    note(run, (a.step + 1) + '단계 완료 → ' + (a.step + 2) + '단계 「' + r.steps[a.step + 1].name + '」');
+    const next = r.steps[a.step + 1];
+    const carry = next && next.sameSession && a.sessionId && !a.closed;   // 다음 단계가 이 세션을 이어 쓴다
+    if (!carry) closeIfWanted(r, a);
+    if (!next) { finish(run, 'done', run.n + '회차를 모두 마쳤습니다 (' + mins(t - run.startedAt) + ')'); return; }
+    addAttempt(run, r, a.step + 1, null, '', carry ? a.sessionId : null);
+    note(run, (a.step + 1) + '단계 완료 → ' + (a.step + 2) + '단계 「' + next.name + '」' + (carry ? ' (같은 세션에서 이어서)' : ''));
     save();
   }
 

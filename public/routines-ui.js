@@ -189,6 +189,7 @@ function paintSteps() {
       <div class="st-body">
         <div class="fld"><label>브라우저</label><select data-k="browser"><option value=""${!s.browser ? ' selected' : ''}>끔</option><option value="incognito"${s.browser === 'incognito' ? ' selected' : ''}>🕶 시크릿창</option><option value="normal"${s.browser === 'normal' ? ' selected' : ''}>🌐 일반창 (로그인 유지 · 🔑 보관함)</option></select></div>
         <div class="fld" ${s.browser === 'normal' ? '' : 'hidden'}><label>계정 창</label><select data-k="browserProfile">${profOpts}</select></div>
+        <div class="fld" ${i > 0 && draft.steps[i - 1].agent === s.agent ? '' : 'hidden'}><label>세션</label><select data-k="sameSession"><option value=""${!s.sameSession ? ' selected' : ''}>새 세션에서 시작</option><option value="1"${s.sameSession ? ' selected' : ''}>앞 단계 세션 이어서 (결과물에 추가 요청)</option></select></div>
         <div class="fld"><label>결과가 기준에 못 미치면</label><select data-k="backTo">${backOpts}</select></div>
         <div class="fld" ${s.backTo >= 0 ? '' : 'hidden'}><label>되돌리기 최대</label><select data-k="maxBack">${[1, 2, 3].map(n => `<option value="${n}"${s.maxBack === n ? ' selected' : ''}>${n}번</option>`).join('')}</select></div>
         ${s.agent === 'custom' ? `<div class="fld wide"><label>실행 명령</label><input data-k="cmd" class="mono" value="${esc(s.cmd || '')}"></div>` : ''}
@@ -201,7 +202,14 @@ function paintSteps() {
         let v = el.value;
         if (k === 'backTo' || k === 'maxBack') v = Number(v);
         s[k] = v;
-        if (k === 'agent') { s.model = 'default'; paintSteps(); }
+        if (k === 'sameSession') s.sameSession = v === '1';
+        if (k === 'agent') {
+          s.model = 'default';
+          // AI 가 바뀌면 '이어서' 는 성립하지 않는다 — 이 단계와 다음 단계 것을 푼다
+          if (i > 0 && draft.steps[i - 1].agent !== v) s.sameSession = false;
+          if (draft.steps[i + 1] && draft.steps[i + 1].agent !== v) draft.steps[i + 1].sameSession = false;
+          paintSteps();
+        }
         else if (k === 'browser' || k === 'backTo') paintSteps();
       };
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', apply);

@@ -1279,13 +1279,14 @@ function getPty(sess) {
       /* 🔁 루틴 세션은 회차마다 새 폴더라 Claude 가 폴더 신뢰 확인창을 띄운다. 사람이 없는 시간에 도는데
          여기서 멈추면 단계가 시간 초과로 실패한다. 루틴에 그 폴더를 맡긴 것 자체가 신뢰라서 대신 첫 번째(예)를 고른다.
          일반 세션은 건드리지 않는다. 뜰 때만 나오는 창이라 시작 60초만 본다. */
-      if (sess.routineRun && !p._claudeTrustDone && Date.now() - p.spawnAt < 60000) {
+      // (폴더를 미리 신뢰 등록하므로 보통은 안 뜬다.) 그래도 뜨면: 창은 "> No, exit / Yes, I trust this folder" 라 기본이 '나가기' —
+      // Enter 만 치면 Claude 가 꺼진다. 아래 화살표로 'Yes' 로 옮긴 뒤 Enter. Claude 가 뜨는 데 1분 넘게 걸리기도 해 5분까지 본다.
+      if (sess.routineRun && !p._claudeTrustDone && Date.now() - p.spawnAt < 300000) {
         const flat = p.buffer.slice(-4000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
-        if (/Doyoutrust|trustthisfolder|Isthisaprojectyoucreated|Yes,proceed/i.test(flat)) {
+        if (/Isthisaprojectyoucreated|Yes,Itrustthisfolder|Doyoutrustthecontents/i.test(flat)) {
           p._claudeTrustDone = true;
-          setTimeout(() => { try { proc.write('1'); } catch (e) {} }, 400);
-          // 숫자로 바로 넘어가지 않는 판이면 Enter 로 확정 (창이 이미 닫혔으면 빈 입력이라 아무 일도 없다)
-          setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 1600);
+          setTimeout(() => { try { proc.write('\x1b[B'); } catch (e) {} }, 500);
+          setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 1200);
         }
       }
       // Claude가 작업 중일 때 그리는 표시로 작업중/완료 판별 (사용량 정지 중 잔출력에 안 흔들리게).
@@ -1553,6 +1554,19 @@ function routineCreateSession({ title, path: dir, agent, model, browser, browser
   else if (browser === 'incognito') sess.browser = 'incognito';
   sessions.push(sess);
   saveSessions();
+  /* Claude 는 처음 여는 폴더마다 "이 폴더를 신뢰합니까?" 창을 띄우고 기본 선택이 "No, exit" 다. 회차마다 새 폴더인
+     루틴은 매번 이 창에서 멈춘다(2026-09-15 실측: 2단계가 25분 동안 입력 준비 안 됨). 사람이 없는 시간에 도는 루틴에
+     폴더를 맡긴 것 자체가 신뢰이므로, 띄우기 전에 ~/.claude.json 에 그 폴더를 신뢰됨으로 미리 적어 창이 안 뜨게 한다. */
+  if ((agent || 'claude') === 'claude') {
+    try {
+      const f = path.join(os.homedir(), '.claude.json');
+      const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+      j.projects = j.projects || {};
+      const key = path.resolve(dir).replace(/\\/g, '/');   // Claude 는 이 파일에 경로를 슬래시(/)로 적는다
+      j.projects[key] = Object.assign({ allowedTools: [], mcpContextUris: [], enabledMcpjsonServers: [], disabledMcpjsonServers: [] }, j.projects[key] || {}, { hasTrustDialogAccepted: true });
+      fs.writeFileSync(f, JSON.stringify(j, null, 2));
+    } catch (e) { console.log('  🔁 폴더 신뢰 등록 실패(확인창이 뜨면 자동 응답으로 넘김): ' + (e && e.message)); }
+  }
   const p = getPty(sess);
   if (p.dead) throw Error('터미널을 시작하지 못했습니다');
   return sess;
