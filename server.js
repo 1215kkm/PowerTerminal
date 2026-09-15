@@ -235,6 +235,8 @@ function pairRateOk(ip) {
 const RECENT_FILE = dataFile('recent.json');
 let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
+// 🔁 루틴 엔진이 터미널 출력을 받는 자리 — 엔진은 아래(scheduler 옆)에서 만들어 여기에 꽂는다
+const routineHooks = { observe: null };
 function saveSessions() { setMark('세션목록 저장'); fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); setMark('idle'); }
 /* 🤖 모델 값은 그 AI 것이어야 한다 — Claude 세션엔 Claude 모델, GPT(codex) 세션엔 GPT 모델.
    예전엔 AI 를 Claude → GPT 로 바꿔도 모델 값(opus)이 그대로 남아, GPT 세션이 `codex --model opus` 로 떴고
@@ -1269,7 +1271,20 @@ function getPty(sess) {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
     p.lastOut = Date.now();
     scheduler.observe(sess.id, d);
+    if (routineHooks.observe) routineHooks.observe(sess.id, d);
     if (isClaude) {
+      /* 🔁 루틴 세션은 회차마다 새 폴더라 Claude 가 폴더 신뢰 확인창을 띄운다. 사람이 없는 시간에 도는데
+         여기서 멈추면 단계가 시간 초과로 실패한다. 루틴에 그 폴더를 맡긴 것 자체가 신뢰라서 대신 첫 번째(예)를 고른다.
+         일반 세션은 건드리지 않는다. 뜰 때만 나오는 창이라 시작 60초만 본다. */
+      if (sess.routineRun && !p._claudeTrustDone && Date.now() - p.spawnAt < 60000) {
+        const flat = p.buffer.slice(-4000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
+        if (/Doyoutrust|trustthisfolder|Isthisaprojectyoucreated|Yes,proceed/i.test(flat)) {
+          p._claudeTrustDone = true;
+          setTimeout(() => { try { proc.write('1'); } catch (e) {} }, 400);
+          // 숫자로 바로 넘어가지 않는 판이면 Enter 로 확정 (창이 이미 닫혔으면 빈 입력이라 아무 일도 없다)
+          setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 1600);
+        }
+      }
       // Claude가 작업 중일 때 그리는 표시로 작업중/완료 판별 (사용량 정지 중 잔출력에 안 흔들리게).
       // 좁은 분할·폰 화면에선 하단 상태바가 잘려 'esc to interrupt'가 버퍼에 안 남음(v1.10.2까지 오완료의 원인).
       // → 화면 폭과 무관하게 항상 남는 '스피너'로 판별. 스피너는 단계마다 표시가 달라짐:
@@ -1525,6 +1540,40 @@ app.get('/vendor/qrcode.js', (req, res) =>
 const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, sessions: () => sessions, ptys, notify: broadcastStatus,
   enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : 100; } });
 scheduler.install(app);
+
+/* 🔁 루틴 — routines.js 가 회차마다 단계 세션을 만들고 닫을 때 쓰는 두 함수.
+   [+세션] 과 달리 worktree 로 나누지 않고(회차마다 폴더가 따로다) 최근 목록에도 남기지 않는다. */
+function routineCreateSession({ title, path: dir, agent, model, browser, browserProfile, cmd, runId }) {
+  const sess = { id: crypto.randomBytes(4).toString('hex'), title: String(title || '').slice(0, 80), path: dir, previewUrl: '',
+                 agent, model: modelFor(agent, model), cmd: agent === 'custom' ? String(cmd || '') : '', routineRun: runId };
+  if (browser === 'normal') { sess.browser = 'normal'; sess.browserProfile = browserProfile || ''; }
+  else if (browser === 'incognito') sess.browser = 'incognito';
+  sessions.push(sess);
+  saveSessions();
+  const p = getPty(sess);
+  if (p.dead) throw Error('터미널을 시작하지 못했습니다');
+  return sess;
+}
+function routineCloseSession(id) {
+  const p = ptys.get(id);
+  killDev(id);
+  tabOwnersDrop(id);
+  if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
+  ptys.delete(id);
+  sessions = sessions.filter(x => x.id !== id);
+  for (const s of sessions) {
+    if (Array.isArray(s.flowTo) && s.flowTo.includes(id)) s.flowTo = s.flowTo.filter(x => x !== id);
+    if (s.flowMeta && s.flowMeta[id]) delete s.flowMeta[id];
+  }
+  saveSessions();
+}
+const routines = require('./routines').createRoutines({
+  dataDir: DATA_DIR, sessions: () => sessions, ptys, signal: id => scheduler.signal(id),
+  createSession: routineCreateSession, closeSession: routineCloseSession,
+  defaultBaseDir: path.join(os.homedir(), 'pt-routines'),
+  enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : 100; } });
+routines.install(app);
+routineHooks.observe = routines.observe;
 
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {

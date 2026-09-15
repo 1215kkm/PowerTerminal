@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>루틴 · PowerTerminal</title>
+<style>
+/* 라이트가 기본 — 다크는 머리글 버튼으로 (선택은 이 브라우저에 기억) */
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --raised:#f7f7fb; --line:#d7d9e0; --line-soft:#e7e8ee;
+  --fg:#1f2937; --muted:#6b7280; --faint:#9aa1ae;
+  --accent:#6d28d9; --accent-soft:#efe9fd; --accent-line:#cdb9f7;
+  --ok:#15803d; --ok-soft:#e3f4e8; --warn:#b45309; --warn-soft:#fbf0dc; --bad:#b91c1c; --bad-soft:#fbe4e4;
+  --claude:#7c3aed; --gpt:#0f8a6b; --custom:#64748b; --code:#f1f2f7; --var:#6d28d9; --var-bg:#ebe3fd;
+  --sans:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',-apple-system,sans-serif;
+  --mono:'D2Coding','JetBrains Mono',Consolas,monospace;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#111827; --panel:#1b2433; --raised:#222d3f; --line:#354155; --line-soft:#2a3446;
+  --fg:#e5e7eb; --muted:#9ca3af; --faint:#6f7a8c;
+  --accent:#b39afc; --accent-soft:rgba(124,58,237,.18); --accent-line:rgba(167,139,250,.45);
+  --ok:#4ade80; --ok-soft:rgba(34,197,94,.14); --warn:#fbbf24; --warn-soft:rgba(245,158,11,.14); --bad:#f87171; --bad-soft:rgba(248,113,113,.14);
+  --claude:#9f67ff; --gpt:#1fbf95; --custom:#94a3b8; --code:#0f1624; --var:#c4b0ff; --var-bg:rgba(124,58,237,.28);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+[hidden]{display:none!important}
+
+.bar{display:flex;align-items:center;gap:18px;padding:10px max(16px,3vw);border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:5;flex-wrap:wrap;min-height:50px}
+.logo{font-weight:700;font-size:15px;background:linear-gradient(90deg,#7C3AED,#EC4899);-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap;text-decoration:none}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{padding:5px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:13px;white-space:nowrap}
+.tab:hover{color:var(--fg)}
+.tab.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.sp{flex:1}
+
+.wrap{max-width:1240px;margin:0 auto;padding:22px max(16px,3vw) 60px}
+.intro{margin-bottom:18px}
+.intro h1{margin:0;font-size:24px;line-height:1.25;letter-spacing:-.01em}
+.intro p{margin:4px 0 0;color:var(--muted);max-width:66ch}
+.app{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:18px;align-items:start}
+
+.btn{border:1px solid var(--line);background:var(--raised);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--accent-line)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{border:0;color:#fff;background:linear-gradient(90deg,#7C3AED,#DB2777);font-weight:600}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:4px 8px}
+.btn.ghost:hover{color:var(--fg);border-color:var(--line)}
+.btn.danger{color:var(--bad)}
+.btn.tiny{padding:2px 8px;font-size:12px}
+
+/* 목록 — 스크롤을 따라온다 */
+.list{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;position:sticky;top:calc(66px + env(safe-area-inset-top,0px));max-height:calc(100vh - 86px);display:flex;flex-direction:column}
+@media (max-width:860px){.app{grid-template-columns:1fr}.list{position:static;max-height:none}}
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line-soft);flex:none}
+.rows{display:flex;flex-direction:column;overflow-y:auto;min-height:0}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--raised)}
+.row.sel{background:var(--accent-soft)}
+.row .nm{font-weight:600;overflow-wrap:anywhere}
+.row .meta{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12.5px}
+.row .rnote{grid-column:1/-1;color:var(--warn);font-size:12px}
+.row .acts{grid-column:1/-1;display:flex;gap:2px;flex-wrap:wrap}
+.empty{padding:22px 14px;color:var(--muted);font-size:13px}
+.dots{display:inline-flex;gap:3px}
+.dots i{width:14px;height:6px;border-radius:3px;display:block}
+.c-claude{background:var(--claude)} .c-codex{background:var(--gpt)} .c-custom{background:var(--custom)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;line-height:1.7;align-self:start}
+.chip::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.on{background:var(--ok-soft);color:var(--ok)}
+.chip.off{background:var(--raised);color:var(--muted);border:1px solid var(--line)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.run{background:var(--accent-soft);color:var(--accent)}
+.list-foot{display:flex;align-items:center;gap:8px;padding:10px 14px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line-soft);flex:none}
+.list-foot input{width:56px;border:1px solid var(--line);background:var(--raised);border-radius:6px;padding:2px 6px}
+
+/* 편집 */
+.editor{background:var(--panel);border:1px solid var(--line);border-radius:12px;min-width:0}
+.ed-empty{padding:40px 24px;color:var(--muted)}
+.ed-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+.ed-head #fName{flex:1 1 240px;min-width:0;font-size:17px;font-weight:600;border:1px solid transparent;background:transparent;border-radius:8px;padding:4px 8px;margin-left:-8px}
+.ed-head #fName:hover,.ed-head #fName:focus{border-color:var(--line);background:var(--raised)}
+.ed-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--muted)}
+.ed-status .warnline{color:var(--warn)}
+.sec{padding:16px 18px;border-bottom:1px solid var(--line-soft)}
+.sec:last-child{border-bottom:0}
+.sec h2{margin:0 0 10px;font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.sec h2 small{letter-spacing:0;font-weight:400;color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.fld input,.fld select{width:100%;border:1px solid var(--line);background:var(--raised);border-radius:8px;padding:6px 9px}
+.fld.wide{grid-column:1/-1}
+.wds{display:flex;gap:4px;flex-wrap:wrap}
+.wds label{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:13px;background:var(--raised);cursor:pointer}
+.check{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:10px}
+.check input{accent-color:#7C3AED}
+.hint{color:var(--muted);font-size:12.5px;margin:8px 0 0}
+.preview{font-family:var(--mono);font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+
+.topics{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.topic{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:1px 4px 1px 11px;font-size:13px;background:var(--raised)}
+.topic .t{cursor:pointer}
+.topic.used .t{color:var(--faint);text-decoration:line-through}
+.topic.next{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.topic button{border:0;background:transparent;color:var(--faint);cursor:pointer;padding:0 5px;border-radius:999px}
+.topic button:hover{color:var(--bad)}
+.topic-add{display:flex;gap:6px;margin-top:8px;max-width:420px}
+.topic-add input{flex:1;min-width:0;border:1px dashed var(--line);background:transparent;border-radius:999px;padding:3px 12px}
+
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.step{border:1px solid var(--line);border-radius:10px;background:var(--raised)}
+.st-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line-soft)}
+.st-no{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);min-width:1.4em}
+.st-head input{flex:1 1 140px;min-width:0;font-weight:600;border:1px solid transparent;background:transparent;border-radius:6px;padding:2px 6px}
+.st-head input:hover,.st-head input:focus{border-color:var(--line);background:var(--panel)}
+.st-head select{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:3px 6px;font-size:13px}
+.st-head select.ai-claude{color:var(--claude);font-weight:600}
+.st-head select.ai-codex{color:var(--gpt);font-weight:600}
+.st-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px;padding:10px 12px}
+.st-body .fld select,.st-body .fld input{background:var(--panel)}
+.st-body textarea{grid-column:1/-1;width:100%;min-height:110px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--code);border:1px solid var(--line-soft);border-radius:8px;padding:9px 11px}
+.handoff{margin:0;padding:0 12px 10px 34px;color:var(--muted);font-size:12.5px}
+.link{list-style:none;padding:3px 0 3px 22px}
+.link span{display:block;border-left:2px dashed var(--accent-line);height:14px;margin-left:3px}
+
+.vars{display:flex;flex-wrap:wrap;gap:6px}
+.var{font-family:var(--mono);font-size:12.5px;color:var(--var);background:var(--var-bg);border:0;border-radius:6px;padding:2px 8px;cursor:pointer}
+.var small{font-family:var(--sans);color:var(--muted);margin-left:6px}
+
+.runs{display:flex;flex-direction:column;gap:12px}
+.run{display:grid;grid-template-columns:150px 1fr auto;gap:6px 12px;align-items:center}
+@media (max-width:620px){.run{grid-template-columns:1fr}}
+.run .when{color:var(--muted);font-size:12.5px}
+.track{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--line-soft);font-size:11px;font-weight:600;color:#fff;gap:1px}
+.seg{display:flex;align-items:center;padding:0 7px;white-space:nowrap;overflow:hidden;min-width:22px}
+.seg.claude{background:var(--claude)} .seg.codex{background:var(--gpt)} .seg.custom{background:var(--custom)}
+.seg.failed{background:var(--bad)}
+.seg.stuck{background:repeating-linear-gradient(135deg,var(--warn-soft) 0 6px,transparent 6px 11px);color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
+.seg.back{opacity:.6}
+.seg.live{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.seg.live{animation:none}}
+.run .detail{grid-column:1/-1;font-size:12.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.run .detail .folder{font-family:var(--mono);cursor:pointer;overflow-wrap:anywhere}
+.run .detail .folder:hover{color:var(--fg)}
+.run details{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.run details div{padding:1px 0}
+.noruns{color:var(--muted);font-size:13px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
+.toast.show{opacity:1}
+.toast.bad{background:var(--bad);color:#fff}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="/">PowerTerminal</a>
+  <nav class="tabs" aria-label="PT 화면">
+    <a class="tab" href="/">터미널</a>
+    <a class="tab" href="/scheduler.html">⏱ 자동 실행</a>
+    <a class="tab on" href="/routines.html" aria-current="page">🔁 루틴</a>
+  </nav>
+  <span class="sp"></span>
+  <button class="btn" id="themeBtn" type="button">🌙 다크</button>
+</header>
+
+<main class="wrap">
+  <div class="intro">
+    <h1>루틴</h1>
+    <p>정해진 시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행합니다. PT 화면을 닫아도 서버가 다음 단계로 넘깁니다. PC와 PowerTerminal은 켜져 있어야 합니다.</p>
+  </div>
+
+  <div class="app">
+    <aside class="list" aria-label="루틴 목록">
+      <div class="list-head"><b id="count">루틴</b><button class="btn primary" id="btnNew" type="button">＋ 새 루틴</button></div>
+      <div class="rows" id="rows"></div>
+      <div class="list-foot"><label for="maxConc">동시에 도는 루틴 최대</label><input id="maxConc" type="number" min="1" max="5" value="1"><span>개</span></div>
+    </aside>
+
+    <section class="editor" aria-label="루틴 편집">
+      <div class="ed-empty" id="edEmpty">왼쪽에서 루틴을 고르거나 [＋ 새 루틴] 으로 만드세요.</div>
+      <form id="form" hidden autocomplete="off">
+        <div class="ed-head">
+          <input id="fName" aria-label="루틴 이름" maxlength="60">
+          <button class="btn" id="btnRun" type="button">지금 한 번 실행</button>
+          <button class="btn" id="btnCopy" type="button">복사</button>
+          <button class="btn ghost danger" id="btnDel" type="button">삭제</button>
+          <button class="btn primary" id="btnSave" type="submit">저장</button>
+        </div>
+        <div class="ed-status" id="edStatus"></div>
+
+        <div class="sec">
+          <h2>언제</h2>
+          <div class="grid">
+            <div class="fld"><label for="fRepeat">반복</label>
+              <select id="fRepeat"><option value="daily">매일</option><option value="weekly">매주</option><option value="interval">일정 간격</option><option value="once">한 번</option><option value="manual">직접 실행만</option></select></div>
+            <div class="fld" id="rowTime"><label for="fTime">시각</label><input id="fTime" type="time"></div>
+            <div class="fld" id="rowMinutes"><label for="fMinutes">간격 (분)</label><input id="fMinutes" type="number" min="5" max="10080"></div>
+            <div class="fld" id="rowAt"><label for="fAt">날짜와 시각</label><input id="fAt" type="datetime-local"></div>
+            <div class="fld"><label for="fMaxRuns">최대 회차</label><input id="fMaxRuns" type="number" min="1" max="1000"></div>
+            <div class="fld"><label for="fTimeout" id="lblTimeout">단계당 최대 시간 (분)</label><input id="fTimeout" type="number" min="1" max="600"></div>
+            <div class="fld wide" id="rowWd"><label>요일</label><div class="wds" id="wds"></div></div>
+          </div>
+          <label class="check" for="fWait"><input id="fWait" type="checkbox"> 사용량 한도에 걸리면 초기화 시각까지 기다렸다가 이어서</label>
+        </div>
+
+        <div class="sec">
+          <h2>작업 폴더 <small>회차마다 새 폴더를 만들고 모든 단계가 그 안에서 일합니다</small></h2>
+          <div class="grid">
+            <div class="fld"><label for="fBaseDir">위치</label><input id="fBaseDir" class="mono" placeholder="D:\routine-work"></div>
+            <div class="fld"><label for="fFolder">회차 폴더 이름</label><input id="fFolder" class="mono" placeholder="{날짜}-{주제}"></div>
+          </div>
+          <p class="hint">다음 회차 폴더: <span class="preview" id="folderPreview"></span></p>
+        </div>
+
+        <div class="sec">
+          <h2>주제 목록 <small>{주제} 자리에 들어갑니다 · 안 쓴 것부터 차례대로 · 누르면 쓴 표시를 켜고 끕니다</small></h2>
+          <div class="topics" id="topics"></div>
+          <div class="topic-add"><input id="fTopic" maxlength="60" placeholder="주제를 적고 Enter (쉼표로 여러 개)"><button class="btn tiny" id="btnTopic" type="button">추가</button></div>
+          <p class="hint" id="topicHint"></p>
+        </div>
+
+        <div class="sec">
+          <h2>단계 <small>위에서 아래 순서 · 단계마다 새 세션 · 앞 단계 보고 파일을 다음 단계에 실어 보냅니다</small></h2>
+          <ol class="steps" id="steps"></ol>
+          <button class="btn" id="btnAddStep" type="button" style="margin-top:10px">＋ 단계 추가</button>
+        </div>
+
+        <div class="sec">
+          <h2>지시문에 쓸 수 있는 값 <small>누르면 마지막으로 고친 지시문 커서 자리에 들어갑니다</small></h2>
+          <div class="vars" id="vars"></div>
+        </div>
+
+        <div class="sec">
+          <h2>끝나면</h2>
+          <label class="check" for="fClose"><input id="fClose" type="checkbox"> 단계가 끝나면 그 세션을 닫기 (작업 폴더는 남김 · 실패·사람 확인이면 열어 둠)</label>
+          <p class="hint">실패하거나 사람 확인이 필요하면 회차를 멈추고 루틴을 끕니다 — 확인 후 다시 켜세요.</p>
+        </div>
+
+        <div class="sec">
+          <h2>회차 기록 <small>막대 길이 = 걸린 시간 · 흐린 칸 = 되돌려 보낸 시도</small></h2>
+          <div class="runs" id="runs"></div>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script src="routines-ui.js"></script>
+</body>
+</html>

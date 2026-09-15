@@ -1,0 +1,311 @@
+'use strict';
+/* 🔁 루틴 화면 — 서버(/api/routines)의 목록·회차 기록을 그리고, 편집한 루틴을 저장한다. 진행은 전부 서버가 한다. */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const toast = $('toast');
+function say(msg, bad) { toast.textContent = msg; toast.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(say.t); say.t = setTimeout(() => toast.classList.remove('show'), bad ? 5000 : 2200); }
+async function api(url, method, body) {
+  const r = await fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+const when = ms => ms ? new Date(ms).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const mins = ms => { const m = Math.round(ms / 60000); return m < 1 ? '<1분' : m + '분'; };
+const AI_LABEL = { claude: 'Claude', codex: 'GPT', custom: 'Custom' };
+const MODELS = {
+  claude: [['default', '자동'], ['opus', 'Opus 5'], ['sonnet', 'Sonnet 5'], ['haiku', 'Haiku 4.5'], ['fable', 'Fable 5.1'], ['opusplan', 'Opus Plan']],
+  codex: [['default', '자동 (config.toml)'], ['gpt-6-astra', 'GPT-6 Astra'], ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'], ['gpt-5.5', 'GPT-5.5']],
+  custom: [['default', '—']],
+};
+const VARS = [['{주제}', '주제 목록에서 고른 것'], ['{날짜}', '회차 시작 날짜'], ['{회차}', '몇 번째'], ['{루틴 이름}', ''], ['{작업 폴더}', '이 회차 폴더'], ['{이전 단계가 한 일}', '앞 단계 보고 파일 내용']];
+const WD = ['일', '월', '화', '수', '목', '금', '토'];
+const STATUS = { running: ['run', '진행 중'], done: ['on', '완료'], failed: ['bad', '실패'], stuck: ['warn', '사람 확인'], stopped: ['off', '멈춤'] };
+
+let data = { routines: [], runs: [], maxConcurrent: 1 };
+let selId = null;          // 고른 루틴 id ('new' = 저장 전 새 루틴)
+let draft = null;          // 편집 중인 값 (화면 → 저장)
+let profiles = [];
+let lastPromptTA = null;
+
+// ---------- 테마 ----------
+const root = document.documentElement;
+try { if (localStorage.getItem('pt_routines_theme') === 'dark') root.setAttribute('data-theme', 'dark'); } catch (e) {}
+const paintTheme = () => { $('themeBtn').textContent = root.getAttribute('data-theme') === 'dark' ? '☀ 라이트' : '🌙 다크'; };
+$('themeBtn').onclick = () => { const d = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; root.setAttribute('data-theme', d); try { localStorage.setItem('pt_routines_theme', d); } catch (e) {} paintTheme(); };
+paintTheme();
+
+// ---------- 목록 ----------
+function runOf(r) { return data.runs.filter(x => x.routineId === r.id).slice(-1)[0]; }
+function paintList() {
+  const rows = $('rows'); rows.innerHTML = '';
+  $('count').textContent = '루틴 ' + data.routines.length + '개';
+  $('maxConc').value = data.maxConcurrent;
+  if (!data.routines.length && selId !== 'new') { rows.innerHTML = '<div class="empty">아직 루틴이 없습니다. [＋ 새 루틴] 으로 첫 루틴을 만드세요.</div>'; return; }
+  const list = selId === 'new' ? [{ id: 'new', name: draft.name || '(새 루틴)', steps: draft.steps, schedule: draft.schedule, fresh: true }, ...data.routines] : data.routines;
+  for (const r of list) {
+    const run = r.fresh ? null : runOf(r);
+    const live = run && run.status === 'running';
+    const chip = r.fresh ? ['off', '저장 전'] : live ? ['run', run.n + '회차 진행 중'] : r.enabled ? ['on', '켜짐'] : run && run.status !== 'done' && run.status !== 'stopped' ? STATUS[run.status] : ['off', '꺼짐'];
+    const el = document.createElement('div');
+    el.className = 'row' + (r.id === selId ? ' sel' : ''); el.tabIndex = 0; el.dataset.id = r.id;
+    el.innerHTML = `<span class="nm">${esc(r.name)}</span><span class="chip ${chip[0]}">${esc(chip[1])}</span>
+      <span class="meta"><span class="dots">${(r.steps || []).map(s => `<i class="c-${esc(s.agent)}" title="${esc(s.name)}"></i>`).join('')}</span>${esc(schedText(r.schedule))}${r.nextAt && r.enabled ? ' · <span class="num">다음 ' + when(r.nextAt) + '</span>' : ''}</span>
+      ${r.note ? `<span class="rnote">${esc(r.note)}</span>` : ''}
+      ${r.fresh ? '' : `<span class="acts"><button class="btn ghost tiny" data-act="toggle">${r.enabled ? '끄기' : '켜기'}</button><button class="btn ghost tiny" data-act="run"${live ? ' disabled' : ''}>지금 한 번</button>${live ? '<button class="btn ghost tiny danger" data-act="stop">멈추기</button>' : ''}<button class="btn ghost tiny" data-act="copy">복사</button></span>`}`;
+    rows.appendChild(el);
+  }
+}
+function schedText(s) {
+  if (!s) return '';
+  if (s.repeat === 'daily') return '매일 ' + s.time;
+  if (s.repeat === 'weekly') return '매주 ' + (s.weekdays || []).map(d => WD[d]).join('·') + ' ' + s.time;
+  if (s.repeat === 'interval') return s.minutes + '분마다';
+  if (s.repeat === 'once') return '한 번 · ' + when(Date.parse(s.at));
+  return '직접 실행만';
+}
+$('rows').addEventListener('click', async ev => {
+  const row = ev.target.closest('.row'); if (!row) return;
+  const act = ev.target.closest('[data-act]');
+  const r = data.routines.find(x => x.id === row.dataset.id);
+  if (!act) { select(row.dataset.id); return; }
+  if (!r) return;
+  try {
+    if (act.dataset.act === 'toggle') { data = await api('/api/routines/' + r.id + '/enabled', 'POST', { enabled: !r.enabled }); say(r.enabled ? '루틴을 껐습니다' : '루틴을 켰습니다'); }
+    else if (act.dataset.act === 'run') { if (!confirm('「' + r.name + '」 을 지금 한 번 돌릴까요? 단계마다 세션이 새로 뜹니다.')) return; data = await api('/api/routines/' + r.id + '/run', 'POST', {}); say('회차를 시작했습니다'); }
+    else if (act.dataset.act === 'stop') { const run = runOf(r); data = await api('/api/routines/runs/' + run.id + '/stop', 'POST', {}); say('회차를 멈췄습니다'); }
+    else if (act.dataset.act === 'copy') { const j = await api('/api/routines/' + r.id + '/copy', 'POST', {}); data = j; select(j.selected); say('복사했습니다 — 이름·주제·시각을 바꾸고 켜세요'); return; }
+    paintAll();
+  } catch (e) { say(e.message, true); }
+});
+$('rows').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList.contains('row')) { ev.preventDefault(); select(ev.target.dataset.id); } });
+$('maxConc').onchange = async () => { try { data = await api('/api/routines/settings', 'PUT', { maxConcurrent: Number($('maxConc').value) }); say('저장했습니다'); } catch (e) { say(e.message, true); } paintList(); };
+
+// ---------- 편집 ----------
+function blankRoutine() {
+  return { name: '', schedule: { repeat: 'daily', time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, maxRuns: 30, stepTimeoutMin: 40, waitOnLimit: true, closeWhenDone: true,
+           baseDir: data.defaultBaseDir || '', folder: '{날짜}-{주제}', topics: [], steps: [blankStep()] };
+}
+function blankStep() { return { name: '', agent: 'claude', model: 'default', browser: '', browserProfile: '', prompt: '', backTo: -1, maxBack: 1 }; }
+function select(id) {
+  if (id === selId) return;
+  if (draft && dirty() && !confirm('저장하지 않은 변경이 있습니다. 버릴까요?')) return;
+  selId = id;
+  const r = id === 'new' ? blankRoutine() : data.routines.find(x => x.id === id);
+  if (!r) { selId = null; draft = null; paintAll(); return; }
+  draft = JSON.parse(JSON.stringify(r));
+  draft.schedule = Object.assign({ time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, draft.schedule);
+  savedJson = JSON.stringify(collect());
+  paintAll();
+}
+let savedJson = '';
+const dirty = () => selId && JSON.stringify(collect()) !== savedJson;
+$('btnNew').onclick = () => { if (selId === 'new') return; select('new'); setTimeout(() => $('fName').focus(), 50); };
+
+function paintEditor() {
+  $('edEmpty').hidden = !!draft; $('form').hidden = !draft;
+  if (!draft) return;
+  const r = data.routines.find(x => x.id === selId);
+  $('fName').value = draft.name;
+  $('fRepeat').value = draft.schedule.repeat;
+  $('fTime').value = draft.schedule.time || '';
+  $('fMinutes').value = draft.schedule.minutes || 60;
+  $('fAt').value = draft.schedule.at ? toLocalInput(draft.schedule.at) : '';
+  $('fMaxRuns').value = draft.maxRuns; $('fTimeout').value = draft.stepTimeoutMin;
+  $('lblTimeout').textContent = '단계당 최대 시간 (' + (data.testMode ? '초 · 시험 모드' : '분') + ')';
+  $('fWait').checked = !!draft.waitOnLimit; $('fClose').checked = !!draft.closeWhenDone;
+  $('fBaseDir').value = draft.baseDir; $('fFolder').value = draft.folder;
+  $('wds').innerHTML = WD.map((n, i) => `<label><input type="checkbox" value="${i}"${(draft.schedule.weekdays || []).includes(i) ? ' checked' : ''}> ${n}</label>`).join('');
+  paintRepeat();
+  paintTopics();
+  paintSteps();
+  $('vars').innerHTML = VARS.map(([v, d]) => `<button type="button" class="var" data-v="${esc(v)}">${esc(v)}${d ? `<small>${esc(d)}</small>` : ''}</button>`).join('');
+  $('btnRun').disabled = $('btnCopy').disabled = $('btnDel').disabled = selId === 'new';
+  const st = $('edStatus');
+  if (selId === 'new') st.innerHTML = '저장하면 목록에 들어갑니다. 저장 뒤에 켜거나 [지금 한 번 실행] 으로 시험하세요.';
+  else if (r) {
+    const run = runOf(r);
+    st.innerHTML = `<span>회차 <b class="num">${r.count || 0}</b> / ${r.maxRuns}</span>` +
+      (r.enabled ? `<span>· 켜짐${r.nextAt ? ' · 다음 <span class="num">' + esc(when(r.nextAt)) + '</span>' : ''}</span>` : '<span>· 꺼짐</span>') +
+      (run && run.status === 'running' ? `<span class="chip run">${run.n}회차 진행 중 · ${esc((run.attempts.slice(-1)[0] || {}).name || '')}</span>` : '') +
+      (r.note ? `<span class="warnline">${esc(r.note)}</span>` : '');
+  }
+  paintRuns();
+}
+function toLocalInput(iso) { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+function paintRepeat() {
+  const rep = $('fRepeat').value;
+  $('rowTime').hidden = !(rep === 'daily' || rep === 'weekly');
+  $('rowWd').hidden = rep !== 'weekly';
+  $('rowMinutes').hidden = rep !== 'interval';
+  $('rowAt').hidden = rep !== 'once';
+  paintFolderPreview();
+}
+function paintFolderPreview() {
+  const topic = (draft.topics.find(t => !t.used) || {}).text || '(주제 없음)';
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  const name = ($('fFolder').value || '').replace(/\{주제\}/g, topic).replace(/\{날짜\}/g, d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())).replace(/\{회차\}/g, (draft.count || 0) + 1).replace(/\{루틴 이름\}/g, $('fName').value || '');
+  $('folderPreview').textContent = ($('fBaseDir').value || '?') + '\\' + name;
+}
+['fFolder', 'fBaseDir', 'fName'].forEach(id => $(id).addEventListener('input', paintFolderPreview));
+$('fRepeat').onchange = paintRepeat;
+
+function paintTopics() {
+  const box = $('topics'); box.innerHTML = '';
+  const nextIdx = draft.topics.findIndex(t => !t.used);
+  draft.topics.forEach((t, i) => {
+    const el = document.createElement('span');
+    el.className = 'topic' + (t.used ? ' used' : '') + (i === nextIdx ? ' next' : '');
+    el.innerHTML = `<span class="t" title="누르면 쓴 표시 전환">${esc(t.text)}</span><button type="button" title="빼기">✕</button>`;
+    el.querySelector('.t').onclick = () => { t.used = !t.used; paintTopics(); paintFolderPreview(); };
+    el.querySelector('button').onclick = () => { draft.topics.splice(i, 1); paintTopics(); paintFolderPreview(); };
+    box.appendChild(el);
+  });
+  const left = draft.topics.filter(t => !t.used).length;
+  $('topicHint').textContent = draft.topics.length ? `남은 주제 ${left}개 · 다 쓰면 루틴이 멈추고 알립니다` : '주제가 없으면 {주제} 는 빈 칸으로 들어갑니다.';
+}
+function addTopics() {
+  const parts = $('fTopic').value.split(',').map(s => s.trim()).filter(Boolean);
+  for (const p of parts) if (!draft.topics.some(t => t.text === p)) draft.topics.push({ text: p, used: false });
+  $('fTopic').value = ''; paintTopics(); paintFolderPreview();
+}
+$('btnTopic').onclick = addTopics;
+$('fTopic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTopics(); } });
+
+function paintSteps() {
+  const ol = $('steps'); ol.innerHTML = '';
+  draft.steps.forEach((s, i) => {
+    if (i) { const l = document.createElement('li'); l.className = 'link'; l.setAttribute('aria-hidden', 'true'); l.innerHTML = '<span></span>'; ol.appendChild(l); }
+    const li = document.createElement('li'); li.className = 'step';
+    const models = MODELS[s.agent] || MODELS.custom;
+    const modelOpts = models.map(([v, l]) => `<option value="${esc(v)}"${v === s.model ? ' selected' : ''}>${esc(l)}</option>`).join('') + (models.some(m => m[0] === s.model) ? '' : `<option value="${esc(s.model)}" selected>${esc(s.model)}</option>`);
+    const profOpts = ['<option value="">기본 창</option>'].concat(profiles.filter(p => p.slug).map(p => `<option value="${esc(p.name)}"${p.name === s.browserProfile ? ' selected' : ''}>${esc(p.name)}</option>`)).join('');
+    const backOpts = ['<option value="-1">되돌리기 없음</option>'].concat(draft.steps.slice(0, i).map((b, j) => `<option value="${j}"${s.backTo === j ? ' selected' : ''}>${j + 1}단계 「${esc(b.name || (j + 1) + '단계')}」 로</option>`)).join('');
+    li.innerHTML = `<div class="st-head"><span class="st-no">${i + 1}</span><input data-k="name" placeholder="단계 이름 (예: 배너 이미지)" maxlength="40" value="${esc(s.name)}">
+        <select data-k="agent" class="ai-${esc(s.agent)}"><option value="claude"${s.agent === 'claude' ? ' selected' : ''}>Claude</option><option value="codex"${s.agent === 'codex' ? ' selected' : ''}>GPT</option>${data.testMode ? `<option value="custom"${s.agent === 'custom' ? ' selected' : ''}>Custom</option>` : ''}</select>
+        <select data-k="model">${modelOpts}</select>
+        <span class="sp"></span>
+        <button type="button" class="btn ghost tiny" data-mv="-1" title="위로"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn ghost tiny" data-mv="1" title="아래로"${i < draft.steps.length - 1 ? '' : ' disabled'}>↓</button><button type="button" class="btn ghost tiny danger" data-del="1" title="이 단계 빼기"${draft.steps.length > 1 ? '' : ' disabled'}>✕</button></div>
+      <div class="st-body">
+        <div class="fld"><label>브라우저</label><select data-k="browser"><option value=""${!s.browser ? ' selected' : ''}>끔</option><option value="incognito"${s.browser === 'incognito' ? ' selected' : ''}>🕶 시크릿창</option><option value="normal"${s.browser === 'normal' ? ' selected' : ''}>🌐 일반창 (로그인 유지 · 🔑 보관함)</option></select></div>
+        <div class="fld" ${s.browser === 'normal' ? '' : 'hidden'}><label>계정 창</label><select data-k="browserProfile">${profOpts}</select></div>
+        <div class="fld"><label>결과가 기준에 못 미치면</label><select data-k="backTo">${backOpts}</select></div>
+        <div class="fld" ${s.backTo >= 0 ? '' : 'hidden'}><label>되돌리기 최대</label><select data-k="maxBack">${[1, 2, 3].map(n => `<option value="${n}"${s.maxBack === n ? ' selected' : ''}>${n}번</option>`).join('')}</select></div>
+        ${s.agent === 'custom' ? `<div class="fld wide"><label>실행 명령</label><input data-k="cmd" class="mono" value="${esc(s.cmd || '')}"></div>` : ''}
+        <textarea data-k="prompt" placeholder="이 단계 AI 에게 보낼 지시문. {주제} {이전 단계가 한 일} 같은 값을 쓸 수 있습니다.">${esc(s.prompt)}</textarea>
+      </div>
+      <p class="handoff">${i + 1 < draft.steps.length ? '↓ 완료 코드를 받으면 보고 파일을 읽어 다음 단계로 넘김' : '✓ 완료 코드를 받으면 회차 끝'}${s.backTo >= 0 ? ` · 되돌리기 코드면 ${s.backTo + 1}단계를 다시 (최대 ${s.maxBack}번)` : ''} · 사람 확인 코드면 멈춤</p>`;
+    li.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.dataset.k;
+      const apply = () => {
+        let v = el.value;
+        if (k === 'backTo' || k === 'maxBack') v = Number(v);
+        s[k] = v;
+        if (k === 'agent') { s.model = 'default'; paintSteps(); }
+        else if (k === 'browser' || k === 'backTo') paintSteps();
+      };
+      el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', apply);
+      if (k === 'prompt') el.addEventListener('focus', () => { lastPromptTA = el; });
+    });
+    li.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const j = i + Number(b.dataset.mv); [draft.steps[i], draft.steps[j]] = [draft.steps[j], draft.steps[i]]; fixBackRefs(); paintSteps(); });
+    li.querySelector('[data-del]').onclick = () => { if (s.prompt && !confirm('이 단계를 뺄까요?')) return; draft.steps.splice(i, 1); fixBackRefs(); paintSteps(); };
+    ol.appendChild(li);
+  });
+}
+function fixBackRefs() { draft.steps.forEach((s, i) => { if (s.backTo >= i) s.backTo = -1; }); }
+$('btnAddStep').onclick = () => { draft.steps.push(blankStep()); paintSteps(); const tas = $('steps').querySelectorAll('textarea'); if (tas.length) tas[tas.length - 1].focus(); };
+$('vars').addEventListener('click', ev => {
+  const b = ev.target.closest('.var'); if (!b) return;
+  const ta = lastPromptTA && lastPromptTA.isConnected ? lastPromptTA : $('steps').querySelector('textarea');
+  if (!ta) return;
+  const v = b.dataset.v, st = ta.selectionStart, en = ta.selectionEnd;
+  ta.value = ta.value.slice(0, st) + v + ta.value.slice(en);
+  ta.dispatchEvent(new Event('input')); ta.focus(); ta.selectionStart = ta.selectionEnd = st + v.length;
+});
+
+function collect() {
+  if (!draft) return null;
+  const rep = $('fRepeat').value;
+  return { name: $('fName').value.trim(),
+    schedule: { repeat: rep, time: $('fTime').value, minutes: Number($('fMinutes').value), at: $('fAt').value ? new Date($('fAt').value).toISOString() : '',
+                weekdays: [...$('wds').querySelectorAll('input:checked')].map(i => Number(i.value)) },
+    maxRuns: Number($('fMaxRuns').value), stepTimeoutMin: Number($('fTimeout').value), waitOnLimit: $('fWait').checked, closeWhenDone: $('fClose').checked,
+    baseDir: $('fBaseDir').value.trim(), folder: $('fFolder').value.trim(), topics: draft.topics, steps: draft.steps };
+}
+$('form').onsubmit = async ev => {
+  ev.preventDefault();
+  const body = collect();
+  try {
+    const j = selId === 'new' ? await api('/api/routines', 'POST', body) : await api('/api/routines/' + selId, 'PUT', body);
+    data = j; selId = j.selected;
+    draft = JSON.parse(JSON.stringify(data.routines.find(x => x.id === selId)));
+    draft.schedule = Object.assign({ time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, draft.schedule);
+    savedJson = JSON.stringify(collectFrom(draft));
+    paintAll(); say('저장했습니다');
+  } catch (e) { say(e.message, true); }
+};
+function collectFrom(r) { return { name: r.name, schedule: r.schedule, maxRuns: r.maxRuns, stepTimeoutMin: r.stepTimeoutMin, waitOnLimit: r.waitOnLimit, closeWhenDone: r.closeWhenDone, baseDir: r.baseDir, folder: r.folder, topics: r.topics, steps: r.steps }; }
+$('btnRun').onclick = async () => {
+  if (dirty()) { say('먼저 저장하세요', true); return; }
+  if (!confirm('지금 한 번 돌릴까요? 단계마다 세션이 새로 뜹니다.')) return;
+  try { data = await api('/api/routines/' + selId + '/run', 'POST', {}); paintAll(); say('회차를 시작했습니다 — 터미널 화면에서 세션이 뜨는 것을 볼 수 있습니다'); } catch (e) { say(e.message, true); }
+};
+$('btnCopy').onclick = async () => { try { const j = await api('/api/routines/' + selId + '/copy', 'POST', {}); data = j; selId = null; select(j.selected); say('복사했습니다'); } catch (e) { say(e.message, true); } };
+$('btnDel').onclick = async () => {
+  const r = data.routines.find(x => x.id === selId); if (!r) return;
+  if (!confirm('「' + r.name + '」 을 삭제할까요? 회차 기록도 목록에서 사라집니다 (작업 폴더는 남습니다).')) return;
+  try { data = await api('/api/routines/' + selId, 'DELETE'); selId = null; draft = null; paintAll(); say('삭제했습니다'); } catch (e) { say(e.message, true); }
+};
+
+// ---------- 회차 기록 ----------
+function paintRuns() {
+  const box = $('runs'); box.innerHTML = '';
+  const runs = data.runs.filter(x => x.routineId === selId).slice().reverse();
+  if (!runs.length) { box.innerHTML = '<p class="noruns">아직 돈 회차가 없습니다.</p>'; return; }
+  const nowT = data.now || Date.now();
+  for (const run of runs) {
+    const st = STATUS[run.status] || ['off', run.status];
+    const total = Math.max(1, (run.endedAt || nowT) - run.startedAt);
+    const segs = run.attempts.map(a => {
+      const dur = Math.max(1, (a.endedAt || nowT) - (a.startedAt || a.createdAt));
+      const cls = a.status === 'failed' ? 'failed' : a.status === 'stuck' ? 'stuck' : a.agent;
+      const live = run.status === 'running' && !a.endedAt;
+      return `<span class="seg ${cls}${a.status === 'back' ? ' back' : ''}${live ? ' live' : ''}" style="flex:${Math.max(4, Math.round(dur / total * 100))}" title="${esc(a.name)} · ${esc(a.status)}">${a.step + 1} · ${esc(a.name)} ${live ? '…' : mins(dur)}</span>`;
+    }).join('');
+    const el = document.createElement('div'); el.className = 'run';
+    el.innerHTML = `<span class="when num">${esc(when(run.startedAt))} · ${run.n}회차${run.manual ? ' (직접)' : ''}</span>
+      <div class="track" role="img" aria-label="${esc(run.attempts.map(a => a.name + ' ' + a.status).join(', '))}">${segs}</div>
+      <span><span class="chip ${st[0]}">${esc(st[1])}${run.endedAt ? ' ' + mins(run.endedAt - run.startedAt) : ''}</span></span>
+      <div class="detail">${run.topic ? `<span>주제 「${esc(run.topic)}」</span>` : ''}<span class="folder" title="누르면 경로 복사">${esc(run.folder)}</span><span>${esc(run.note || '')}</span></div>
+      <details><summary>진행 기록 ${(run.log || []).length}줄</summary>${(run.log || []).map(l => `<div><span class="num">${esc(when(l.at))}</span> ${esc(l.msg)}</div>`).join('')}</details>`;
+    el.querySelector('.folder').onclick = () => { navigator.clipboard.writeText(run.folder).then(() => say('경로를 복사했습니다'), () => {}); };
+    box.appendChild(el);
+  }
+}
+
+function paintAll() { paintList(); paintEditor(); }
+
+// 10초마다 서버 상태를 다시 읽는다 — 편집 중인 폼은 건드리지 않고 목록·회차 기록만 갱신
+async function refresh(first) {
+  try {
+    const j = await api('/api/routines');
+    data = j;
+    if (j.storageError) say('루틴 저장 파일 오류: ' + j.storageError, true);
+    if (first) {
+      profiles = await api('/api/browser-profiles').catch(() => []);
+      if (data.routines.length) select(data.routines[0].id); else paintAll();
+    } else if (draft && selId !== 'new') { paintList(); const r = data.routines.find(x => x.id === selId); if (!r) { selId = null; draft = null; paintAll(); } else { paintRuns(); paintEditorStatusOnly(r); } }
+    else paintList();
+  } catch (e) { if (first) say('루틴 서버에 연결할 수 없습니다: ' + e.message, true); }
+}
+function paintEditorStatusOnly(r) {
+  const run = runOf(r), st = $('edStatus');
+  st.innerHTML = `<span>회차 <b class="num">${r.count || 0}</b> / ${r.maxRuns}</span>` +
+    (r.enabled ? `<span>· 켜짐${r.nextAt ? ' · 다음 <span class="num">' + esc(when(r.nextAt)) + '</span>' : ''}</span>` : '<span>· 꺼짐</span>') +
+    (run && run.status === 'running' ? `<span class="chip run">${run.n}회차 진행 중 · ${esc((run.attempts.slice(-1)[0] || {}).name || '')}</span>` : '') +
+    (r.note ? `<span class="warnline">${esc(r.note)}</span>` : '');
+  $('btnRun').disabled = !!(run && run.status === 'running');
+}
+window.addEventListener('beforeunload', ev => { if (dirty()) { ev.preventDefault(); ev.returnValue = ''; } });
+refresh(true);
+setInterval(() => refresh(false), 10000);
