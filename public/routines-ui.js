@@ -199,7 +199,7 @@ function paintSteps() {
         <div class="fld"><label>결과가 기준에 못 미치면</label><select data-k="backTo">${backOpts}</select></div>
         <div class="fld" ${s.backTo >= 0 ? '' : 'hidden'}><label>되돌리기 최대</label><select data-k="maxBack">${[1, 2, 3].map(n => `<option value="${n}"${s.maxBack === n ? ' selected' : ''}>${n}번</option>`).join('')}</select></div>
         ${s.agent === 'custom' ? `<div class="fld wide"><label>실행 명령</label><input data-k="cmd" class="mono" value="${esc(s.cmd || '')}"></div>` : ''}
-        <textarea data-k="prompt" placeholder="이 단계 AI 에게 보낼 지시문. {주제} {이전 단계가 한 일} 같은 값을 쓸 수 있습니다.">${esc(s.prompt)}</textarea>
+        <textarea data-k="prompt" placeholder="여기에 이 단계 AI 에게 시킬 일을 평소처럼 적으세요. 예) 주제 「{주제}」 로 쇼핑몰 메인 배너를 만들어. 이미지는 images/ 에, HTML 은 index.html 로.   ※ 작업 폴더·보고 파일·완료 코드 안내는 자동으로 뒤에 붙습니다.">${esc(s.prompt)}</textarea>
       </div>
       <p class="handoff">${i + 1 < draft.steps.length ? '↓ 완료 코드를 받으면 보고 파일을 읽어 다음 단계로 넘김' : '✓ 완료 코드를 받으면 회차 끝'}${s.backTo >= 0 ? ` · 되돌리기 코드면 ${s.backTo + 1}단계를 다시 (최대 ${s.maxBack}번)` : ''} · 사람 확인 코드면 멈춤</p>`;
     li.querySelectorAll('[data-k]').forEach(el => {

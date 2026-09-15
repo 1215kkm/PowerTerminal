@@ -65,7 +65,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .row:last-child{border-bottom:0}
 .row:hover{background:var(--raised)}
 .row.sel{background:var(--accent-soft)}
-.row .nm{font-weight:600;overflow-wrap:anywhere}
+.row .nm{font-weight:600;word-break:keep-all;overflow-wrap:anywhere;min-width:0}
+.row .chip{max-width:100%}
 .row .meta{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12.5px}
 .row .rnote{grid-column:1/-1;color:var(--warn);font-size:12px}
 .row .acts{grid-column:1/-1;display:flex;gap:2px;flex-wrap:wrap}
