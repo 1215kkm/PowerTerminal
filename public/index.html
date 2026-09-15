@@ -1890,6 +1890,10 @@ const I18N = {
     obFeedback:'Send a request', obFeedbackD:'Send the developer a feature request or bug report.',
     obMemo:'Memo pad', obMemoD:'Per-folder memos and every request you sent — with Excel export.',
     obHist:'Request history', obHistD:'Your past requests — click one to jump to it in the terminal.',
+    obBrowser:'🆕 Browser for this session', obBrowserD:'The AI opens and uses real websites in Chrome. Pick a normal (stays signed in) or incognito window, one window per account. Tabs it opens show [session name].',
+    obVault:'🆕 Login vault', obVaultD:'🌐 → 🔑: save a login once and the AI signs in by itself. It never sees the password, and types it only on the saved site.',
+    obSched:'🆕 Auto-run', obSchedD:'Send a request to a session at a set time, on repeat, or right after the usage limit resets.',
+    obGit:'🆕 Upload to GitHub', obGitD:'Right-click the git bar to upload this folder as a pull request, then merge it back to main in one click.',
     obInput:'Request input', obInputD:'Type here and press Enter. Start with "question…" to save the answer to the memo pad.',
     pvDev:'Run dev server & preview', pvRunning:'Open running dev server', pvFolder:'Open folder listing', pvUrl:'Enter an address manually',
     pvStarting:'Starting dev server…', pvFail:'That script is not a web dev server (no address found). Pick a page or open the folder instead:',
@@ -1984,6 +1988,10 @@ const I18N = {
     obFeedback:'기능 요청', obFeedbackD:'개발자에게 기능 요청·버그 신고를 보내요.',
     obMemo:'메모장', obMemoD:'폴더별 메모 + 보낸 요청 기록 — 엑셀로도 내려받아요.',
     obHist:'요청 내역', obHistD:'보냈던 요청 목록 — 누르면 터미널 그 위치로 이동해요.',
+    obBrowser:'🆕 세션별 브라우저', obBrowserD:'AI가 크롬으로 실제 사이트를 열고 조작해요. 일반창(로그인 유지)·시크릿창을 고르고, 계정마다 창을 따로 둬요. AI가 연 탭엔 [세션명]이 붙어요.',
+    obVault:'🆕 로그인 보관함', obVaultD:'🌐 → 🔑 에 로그인을 저장해 두면 AI가 비밀번호를 보지 않고 스스로 로그인해요. 저장한 사이트에서만 입력돼요.',
+    obSched:'🆕 자동 실행', obSchedD:'정한 시각·반복, 또는 사용량 한도가 풀리자마자 세션에 요청을 자동으로 보내요.',
+    obGit:'🆕 GitHub에 올리기', obGitD:'git 바를 우클릭하면 이 폴더를 풀 리퀘스트로 올리고, 한 번에 main 으로 합칠 수 있어요.',
     obInput:'요청 입력', obInputD:'여기에 쓰고 엔터. "질문~"으로 시작하면 답변이 메모장에 기록돼요.',
     pvDev:'개발서버 실행해 미리보기', pvRunning:'실행 중인 개발서버 열기', pvFolder:'폴더 목록 열기', pvUrl:'주소 직접 입력',
     pvStarting:'개발서버 시작 중…', pvFail:'이 스크립트는 웹 개발서버가 아니에요(주소 없음). 대신 아래에서 페이지를 고르거나 폴더를 여세요:',
@@ -2479,6 +2487,10 @@ const I18N_MORE = {
     obFeedback: 'リクエストを送る', obFeedbackD: '開発者に機能要望や不具合を送れます。',
     obMemo: 'メモ帳', obMemoD: 'フォルダごとのメモと送ったリクエスト全部 — Excel書き出し付き。',
     obHist: 'リクエスト履歴', obHistD: '過去のリクエスト — クリックでターミナルのその位置へ移動。',
+    obBrowser: '🆕 セッションごとのブラウザ', obBrowserD: 'AIがChromeで実際のサイトを開いて操作します。通常ウィンドウ(ログイン維持)かシークレットを選び、アカウントごとに別ウィンドウ。AIが開いたタブには[セッション名]が付きます。',
+    obVault: '🆕 ログイン保管庫', obVaultD: '🌐 → 🔑 にログインを保存すると、AIがパスワードを見ずに自分でログインします。保存したサイトでだけ入力されます。',
+    obSched: '🆕 自動実行', obSchedD: '決めた時刻や繰り返し、または使用上限がリセットされた直後に、セッションへリクエストを自動送信します。',
+    obGit: '🆕 GitHubにアップロード', obGitD: 'gitバーを右クリックすると、このフォルダをプルリクエストとして上げ、ワンクリックでmainに統合できます。',
     obInput: 'リクエスト入力', obInputD: 'ここに書いてEnter。「質問…」で始めると答えがメモ帳に残ります。',
     pvDev: '開発サーバーを起動してプレビュー', pvRunning: '起動中の開発サーバーを開く',
     pvFolder: 'フォルダ一覧を開く', pvUrl: 'アドレスを手入力', pvStarting: '開発サーバーを起動中…',
@@ -2725,6 +2737,10 @@ const I18N_MORE = {
     obFeedback: '发送需求', obFeedbackD: '向开发者反馈功能需求或问题。',
     obMemo: '记事本', obMemoD: '按文件夹保存记事和你发过的所有请求 — 支持导出 Excel。',
     obHist: '请求记录', obHistD: '你过去的请求 — 点一条就能跳到终端里的对应位置。',
+    obBrowser: '🆕 会话专属浏览器', obBrowserD: 'AI 在 Chrome 里打开并操作真实网站。可选普通窗口（保持登录）或无痕窗口，每个账号一个窗口。AI 打开的标签页会显示 [会话名]。',
+    obVault: '🆕 登录保险箱', obVaultD: '在 🌐 → 🔑 保存登录后，AI 会自己登录且看不到密码，只会在保存的网站上输入。',
+    obSched: '🆕 自动执行', obSchedD: '在设定时间、按重复周期，或用量上限刚重置时，自动向会话发送请求。',
+    obGit: '🆕 上传到 GitHub', obGitD: '右键点击 git 栏即可把此文件夹作为拉取请求上传，并一键合并回 main。',
     obInput: '请求输入框', obInputD: '在这里输入并回车。以「质问…」开头，答案会存进记事本。',
     pvDev: '启动开发服务器并预览', pvRunning: '打开正在运行的开发服务器',
     pvFolder: '打开文件夹列表', pvUrl: '手动输入地址', pvStarting: '正在启动开发服务器…',
@@ -2973,6 +2989,10 @@ const I18N_MORE = {
     obFeedback: 'Enviar una petición', obFeedbackD: 'Manda al desarrollador una idea o un fallo.',
     obMemo: 'Bloc de notas', obMemoD: 'Notas por carpeta y todas las peticiones que enviaste — con exportación a Excel.',
     obHist: 'Historial de peticiones', obHistD: 'Tus peticiones anteriores — haz clic para saltar a ellas en la terminal.',
+    obBrowser: '🆕 Navegador por sesión', obBrowserD: 'La IA abre y usa sitios reales en Chrome. Elige ventana normal (sesión iniciada) o incógnito, una ventana por cuenta. Sus pestañas muestran [nombre de sesión].',
+    obVault: '🆕 Caja de accesos', obVaultD: '🌐 → 🔑: guarda un acceso y la IA inicia sesión sola, sin ver la contraseña; solo la escribe en el sitio guardado.',
+    obSched: '🆕 Ejecución automática', obSchedD: 'Envía una petición a una sesión a una hora fija, en repetición o justo cuando se reinicia el límite de uso.',
+    obGit: '🆕 Subir a GitHub', obGitD: 'Clic derecho en la barra git para subir esta carpeta como pull request y fusionarla con main en un clic.',
     obInput: 'Campo de petición', obInputD: 'Escribe aquí y pulsa Enter. Empieza con ‘pregunta…’ para guardar la respuesta en el bloc.',
     pvDev: 'Arrancar el servidor de desarrollo y previsualizar', pvRunning: 'Abrir el servidor de desarrollo en marcha',
     pvFolder: 'Abrir el listado de la carpeta', pvUrl: 'Escribir una dirección a mano',
@@ -9224,6 +9244,39 @@ function showOnboarding() {   // 순차 투어 — 겹치지 않게 한 번에 �
 addEventListener('resize', obClearAll);   // 위치가 틀어지면 그냥 닫음 (다시 열면 새 위치)
 // 처음 사용(이 기기에서 본 적 없음) → 화면이 자리 잡은 뒤 자동 투어
 if (!localStorage.getItem(OB_KEY)) setTimeout(() => { if (!localStorage.getItem(OB_KEY)) { localStorage.setItem(OB_KEY, 'seen'); showOnboarding(); } }, 2000);
+// 🆕 새 기능 안내 — 업데이트로 생긴 기능을, 그 기능 버튼이 화면에 보일 때 한 번씩 말풍선으로 알려 준다.
+// 버전 번호가 아니라 기능마다 '본 적 있음'을 기억한다: 버전으로 기억하면 그 버튼이 없는 화면에서 업데이트한 사람은
+// 그 기능을 영영 못 본다(예: 🌐 은 Claude/GPT 세션에만, git 바는 git 레포 세션에만 보인다).
+// 처음 투어·다른 말풍선·창이 떠 있으면 기다렸다가, 보이는 새 기능들을 한 번에 하나씩(✕ = 다음) 보여 준다.
+// '다시 안 보기'(pt_hints=off)면 이것도 안 띄운다. 한 번 시작하면 그 묶음은 전부 본 것으로 친다 — '모두 닫기'로 넘겨도 다시 조르지 않게.
+const OB_NEW_KEY = 'pt_seen_new';
+const OB_NEW = [          // [i18n 키, 셀렉터, 말풍선을 위에 띄울지] — 이 순서대로 보여 준다
+  ['obBrowser', '.pane .brBtn'],
+  ['obVault', '.pane .brBtn'],
+  ['obSched', 'button[onclick*="scheduler.html"]'],
+  ['obGit', '.pane .gitbar', true],
+];
+function obNewSeen() { try { const a = JSON.parse(localStorage.getItem(OB_NEW_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function obNewMark(keys) {
+  try { localStorage.setItem(OB_NEW_KEY, JSON.stringify([...new Set([...obNewSeen(), ...keys])])); } catch (e) {}
+}
+const obNewTimer = setInterval(() => {
+  const seen = obNewSeen();
+  const left = OB_NEW.filter(([k]) => !seen.includes(k));
+  if (!left.length) { clearInterval(obNewTimer); return; }
+  if (!obHintsOn() || document.hidden || document.querySelector('.obub, dialog[open], .pane-confirm')) return;
+  const visible = sel => [...document.querySelectorAll(sel)].find(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+  const list = left.map(([k, sel, above]) => [visible(sel), k, above]).filter(c => c[0]);
+  if (!list.length) return;
+  obNewMark(list.map(c => c[1]));
+  let i = 0;
+  const next = () => {
+    if (i >= list.length) return;
+    const [el, key, above] = list[i++];
+    if (!el.isConnected || !obBubble(el, key, above, { step: i, total: list.length, onNext: next })) next();
+  };
+  next();
+}, 4000);
 // 💤 유휴 힌트 — 5분간 조작 없으면 랜덤 기능 말풍선 하나를 3초간
 let obIdleT = Date.now();
 ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { obIdleT = Date.now(); }, { passive: true, capture: true }));
