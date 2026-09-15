@@ -361,7 +361,16 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (a.status === 'sent') {
       if (a.codexLimitAt) { const at = a.codexLimitAt; a.codexLimitAt = 0; relaunchLater(run, r, a, step, at, '작업 도중 GPT 사용량 한도에 걸렸습니다'); return; }
       if (a.seen === 'DONE') { stepDone(run, r, a); return; }
-      if (a.seen === 'STUCK') { a.status = 'stuck'; a.endedAt = t; finish(run, 'stuck', (a.step + 1) + '단계 「' + step.name + '」 가 사람 확인이 필요하다고 멈췄습니다 — ' + reportRel(a.step) + ' 를 보세요', true); return; }
+      if (a.seen === 'STUCK') {
+        // AI 가 '사람 필요' 라고 했지만 사유가 사용량 한도(도구 429 등)면 사람이 할 일이 없다 — 초기화 뒤 새 세션으로 다시 (2026-09-15 실측: 이미지 생성 429)
+        const rep = readReport(run, a.step);
+        if (r.waitOnLimit && /usage[_ ]limit|rate[_ ]limit|429|사용량 (제한|한도)/i.test(rep)) {
+          const p0 = ptys.get(a.sessionId);
+          const at = (p0 && step.agent === 'codex' && codexLimitAt(p0.buffer.slice(-5000), t)) || t + 60 * 60000;
+          relaunchLater(run, r, a, step, at, '사용량 한도로 멈췄습니다(보고 파일 기준)');
+          return;
+        }
+        a.status = 'stuck'; a.endedAt = t; finish(run, 'stuck', (a.step + 1) + '단계 「' + step.name + '」 가 사람 확인이 필요하다고 멈췄습니다 — ' + reportRel(a.step) + ' 를 보세요', true); return; }
       if (a.seen === 'BACK' && step.backTo >= 0) { stepBack(run, r, a, step); return; }
       const p = ptys.get(a.sessionId), s = signal(a.sessionId);
       if (!p || p.dead) { fail('작업 도중 세션이 꺼졌습니다'); return; }
