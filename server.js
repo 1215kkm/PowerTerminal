@@ -555,9 +555,13 @@ const sessProfile = sess => browserProfile(sess.browserProfile);
 const BROWSER_INCOG_TMP = path.join(SCRATCH_DIR, 'browser-incognito');
 // 예전(v1.77.0) 값 true 는 일반창이다
 const browserMode = s => (s.browser === true || s.browser === 'normal') ? 'normal' : s.browser === 'incognito' ? 'incognito' : '';
-function browserMcp(mode, prof) {
+function browserMcp(mode, prof, sess) {
+  // 🏷 일반창은 PT 중계(--wsEndpoint)를 거쳐 크롬에 붙는다 — 어느 세션이 어떤 탭을 열었는지 PT 가 알아야 탭에 주인을 표시한다.
+  //    중계를 못 띄웠으면(포트 충돌) 예전처럼 크롬에 바로 붙는다(표시만 빠짐).
+  const conn = mode === 'incognito' ? '--isolated'
+    : (sess && cdpProxy.up) ? '--wsEndpoint=' + cdpProxyUrl(sess) : '--browserUrl=http://127.0.0.1:' + prof.port;
   // 성능·에뮬레이션 도구는 뺀다 — 사이트 조작엔 안 쓰는데 도구 설명이 요청마다 붙어 토큰만 먹는다.
-  const args = ['-y', 'chrome-devtools-mcp@1.9.0', mode === 'incognito' ? '--isolated' : '--browserUrl=http://127.0.0.1:' + prof.port,
+  const args = ['-y', 'chrome-devtools-mcp@1.9.0', conn,
     '--usageStatistics=false', '--performanceCrux=false', '--categoryPerformance=false', '--categoryEmulation=false',
     // PT 화면 자체는 못 열게 도구 차원에서 막는다 — 이 PC 에선 PT 가 토큰 없이 열리고, 열리면 다른 세션에
     // 명령을 칠 수 있다(웹페이지에 속은 AI 의 우회로). 규칙 파일은 지시일 뿐이라 여기선 강제 차단을 쓴다.
@@ -585,10 +589,13 @@ function sweepIncognito() {
   }
 }
 // 창(프로필)마다 붙을 크롬이 달라 MCP 설정 파일도 따로 쓴다 — 세션이 뜰 때 그때 기록한다.
-const browserMcpFile = (mode, prof) => path.join(DATA_DIR,
-  mode === 'incognito' ? 'browser-mcp-incognito.json' : 'browser-mcp' + (prof && prof.slug ? '-' + prof.slug : '') + '.json');
-function writeBrowserMcp(mode, prof) {
-  const m = browserMcp(mode, prof), f = browserMcpFile(mode, prof);
+// 일반창은 중계 주소에 세션 id 가 들어가서 세션마다 한 파일이다.
+const browserMcpFile = (mode, prof, sess) => path.join(DATA_DIR,
+  mode === 'incognito' ? 'browser-mcp-incognito.json'
+    : sess ? 'browser-mcp-s-' + sess.id + '.json'
+    : 'browser-mcp' + (prof && prof.slug ? '-' + prof.slug : '') + '.json');
+function writeBrowserMcp(mode, prof, sess) {
+  const m = browserMcp(mode, prof, sess), f = browserMcpFile(mode, prof, sess);
   const servers = { [BROWSER_MCP_NAME]: Object.assign({ command: m.command, args: m.args }, m.env ? { env: m.env } : {}) };
   if (mode === 'normal') servers[VAULT_MCP_NAME] = vaultMcp(prof);   // 🔑 로그인 보관함 — 일반창만
   try { fs.writeFileSync(f, JSON.stringify({ mcpServers: servers }, null, 2)); } catch (e) {}
@@ -676,10 +683,10 @@ function browserFlags(sess) {
     const f = path.join(DATA_DIR, 'browser-rules-' + tag + '.prompt.md');
     try { fs.writeFileSync(f, browserRulesPrompt(mode, prof, true)); } catch (e) {}
     const tools = 'mcp__' + BROWSER_MCP_NAME + (mode === 'normal' ? ',mcp__' + VAULT_MCP_NAME : '');
-    return ' --mcp-config "' + writeBrowserMcp(mode, prof) + '" --allowedTools "' + tools + '" --append-system-prompt-file "' + f + '"';
+    return ' --mcp-config "' + writeBrowserMcp(mode, prof, sess) + '" --allowedTools "' + tools + '" --append-system-prompt-file "' + f + '"';
   }
   if (sess.agent !== 'codex') return '';
-  const m = browserMcp(mode, prof);
+  const m = browserMcp(mode, prof, sess);
   // 규칙은 developer_instructions 로. 윈도우 PowerShell 5.1 은 인자 속 큰따옴표를 망가뜨리므로 여러 줄 TOML
   // 리터럴(''' … ''')에 담고 큰따옴표는 ”로 바꾼다. 맥·리눅스는 한 줄 TOML 문자열(JSON 표기)로.
   // 명령줄 길이 한도 때문에 너무 길면 규칙 본문은 빼고 "원본 파일을 읽어라"만 넣는다.
@@ -820,7 +827,7 @@ function vaultMcp(prof) {
   return { command: process.execPath, args: [path.join(ROOT, 'vault-mcp.js')], env };
 }
 // 크롬 탭 하나에 CDP 로 붙는다. chrome-devtools-mcp 가 이미 붙어 있어도 된다(크롬은 여러 연결을 받는다).
-function cdpConnect(wsUrl) {
+function cdpConnect(wsUrl, onClose) {
   return new Promise((resolve, reject) => {
     const WebSocket = require('ws');
     const ws = new WebSocket(wsUrl, { perMessageDeflate: false });
@@ -835,7 +842,7 @@ function cdpConnect(wsUrl) {
       m.error ? w.reject(new Error(m.error.message)) : w.resolve(m.result);
     });
     ws.on('error', e => { failAll(e); reject(e); });
-    ws.on('close', () => failAll(new Error('connection closed')));
+    ws.on('close', () => { failAll(new Error('connection closed')); if (onClose) onClose(); });
     ws.on('open', () => resolve({
       send: (method, params) => new Promise((res, rej) => {
         const id = ++seq;
@@ -961,6 +968,124 @@ async function vaultFill({ profile, name, pageUrl, submit }) {
     : (submit !== false ? ' and pressed Enter. This site asks for the password on the next screen — call login again once it shows.' : '. Go to the next screen, then call login again for the password.');
   return done(true, 'Filled the ' + what + ' for "' + entry.name + '" on ' + host + tail, { host });
 }
+/* 🏷 PT 브라우저 탭 주인 표시 — 계정 창 하나를 여러 세션이 같이 쓰면, 크롬에 뜬 탭이 어느 세션 것인지 알 수 없었다.
+   그래서 일반창 세션의 브라우저 도구는 크롬에 바로 붙지 않고 PT 중계(127.0.0.1 전용 포트 + 비밀 토큰 주소)를 거친다.
+   중계는 메시지를 그대로 넘기면서 두 가지만 엿본다: ① 그 세션이 새 탭을 만든 응답(Target.createTarget)
+   ② 그 세션 탭에서 열린 팝업(Target.targetCreated 의 openerId). 그 탭에 PT 가 따로 붙어 제목 앞에 [세션명] 을
+   붙이고 왼쪽 아래에 작은 배지를 띄운다 — 새로 열리는 페이지마다 다시 적용된다. 사용자가 직접 연 탭은 주인이 없어 그대로.
+   배지는 aria-hidden·클릭 통과라 AI 의 페이지 읽기(접근성 스냅샷)와 클릭에 끼어들지 않는다.
+   ⚠ 표시는 PT 가 붙어 있는 동안만 새 페이지로 이어진다 — PT 를 재시작하면 그 전 탭은 다음 이동부터 표시가 빠진다.
+   ⚠ 토큰 없이는 못 붙는다 — AI 가 조작하는 크롬 속 웹페이지도 localhost 에 WebSocket 을 열 수 있기 때문. */
+const cdpProxy = { up: true, port: Number(process.env.PT_CDP_PROXY_PORT) || (PORT + 10000) };
+function cdpProxyToken() {
+  if (!/^[0-9a-f]{32}$/.test(config.cdpProxyToken || '')) { config.cdpProxyToken = crypto.randomBytes(16).toString('hex'); saveConfig(); }
+  return config.cdpProxyToken;
+}
+const cdpProxyUrl = sess => 'ws://127.0.0.1:' + cdpProxy.port + '/s/' + cdpProxyToken() + '/' + sess.id;
+const tabOwners = new Map();   // 크롬 탭 id → { sessId, conn }
+const tabLabel = s => String((s && (s.title || path.basename(s.path || ''))) || 'PT').slice(0, 30);
+const TAB_LABEL_JS = label => `(() => {
+  if (window.top !== window) return;
+  const L = ${JSON.stringify(label)};
+  if (window.__ptTabLabel) { window.__ptTabLabel(L); return; }
+  let cur = '[' + L + '] ', badgeEl = null;
+  const fixTitle = () => {
+    const t = document.title || '';
+    if (!t.startsWith(cur)) document.title = cur + t.replace(/^\\[[^\\]]{1,40}\\] /, '');
+  };
+  const badge = () => {
+    if (badgeEl || !document.body) return;
+    const host = document.createElement('div');
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'all:initial;position:fixed;left:8px;bottom:8px;z-index:2147483647;pointer-events:none';
+    const root = host.attachShadow({ mode: 'closed' });
+    badgeEl = document.createElement('span');
+    badgeEl.style.cssText = 'font:600 12px/1.7 system-ui,sans-serif;color:#fff;background:rgba(124,58,237,.88);padding:2px 9px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+    badgeEl.textContent = '🤖 ' + L;
+    root.appendChild(badgeEl);
+    document.body.appendChild(host);
+    window.__ptBadgeHost = host;
+  };
+  window.__ptTabLabel = nl => { cur = '[' + nl + '] '; if (badgeEl) badgeEl.textContent = '🤖 ' + nl; fixTitle(); };
+  const tick = () => { try { fixTitle(); badge(); if (window.__ptBadgeHost && !window.__ptBadgeHost.isConnected) document.body.appendChild(window.__ptBadgeHost); } catch (e) {} };
+  document.addEventListener('DOMContentLoaded', tick);
+  setInterval(tick, 1000);
+  tick();
+})()`;
+async function tabOwnerSet(targetId, sessId, prof) {
+  if (!targetId || tabOwners.has(targetId)) return;
+  const rec = { sessId, conn: null };
+  tabOwners.set(targetId, rec);
+  const src = TAB_LABEL_JS(tabLabel(sessions.find(s => s.id === sessId)));
+  try {
+    const c = await cdpConnect('ws://127.0.0.1:' + prof.port + '/devtools/page/' + targetId, () => { if (tabOwners.get(targetId) === rec) tabOwners.delete(targetId); });
+    rec.conn = c;
+    await c.send('Page.addScriptToEvaluateOnNewDocument', { source: src });
+    // 새 탭은 about:blank 로 만들어진 직후 목적지로 이동한다 — 그 사이에 넣은 표시는 이동과 함께 사라질 수 있어 몇 번 더 넣는다
+    for (const ms of [0, 800, 2500, 6000]) setTimeout(() => { c.send('Runtime.evaluate', { expression: src }).catch(() => {}); }, ms);
+  } catch (e) { if (tabOwners.get(targetId) === rec) tabOwners.delete(targetId); }
+}
+function tabOwnersDrop(sessId) {
+  for (const [id, rec] of tabOwners) if (rec.sessId === sessId) { tabOwners.delete(id); try { if (rec.conn) rec.conn.close(); } catch (e) {} }
+  try { fs.unlinkSync(path.join(DATA_DIR, 'browser-mcp-s-' + sessId + '.json')); } catch (e) {}
+}
+const cdpProxyServer = http.createServer((req, res) => { res.writeHead(404); res.end(); });
+const cdpWss = new WebSocketServer({ server: cdpProxyServer, maxPayload: 512 * 1024 * 1024, perMessageDeflate: false });
+cdpWss.on('error', () => {});
+cdpProxyServer.on('error', e => {
+  cdpProxy.up = false;
+  console.log('  🏷 브라우저 중계 포트 ' + cdpProxy.port + ' 를 못 열었습니다 (' + (e && e.code) + ') — 탭 주인 표시 없이 크롬에 바로 붙습니다');
+});
+cdpProxyServer.listen(cdpProxy.port, '127.0.0.1');
+cdpWss.on('connection', async (client, req) => {
+  const m = /^\/s\/([0-9a-f]{32})\/([0-9a-z]+)$/i.exec(new URL(req.url, 'http://x').pathname);
+  const sess = m && m[1] === cdpProxyToken() && isLocal(req.socket) ? sessions.find(x => x.id === m[2]) : null;
+  if (!sess || browserMode(sess) !== 'normal') { client.close(); return; }
+  const prof = sessProfile(sess);
+  const queue = [], pending = new Set();
+  let up = null, closed = false;
+  client.on('error', () => {});
+  client.on('close', () => { closed = true; try { if (up) up.close(); } catch (e) {} });
+  client.on('message', (data, isBinary) => {
+    // 새 탭 만들기 요청만 기억해 둔다(작은 메시지만 들여다본다 — 스크린샷 같은 큰 메시지는 그냥 넘긴다)
+    if (data.length < 4096) {
+      const t = data.toString();
+      if (t.includes('Target.createTarget')) { try { const j = JSON.parse(t); if (j.method === 'Target.createTarget' && !j.sessionId) pending.add(j.id); } catch (e) {} }
+    }
+    if (up && up.readyState === 1) up.send(data, { binary: isBinary }); else queue.push([data, isBinary]);
+  });
+  // 크롬이 아직 안 떴으면 띄우고 기다린다 (사용자가 창을 닫아 버린 경우)
+  let wsUrl = '';
+  for (let i = 0; i < 30 && !closed && !wsUrl; i++) {
+    try {
+      const r = await fetch('http://127.0.0.1:' + prof.port + '/json/version', { signal: AbortSignal.timeout(1500) });
+      if (r.ok) { wsUrl = (await r.json()).webSocketDebuggerUrl || ''; break; }
+    } catch (e) {}
+    if (i === 0) ensureBrowser(prof);
+    await new Promise(r => setTimeout(r, 500));
+  }
+  if (!wsUrl || closed) { try { client.close(); } catch (e) {} return; }
+  const WebSocket = require('ws');
+  up = new WebSocket(wsUrl, { perMessageDeflate: false, maxPayload: 512 * 1024 * 1024 });
+  up.on('open', () => { for (const [d, b] of queue.splice(0)) up.send(d, { binary: b }); });
+  up.on('message', (data, isBinary) => {
+    if (data.length < 8192) {
+      const t = data.toString();
+      if (pending.size && t.startsWith('{"id":')) {
+        try { const j = JSON.parse(t); if (pending.delete(j.id) && j.result && j.result.targetId) tabOwnerSet(j.result.targetId, sess.id, prof); } catch (e) {}
+      } else if (t.includes('"Target.targetCreated"') && t.includes('"openerId"')) {
+        try {
+          const ti = (JSON.parse(t).params || {}).targetInfo || {};
+          const o = tabOwners.get(ti.openerId);
+          if (ti.type === 'page' && o && o.sessId === sess.id) tabOwnerSet(ti.targetId, sess.id, prof);
+        } catch (e) {}
+      }
+    }
+    if (client.readyState === 1) client.send(data, { binary: isBinary });
+  });
+  up.on('close', () => { try { client.close(); } catch (e) {} });
+  up.on('error', () => { try { client.close(); } catch (e) {} });
+});
 // fresh=true: 같은 폴더에 이미 살아있는 세션이 있을 때 — --continue를 붙이면 그 세션의 대화를
 // 이어받아 버려서(Claude Code는 대화를 '폴더 단위'로 저장) 두 창이 같은 대화를 공유하게 됨 → 새 대화로 시작.
 // resume=true: 작업 중에 서버가 꺼졌던 세션 — 재개 문구를 실행 인자로 넣어 뜨자마자 이어서 작업.
@@ -3225,6 +3350,7 @@ app.delete('/api/sessions/:id', (req, res) => {
   const p = ptys.get(req.params.id);
   const wasBusy = !!(p && !p.dead && p.busy && !p.done);   // 죽이기 전에 작업중이었는지 기억
   killDev(req.params.id);   // 이 세션이 켠 dev 서버도 같이 종료
+  tabOwnersDrop(req.params.id);   // 🏷 이 세션 탭의 주인 표시 연결·MCP 설정 파일 정리
   if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
   ptys.delete(req.params.id);
   const gone = sessions.find(x => x.id === req.params.id);
