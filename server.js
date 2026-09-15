@@ -1134,7 +1134,10 @@ function agentCommandRaw(sess, fresh, resume) {
      읽어야 하는데 매번 지워지니 놓치기 쉽다. Claude 에 --settings tui:default 를 강제하는 것과 같은
      이유로 codex 도 --no-alt-screen(공식 지원 플래그, 확인함)으로 인라인 렌더러를 강제한다. */
   const gm = modelFor('codex', sess.model);
-  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + browserFlags(sess) : '';
+  /* 🔁 루틴 세션의 codex 는 승인 창에서 멈추면 안 된다(사람이 없는 시간에 돈다) — 회차 전용 폴더 안에서만 쓰게 하고 승인은 묻지 않는다.
+     일반 세션은 사용자의 ~/.codex/config.toml 설정을 그대로 따른다. */
+  const routineGpt = sess.routineRun ? " -c 'approval_policy=" + (IS_WIN ? "''never''" : '"never"') + "' -c 'sandbox_mode=" + (IS_WIN ? "''workspace-write''" : '"workspace-write"') + "'" : '';
+  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + routineGpt + browserFlags(sess) : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {

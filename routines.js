@@ -248,6 +248,27 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     p.armed = true; p.done = false; p.busy = true; p.lastMarker = now();
   }
 
+  /* GPT(codex) 사용량 한도 — Claude 와 달리 글자 안내가 아니라 선택 메뉴(업그레이드/리셋/저성능 모델로 계속)가 떠서
+     입력 안내가 사라지고, 저성능 모델로 자동 전환된다(2026-09-15 실측). 그 메뉴는 아무리 기다려도 안 닫히므로
+     세션을 닫고 초기화 시각("usage to reset after 18:47")까지 기다렸다가 새 세션으로 다시 시작한다. */
+  function codexLimitAt(text, t) {
+    const flat = plain(text);
+    if (!/usage limit reset available|Continue with [A-Za-z ]*Reserve|switched to [A-Za-z ]*Reserve[^\n]*usage limit|usage limits?\.?\s*$/im.test(flat)) return 0;
+    const m = flat.match(/reset after (\d{1,2}):(\d{2})/i);
+    if (!m) return t + 60 * 60000;
+    const d = new Date(t); d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    let at = d.getTime(); if (at <= t) at += 86400000;
+    return at + 60000;
+  }
+  function relaunchLater(run, r, a, step, at, why) {
+    if (!r.waitOnLimit) { a.status = 'failed'; a.endedAt = now(); finish(run, 'failed', (a.step + 1) + '단계 「' + step.name + '」: ' + why); return; }
+    if (a.sessionId) { try { closeSession(a.sessionId); } catch (e) {} }
+    a.sessionId = null; a.relaunch = true; a.resumeAt = at; a.seen = null;
+    a.resumeNote = a.status === 'sent';   // 작업 도중이었으면 다시 띄울 때 '이어서' 라고 알린다
+    a.status = 'limit';
+    note(run, (a.step + 1) + '단계: ' + why + ' — ' + new Date(at).toLocaleString('ko-KR') + ' 에 새 세션으로 다시 시작합니다');
+    save();
+  }
   // AI 가 입력을 받을 준비가 됐나 — 화면 아래 입력 안내가 보이고, 막 뜬 참이 아니고, 작업 표시가 잠잠할 때
   function readyToSend(p, s, agent, t) {
     if (!s.ready || s.dirty) return false;
@@ -262,6 +283,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     const vars = { '주제': run.topic, '날짜': localDate(run.startedAt), '회차': run.n, '루틴 이름': r.name, '작업 폴더': run.folder,
                    '이전 단계가 한 일': run.lastReport || '(첫 단계라 앞 단계 보고가 없습니다)' };
     let body = expand(step.prompt, vars);
+    if (a.resumeNote) body = '[이어서] 이 단계는 사용량 한도로 중단됐다가 다시 시작됐습니다. 작업 폴더에 이미 남아 있는 결과를 먼저 확인하고, 중복 없이 이어서 끝내세요.\n\n' + body;
     if (a.fixFrom != null) {
       body = '[되돌아온 작업] ' + (a.fixFrom + 1) + '단계 「' + (r.steps[a.fixFrom] || {}).name + '」 가 기준에 못 미친다고 돌려보냈습니다. 아래 지적을 반영해 이 단계를 다시 하세요.\n'
            + (a.fixReport || '(지적 내용 파일이 비어 있습니다 — ' + reportRel(a.fixFrom) + ' 를 확인하세요)') + '\n\n--- 원래 지시문 ---\n' + body;
@@ -330,12 +352,14 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       }
       const p = ptys.get(a.sessionId), s = signal(a.sessionId);
       if (!p || p.dead) { fail('세션이 꺼졌습니다 (AI 설치·로그인을 확인하세요)'); return; }
+      if (step.agent === 'codex') { const at = codexLimitAt(p.buffer.slice(-5000), t); if (at) { relaunchLater(run, r, a, step, at, 'GPT 사용량 한도 메뉴가 떴습니다'); return; } }
       if (t - a.startedAt > r.stepTimeoutMin * MIN) { fail(r.stepTimeoutMin + '분 안에 입력 준비가 안 됐습니다 — 세션을 열어 로그인·확인창·업데이트 안내를 보세요'); return; }
       if (readyToSend(p, s, step.agent, t)) await sendStep(run, r, a, step);
       return;
     }
 
     if (a.status === 'sent') {
+      if (a.codexLimitAt) { const at = a.codexLimitAt; a.codexLimitAt = 0; relaunchLater(run, r, a, step, at, '작업 도중 GPT 사용량 한도에 걸렸습니다'); return; }
       if (a.seen === 'DONE') { stepDone(run, r, a); return; }
       if (a.seen === 'STUCK') { a.status = 'stuck'; a.endedAt = t; finish(run, 'stuck', (a.step + 1) + '단계 「' + step.name + '」 가 사람 확인이 필요하다고 멈췄습니다 — ' + reportRel(a.step) + ' 를 보세요', true); return; }
       if (a.seen === 'BACK' && step.backTo >= 0) { stepBack(run, r, a, step); return; }
@@ -355,6 +379,11 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
 
     if (a.status === 'limit') {
       if (t < a.resumeAt) return;
+      if (a.relaunch) {   // codex — 세션을 닫아 뒀으니 새로 띄운다 (sessionId 가 비어 있어 'starting' 이 새 세션을 만든다)
+        a.relaunch = false; a.status = 'starting'; a.startedAt = t;
+        note(run, (a.step + 1) + '단계: 초기화 시각이 지나 새 세션으로 다시 시작합니다'); save();
+        return;
+      }
       const p = ptys.get(a.sessionId), s = signal(a.sessionId);
       if (!p || p.dead) { fail('한도를 기다리는 사이 세션이 꺼졌습니다'); return; }
       if (!readyToSend(p, s, step.agent, t)) return;
@@ -402,6 +431,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     const a = cur(run);
     const txt = (carry.get(id) || '') + plain(chunk);
     if (!a.seen) for (const k of ['DONE', 'STUCK', 'BACK']) if (txt.includes('[PT_' + k + '_' + a.token + ']')) { a.seen = k; break; }
+    if (a.agent === 'codex' && !a.seen && !a.codexLimitAt) { const at = codexLimitAt(txt, now()); if (at) a.codexLimitAt = at; }
     carry.set(id, txt.slice(-160));
   }
 
