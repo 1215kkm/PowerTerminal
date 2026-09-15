@@ -236,6 +236,22 @@ const RECENT_FILE = dataFile('recent.json');
 let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
 function saveSessions() { setMark('세션목록 저장'); fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); setMark('idle'); }
+/* 🤖 모델 값은 그 AI 것이어야 한다 — Claude 세션엔 Claude 모델, GPT(codex) 세션엔 GPT 모델.
+   예전엔 AI 를 Claude → GPT 로 바꿔도 모델 값(opus)이 그대로 남아, GPT 세션이 `codex --model opus` 로 떴고
+   GPT 모델 목록에도 'opus' 가 한 줄 끼어 보였다(2026-09-15 실사용: tree6 · km-cafe24). 반대도 마찬가지.
+   맞지 않으면 '자동'(default = --model 을 안 붙임)으로 본다. Shell·Custom 은 모델을 안 쓰니 손대지 않는다. */
+const CLAUDE_MODEL_RE = /^(opus|sonnet|haiku|fable|opusplan)(\[1m\])?$|^claude-/i;
+const GPT_MODEL_RE = /^(gpt-|o\d|codex-)/i;
+function modelFor(agent, model) {
+  const m = String(model || '').trim() || 'default';
+  if (m === 'default') return m;
+  const a = agent || 'claude';
+  if (a === 'claude') return GPT_MODEL_RE.test(m) ? 'default' : m;
+  if (a === 'codex') return CLAUDE_MODEL_RE.test(m) ? 'default' : m;
+  return m;
+}
+// 이미 잘못 저장된 세션도 불러올 때 바로잡는다 (다음 저장 때 파일에도 반영)
+for (const s of sessions) { if (s && s.model && modelFor(s.agent, s.model) !== s.model) s.model = modelFor(s.agent, s.model); }
 
 // 최근 사용 세션 기록 — 닫아도 남아서 세션추가창에 회색으로 표시(다시 켤 수 있게)
 let recent = [];
@@ -1107,14 +1123,16 @@ function agentCommand(sess, fresh, resume) {
   return worktreePrep(sess) + agentCommandRaw(sess, fresh, resume);
 }
 function agentCommandRaw(sess, fresh, resume) {
-  const model = (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + claudeTuiFlag() + browserFlags(sess);
+  const cm = modelFor('claude', sess.model);
+  const model = (cm !== 'default' ? ' --model ' + cm : '') + claudeTuiFlag() + browserFlags(sess);
   /* GPT(codex) 도 모델을 고를 수 있다. codex 는 최상위 옵션으로 `--model <id>` 를 받고,
      `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다.
      codex 도 Claude 처럼 기본이 대체화면(alt-screen) 모드다 — 매 응답마다 화면을 통째로 다시 그려서
      스크롤백이 안 쌓이고, 보던 위치가 맨 위로 튀고(실측), PT 의 작업중/완료 판별도 지금 화면 텍스트에서
      읽어야 하는데 매번 지워지니 놓치기 쉽다. Claude 에 --settings tui:default 를 강제하는 것과 같은
      이유로 codex 도 --no-alt-screen(공식 지원 플래그, 확인함)으로 인라인 렌더러를 강제한다. */
-  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (sess.model && sess.model !== 'default' ? ' --model ' + sess.model : '') + browserFlags(sess) : '';
+  const gm = modelFor('codex', sess.model);
+  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + browserFlags(sess) : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {
@@ -2449,7 +2467,7 @@ app.post('/api/sessions', async (req, res) => {
   const baseTitle = String(wantTitle).replace(/^tree\d+\s*·\s*/, '').replace(/-tree\d+$/, '');
   const sess = { id, title: wt ? 'tree' + wt.n + ' · ' + baseTitle : wantTitle,
                  path: dir, previewUrl: '',
-                 agent: agent || 'claude', model: (model && String(model)) || 'default', cmd: cmd || '' };
+                 agent: agent || 'claude', model: modelFor(agent || 'claude', model), cmd: cmd || '' };
   if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
   if (req.body.autoClose) sess.autoClose = true;   // 설치용 임시 세션 — 명령 종료 후 자동 제거
   sessions.push(sess);
@@ -2557,6 +2575,7 @@ app.patch('/api/sessions/:id', (req, res) => {
   // 세션에 연결된 AI(agent) 변경 — 실행 중이면 새 AI로 세션 재시작
   if (typeof req.body.agent === 'string') {
     s.agent = req.body.agent;
+    s.model = modelFor(s.agent, s.model);   // AI 를 바꾸면 이전 AI 의 모델 이름은 버린다 (GPT 세션에 --model opus 가 붙던 문제)
     if (typeof req.body.cmd === 'string') s.cmd = req.body.cmd;
     // 사람이 고른 재시작이지 서버가 꺼졌다 살아난 게 아니다 — resumeOnStart 가 남아 있으면
     // 새로 뜬 세션에 '이전 작업을 이어서 하라'는 문구가 실제 메시지로 자동 제출돼 버린다(실측:
@@ -2576,12 +2595,12 @@ app.patch('/api/sessions/:id', (req, res) => {
   // (아래 model 분기는 사용자가 PT 드롭다운으로 고른 것이라 세션을 새 모델로 재시작한다 — 여기서 그걸 타면
   //  작업 중에 세션이 죽는다.) 이 기록 덕분에 껐다 켜도 마지막에 쓰던 모델 그대로 다시 뜬다.
   if (typeof req.body.modelSeen === 'string') {
-    const m = req.body.modelSeen;
-    if (m && s.model !== m) { s.model = m; saveSessions(); syncRecent(s); }
+    const m = modelFor(s.agent, req.body.modelSeen);   // 터미널 글자에서 읽은 값이라 다른 AI 의 모델 이름이 섞일 수 있다
+    if (m && m !== 'default' && s.model !== m) { s.model = m; saveSessions(); syncRecent(s); }
     return res.json(s);
   }
   if (typeof req.body.model === 'string') {
-    s.model = req.body.model;
+    s.model = modelFor(s.agent, req.body.model);
     s.resumeOnStart = false;   // 위 agent 분기와 같은 이유 — 사람이 고른 재시작에 이어하기 문구가 끼면 안 된다
     saveSessions();
     syncRecent(s);

@@ -4452,7 +4452,19 @@ const GPT_MODELS = [
   ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'],
   ['gpt-5.5', 'GPT-5.5']
 ];
+/* 🤖 모델 이름이 그 AI 것인지 — 서버 modelFor() 와 같은 규칙. 맞지 않으면 null.
+   GPT 목록에 'opus' 가 끼어 보이거나, 터미널 글자에서 다른 AI 모델 이름을 읽어 기록하던 문제를 막는다. */
+const CLAUDE_MODEL_RE_UI = /^(opus|sonnet|haiku|fable|opusplan)(\[1m\])?$|^claude-/i;
+const GPT_MODEL_RE_UI = /^(gpt-|o\d|codex-)/i;
+function modelOkFor(agent, m) {
+  if (!m || m === 'default') return m;
+  const a = agent || 'claude';
+  if (a === 'codex') return CLAUDE_MODEL_RE_UI.test(m) ? null : m;
+  if (a === 'claude') return GPT_MODEL_RE_UI.test(m) ? null : m;
+  return m;
+}
 function gptOptionsHtml(cur) {
+  if (!modelOkFor('codex', cur)) cur = 'default';   // Claude 모델 이름이 남아 있으면 '자동'으로 보여 준다
   const sel = v => (cur === v ? ' selected' : '');
   let h = '<option value="default"' + sel('default') + '>' + esc(T.mDefault || 'Auto') + '</option>';
   h += GPT_MODELS.map(m => '<option value="' + m[0] + '"' + sel(m[0]) + '>' + esc(m[1]) + '</option>').join('');
@@ -4464,6 +4476,7 @@ function gptOptionsHtml(cur) {
 // AI 종류에 맞는 목록 — 세션 헤더와 [＋세션] 창이 이 한 곳을 같이 쓴다
 function modelOptionsFor(agent, cur) { return agent === 'codex' ? gptOptionsHtml(cur) : modelOptionsHtml(cur); }
 function modelOptionsHtml(cur) {
+  if (!modelOkFor('claude', cur)) cur = 'default';  // GPT 모델 이름이 남아 있으면 '자동'으로 보여 준다
   const sel = v => (cur === v ? ' selected' : '');
   const main = [['default', T.mDefault], ['opus', MODEL_LABELS.opus], ['sonnet', MODEL_LABELS.sonnet],
                 ['haiku', MODEL_LABELS.haiku], ['fable', MODEL_LABELS.fable], ['opusplan', MODEL_LABELS.opusplan]];
@@ -5140,7 +5153,7 @@ function buildPane(sess, idx) {
         }
         // 실제 모델을 출력에서 읽어 드롭다운에 반영 (거짓말 방지) — 값만 바꿈(onchange 미발동)
         if (modelDrop) {
-          const dm = detectModel(m.data);
+          const dm = modelOkFor(sess.agent || 'claude', detectModel(m.data));   // 다른 AI 의 모델 이름은 무시
           if (dm && modelDrop.value !== dm) {
             modelDrop.value = dm; sess.model = dm;
             // 세션 안에서 /model 로 바꾼 경우 — 서버에도 기록해 둬야 껐다 켤 때 같은 모델로 다시 뜬다.
@@ -5380,8 +5393,9 @@ function buildPane(sess, idx) {
     if (!confirm(T.aiChangeAsk || 'Switch this session to a different AI? It restarts the session.')) { aiDrop.value = prev; return; }
     const p0 = panes.get(sess.id);
     const anchor = p0 ? p0.el.nextSibling : null;
-    await api('PATCH', '/api/sessions/' + sess.id, { agent: next });
+    const changed = await api('PATCH', '/api/sessions/' + sess.id, { agent: next });
     sess.agent = next;
+    if (changed && typeof changed.model === 'string') sess.model = changed.model;   // 서버가 새 AI 에 맞게 정리한 모델
     removePaneLocal(sess.id);
     buildPane(sess, 0);
     const np = panes.get(sess.id);
