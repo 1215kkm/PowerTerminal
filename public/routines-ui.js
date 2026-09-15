@@ -46,7 +46,7 @@ function paintList() {
   for (const r of list) {
     const run = r.fresh ? null : runOf(r);
     const live = run && run.status === 'running';
-    const chip = r.fresh ? ['off', '저장 전'] : live ? ['run', run.n + '회차 진행 중'] : r.enabled ? ['on', '켜짐'] : run && run.status !== 'done' && run.status !== 'stopped' ? STATUS[run.status] : ['off', '꺼짐'];
+    const chip = r.fresh ? ['off', '저장 전'] : live ? ['run' + (run.live && run.live.working ? ' working' : ''), run.n + '회차 진행 중'] : r.enabled ? ['on', '켜짐'] : run && run.status !== 'done' && run.status !== 'stopped' ? STATUS[run.status] : ['off', '꺼짐'];
     const el = document.createElement('div');
     el.className = 'row' + (r.id === selId ? ' sel' : ''); el.tabIndex = 0; el.dataset.id = r.id;
     el.innerHTML = `<span class="nm">${esc(r.name)}</span><span class="chip ${chip[0]}">${esc(chip[1])}</span>
@@ -129,7 +129,7 @@ function paintEditor() {
     const run = runOf(r);
     st.innerHTML = `<span>회차 <b class="num">${r.count || 0}</b> / ${r.maxRuns}</span>` +
       (r.enabled ? `<span>· 켜짐${r.nextAt ? ' · 다음 <span class="num">' + esc(when(r.nextAt)) + '</span>' : ''}</span>` : '<span>· 꺼짐</span>') +
-      (run && run.status === 'running' ? `<span class="chip run">${run.n}회차 진행 중 · ${esc((run.attempts.slice(-1)[0] || {}).name || '')}</span>` : '') +
+      (run && run.status === 'running' ? `<span class="chip run${run.live && run.live.working ? ' working' : ''}">${run.n}회차 진행 중 · ${esc((run.attempts.slice(-1)[0] || {}).name || '')}</span>` : '') +
       (r.note ? `<span class="warnline">${esc(r.note)}</span>` : '');
   }
   paintRuns();
@@ -289,7 +289,8 @@ function paintRuns() {
       const dur = Math.max(1, (a.endedAt || nowT) - (a.startedAt || a.createdAt));
       const cls = a.status === 'failed' ? 'failed' : a.status === 'stuck' ? 'stuck' : a.agent;
       const live = run.status === 'running' && !a.endedAt;
-      return `<span class="seg ${cls}${a.status === 'back' ? ' back' : ''}${live ? ' live' : ''}" style="flex:${Math.max(4, Math.round(dur / total * 100))}" title="${esc(a.name)} · ${esc(a.status)}">${a.step + 1} · ${esc(a.name)} ${live ? '…' : mins(dur)}</span>`;
+      const working = live && run.live && run.live.working;
+      return `<span class="seg ${cls}${a.status === 'back' ? ' back' : ''}${live ? ' live' : ''}${working ? ' working' : ''}" style="flex:${Math.max(4, Math.round(dur / total * 100))}" title="${esc(a.name)} · ${esc(a.status)}">${a.step + 1} · ${esc(a.name)} ${live ? '…' : mins(dur)}</span>`;
     }).join('');
     const el = document.createElement('div'); el.className = 'run';
     el.innerHTML = `<span class="when num">${esc(when(run.startedAt))} · ${run.n}회차${run.manual ? ' (직접)' : ''}</span>
@@ -347,11 +348,16 @@ function paintLive() {
   const a = run.attempts[run.attempts.length - 1] || {};
   const r = data.routines.find(x => x.id === run.routineId);
   box.hidden = false;
+  const lv = run.live || {};
   $('liveChip').textContent = run.n + '회차 진행 중';
+  $('liveChip').classList.toggle('working', !!lv.working);
+  box.classList.toggle('working', !!lv.working);
   $('liveName').textContent = run.name + (run.topic ? ' · ' + run.topic : '');
   const started = a.startedAt || a.createdAt || run.startedAt;
   $('liveStep').textContent = (a.step + 1) + '/' + ((r && r.steps.length) || '?') + ' ' + (a.name || '') +
-    ' · ' + ({ starting: '세션 준비 중', sending: '요청 보내는 중', sent: '작업 중', limit: '사용량 한도 대기' }[a.status] || a.status) +
+    ' · ' + (a.status === 'sent'
+      ? (lv.working ? '작업 중' : lv.blocked ? lv.blocked + ' 떠 있음 · 자동으로 답하는 중' : '반응 없음 · ' + mins((data.now || Date.now()) - (lv.since || started)) + ' 째')
+      : ({ starting: '세션 준비 중', sending: '요청 보내는 중', limit: '사용량 한도 대기' }[a.status] || a.status)) +
     ' · ' + mins((data.now || Date.now()) - started) + ' 째';
   $('liveFolder').innerHTML = '작업 폴더: <button type="button" class="pathbtn" id="liveFolderBtn"></button>';
   const fb = $('liveFolderBtn');
@@ -431,7 +437,7 @@ function paintEditorStatusOnly(r) {
   const run = runOf(r), st = $('edStatus');
   st.innerHTML = `<span>회차 <b class="num">${r.count || 0}</b> / ${r.maxRuns}</span>` +
     (r.enabled ? `<span>· 켜짐${r.nextAt ? ' · 다음 <span class="num">' + esc(when(r.nextAt)) + '</span>' : ''}</span>` : '<span>· 꺼짐</span>') +
-    (run && run.status === 'running' ? `<span class="chip run">${run.n}회차 진행 중 · ${esc((run.attempts.slice(-1)[0] || {}).name || '')}</span>` : '') +
+    (run && run.status === 'running' ? `<span class="chip run${run.live && run.live.working ? ' working' : ''}">${run.n}회차 진행 중 · ${esc((run.attempts.slice(-1)[0] || {}).name || '')}</span>` : '') +
     (r.note ? `<span class="warnline">${esc(r.note)}</span>` : '');
   $('btnRun').disabled = !!(run && run.status === 'running');
 }

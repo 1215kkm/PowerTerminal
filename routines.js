@@ -492,7 +492,18 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       }
       next();
     });
-    const view = extra => Object.assign({ routines: db.routines, runs: db.runs.slice(-80), maxConcurrent: db.maxConcurrent,
+    /* 도는 회차에 실시간 상태를 붙인다(저장 안 함). '진행 중' 표시가 확인창에 굳었거나 아무 반응이 없을 때도 계속 깜빡여서
+       사용자가 일하는 줄 알았다(2026-09-16) — 화면의 작업 표시(lastMarker)가 최근 6초 안에 있을 때만 working 이다. */
+    const withLive = run => {
+      if (run.status !== 'running') return run;
+      const a = run.attempts[run.attempts.length - 1]; const t = now();
+      const p = a && a.sessionId ? ptys.get(a.sessionId) : null;
+      const working = !!(p && a.status === 'sent' && t - (p.lastMarker || 0) < 6000);
+      const blocked = p ? blockedScreen(p) : '';
+      const since = Math.max((p && p.lastMarker) || 0, (a && a.sentAt) || 0, (a && a.startedAt) || 0, run.startedAt || 0);
+      return Object.assign({}, run, { live: { working, blocked, since } });
+    };
+    const view = extra => Object.assign({ routines: db.routines, runs: db.runs.slice(-80).map(withLive), maxConcurrent: db.maxConcurrent,
                                           defaultBaseDir, storageError, now: now(), testMode: TEST }, extra || {});
     const wrap = fn => (req, res) => { try { const out = fn(req); res.json(view(out)); } catch (e) { res.status(400).json({ error: e.message }); } };
     const idx = id => { const i = db.routines.findIndex(x => x.id === id); if (i < 0) throw Error('루틴을 찾을 수 없습니다'); return i; };

@@ -147,7 +147,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .seg.failed{background:var(--bad)}
 .seg.stuck{background:repeating-linear-gradient(135deg,var(--warn-soft) 0 6px,transparent 6px 11px);color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
 .seg.back{opacity:.6}
-.seg.live{animation:pulse 1.6s ease-in-out infinite}
+.seg.working{animation:pulse 1.6s ease-in-out infinite}
+.chip.working::before{animation:pulse .9s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.seg.live{animation:none}}
 .run .detail{grid-column:1/-1;font-size:12.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
