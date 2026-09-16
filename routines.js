@@ -6,6 +6,7 @@
    AI 가 입력을 받을 준비가 됐는지·사용량 한도에 걸렸는지는 scheduler.js 가 이미 읽고 있는 신호를 그대로 쓴다. */
 const fs = require('fs');
 const path = require('path');
+const { render } = require('./screen.js');
 const crypto = require('crypto');
 const { plain } = require('./scheduler');
 
@@ -290,9 +291,18 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (/Updateavailable/i.test(flat)) return '업데이트 안내';
     return '';
   }
-  // AI 가 입력을 받을 준비가 됐나 — 화면 아래 입력 안내가 보이고, 막 뜬 참이 아니고, 작업 표시가 잠잠하고, 확인창이 없을 때
+  /* 입력 안내문("Ask Codex to do anything")은 흘러가는 출력에서 찾는다 — 그런데 codex 는 화면을 계속 다시 그려서
+     그 사이 안내문이 최근 출력 밖으로 밀려나면 준비 판정이 영영 서지 않는다(2026-09-16 실측: 훅 확인창을 답한 뒤
+     1단계가 계속 '세션 준비 중'). 그래서 화면을 그대로 다시 그려 입력창 줄을 직접 본다. */
+  function composerReady(p, agent) {
+    if (agent !== 'codex' || !p || !p.buffer) return false;
+    const line = render(p.buffer.slice(-60000), 200, 100).find(l => /^\s*›\s/.test(l));
+    return !!line && /Ask Codex to do anything/.test(line);
+  }
+  // AI 가 입력을 받을 준비가 됐나 — 입력 안내가 보이고, 막 뜬 참이 아니고, 작업 표시가 잠잠하고, 확인창이 없을 때
   function readyToSend(p, s, agent, t) {
-    if (!s.ready || s.dirty) return false;
+    if (s.dirty) return false;
+    if (!s.ready && !composerReady(p, agent)) return false;
     if (blockedScreen(p)) return false;
     if (t - (p.spawnAt || 0) < 8000) return false;
     if (t - (p.lastMarker || 0) < 6000) return false;
