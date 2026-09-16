@@ -299,17 +299,20 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     const line = render(p.buffer.slice(-60000), 200, 100).find(l => /^\s*›\s/.test(l));
     return !!line && /Ask Codex to do anything/.test(line);
   }
-  // AI 가 입력을 받을 준비가 됐나 — 입력 안내가 보이고, 막 뜬 참이 아니고, 작업 표시가 잠잠하고, 확인창이 없을 때
-  function readyToSend(p, s, agent, t) {
-    if (s.dirty) return false;
-    if (!s.ready && !composerReady(p, agent)) return false;
-    if (blockedScreen(p)) return false;
-    if (t - (p.spawnAt || 0) < 8000) return false;
-    if (t - (p.lastMarker || 0) < 6000) return false;
-    // codex 는 상태줄을 계속 다시 그려 출력이 끊기지 않는다 — 작업 표시(lastMarker)만 본다
-    if (agent !== 'codex' && t - (p.lastOut || 0) < 1500) return false;
-    return true;
+  /* 왜 못 보내는지 — 빈 문자열이면 보낼 수 있다. 이유를 글로 돌려줘야 '진행 중인데 조용한' 상황에서
+     사용자도 우리도 어디서 막혔는지 바로 안다(2026-09-16: 원인 찾느라 회차를 여러 번 날렸다). */
+  function whyNotReady(p, s, agent, t) {
+    if (!p) return '세션이 없습니다';
+    if (s.dirty) return '사람이 입력창에 뭔가 쳐 둔 상태입니다 — 입력창을 비우세요';
+    if (!s.ready && !composerReady(p, agent)) return '입력 안내가 아직 안 보입니다';
+    const b = blockedScreen(p);
+    if (b) return b + '이 떠 있습니다';
+    if (t - (p.spawnAt || 0) < 8000) return '세션이 막 떴습니다';
+    if (t - (p.lastMarker || 0) < 6000) return '아직 작업 중입니다';
+    if (agent !== 'codex' && t - (p.lastOut || 0) < 1500) return '화면이 아직 움직입니다';
+    return '';
   }
+  function readyToSend(p, s, agent, t) { return !whyNotReady(p, s, agent, t); }
 
   async function sendStep(run, r, a, step) {
     const vars = { '주제': run.topic, '날짜': localDate(run.startedAt), '회차': run.n, '루틴 이름': r.name, '작업 폴더': run.folder,
@@ -389,9 +392,11 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       if (!p || p.dead) { fail('세션이 꺼졌습니다 (AI 설치·로그인을 확인하세요)'); return; }
       if (step.agent === 'codex') { const at = codexLimitAt(p.buffer.slice(-5000), t); if (at) { relaunchLater(run, r, a, step, at, 'GPT 사용량 한도 메뉴가 떴습니다'); return; } }
       if (t - a.startedAt > r.stepTimeoutMin * MIN) { fail(r.stepTimeoutMin + '분 안에 입력 준비가 안 됐습니다 — 세션을 열어 로그인·확인창·업데이트 안내를 보세요'); return; }
-      const blocked = blockedScreen(p);
-      if (blocked && a.blockedNote !== blocked) { a.blockedNote = blocked; note(run, (a.step + 1) + '단계: ' + blocked + '이 떠 있어 기다리는 중 — 자동으로 답합니다'); save(); }
-      if (readyToSend(p, s, step.agent, t)) await sendStep(run, r, a, step);
+      const why = whyNotReady(p, s, step.agent, t);
+      if (why && a.waitNote !== why && t - a.startedAt > 20000) {
+        a.waitNote = why; note(run, (a.step + 1) + '단계: 기다리는 중 — ' + why); save();
+      }
+      if (!why) await sendStep(run, r, a, step);
       return;
     }
 

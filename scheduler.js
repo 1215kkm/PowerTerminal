@@ -70,7 +70,13 @@ function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Dat
       }
     }
   }
+  /* 터미널이 스스로 보낸 것(커서 위치·장치 속성·색·모드 질의 응답, 창 포커스 알림 ESC[I·ESC[O)은
+     사람이 친 글이 아니다. PT 화면을 열어 두기만 해도 이것들이 계속 들어오는데, 그걸 「사람이 입력 중」 으로
+     보고 예약·루틴이 전송을 멈췄다 — 루틴 창을 켜 둔 채로는 1단계가 영영 안 나갔다(2026-09-16 실측:
+     들어온 것은 ESC[O = 창에서 포커스가 빠졌다는 알림이었다). */
+  const TERM_REPLY = /^(?:\x1b\[[0-9;?]*[RcnyIO]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1bP[^\x1b]*\x1b\\|\x1b\[[0-9;?]*\$y)+$/;
   function input(id, text) {
+    if (TERM_REPLY.test(text)) return;
     const s = signal(id);
     s.lastInput = now();
     // Conservative: any unsubmitted user input prevents scheduled insertion.
