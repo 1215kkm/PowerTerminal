@@ -1310,15 +1310,35 @@ function getPty(sess) {
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
       }
-      /* 🔁 루틴 세션 — codex 는 그 폴더의 훅(.codex/hooks.json)을 처음 볼 때 "1 hook needs review … Press t to trust"
-         화면에서 멈춘다. 사람이 없는 시간에 도는 루틴은 여기서 굳고, 그 사이 들어간 요청은 이 화면에 먹혀 사라진다
-         (2026-09-16 실사용: km-cafe24 의 강팀 훅). 루틴에 그 폴더를 맡긴 것 자체가 그 폴더의 훅을 쓰겠다는 뜻이라
-         대신 t(신뢰)를 눌러 준다 — 한 번 누르면 codex 가 기억한다. 일반 세션은 사람이 직접 판단하도록 그대로 둔다. */
+      /* 🔁 루틴 세션 — codex 는 그 폴더의 훅(.codex/hooks.json)을 처음 볼 때 「Hooks need review」 에서 멈춘다.
+         사람이 없는 시간에 도는 루틴은 여기서 굳고, 그 사이 들어간 요청은 이 화면에 먹혀 사라진다
+         (2026-09-16 실사용: km-cafe24 의 강팀 훅으로 1회차가 30분 만에 실패). 루틴에 그 폴더를 맡긴 것 자체가
+         그 폴더의 훅을 쓰겠다는 뜻이라 대신 「Trust all and continue」 를 골라 준다. 일반 세션은 그대로 둔다.
+         안내문의 "Press t to trust" 는 실제로는 안 먹었다 — 화살표 메뉴라서, 화면을 읽어 지금 선택된 줄에서
+         신뢰 줄까지 필요한 만큼만 내려간 뒤 Enter 한다(그냥 한 칸 내려가면 3번 '신뢰 안 함' 에 걸릴 수 있다). */
       if (sess.routineRun && Date.now() - (p._codexHookAt || 0) > 20000) {
-        const flatH = p.buffer.slice(-3000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
-        if (/hooks?needs?review|Pressttotrust/i.test(flatH)) {
-          p._codexHookAt = Date.now();
-          setTimeout(() => { try { proc.write('t'); } catch (e) {} }, 500);
+        const rawH = p.buffer.slice(-4000).replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+        if (/Hooks?\s+needs?\s+review/i.test(rawH)) {
+          const items = [];
+          for (const line of rawH.split(/\r?\n/)) {
+            const m = line.match(/^\s*(›?)\s*(\d+)\.\s+(.+?)\s*$/);
+            if (m) items.push({ cur: m[1] === '›', text: m[3] });
+            else if (items.length && /^\s*$/.test(line) === false && !/^\s*›/.test(line)) { /* 메뉴 뒤 안내문 */ }
+          }
+          const last = [];                       // 화면이 여러 번 다시 그려지므로 마지막 메뉴 한 벌만 본다
+          for (let i = items.length - 1; i >= 0; i--) { last.unshift(items[i]); if (/review/i.test(items[i].text)) break; }
+          const at = last.findIndex(x => x.cur);
+          const to = last.findIndex(x => /trust all/i.test(x.text));
+          if (to >= 0 && at >= 0) {
+            p._codexHookAt = Date.now();
+            const down = to - at;
+            setTimeout(() => {
+              try {
+                for (let i = 0; i < Math.abs(down); i++) proc.write(down > 0 ? '\x1b[B' : '\x1b[A');
+                setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 250);
+              } catch (e) {}
+            }, 500);
+          }
         }
       }
       /* 🔓 codex(GPT) 는 폴더마다 처음 한 번 자체 신뢰 확인창을 띄운다 — Claude 신뢰와는 별개 저장소라,
