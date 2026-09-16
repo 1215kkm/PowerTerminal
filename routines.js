@@ -147,8 +147,12 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       db.routines = Array.isArray(j.routines) ? j.routines : [];
       db.runs = Array.isArray(j.runs) ? j.runs : [];
       db.maxConcurrent = Number.isInteger(j.maxConcurrent) ? j.maxConcurrent : 1;
-      // 서버가 꺼질 때 돌던 회차는 이어 붙이지 않는다 — 세션이 이미 사라져 어디까지 했는지 확실히 알 수 없다
+      // 서버가 꺼질 때 돌던 회차는 이어 붙이지 않는다 — 세션이 이미 사라져 어디까지 했는지 확실히 알 수 없다.
+      // 다만 사용량 한도가 풀리길 기다리는 중이면 세션이 없는 것이 정상이고 다시 띄우면 그만이라 그대로 이어 간다
+      // (한도 대기는 몇 시간이라 그 사이 PT 를 껐다 켜는 일이 잦다 — 2026-09-16 GPT 한도 4시간 대기).
       for (const run of db.runs) if (run.status === 'running') {
+        const a = run.attempts[run.attempts.length - 1];
+        if (a && a.status === 'limit' && a.relaunch && !a.sessionId) continue;
         run.status = 'stopped'; run.endedAt = Date.now();
         run.note = 'PowerTerminal 이 다시 켜져 이 회차는 멈췄습니다 — 작업 폴더를 확인하고 필요하면 "지금 한 번" 으로 다시 돌리세요';
       }
@@ -265,10 +269,15 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     // 입력을 실제로 막는 선택 메뉴(저성능 모델로 계속 + Enter 확인)나 '자동 전환됨' 문구만 본다.
     const menu = /Continue with [A-Za-z ]*Reserve/i.test(flat) && /Press enter to confirm/i.test(flat);
     const switched = /switched to [A-Za-z ]*Reserve[^\n]{0,80}usage limit/i.test(flat);
-    if (!menu && !switched) return 0;
-    const m = flat.match(/reset after (\d{1,2}):(\d{2})/i);
+    // 크레딧이 바닥나면 메뉴 없이 글로만 알린다: "You've hit your usage limit … or try again at 3:25 PM."
+    const hit = /you'?ve hit your (?:usage|session|weekly) limit/i.test(flat);
+    if (!menu && !switched && !hit) return 0;
+    // 다시 되는 시각 — 24시간(reset after 18:47) 과 12시간(try again at 3:25 PM) 두 가지로 온다
+    const m = flat.match(/reset after (\d{1,2}):(\d{2})/i) || flat.match(/try again at (\d{1,2}):(\d{2})\s*([AaPp])[Mm]/);
     if (!m) return t + 60 * 60000;
-    const d = new Date(t); d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    let hh = Number(m[1]);
+    if (m[3]) { const pm = /p/i.test(m[3]); if (hh === 12) hh = pm ? 12 : 0; else if (pm) hh += 12; }
+    const d = new Date(t); d.setHours(hh, Number(m[2]), 0, 0);
     let at = d.getTime(); if (at <= t) at += 86400000;
     return at + 60000;
   }
@@ -289,6 +298,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (/hooks?needs?review|Pressttotrust/i.test(flat)) return '훅 승인 확인창';
     if (/Doyoutrustthecontents|Isthisaprojectyoucreated|Yes,Itrustthisfolder/i.test(flat)) return '폴더 신뢰 확인창';
     if (/Updateavailable/i.test(flat)) return '업데이트 안내';
+    if (/Approachingratelimits|Switchtogpt[\w.-]*forlowercreditusage/i.test(flat)) return '사용량 안내 확인창';
     return '';
   }
   /* 입력 안내문("Ask Codex to do anything")은 흘러가는 출력에서 찾는다 — 그런데 codex 는 화면을 계속 다시 그려서

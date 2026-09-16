@@ -1316,29 +1316,20 @@ function getPty(sess) {
          그 폴더의 훅을 쓰겠다는 뜻이라 대신 「Trust all and continue」 를 골라 준다. 일반 세션은 그대로 둔다.
          안내문의 "Press t to trust" 는 실제로는 안 먹었다 — 화살표 메뉴라서, 화면을 읽어 지금 선택된 줄에서
          신뢰 줄까지 필요한 만큼만 내려간 뒤 Enter 한다(그냥 한 칸 내려가면 3번 '신뢰 안 함' 에 걸릴 수 있다). */
+      /* 「Approaching rate limits — Switch to (싼 모델)?」 메뉴. 사람이 고른 모델로 결과물 품질이 정해지므로
+         루틴은 「Keep current model」 을 고른다(전부 끄는 3번은 사용자 설정이라 건드리지 않는다). 안 고르면 멈춘다. */
+      if (sess.routineRun && Date.now() - (p._codexRateAt || 0) > 20000) {
+        const rawR = p.buffer.slice(-6000).replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+        if (/Approaching rate limits|Switch to gpt[\w.-]* for lower credit usage/i.test(rawR)) {
+          const keys = codexMenuKeys(rawR, /^Keep current model(?!\s*\()/);
+          if (keys) { p._codexRateAt = Date.now(); pressMenu(proc, keys); }
+        }
+      }
       if (sess.routineRun && Date.now() - (p._codexHookAt || 0) > 20000) {
         const rawH = p.buffer.slice(-4000).replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
         if (/Hooks?\s+needs?\s+review/i.test(rawH)) {
-          const items = [];
-          for (const line of rawH.split(/\r?\n/)) {
-            const m = line.match(/^\s*(›?)\s*(\d+)\.\s+(.+?)\s*$/);
-            if (m) items.push({ cur: m[1] === '›', text: m[3] });
-            else if (items.length && /^\s*$/.test(line) === false && !/^\s*›/.test(line)) { /* 메뉴 뒤 안내문 */ }
-          }
-          const last = [];                       // 화면이 여러 번 다시 그려지므로 마지막 메뉴 한 벌만 본다
-          for (let i = items.length - 1; i >= 0; i--) { last.unshift(items[i]); if (/review/i.test(items[i].text)) break; }
-          const at = last.findIndex(x => x.cur);
-          const to = last.findIndex(x => /trust all/i.test(x.text));
-          if (to >= 0 && at >= 0) {
-            p._codexHookAt = Date.now();
-            const down = to - at;
-            setTimeout(() => {
-              try {
-                for (let i = 0; i < Math.abs(down); i++) proc.write(down > 0 ? '\x1b[B' : '\x1b[A');
-                setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 250);
-              } catch (e) {}
-            }, 500);
-          }
+          const keys = codexMenuKeys(rawH, /trust all/i);
+          if (keys) { p._codexHookAt = Date.now(); pressMenu(proc, keys); }
         }
       }
       /* 🔓 codex(GPT) 는 폴더마다 처음 한 번 자체 신뢰 확인창을 띄운다 — Claude 신뢰와는 별개 저장소라,
@@ -1376,6 +1367,31 @@ function getPty(sess) {
   return p;
 }
 
+/* codex 의 번호 메뉴(훅 승인·사용량 안내 등)를 화면 글자로 읽는다. 화면이 여러 번 다시 그려지므로
+   1번으로 시작하는 마지막 묶음만 본다. 지금 선택된 줄(›)에서 원하는 줄까지 몇 칸 움직일지 돌려준다.
+   안내문의 단축키(예: "Press t to trust")는 실제로 안 먹는 경우가 있어 화살표로 움직인다(2026-09-16 실측). */
+function codexMenuKeys(raw, wantRe) {
+  const items = [];
+  for (const line of String(raw).split(/\r?\n/)) {
+    const m = line.match(/^\s*(›?)\s*(\d+)\.\s+(.+?)\s*$/);
+    if (m) items.push({ cur: m[1] === '›', n: Number(m[2]), text: m[3] });
+  }
+  let start = -1;
+  for (let i = items.length - 1; i >= 0; i--) if (items[i].n === 1) { start = i; break; }
+  if (start < 0) return null;
+  const last = items.slice(start);
+  const at = last.findIndex(x => x.cur), to = last.findIndex(x => wantRe.test(x.text));
+  if (at < 0 || to < 0) return null;
+  return { down: to - at, text: last[to].text };
+}
+function pressMenu(proc, keys) {
+  setTimeout(() => {
+    try {
+      for (let i = 0; i < Math.abs(keys.down); i++) proc.write(keys.down > 0 ? '\x1b[B' : '\x1b[A');
+      setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 250);
+    } catch (e) {}
+  }, 500);
+}
 // announce=true 로 보낸 완료만 클라이언트가 소리로 알린다.
 // 예전엔 status 가 오면 무조건 울려서, PT를 켜기만 해도 세션 수만큼 "session N done" 이 났다
 // (PTY는 busy:true 로 시작 → 마커가 4초간 없으면 곧장 완료 전환 = 아무 요청도 안 한 완료).
