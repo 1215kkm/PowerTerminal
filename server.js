@@ -1638,6 +1638,18 @@ const routines = require('./routines').createRoutines({
   enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : 100; } });
 routines.install(app);
 routineHooks.observe = routines.observe;
+/* 🔁 끝난 회차의 루틴 세션은 PT 를 다시 켤 때 목록에서 뺀다. 세션은 화면이 붙는 순간 새로 뜨는데, 대화는 이미 끝났으니
+   GPT·Claude 가 빈 대화로 떠서 창만 늘고 MCP 도구까지 함께 켜진다(2026-09-16 실측: 멈춘 회차 세션 9개가 재시작 뒤
+   한꺼번에 되살아남). 회차 기록·작업 폴더·AI 대화 기록은 그대로 남는다. 도는 회차의 세션만 둔다. */
+{
+  const live = routines.runningIds();
+  const stale = sessions.filter(s => s.routineRun && !live.has(s.routineRun));
+  if (stale.length) {
+    sessions = sessions.filter(s => !stale.includes(s));
+    saveSessions();
+    console.log('  🔁 끝난 회차의 루틴 세션 ' + stale.length + '개를 목록에서 뺐습니다');
+  }
+}
 
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {

@@ -237,6 +237,8 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       '', '',
       '[PT 루틴] 「' + r.name + '」 ' + run.n + '회차 · 단계 ' + k + '/' + r.steps.length + ' 「' + step.name + '」 · 작업 폴더: ' + run.folder,
       '- 이 작업 폴더 안에서 작업하세요.',
+      // 2026-09-16 실측: GPT 가 "브라우저 탭을 새로고침해 주세요" 라고 사람에게 묻고 답을 기다렸다 — 루틴엔 답할 사람이 없다
+      '- 이 작업은 사람이 지켜보지 않습니다. 사람에게 질문하거나 확인·새로고침을 부탁하지 마세요. 막히면 보고서에 적고 할 수 있는 데까지 계속하세요.',
       '- 끝나면 작업 폴더의 ' + reportRel(a.step) + ' 에 한 일·만든 파일·남은 문제를 짧게 적으세요. 다음 단계가 이 파일을 읽습니다.',
       // 코드 글자를 그대로 적지 않는다 — 그대로 적으면 입력창에 되비친 이 문장 자체가 완료로 읽힌다
       '- 모두 끝났으면 마지막 줄에 PT_DONE_ 뒤에 ' + a.token + ' 를 붙이고 전체를 대괄호로 감싼 코드를 한 줄로 출력하세요.',
@@ -591,7 +593,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     timer.unref();
   }
 
-  return { install, tick, observe, db: () => db };
+  return { install, tick, observe, db: () => db, runningIds: () => new Set(running().map(r => r.id)) };
 }
 
 module.exports = { createRoutines, nextTime, normalize, expand, safeName };
