@@ -123,6 +123,8 @@ function normalize(b, prev) {
       name: String(st.name || '').trim().slice(0, 40) || (i + 1) + '단계',
       agent: st.agent,
       model: String(st.model || 'default').trim().slice(0, 60) || 'default',
+      // GPT 추론 강도 — '' 는 자동(config.toml). 실행 줄에 들어가므로 정해진 값만 받는다
+      effort: st.agent === 'codex' && ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(st.effort) ? st.effort : '',
       browser,
       browserProfile: browser === 'normal' ? String(st.browserProfile || '').trim().slice(0, 40) : '',
       prompt,
@@ -392,7 +394,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       if (!a.sessionId) {
         try {
           const sess = createSession({ title: '🔁 ' + r.name + ' · ' + (a.step + 1) + '/' + r.steps.length + ' ' + step.name, path: run.folder,
-                                       agent: step.agent, model: step.model, browser: step.browser, browserProfile: step.browserProfile,
+                                       agent: step.agent, model: step.model, effort: step.effort, browser: step.browser, browserProfile: step.browserProfile,
                                        cmd: step.cmd, runId: run.id });
           a.sessionId = sess.id; a.startedAt = t;
           note(run, (a.step + 1) + '단계 「' + step.name + '」 세션을 띄웠습니다 — 입력 준비를 기다리는 중');

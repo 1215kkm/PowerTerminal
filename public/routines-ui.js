@@ -86,7 +86,22 @@ function blankRoutine() {
   return { name: '', schedule: { repeat: 'daily', time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, maxRuns: 30, stepTimeoutMin: 40, waitOnLimit: true, closeWhenDone: true,
            baseDir: data.defaultBaseDir || '', folder: '{날짜}-{주제}', topics: [], steps: [blankStep()] };
 }
-function blankStep() { return { name: '', agent: 'claude', model: 'default', browser: '', browserProfile: '', prompt: '', backTo: -1, maxBack: 1 }; }
+function blankStep() { return { name: '', agent: 'claude', model: 'default', effort: '', browser: '', browserProfile: '', prompt: '', backTo: -1, maxBack: 1 }; }
+/* 🧠 GPT 추론 강도 — 높을수록 꼼꼼하지만 크레딧을 더 쓴다. 모델마다 고를 수 있는 단계가 달라서
+   codex 가 받아 둔 모델 목록(서버 /api/codex-models)을 쓴다. '' = 자동(~/.codex/config.toml 값). */
+const EFFORT_LABEL = { low: '가볍게 (low)', medium: '보통 (medium)', high: '깊게 (high)', xhigh: '더 깊게 (xhigh)', max: '최대 (max)', ultra: '울트라 (ultra)' };
+let effortInfo = { efforts: Object.keys(EFFORT_LABEL), configEffort: '', models: {} };
+api('/api/codex-models').then(j => { if (j && j.efforts) { effortInfo = j; if (draft) paintSteps(); } }).catch(() => {});
+function effortsFor(model) {
+  const m = effortInfo.models[model] || effortInfo.models['gpt-6-astra'];
+  return (m && m.efforts) || effortInfo.efforts;
+}
+function effortOptions(s) {
+  const list = effortsFor(s.model);
+  const auto = '자동' + (effortInfo.configEffort ? ' (설정: ' + effortInfo.configEffort + ')' : '');
+  return `<option value=""${!s.effort ? ' selected' : ''}>${esc(auto)}</option>` +
+    list.map(v => `<option value="${v}"${s.effort === v ? ' selected' : ''}>${esc(EFFORT_LABEL[v] || v)}</option>`).join('');
+}
 function select(id) {
   if (id === selId) return;
   if (draft && dirty() && !confirm('저장하지 않은 변경이 있습니다. 버릴까요?')) return;
@@ -191,9 +206,10 @@ function paintSteps() {
     li.innerHTML = `<div class="st-head"><span class="st-no">${i + 1}</span><input data-k="name" placeholder="단계 이름 (예: 배너 이미지)" maxlength="40" value="${esc(s.name)}">
         <select data-k="agent" class="ai-${esc(s.agent)}"><option value="claude"${s.agent === 'claude' ? ' selected' : ''}>Claude</option><option value="codex"${s.agent === 'codex' ? ' selected' : ''}>GPT</option>${data.testMode ? `<option value="custom"${s.agent === 'custom' ? ' selected' : ''}>Custom</option>` : ''}</select>
         <select data-k="model">${modelOpts}</select>
+        ${s.agent === 'codex' ? `<select data-k="effort" class="effort" title="추론 강도 — 높을수록 꼼꼼하지만 GPT 크레딧을 더 씁니다">${effortOptions(s)}</select>` : ''}
         <span class="sp"></span>
         <button type="button" class="btn ghost tiny" data-mv="-1" title="위로"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn ghost tiny" data-mv="1" title="아래로"${i < draft.steps.length - 1 ? '' : ' disabled'}>↓</button><button type="button" class="btn ghost tiny danger" data-del="1" title="이 단계 빼기"${draft.steps.length > 1 ? '' : ' disabled'}>✕</button><button type="button" class="tgl" data-tgl="1" title="접기/펼치기">${s._open ? '▲ 접기' : '▼ 펼치기'}</button></div>
-      <div class="st-sum" data-tgl="1" title="누르면 펼치기">${browserTxt ? `<span class="st-badge">${esc(browserTxt)}</span>` : ''}${s.sameSession ? '<span class="st-badge">앞 단계 세션 이어서</span>' : ''}${s.backTo >= 0 ? `<span class="st-badge">못 미치면 ${s.backTo + 1}단계로</span>` : ''}<span class="pv">${esc(s.prompt.replace(/\s+/g, ' ').slice(0, 90) || '(지시문 없음)')}</span></div>
+      <div class="st-sum" data-tgl="1" title="누르면 펼치기">${s.agent === 'codex' && s.effort ? `<span class="st-badge">🧠 ${esc(EFFORT_LABEL[s.effort] || s.effort)}</span>` : ''}${browserTxt ? `<span class="st-badge">${esc(browserTxt)}</span>` : ''}${s.sameSession ? '<span class="st-badge">앞 단계 세션 이어서</span>' : ''}${s.backTo >= 0 ? `<span class="st-badge">못 미치면 ${s.backTo + 1}단계로</span>` : ''}<span class="pv">${esc(s.prompt.replace(/\s+/g, ' ').slice(0, 90) || '(지시문 없음)')}</span></div>
       <div class="st-body">
         <div class="fld"><label>브라우저</label><select data-k="browser"><option value=""${!s.browser ? ' selected' : ''}>끔</option><option value="incognito"${s.browser === 'incognito' ? ' selected' : ''}>🕶 시크릿창</option><option value="normal"${s.browser === 'normal' ? ' selected' : ''}>🌐 일반창 (로그인 유지 · 🔑 보관함)</option></select></div>
         <div class="fld" ${s.browser === 'normal' ? '' : 'hidden'}><label>계정 창</label><select data-k="browserProfile">${profOpts}</select></div>
@@ -211,8 +227,11 @@ function paintSteps() {
         if (k === 'backTo' || k === 'maxBack') v = Number(v);
         s[k] = v;
         if (k === 'sameSession') s.sameSession = v === '1';
+        if (k === 'model' && s.effort && !effortsFor(s.model).includes(s.effort)) { s.effort = ''; paintSteps(); return; }   // 새 모델이 못 받는 강도면 자동으로
+        if (k === 'model' && s.agent === 'codex') { paintSteps(); return; }   // 모델마다 고를 수 있는 강도가 달라 목록을 다시 그린다
         if (k === 'agent') {
           s.model = 'default';
+          s.effort = '';
           // AI 가 바뀌면 '이어서' 는 성립하지 않는다 — 이 단계와 다음 단계 것을 푼다
           if (i > 0 && draft.steps[i - 1].agent !== v) s.sameSession = false;
           if (draft.steps[i + 1] && draft.steps[i + 1].agent !== v) draft.steps[i + 1].sameSession = false;

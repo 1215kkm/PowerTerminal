@@ -1137,7 +1137,11 @@ function agentCommandRaw(sess, fresh, resume) {
   /* 🔁 루틴 세션의 codex 는 승인 창에서 멈추면 안 된다(사람이 없는 시간에 돈다) — 회차 전용 폴더 안에서만 쓰게 하고 승인은 묻지 않는다.
      일반 세션은 사용자의 ~/.codex/config.toml 설정을 그대로 따른다. */
   const routineGpt = sess.routineRun ? " -c 'approval_policy=" + (IS_WIN ? "''never''" : '"never"') + "' -c 'sandbox_mode=" + (IS_WIN ? "''workspace-write''" : '"workspace-write"') + "'" : '';
-  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + routineGpt + browserFlags(sess) : '';
+  /* 🧠 GPT 추론 강도 — codex 는 -c model_reasoning_effort=<low|medium|high|xhigh|max|ultra> 로 받는다.
+     안 고르면(자동) ~/.codex/config.toml 의 model_reasoning_effort 를 그대로 따른다. */
+  const ge = effortFor(sess.effort);
+  const gptEffort = ge ? " -c 'model_reasoning_effort=" + (IS_WIN ? "''" + ge + "''" : '"' + ge + '"') + "'" : '';
+  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + gptEffort + routineGpt + browserFlags(sess) : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {
@@ -1392,6 +1396,9 @@ function pressMenu(proc, keys) {
     } catch (e) {}
   }, 500);
 }
+/* 🧠 GPT 추론 강도. '' = 자동(config.toml). 모르는 값은 버린다 — 실행 줄에 그대로 들어가므로 이 목록 밖은 절대 통과시키지 않는다. */
+const GPT_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+function effortFor(e) { return GPT_EFFORTS.includes(String(e || '')) ? String(e) : ''; }
 // announce=true 로 보낸 완료만 클라이언트가 소리로 알린다.
 // 예전엔 status 가 오면 무조건 울려서, PT를 켜기만 해도 세션 수만큼 "session N done" 이 났다
 // (PTY는 busy:true 로 시작 → 마커가 4초간 없으면 곧장 완료 전환 = 아무 요청도 안 한 완료).
@@ -1594,9 +1601,10 @@ scheduler.install(app);
 
 /* 🔁 루틴 — routines.js 가 회차마다 단계 세션을 만들고 닫을 때 쓰는 두 함수.
    [+세션] 과 달리 worktree 로 나누지 않고(회차마다 폴더가 따로다) 최근 목록에도 남기지 않는다. */
-function routineCreateSession({ title, path: dir, agent, model, browser, browserProfile, cmd, runId }) {
+function routineCreateSession({ title, path: dir, agent, model, effort, browser, browserProfile, cmd, runId }) {
   const sess = { id: crypto.randomBytes(4).toString('hex'), title: String(title || '').slice(0, 80), path: dir, previewUrl: '',
                  agent, model: modelFor(agent, model), cmd: agent === 'custom' ? String(cmd || '') : '', routineRun: runId };
+  if (agent === 'codex' && effortFor(effort)) sess.effort = effortFor(effort);
   if (browser === 'normal') { sess.browser = 'normal'; sess.browserProfile = browserProfile || ''; }
   else if (browser === 'incognito') sess.browser = 'incognito';
   sessions.push(sess);
@@ -1659,6 +1667,28 @@ app.get('/api/sessions', (req, res) => {
 });
 
 // 폴더 탐색 (세션 추가 시 마우스로 폴더 고르기 — 폰에서도 동작)
+/* 모델마다 고를 수 있는 강도가 다르다(astra 는 ultra 까지, gpt-5.5 는 xhigh 까지). codex 가 받아 둔
+   ~/.codex/models_cache.json 을 읽어 준다 — 새 모델이 생겨도 목록을 손으로 고칠 필요가 없다. 못 읽으면 전체 목록. */
+function codexModelInfo() {
+  const out = { efforts: GPT_EFFORTS, configEffort: '', models: {} };
+  try {
+    const toml = fs.readFileSync(path.join(os.homedir(), '.codex', 'config.toml'), 'utf8');
+    const m = toml.match(/^\s*model_reasoning_effort\s*=\s*["']([a-z]+)["']/m);
+    if (m) out.configEffort = m[1];
+  } catch (e) {}
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.codex', 'models_cache.json'), 'utf8'));
+    const list = Array.isArray(j) ? j : (j.models || j.data || []);
+    for (const x of list) {
+      const id = x.slug || x.id; if (!id) continue;
+      const lv = (x.supported_reasoning_levels || []).map(l => (typeof l === 'string' ? l : l.effort)).filter(l => GPT_EFFORTS.includes(l));
+      if (lv.length) out.models[id] = { efforts: lv, def: x.default_reasoning_level || '' };
+    }
+  } catch (e) {}
+  return out;
+}
+app.get('/api/codex-models', (req, res) => res.json(codexModelInfo()));
+
 app.get('/api/browse', (req, res) => {
   let dir = (req.query.dir || '').toString();
   const isWin = process.platform === 'win32';
@@ -2567,7 +2597,7 @@ app.get('/api/admin/translate', async (req, res) => {
 });
 
 app.post('/api/sessions', async (req, res) => {
-  let { path: dir, title, agent, cmd, model } = req.body;
+  let { path: dir, title, agent, cmd, model, effort } = req.body;
   if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
   if (!fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
   const wantTitle = title || path.basename(dir);
@@ -2593,6 +2623,7 @@ app.post('/api/sessions', async (req, res) => {
   const sess = { id, title: wt ? 'tree' + wt.n + ' · ' + baseTitle : wantTitle,
                  path: dir, previewUrl: '',
                  agent: agent || 'claude', model: modelFor(agent || 'claude', model), cmd: cmd || '' };
+  if ((agent || 'claude') === 'codex' && effortFor(effort)) sess.effort = effortFor(effort);
   if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
   if (req.body.autoClose) sess.autoClose = true;   // 설치용 임시 세션 — 명령 종료 후 자동 제거
   sessions.push(sess);
@@ -2724,8 +2755,25 @@ app.patch('/api/sessions/:id', (req, res) => {
     if (m && m !== 'default' && s.model !== m) { s.model = m; saveSessions(); syncRecent(s); }
     return res.json(s);
   }
+  if (typeof req.body.effort === 'string' && typeof req.body.model !== 'string') {
+    const e = effortFor(req.body.effort);
+    if (e) s.effort = e; else delete s.effort;
+    s.resumeOnStart = false;
+    saveSessions();
+    syncRecent(s);
+    // 강도는 실행 줄 옵션이라 떠 있는 codex 에는 안 먹는다 — 모델 변경처럼 재시작한다(대화는 resume --last 로 이어짐)
+    const p = ptys.get(s.id);
+    if (p && !p.dead && s.agent === 'codex') {
+      try { p.proc.kill(); } catch (e2) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e2) {} }
+    }
+    return res.json(s);
+  }
   if (typeof req.body.model === 'string') {
     s.model = modelFor(s.agent, req.body.model);
+    // 새 모델이 못 받는 강도(예: gpt-5.5 에 ultra)가 남아 있으면 codex 가 거부한다 — 자동으로 돌린다
+    if (s.effort) { const inf = codexModelInfo().models[s.model]; if (inf && !inf.efforts.includes(s.effort)) delete s.effort; }
     s.resumeOnStart = false;   // 위 agent 분기와 같은 이유 — 사람이 고른 재시작에 이어하기 문구가 끼면 안 된다
     saveSessions();
     syncRecent(s);
