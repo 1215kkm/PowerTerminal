@@ -1282,6 +1282,7 @@ function getPty(sess) {
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)       // 스피너 경과시간
           || /…\s*\(?[↓↑\s]*\d/.test(t15)) {           // 제라운드… 뒤 숫자(경과·토큰)
         p.lastMarker = Date.now();
+        scheduler.working(sess.id);   // 일하는 중 = 한도가 아니다 (배너 오작동 방지)
       }
     } else if (isCodex) {
       // GPT(codex)도 마커로 판별. 예전엔 '출력이 있으면 무조건 busy'였는데, codex는 전체화면 TUI라
@@ -1290,6 +1291,7 @@ function getPty(sess) {
       if (t15.includes('to interrupt') || /\bWorking\b/.test(t15) || /\bThinking\b/.test(t15)
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
+        scheduler.working(sess.id);   // 일하는 중 = 한도가 아니다 (배너 오작동 방지)
       }
       /* 🔓 codex(GPT) 는 폴더마다 처음 한 번 자체 신뢰 확인창을 띄운다 — Claude 신뢰와는 별개 저장소라,
          이 폴더를 Claude 로는 이미 써 봤어도 codex 로 처음 켜면 또 뜬다. PT 인라인 스크롤 화면에서는

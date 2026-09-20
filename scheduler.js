@@ -55,8 +55,12 @@ function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Dat
     // A recognizable AI footer, never a PowerShell prompt, is required before sending.
     s.ready = /auto mode on|bypass permissions on|shift\+tab to cycle|Ask Codex to do anything|\? for shortcuts/i.test(tail);
     if (/PS [^\n]*>\s*$/.test(tail)) s.ready = false;
+    /* 한도 판정. 예전엔 화면에 저 글자가 지나가기만 해도 켜져서, AI 가 로그·시험 결과를 찍거나 한도 이야기를
+       그대로 옮겨 적으면 멀쩡한 세션에 「사용량 한도로 대기 중」 배너가 떴다(2026-09-21 실측).
+       진짜 한도면 AI 는 일을 못 한다 — 그래서 방금까지 일하던 표시(working)가 있으면 한도로 보지 않고,
+       한도로 봤더라도 다시 일하기 시작하면 바로 내린다. */
     const rate = /you've hit your (?:session|weekly|usage) limit|rate_limit|usage limit reached/i.test(tail);
-    if (rate && !s.rate) { s.rate = true; s.reset = resetAt(tail, t); s.rateSince = t; }
+    if (rate && !s.rate && !(s.workingAt && t - s.workingAt < 60000)) { s.rate = true; s.reset = resetAt(tail, t); s.rateSince = t; }
     // Reset text can arrive split across PTY chunks.
     if (s.rate && !s.reset) s.reset = resetAt(tail, s.rateSince || t);
     if (/context window|sign in|log in|Do you trust|allow this|approve|permission required/i.test(plain(chunk))) s.blocked = true;
@@ -69,6 +73,12 @@ function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Dat
         log(j, s.reset ? '한도 초과 — 다음 초기화까지 대기' : '초기화 시각 판독 불가 — 시각을 직접 지정하세요'); save();
       }
     }
+  }
+  /* 화면에 '작업 중' 표시가 보일 때 서버가 불러 준다. 일하고 있다 = 한도가 아니다. */
+  function working(id) {
+    const s = signal(id);
+    s.workingAt = now();
+    if (s.rate) { s.rate = false; s.reset = null; s.rateSince = 0; }
   }
   function input(id, text) {
     const s = signal(id);
@@ -155,6 +165,6 @@ function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Dat
     const timer = setInterval(async () => { if (running) return; running = true; try { await tick(); } catch (e) { console.error('예약 점검 오류', e.message); } finally { running = false; } }, 5000);
     timer.unref();
   }
-  return { observe, input, add, toggle, tick, install, list: () => jobs, signal };
+  return { observe, input, working, add, toggle, tick, install, list: () => jobs, signal };
 }
 module.exports = { createScheduler, resetAt, plain };
