@@ -1305,6 +1305,7 @@ function getPty(sess) {
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)       // 스피너 경과시간
           || /…\s*\(?[↓↑\s]*\d/.test(t15)) {           // 제라운드… 뒤 숫자(경과·토큰)
         p.lastMarker = Date.now();
+        scheduler.working(sess.id);   // 일하는 중 = 한도가 아니다 (배너 오작동 방지)
       }
     } else if (isCodex) {
       // GPT(codex)도 마커로 판별. 예전엔 '출력이 있으면 무조건 busy'였는데, codex는 전체화면 TUI라
@@ -1313,6 +1314,7 @@ function getPty(sess) {
       if (t15.includes('to interrupt') || /\bWorking\b/.test(t15) || /\bThinking\b/.test(t15)
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
+        scheduler.working(sess.id);   // 일하는 중 = 한도가 아니다 (배너 오작동 방지)
       }
       /* 🔁 루틴 세션 — codex 는 그 폴더의 훅(.codex/hooks.json)을 처음 볼 때 「Hooks need review」 에서 멈춘다.
          사람이 없는 시간에 도는 루틴은 여기서 굳고, 그 사이 들어간 요청은 이 화면에 먹혀 사라진다
