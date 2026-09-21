@@ -744,6 +744,29 @@ function findBrowserExe() {
 // 켤 때·세션이 뜰 때·🌐 세션에 요청을 보낼 때 부른다 — 사용자가 창을 닫아 버렸어도 다음 요청 때 다시 뜬다.
 // 5초에 한 번만 확인한다: 크롬이 포트를 여는 데 1~2초 걸려, 그 사이 또 부르면 창이 두 개 뜬다.
 const browserCheckAt = new Map();   // 창(포트)별 마지막 확인 시각
+/* 🧹 아무도 안 쓰는 브라우저 창 닫기 — 창 하나가 프로세스 7개에 500MB 쯤 잡는데, 예전엔 한 번 뜨면
+   PT 를 끌 때까지 그대로 남았다(2026-09-21 실측: 계정창 2개로 1GB). 다음 셋을 모두 만족할 때만 닫는다:
+   ① PT 가 띄운 창  ② 그 계정창을 쓰는 살아 있는 세션이 없음  ③ 빈 탭 말고 열어 둔 페이지가 없음.
+   사람이 보던 페이지가 하나라도 있으면 그대로 둔다 — 로그인·작성 중인 글을 날리지 않게. */
+const browserPids = new Map();          // 포트 → 프로세스 번호
+const browserIdleSince = new Map();     // 포트 → 안 쓰이기 시작한 시각
+const BROWSER_IDLE_MS = Number(process.env.PT_BROWSER_IDLE_MS) || 30 * 60 * 1000;   // 시험에서 짧게 줄 수 있게
+async function sweepIdleBrowsers() {
+  for (const [port, pid] of [...browserPids]) {
+    const used = sessions.some(s => browserMode(s) === 'normal' && sessProfile(s).port === port && !(ptys.get(s.id) || {}).dead);
+    if (used) { browserIdleSince.delete(port); continue; }
+    if (!browserIdleSince.has(port)) { browserIdleSince.set(port, Date.now()); continue; }
+    if (Date.now() - browserIdleSince.get(port) < BROWSER_IDLE_MS) continue;
+    let tabs = null;
+    try { tabs = await (await fetch('http://127.0.0.1:' + port + '/json', { signal: AbortSignal.timeout(1500) })).json(); }
+    catch (e) { browserPids.delete(port); browserIdleSince.delete(port); continue; }   // 이미 꺼진 창
+    const open = (tabs || []).filter(t => t.type === 'page' && !/^(about:blank|chrome:\/\/)/.test(t.url || ''));
+    if (open.length) continue;          // 사람이 열어 둔 페이지가 있다 — 그대로 둔다
+    try { process.kill(pid); console.log('  🧹 아무도 안 쓰는 브라우저 창을 닫았습니다 (포트 ' + port + ')'); } catch (e) {}
+    browserPids.delete(port); browserIdleSince.delete(port);
+  }
+}
+setInterval(() => { sweepIdleBrowsers().catch(() => {}); }, Number(process.env.PT_BROWSER_SWEEP_MS) || 5 * 60 * 1000).unref();
 async function ensureBrowser(prof) {
   const p = prof || browserProfile('');
   if (Date.now() - (browserCheckAt.get(p.port) || 0) < 5000) return;
@@ -755,6 +778,7 @@ async function ensureBrowser(prof) {
     const c = spawn(exe, ['--remote-debugging-port=' + p.port, '--user-data-dir=' + p.dir,
                           '--no-first-run', '--no-default-browser-check', 'about:blank'], { detached: true, stdio: 'ignore' });
     c.on('error', e => console.log('  🌐 브라우저 실행 실패: ' + (e && e.message)));
+    browserPids.set(p.port, c.pid);   // 우리가 띄운 창만 나중에 닫는다 (사람이 직접 연 크롬은 손대지 않는다)
     c.unref();
     console.log('  🌐 브라우저 창 「' + p.name + '」 실행 (포트 ' + p.port + ')');
   } catch (e) { console.log('  🌐 브라우저 실행 실패: ' + (e && e.message)); }
