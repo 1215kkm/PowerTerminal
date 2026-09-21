@@ -319,9 +319,13 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
      그 사이 안내문이 최근 출력 밖으로 밀려나면 준비 판정이 영영 서지 않는다(2026-09-16 실측: 훅 확인창을 답한 뒤
      1단계가 계속 '세션 준비 중'). 그래서 화면을 그대로 다시 그려 입력창 줄을 직접 본다. */
   function composerReady(p, agent) {
-    if (agent !== 'codex' || !p || !p.buffer) return false;
-    const line = render(p.buffer.slice(-60000), 200, 100).find(l => /^\s*›\s/.test(l));
-    return !!line && /Ask Codex to do anything/.test(line);
+    if (!p || !p.buffer) return false;
+    /* 화면을 그대로 다시 그린 다음 공백을 걷어내고 본다. 클로드·codex 모두 아래 줄을 공백 대신
+       커서 이동으로 그려서, 흘러가는 글자만 보면 "auto mode on" 이 붙어 있지 않다
+       (2026-09-21 실측: 4단계가 34분 동안 '입력 안내가 아직 안 보입니다' 로 서 있었다). */
+    const flat = render(p.buffer.slice(-60000), 200, 100).join('\n').replace(/\s+/g, '');
+    if (agent === 'codex') return /AskCodextodoanything|\?forshortcuts/i.test(flat);
+    return /automodeon|bypasspermissionson|shift\+tabtocycle|planmodeon|acceptedits/i.test(flat);
   }
   /* 왜 못 보내는지 — 빈 문자열이면 보낼 수 있다. 이유를 글로 돌려줘야 '진행 중인데 조용한' 상황에서
      사용자도 우리도 어디서 막혔는지 바로 안다(2026-09-16: 원인 찾느라 회차를 여러 번 날렸다). */
