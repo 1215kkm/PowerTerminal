@@ -2178,7 +2178,7 @@ const I18N_MORE = {
     vaultErr_name: "Enter a name", vaultErr_domain: "That address is not valid (e.g. eclogin.cafe24.com — comma for several). Allow only works for the same company's addresses", vaultErr_username: "Enter the username",
     vaultErr_password: "Enter the password", vaultErr_dup: "That name is already used", vaultErr_gone: "That login was already deleted",
     vaultHead: "🔑 Logins the AI can use without seeing the password — like Aside Vault.\nWhen a browser session hits a login page, the AI calls the login tool with a name. PowerTerminal checks that the open tab is really on a saved address (subdomains included), then types the username and password into the form itself. Other addresses are refused, so a fake login page gets nothing.\nIf one site uses several addresses (Cafe24: the shop address differs from the login page eclogin.cafe24.com), list them with commas, or press [Allow] next to the refusal below once. Avoid broad entries like cafe24.com — they would also match other people's Cafe24 shops.\nPasswords are encrypted on this PC and never shown again — not to you, not to the AI. Works in normal browser windows (not incognito). Captchas and phone/app codes still need you.\n⚠ Anyone with access to this Windows account could decrypt them, same as Chrome's saved passwords.",
-    brProfileDefault: "Default", brProfileNew: "New account window", brProfileInUse: "in use", brProfileCreate: "Create",
+    brProfileDefault: "Default", brProfileDel:"Delete an account window", brProfileDelNone:"No account window can be deleted (one in use cannot)", brProfileDelAsk:"Which account window should go?\n\nWindows in use are not listed.", brProfileDelHow:"Deleting the \"{n}\" window.\n\nKeep its logins and they stay in the folder - recreate the window with the same name and they come back. Delete them and you sign in again yourself.", brProfileDelKeep:"Delete the window, keep its logins", brProfileDelPurge:"Delete its saved logins too", brProfileNew: "New account window", brProfileInUse: "in use", brProfileCreate: "Create",
     gbUpMenu: "Upload to GitHub (pull request)", gbOpenPr: "Open pull request page", gbCtxHint: "Right-click: upload to GitHub (pull request)",
     gbUpNoRepo: "Not connected to a GitHub repository (origin)",
     gbUpLogin: "You're not signed in to GitHub.\nSign in from ＋ Session → GitHub repositories, then try again.",
@@ -2288,6 +2288,10 @@ const I18N_MORE = {
     vaultErr_password: "비밀번호를 적어 주세요", vaultErr_dup: "이미 있는 이름이에요", vaultErr_gone: "이미 삭제된 로그인이에요",
     vaultHead: "🔑 AI 가 비밀번호를 보지 않고 쓰는 로그인이에요 (Aside 의 보관함과 같은 방식).\n브라우저 세션이 로그인 화면을 만나면 AI 가 이름으로 로그인 도구를 불러요. 그러면 PowerTerminal 이 열린 탭이 정말 저장한 주소(하위 도메인 포함)인지 확인한 뒤, 아이디·비밀번호를 입력칸에 직접 넣어요. 다른 주소면 거절하니 가짜 로그인 페이지에는 안 들어가요.\n한 사이트에 접속 주소가 여럿이면(카페24: 쇼핑몰 주소 ≠ 로그인 화면 eclogin.cafe24.com) 쉼표로 같이 적거나, 거절됐을 때 아래 기록 옆 [허용] 을 한 번 누르세요. cafe24.com 처럼 넓게 적으면 남의 카페24 쇼핑몰에도 입력될 수 있으니 실제 로그인 화면 주소를 적으세요.\n비밀번호는 이 PC 에 암호화해 두고, 저장한 뒤로는 사용자에게도 AI 에게도 다시 보여주지 않아요. 일반창에서만 쓸 수 있어요 (시크릿창 X). 캡차·문자/앱 인증은 여전히 직접 해 주세요.\n⚠ 이 Windows 계정에 접근할 수 있는 사람은 풀 수 있어요 — 크롬 저장 비밀번호와 같은 수준이에요.",
     brProfileDefault: "기본", brProfileNew: "새 계정 창", brProfileInUse: "사용중", brProfileCreate: "만들기",
+    brProfileDel: "계정 창 지우기", brProfileDelNone: "지울 수 있는 계정 창이 없어요 (쓰는 세션이 있으면 못 지웁니다)",
+    brProfileDelAsk: "어느 계정 창을 지울까요?\n\n쓰는 세션이 있는 창은 목록에 없습니다.",
+    brProfileDelHow: "「{n}」 창을 지웁니다.\n\n창만 지우면 그 창에 저장된 로그인은 폴더에 남아, 같은 이름으로 다시 만들면 그대로 씁니다.\n로그인까지 지우면 그 계정으로 다시 직접 로그인해야 합니다.",
+    brProfileDelKeep: "창만 지우기 (로그인은 남김)", brProfileDelPurge: "로그인까지 지우기",
     gbUpMenu: "GitHub에 올리기 (PR)", gbOpenPr: "PR 페이지 열기", gbCtxHint: "우클릭: GitHub에 올리기 (PR)",
     gbUpNoRepo: "GitHub 저장소(origin)가 연결돼 있지 않아요",
     gbUpLogin: "GitHub에 로그인돼 있지 않아요.\n＋ 세션 → GitHub 저장소 목록에서 로그인한 뒤 다시 시도하세요.",
@@ -5451,8 +5455,23 @@ function buildPane(sess, idx) {
         const list = (await api('GET', '/api/browser-profiles')) || [];
         const choices2 = list.map(p => [p.name, '👤 ' + p.name + (p.inUse ? ' ·' + (T.brProfileInUse || 'in use') : '')]);
         choices2.push(['__new__', '＋ ' + (T.brProfileNew || 'New account window'), 'pc-no']);
+        // 🗑 안 쓰는 계정 창은 여기서 지운다 — 창 하나가 크롬 하나(0.3~0.6GB)라 쌓이면 컴퓨터가 느려진다
+        if (list.some(p => p.slug)) choices2.push(['__del__', '🗑 ' + (T.brProfileDel || 'Delete an account window'), 'pc-no']);
         const pick2 = await paneChoice(el, T.brProfileAsk || '', choices2, cur === 'normal' ? (profile || def) : null);
         if (pick2 === null) return;
+        if (pick2 === '__del__') {
+          const can = list.filter(p => p.slug && !p.inUse);
+          if (!can.length) { flashToast(T.brProfileDelNone || 'No account window can be deleted right now'); return; }
+          const which = await paneChoice(el, T.brProfileDelAsk || '', can.map(p => [p.slug, '👤 ' + p.name]), null);
+          if (!which) return;
+          const p = can.find(x => x.slug === which);
+          const how = await paneChoice(el, (T.brProfileDelHow || '').replace('{n}', p.name),
+            [['keep', T.brProfileDelKeep || 'Delete the window, keep its logins'], ['purge', '⚠ ' + (T.brProfileDelPurge || 'Delete its saved logins too'), 'pc-yes']], null);
+          if (!how) return;
+          const r = await api('DELETE', '/api/browser-profiles/' + encodeURIComponent(which) + (how === 'purge' ? '?purge=1' : ''));
+          flashToast(r && r.ok ? '🗑 ' + p.name : ((r && r.error) || 'failed'));
+          return;
+        }
         if (pick2 === '__new__') {
           const name = await panePrompt(el, T.brProfileNameAsk || '', '', T.brProfileCreate || 'Create');
           if (!name) return;
