@@ -127,6 +127,15 @@ function normalize(b, prev) {
       effort: st.agent === 'codex' && ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(st.effort) ? st.effort : '',
       browser,
       browserProfile: browser === 'normal' ? String(st.browserProfile || '').trim().slice(0, 40) : '',
+      /* 이 단계만 다른 폴더에서 일하게 — 비우면 회차 폴더. AI 가 그 폴더의 규칙·기억(CLAUDE.md·메모리)을 받아야
+         할 때 쓴다(예: 카페24 등록은 레포 뿌리에서 해야 조립도·함정 기록이 딸려 온다). */
+      dir: (() => {
+        const d = String(st.dir || '').trim();
+        if (!d) return '';
+        if (!/^([A-Za-z]:[\\/]|\\\\|\/)/.test(d)) err(k + '일할 폴더는 전체 경로로 적어 주세요 (예: D:\\km-cafe24)');
+        if (!fs.existsSync(d)) err(k + '일할 폴더가 없습니다: ' + d);
+        return d;
+      })(),
       prompt,
       backTo,
       maxBack: backTo < 0 ? 0 : int(st.maxBack, 1, 3, 1, k + '되돌리기 횟수는 1~3번입니다'),
@@ -238,7 +247,8 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     const lines = [
       '', '',
       '[PT 루틴] 「' + r.name + '」 ' + run.n + '회차 · 단계 ' + k + '/' + r.steps.length + ' 「' + step.name + '」 · 작업 폴더: ' + run.folder,
-      '- 이 작업 폴더 안에서 작업하세요.',
+      step.dir ? '- 지금 열린 폴더는 ' + step.dir + ' 입니다. 이번 회차의 결과물과 보고서는 위 작업 폴더에 두세요.'
+               : '- 이 작업 폴더 안에서 작업하세요.',
       // 2026-09-16 실측: GPT 가 "브라우저 탭을 새로고침해 주세요" 라고 사람에게 묻고 답을 기다렸다 — 루틴엔 답할 사람이 없다
       '- 이 작업은 사람이 지켜보지 않습니다. 사람에게 질문하거나 확인·새로고침을 부탁하지 마세요. 막히면 보고서에 적고 할 수 있는 데까지 계속하세요.',
       '- 끝나면 작업 폴더의 ' + reportRel(a.step) + ' 에 한 일·만든 파일·남은 문제를 짧게 적으세요. 다음 단계가 이 파일을 읽습니다.',
@@ -393,7 +403,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (a.status === 'starting') {
       if (!a.sessionId) {
         try {
-          const sess = createSession({ title: '🔁 ' + r.name + ' · ' + (a.step + 1) + '/' + r.steps.length + ' ' + step.name, path: run.folder,
+          const sess = createSession({ title: '🔁 ' + r.name + ' · ' + (a.step + 1) + '/' + r.steps.length + ' ' + step.name, path: step.dir || run.folder,
                                        agent: step.agent, model: step.model, effort: step.effort, browser: step.browser, browserProfile: step.browserProfile,
                                        cmd: step.cmd, runId: run.id });
           a.sessionId = sess.id; a.startedAt = t;

@@ -86,7 +86,7 @@ function blankRoutine() {
   return { name: '', schedule: { repeat: 'daily', time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, maxRuns: 30, stepTimeoutMin: 40, waitOnLimit: true, closeWhenDone: true,
            baseDir: data.defaultBaseDir || '', folder: '{날짜}-{주제}', topics: [], steps: [blankStep()] };
 }
-function blankStep() { return { name: '', agent: 'claude', model: 'default', effort: '', browser: '', browserProfile: '', prompt: '', backTo: -1, maxBack: 1 }; }
+function blankStep() { return { name: '', agent: 'claude', model: 'default', effort: '', browser: '', browserProfile: '', dir: '', prompt: '', backTo: -1, maxBack: 1 }; }
 /* 🧠 GPT 추론 강도 — 높을수록 꼼꼼하지만 크레딧을 더 쓴다. 모델마다 고를 수 있는 단계가 달라서
    codex 가 받아 둔 모델 목록(서버 /api/codex-models)을 쓴다. '' = 자동(~/.codex/config.toml 값). */
 const EFFORT_LABEL = { low: '가볍게 (low)', medium: '보통 (medium)', high: '깊게 (high)', xhigh: '더 깊게 (xhigh)', max: '최대 (max)', ultra: '울트라 (ultra)' };
@@ -209,11 +209,12 @@ function paintSteps() {
         ${s.agent === 'codex' ? `<select data-k="effort" class="effort" title="추론 강도 — 높을수록 꼼꼼하지만 GPT 크레딧을 더 씁니다">${effortOptions(s)}</select>` : ''}
         <span class="sp"></span>
         <button type="button" class="btn ghost tiny" data-mv="-1" title="위로"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn ghost tiny" data-mv="1" title="아래로"${i < draft.steps.length - 1 ? '' : ' disabled'}>↓</button><button type="button" class="btn ghost tiny danger" data-del="1" title="이 단계 빼기"${draft.steps.length > 1 ? '' : ' disabled'}>✕</button><button type="button" class="tgl" data-tgl="1" title="접기/펼치기">${s._open ? '▲ 접기' : '▼ 펼치기'}</button></div>
-      <div class="st-sum" data-tgl="1" title="누르면 펼치기">${s.agent === 'codex' && s.effort ? `<span class="st-badge">🧠 ${esc(EFFORT_LABEL[s.effort] || s.effort)}</span>` : ''}${browserTxt ? `<span class="st-badge">${esc(browserTxt)}</span>` : ''}${s.sameSession ? '<span class="st-badge">앞 단계 세션 이어서</span>' : ''}${s.backTo >= 0 ? `<span class="st-badge">못 미치면 ${s.backTo + 1}단계로</span>` : ''}<span class="pv">${esc(s.prompt.replace(/\s+/g, ' ').slice(0, 90) || '(지시문 없음)')}</span></div>
+      <div class="st-sum" data-tgl="1" title="누르면 펼치기">${s.agent === 'codex' && s.effort ? `<span class="st-badge">🧠 ${esc(EFFORT_LABEL[s.effort] || s.effort)}</span>` : ''}${browserTxt ? `<span class="st-badge">${esc(browserTxt)}</span>` : ''}${s.sameSession ? '<span class="st-badge">앞 단계 세션 이어서</span>' : ''}${s.dir ? `<span class="st-badge">📁 ${esc(s.dir)}</span>` : ''}${s.backTo >= 0 ? `<span class="st-badge">못 미치면 ${s.backTo + 1}단계로</span>` : ''}<span class="pv">${esc(s.prompt.replace(/\s+/g, ' ').slice(0, 90) || '(지시문 없음)')}</span></div>
       <div class="st-body">
         <div class="fld"><label>브라우저</label><select data-k="browser"><option value=""${!s.browser ? ' selected' : ''}>끔</option><option value="incognito"${s.browser === 'incognito' ? ' selected' : ''}>🕶 시크릿창</option><option value="normal"${s.browser === 'normal' ? ' selected' : ''}>🌐 일반창 (로그인 유지 · 🔑 보관함)</option></select></div>
         <div class="fld" ${s.browser === 'normal' ? '' : 'hidden'}><label>계정 창</label><select data-k="browserProfile">${profOpts}</select></div>
         <div class="fld" ${i > 0 && draft.steps[i - 1].agent === s.agent ? '' : 'hidden'}><label>세션</label><select data-k="sameSession"><option value=""${!s.sameSession ? ' selected' : ''}>새 세션에서 시작</option><option value="1"${s.sameSession ? ' selected' : ''}>앞 단계 세션 이어서 (결과물에 추가 요청)</option></select></div>
+        <div class="fld wide"><label>일할 폴더 <span class="hint">비우면 회차 폴더 · 그 폴더의 규칙·기억을 받아야 할 때만</span></label><input data-k="dir" class="mono" placeholder="예: D:\\km-cafe24" value="${esc(s.dir || '')}"></div>
         <div class="fld"><label>결과가 기준에 못 미치면</label><select data-k="backTo">${backOpts}</select></div>
         <div class="fld" ${s.backTo >= 0 ? '' : 'hidden'}><label>되돌리기 최대</label><select data-k="maxBack">${[1, 2, 3].map(n => `<option value="${n}"${s.maxBack === n ? ' selected' : ''}>${n}번</option>`).join('')}</select></div>
         ${s.agent === 'custom' ? `<div class="fld wide"><label>실행 명령</label><input data-k="cmd" class="mono" value="${esc(s.cmd || '')}"></div>` : ''}
