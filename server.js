@@ -2259,6 +2259,34 @@ app.get('/api/browser-profiles', (req, res) => {
   const used = new Set(sessions.filter(s => browserMode(s) === 'normal').map(s => sessProfile(s).slug));
   res.json(names.map(n => { const p = browserProfile(n); return { name: p.name, slug: p.slug, port: p.port, inUse: used.has(p.slug) }; }));
 });
+/* 🗑 계정 창 지우기 — 쓰는 세션이 있으면 거절한다. 창이 떠 있으면 닫고, 목록에서 뺀다.
+   purge=1 이면 그 창의 프로필 폴더(쿠키·저장 비밀번호)까지 지운다 — 그 계정 로그인이 사라지므로
+   화면에서 따로 물어본 뒤에만 보낸다. 기본 창('')은 지울 수 없다. */
+app.delete('/api/browser-profiles/:slug', async (req, res) => {
+  const slug = String(req.params.slug || '');
+  const e = (config.browserProfiles || {})[slug];
+  if (!slug || !e) return res.status(404).json({ error: '그런 계정 창이 없습니다' });
+  const using = sessions.filter(s => browserMode(s) === 'normal' && sessProfile(s).slug === slug).map(s => s.title || s.id);
+  if (using.length) return res.status(400).json({ error: '이 계정 창을 쓰는 세션이 있습니다 — 먼저 그 세션의 계정 창을 바꾸세요: ' + using.join(', ') });
+  const pid = browserPids.get(e.port);
+  if (pid) { try { process.kill(pid); } catch (x) {} }
+  else {   // PT 를 다시 켠 뒤라 프로세스 번호를 모를 때 — 탭을 모두 닫으면 크롬이 스스로 끝난다
+    try {
+      const tabs = await (await fetch('http://127.0.0.1:' + e.port + '/json', { signal: AbortSignal.timeout(1500) })).json();
+      for (const t of tabs) { try { await fetch('http://127.0.0.1:' + e.port + '/json/close/' + t.id, { signal: AbortSignal.timeout(1500) }); } catch (x) {} }
+    } catch (x) {}
+  }
+  browserPids.delete(e.port); browserIdleSince.delete(e.port);
+  delete config.browserProfiles[slug];
+  try { saveConfig(); } catch (x) {}
+  let purged = false;
+  if (String(req.query.purge || '') === '1') {
+    // ⚠ fs.rmSync 금지 — 계정 창 이름은 보통 한글이고(종합몰·할로윈), 그 경로면 rmSync 가 프로세스를 즉사시킨다
+    try { const d = path.join(BROWSER_PROFILES_DIR, slug); if (fs.existsSync(d)) rmTree(d); purged = true; } catch (x) {}
+  }
+  console.log('  🗑 계정 창 「' + e.name + '」 지움' + (purged ? ' (로그인까지)' : ' (로그인은 남김)'));
+  res.json({ ok: true, name: e.name, purged });
+});
 // 📝 브라우저 규칙 읽기/저장 (🌐 → 규칙 편집)
 app.get('/api/browser-rules', (req, res) => {
   let text = BROWSER_RULES_DEFAULT;
