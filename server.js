@@ -1211,6 +1211,9 @@ function agentCommandRaw(sess, fresh, resume) {
    뒤에 붙인다. codex 의 붙여넣기 감지 자체를 끄는 설정(disable_paste_burst)도 있지만, 그러면 터미널 영역에 여러 줄을
    붙여넣을 때 첫 줄에서 바로 제출돼 버려서 쓰지 않는다. */
 function codexEnterDelay(len) { return Math.max(300, 250 + len * 0.6); }
+/* Claude 도 긴 글 뒤에는 Enter 를 늦춰야 한다 — 100ms 고정이던 때, 1.5KB 짜리 여러 줄 지시문이 입력칸에 그대로
+   남고 아무 일도 시작되지 않았다(2026-09-22 루틴 4단계 실측: 90분 뒤 시간 초과). 예약 전송도 같은 길로 나간다. */
+function claudeEnterDelay(len) { return Math.max(120, Math.min(2500, 120 + len * 0.5)); }
 function writeIn(sess, p, data) {
   if (sess.agent !== 'codex') { p.proc.write(data); return; }
   if (p.inHold) { p.inHold.push(data); return; }
@@ -1549,7 +1552,7 @@ app.get('/vendor/qrcode.js', (req, res) =>
   res.sendFile(path.join(ROOT, 'node_modules', 'qrcode-generator', 'dist', 'qrcode.js')));
 
 const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, sessions: () => sessions, ptys, notify: broadcastStatus,
-  enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : 100; } });
+  enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : claudeEnterDelay(written.length); } });
 scheduler.install(app);
 
 app.get('/api/sessions', (req, res) => {
