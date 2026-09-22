@@ -11,6 +11,8 @@
   let view = { x: 20, y: 10, k: 1 };
   let drag = null;          // 노드 옮기기 {i, dx, dy} · 판 끌기 {pan:true,…} · 선 잇기 {from,…}
   let optOpen = false;      // 설정 창이 떠 있나
+  let hts = [];             // 그려진 노드 실제 높이 — 걸린 시간 줄이 붙으면 노드가 길어진다
+  const TIMES_SHOWN = 4;    // 노드에 보여 줄 최근 회차 수
 
   const PTR = () => window.PTR;
   const steps = () => (PTR() && PTR().draft ? PTR().draft.steps : []);
@@ -44,6 +46,20 @@
     return '';
   }
 
+  /* ⏱ 이 단계에 회차마다 걸린 시간 — 위가 이전, 맨 아래가 최근. 도는 중이면 지금까지 걸린 시간에 … */
+  function timesHtml(runs, i, nowT) {
+    const rows = [];
+    for (const r of runs) {
+      const t = PTR().stepTime(r, i, nowT);
+      if (t) rows.push({ n: r.n, t });
+    }
+    if (!rows.length) return '';
+    const shown = rows.slice(-TIMES_SHOWN);
+    return '<div class="fl-times" title="회차마다 이 단계에 걸린 시간 (아래가 최근)">' + shown.map((x, k) =>
+      '<div class="' + (k === shown.length - 1 ? 'last' : '') + (x.t.live ? ' live' : '') + (x.t.bad ? ' bad' : '') + '">'
+      + '<span>' + x.n + '회차</span><b>' + esc(PTR().fmtDur(x.t.ms)) + (x.t.live ? ' …' : x.t.bad ? ' 실패' : '') + '</b></div>').join('') + '</div>';
+  }
+
   function draw() {
     const wrap = $('flowPan'), svg = $('flowEdges'), nodes = $('flowNodes');
     if (!wrap || !PTR() || !PTR().draft) return;
@@ -67,7 +83,8 @@
 
     // ── 노드 ──
     nodes.innerHTML = '';
-    const sel = PTR().sel, run = PTR().run;
+    const sel = PTR().sel, run = PTR().run, runs = PTR().runs || [], nowT = PTR().now || Date.now();
+    hts = [];
     list.forEach((s, i) => {
       const el = document.createElement('div');
       const st = stepState(run, i);
@@ -86,13 +103,14 @@
         <div class="fl-top"><span class="fl-no">${mark || i + 1}</span><b>${esc(s.name || (i + 1) + '단계')}</b>
           <button type="button" class="fl-x" data-del="1" title="이 단계 빼기">✕</button></div>
         <div class="fl-sub"><span class="fl-ai">${esc(AI_LABEL[s.agent] || s.agent)}</span>${badges.map(b => `<span class="fl-b">${esc(b)}</span>`).join('')}</div>
-        <div class="fl-pv">${esc((s.prompt || '').replace(/\s+/g, ' ').slice(0, 42) || '(지시문 없음)')}</div>`;
+        <div class="fl-pv">${esc((s.prompt || '').replace(/\s+/g, ' ').slice(0, 42) || '(지시문 없음)')}</div>${timesHtml(runs, i, nowT)}`;
       nodes.appendChild(el);
+      hts[i] = el.offsetHeight || NODE_H;
     });
 
     // 판 크기 — 노드가 오른쪽·아래로 나가면 늘린다
     const maxX = Math.max(900, ...list.map(s => s.x + NODE_W)) + PAD * 3;
-    const maxY = Math.max(360, ...list.map(s => s.y + NODE_H)) + PAD * 3;
+    const maxY = Math.max(360, ...list.map((s, i) => s.y + (hts[i] || NODE_H))) + PAD * 3;
     wrap.style.width = maxX + 'px'; wrap.style.height = maxY + 'px';
     svg.setAttribute('viewBox', `0 0 ${maxX} ${maxY}`);
     svg.style.width = maxX + 'px'; svg.style.height = maxY + 'px';
@@ -111,7 +129,7 @@
     const cw = canvas.clientWidth, ch = canvas.clientHeight;
     const w = Math.max(280, Math.min(620, cw - 24));
     const left = Math.max(12, Math.min(view.x + s.x * view.k, cw - w - 12));
-    const below = view.y + (s.y + NODE_H) * view.k + 14;
+    const below = view.y + (s.y + (hts[PTR().sel] || NODE_H)) * view.k + 14;
     const above = view.y + s.y * view.k - 14;
     opt.style.width = w + 'px';
     opt.style.left = left + 'px';
@@ -130,7 +148,7 @@
     return { x: (ev.clientX - r.left - view.x) / view.k, y: (ev.clientY - r.top - view.y) / view.k };
   }
   const snap = v => Math.round(v / GRID) * GRID;
-  const nodeAt = p => steps().findIndex(s => p.x >= s.x - 12 && p.x <= s.x + NODE_W + 12 && p.y >= s.y && p.y <= s.y + NODE_H);
+  const nodeAt = p => steps().findIndex((s, i) => p.x >= s.x - 12 && p.x <= s.x + NODE_W + 12 && p.y >= s.y && p.y <= s.y + (hts[i] || NODE_H));
   const capture = (canvas, ev) => { try { canvas.setPointerCapture(ev.pointerId); } catch (e) {} };
 
   function install() {

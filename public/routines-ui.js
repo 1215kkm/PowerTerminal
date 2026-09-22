@@ -226,6 +226,10 @@ window.PTR = {                                     // routines-flow.js 가 쓰�
   get draft() { return draft; },
   get sel() { return stepSel; },
   get run() { return selId ? data.runs.filter(x => x.routineId === selId).slice(-1)[0] || null : null; },
+  get runs() { return selId ? data.runs.filter(x => x.routineId === selId) : []; },   // 오래된 것부터
+  get now() { return data.now || Date.now(); },
+  stepTime,
+  fmtDur,
   select(i) { stepSel = i; paintSteps(); },
   apply(fn) { const msg = fn(draft); if (msg === false) return; if (typeof msg === 'string') { say(msg, true); return; } fixBackRefs(); paintSteps(); },
   touch() { paintSteps(); },
@@ -310,6 +314,25 @@ $('btnFlow').onclick = () => setView(true);
 $('btnFsSet').onclick = () => { const on = $('form').classList.toggle('show-settings'); paintFsSetBtn(); if (!on && window.PTFlow) window.PTFlow.draw(); };
 /* 오른쪽 「지금 회차」 — 고른 루틴의 마지막 회차를 단계별로 세로로 보여 준다.
    막대 = 단계당 최대 시간 중 얼마나 썼나. 도는 단계는 동그라미가 돈다(반응이 없으면 느리게). */
+/* ⏱ 한 회차에서 이 단계에 든 시간 — 되돌려 다시 한 시도까지 더한다. 도는 중이면 지금까지. */
+function stepTime(run, i, nowT) {
+  const tries = run.attempts.filter(a => a.step === i);
+  if (!tries.length) return null;
+  let ms = 0, live = false;
+  for (const a of tries) {
+    const st = a.startedAt || a.createdAt; if (!st) continue;
+    const open = !a.endedAt && run.status === 'running';
+    if (open) live = true;
+    ms += Math.max(0, (a.endedAt || (open ? nowT : (run.endedAt || st))) - st);
+  }
+  const last = tries[tries.length - 1];
+  return { ms, live, bad: last.status === 'failed', done: last.status === 'done' };
+}
+function fmtDur(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 1) return '<1분';
+  return m < 60 ? m + '분' : Math.floor(m / 60) + '시간 ' + (m % 60) + '분';
+}
 function paintFsNow() {
   const box = $('fsNow'); if (!box) return;
   if (!draft || !flowOn) { box.innerHTML = ''; return; }
@@ -317,25 +340,28 @@ function paintFsNow() {
   const limit = (Number(draft.stepTimeoutMin) || 40) * 60000;
   const st = run ? (STATUS[run.status] || ['', run.status])[1] : '';
   const head = run ? (run.n + '회차 · ' + st + (run.topic ? ' · ' + run.topic : '')) : '아직 돈 회차가 없습니다';
+  const all = window.PTR.runs, prevRun = all.length > 1 ? all[all.length - 2] : null;
   const rows = draft.steps.map((s, i) => {
+    const pt = prevRun ? stepTime(prevRun, i, nowT) : null;
+    const prevLine = pt ? '<div class="prev">이전 ' + prevRun.n + '회차 · ' + esc(fmtDur(pt.ms)) + (pt.bad ? ' (실패)' : '') + '</div>' : '';
     const tries = run ? run.attempts.filter(a => a.step === i) : [];
     const a = tries[tries.length - 1];
     let cls = 'wait', ic = String(i + 1), txt = '대기', pct = 0;
     if (a) {
-      const dur = Math.max(0, (a.endedAt || nowT) - (a.startedAt || a.createdAt || nowT));
+      const tm = stepTime(run, i, nowT), dur = tm ? tm.ms : 0;
       pct = Math.min(100, Math.round(dur / limit * 100));
-      if (a.status === 'done') { cls = 'done'; ic = '✓'; txt = mins(dur); }
-      else if (a.status === 'failed') { cls = 'bad'; ic = '!'; txt = '실패 · ' + mins(dur); }
-      else if (a.status === 'stuck') { cls = 'stuck'; ic = '?'; txt = '사람 확인 · ' + mins(dur); }
-      else if (a.status === 'back') { cls = 'back'; ic = '↺'; txt = '되돌림 · ' + mins(dur); }
+      if (a.status === 'done') { cls = 'done'; ic = '✓'; txt = fmtDur(dur); }
+      else if (a.status === 'failed') { cls = 'bad'; ic = '!'; txt = '실패 · ' + fmtDur(dur); }
+      else if (a.status === 'stuck') { cls = 'stuck'; ic = '?'; txt = '사람 확인 · ' + fmtDur(dur); }
+      else if (a.status === 'back') { cls = 'back'; ic = '↺'; txt = '되돌림 · ' + fmtDur(dur); }
       else if (run.status === 'running' && !a.endedAt) {
         const working = !!(run.live && run.live.working);
         cls = 'run' + (working ? ' working' : ''); ic = '';
-        txt = ({ starting: '세션 준비', sending: '보내는 중', limit: '한도 대기' }[a.status] || (working ? '작업 중' : '반응 없음')) + ' · ' + mins(dur);
-      } else { cls = 'stop'; ic = '■'; txt = a.status + ' · ' + mins(dur); }
+        txt = ({ starting: '세션 준비', sending: '보내는 중', limit: '한도 대기' }[a.status] || (working ? '작업 중' : '반응 없음')) + ' · ' + fmtDur(dur);
+      } else { cls = 'stop'; ic = '■'; txt = a.status + ' · ' + fmtDur(dur); }
     }
     return '<li class="' + cls + '"><span class="ic">' + esc(ic) + '</span><div class="bd"><div class="tt"><b>' + esc(s.name || (i + 1) + '단계') + '</b><span>' + esc(txt) + '</span></div>'
-      + '<div class="gauge" title="단계당 최대 ' + esc(draft.stepTimeoutMin) + '분 중"><i style="width:' + pct + '%"></i></div></div></li>';
+      + '<div class="gauge" title="단계당 최대 ' + esc(draft.stepTimeoutMin) + '분 중"><i style="width:' + pct + '%"></i></div>' + prevLine + '</div></li>';
   }).join('');
   box.innerHTML = '<div class="fsn-head">' + esc(head) + '</div><ol class="fsn">' + rows + '</ol>';
 }

@@ -304,6 +304,15 @@ body.flow-mode .fs-right:not([hidden]){display:flex;flex-direction:column;gap:14
 .fsn .run .gauge i{background:linear-gradient(90deg,var(--accent),#ec4899);animation:pulse 1.6s ease-in-out infinite}
 @media (max-width:1180px){body.flow-mode .app{grid-template-columns:230px minmax(0,1fr)} body.flow-mode .fs-right{display:none!important}}
 @media (max-width:760px){body.flow-mode{overflow:auto} body.flow-mode .wrap{height:auto} body.flow-mode .app{grid-template-columns:1fr} body.flow-mode .list{height:auto;max-height:40vh} body.flow-mode .flow-canvas{min-height:60vh}}
+/* ⏱ 노드 안 회차별 걸린 시간 — 맨 아래 줄이 최근 */
+.fl-times{margin-top:6px;padding-top:5px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:1px;font-size:11px;color:var(--faint)}
+.fl-times div{display:flex;justify-content:space-between;gap:8px}
+.fl-times b{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.fl-times .last span{color:var(--muted)}
+.fl-times .last b{color:var(--fg)}
+.fl-times .live b{color:var(--accent)}
+.fl-times .bad b{color:var(--bad)}
+.fsn .prev{font-size:11px;color:var(--faint);margin-top:3px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
 .toast.show{opacity:1}
 .toast.bad{background:var(--bad);color:#fff}
