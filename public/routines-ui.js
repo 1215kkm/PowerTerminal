@@ -43,13 +43,15 @@ function paintList() {
   $('maxConc').value = data.maxConcurrent;
   if (!data.routines.length && selId !== 'new') { rows.innerHTML = '<div class="empty">아직 루틴이 없습니다. [＋ 새 루틴] 으로 첫 루틴을 만드세요.</div>'; return; }
   const list = selId === 'new' ? [{ id: 'new', name: draft.name || '(새 루틴)', steps: draft.steps, schedule: draft.schedule, fresh: true }, ...data.routines] : data.routines;
+  let rno = 0;
   for (const r of list) {
+    rno++;
     const run = r.fresh ? null : runOf(r);
     const live = run && run.status === 'running';
     const chip = r.fresh ? ['off', '저장 전'] : live ? ['run' + (run.live && run.live.working ? ' working' : ''), run.n + '회차 진행 중'] : r.enabled ? ['on', '켜짐'] : run && run.status !== 'done' && run.status !== 'stopped' ? STATUS[run.status] : ['off', '꺼짐'];
     const el = document.createElement('div');
     el.className = 'row' + (r.id === selId ? ' sel' : ''); el.tabIndex = 0; el.dataset.id = r.id;
-    el.innerHTML = `<span class="nm">${esc(r.name)}</span><span class="chip ${chip[0]}">${esc(chip[1])}</span>
+    el.innerHTML = `<span class="rno">${rno}</span><span class="nm">${esc(r.name)}</span><span class="chip ${chip[0]}">${esc(chip[1])}</span>
       <span class="meta"><span class="dots">${(r.steps || []).map(s => `<i class="c-${esc(s.agent)}" title="${esc(s.name)}"></i>`).join('')}</span>${esc(schedText(r.schedule))}${r.nextAt && r.enabled ? ' · <span class="num">다음 ' + when(r.nextAt) + '</span>' : ''}</span>
       ${r.note ? `<span class="rnote">${esc(r.note)}</span>` : ''}
       ${r.fresh ? '' : `<span class="acts"><button class="btn ghost tiny" data-act="toggle">${r.enabled ? '끄기' : '켜기'}</button><button class="btn ghost tiny" data-act="run"${live ? ' disabled' : ''}>지금 한 번</button>${live ? '<button class="btn ghost tiny danger" data-act="stop">멈추기</button>' : ''}<button class="btn ghost tiny" data-act="copy">복사</button></span>`}`;
@@ -190,10 +192,35 @@ function addTopics() {
 $('btnTopic').onclick = addTopics;
 $('fTopic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTopics(); } });
 
+/* 보기 두 가지 — 📋 클래식(카드가 위에서 아래로) · 🔗 흐름(판 위에 놓고 선으로 잇기).
+   둘 다 같은 draft.steps 를 본다. 고른 보기는 이 브라우저에 기억한다. */
+let flowOn = false;
+try { flowOn = localStorage.getItem('pt_routines_flow') === '1'; } catch (e) {}
+let stepSel = 0;                                   // 흐름 보기에서 고른 단계 — 그 단계 설정만 판 밑에 그린다
+function setView(on) { flowOn = on; try { localStorage.setItem('pt_routines_flow', on ? '1' : '0'); } catch (e) {} if (draft) paintSteps(); }
+window.PTR = {                                     // routines-flow.js 가 쓰는 창구
+  get draft() { return draft; },
+  get sel() { return stepSel; },
+  select(i) { stepSel = i; paintSteps(); },
+  apply(fn) { const msg = fn(draft); if (msg === false) return; if (typeof msg === 'string') { say(msg, true); return; } fixBackRefs(); paintSteps(); },
+  touch() { paintSteps(); },
+  blankStep,
+};
 function paintSteps() {
-  const ol = $('steps'); ol.innerHTML = '';
+  $('btnClassic').classList.toggle('on', !flowOn);
+  $('btnFlow').classList.toggle('on', flowOn);
+  $('steps').hidden = flowOn; $('btnAddStep').hidden = flowOn; $('flow').hidden = !flowOn;
+  stepSel = Math.max(0, Math.min(stepSel, draft.steps.length - 1));
+  if (flowOn) {
+    if (window.PTFlow) { window.PTFlow.install(); window.PTFlow.draw(); }
+    paintStepCards($('flowOpt'), stepSel);
+  } else paintStepCards($('steps'), -1);
+}
+function paintStepCards(ol, only) {
+  ol.innerHTML = '';
   draft.steps.forEach((s, i) => {
-    if (i) { const l = document.createElement('li'); l.className = 'link'; l.setAttribute('aria-hidden', 'true'); l.innerHTML = '<span></span>'; ol.appendChild(l); }
+    if (only >= 0 && i !== only) return;
+    if (i && only < 0) { const l = document.createElement('li'); l.className = 'link'; l.setAttribute('aria-hidden', 'true'); l.innerHTML = '<span></span>'; ol.appendChild(l); }
     const li = document.createElement('li'); li.className = 'step';
     const models = MODELS[s.agent] || MODELS.custom;
     const modelOpts = models.map(([v, l]) => `<option value="${esc(v)}"${v === s.model ? ' selected' : ''}>${esc(l)}</option>`).join('') + (models.some(m => m[0] === s.model) ? '' : `<option value="${esc(s.model)}" selected>${esc(s.model)}</option>`);
@@ -201,6 +228,7 @@ function paintSteps() {
     const backOpts = ['<option value="-1">되돌리기 없음</option>'].concat(draft.steps.slice(0, i).map((b, j) => `<option value="${j}"${s.backTo === j ? ' selected' : ''}>${j + 1}단계 「${esc(b.name || (j + 1) + '단계')}」 로</option>`)).join('');
     // 저장된 단계(지시문이 있는)는 접어서 연다 — 글자 벽을 줄이고, 머리줄·요약을 누르면 펼친다
     if (s._open === undefined) s._open = !s.prompt;
+    if (only >= 0) s._open = true;                 // 흐름 보기에서 고른 단계는 펼쳐서 보여 준다
     li.classList.toggle('collapsed', !s._open);
     const browserTxt = s.browser === 'normal' ? '🌐 ' + (s.browserProfile || '기본 창') : s.browser === 'incognito' ? '🕶 시크릿' : '';
     li.innerHTML = `<div class="st-head"><span class="st-no">${i + 1}</span><input data-k="name" placeholder="단계 이름 (예: 배너 이미지)" maxlength="40" value="${esc(s.name)}">
@@ -250,10 +278,12 @@ function paintSteps() {
   });
 }
 function fixBackRefs() { draft.steps.forEach((s, i) => { if (s.backTo >= i) s.backTo = -1; }); }
-$('btnAddStep').onclick = () => { draft.steps.push(blankStep()); paintSteps(); const tas = $('steps').querySelectorAll('textarea'); if (tas.length) tas[tas.length - 1].focus(); };
+$('btnAddStep').onclick = () => { draft.steps.push(blankStep()); stepSel = draft.steps.length - 1; paintSteps(); const tas = $('steps').querySelectorAll('textarea'); if (tas.length) tas[tas.length - 1].focus(); };
+$('btnClassic').onclick = () => setView(false);
+$('btnFlow').onclick = () => setView(true);
 $('vars').addEventListener('click', ev => {
   const b = ev.target.closest('.var'); if (!b) return;
-  const ta = lastPromptTA && lastPromptTA.isConnected ? lastPromptTA : $('steps').querySelector('textarea');
+  const ta = lastPromptTA && lastPromptTA.isConnected ? lastPromptTA : document.querySelector('#flowOpt textarea, #steps textarea');
   if (!ta) return;
   const v = b.dataset.v, st = ta.selectionStart, en = ta.selectionEnd;
   ta.value = ta.value.slice(0, st) + v + ta.value.slice(en);

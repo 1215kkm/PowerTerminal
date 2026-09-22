@@ -141,6 +141,9 @@ function normalize(b, prev) {
       maxBack: backTo < 0 ? 0 : int(st.maxBack, 1, 3, 1, k + '되돌리기 횟수는 1~3번입니다'),
     };
     if (st.agent === 'custom') out.cmd = String(st.cmd || '').slice(0, 500);
+    // 🔗 흐름 보기에서 잡아 둔 자리 — 화면에만 쓰고 진행 순서는 목록 차례 그대로다
+    const xy = v => { const n2 = Number(v); return Number.isFinite(n2) ? Math.max(0, Math.min(20000, Math.round(n2))) : null; };
+    if (xy(st.x) !== null && xy(st.y) !== null) { out.x = xy(st.x); out.y = xy(st.y); }
     return out;
   });
   r.updatedAt = Date.now();

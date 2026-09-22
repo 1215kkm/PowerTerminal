@@ -61,7 +61,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 @media (max-width:860px){.app{grid-template-columns:1fr}.list{position:static;max-height:none}}
 .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line-soft);flex:none}
 .rows{display:flex;flex-direction:column;overflow-y:auto;min-height:0}
-.row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:2px solid var(--line);cursor:pointer}
+.row .rno{grid-row:1/3;align-self:start;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:7px;
+  background:var(--raised);border:1px solid var(--line);color:var(--muted);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.row.sel .rno{background:var(--accent);border-color:var(--accent);color:#fff}
+.row .meta,.row .rnote,.row .acts{grid-column:2/-1}
 .row:last-child{border-bottom:0}
 .row:hover{background:var(--raised)}
 .row.sel{background:var(--accent-soft)}
@@ -192,6 +196,41 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pathbtn{border:0;background:transparent;color:var(--accent);font-family:var(--mono);font-size:12px;cursor:pointer;padding:0;text-decoration:underline;overflow-wrap:anywhere;text-align:left}
 .pathbtn:hover{color:var(--fg)}
 
+/* 🔗 흐름 보기 — n8n 처럼 판 위에 단계를 놓고 선으로 잇는다 */
+.modes{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.modes .btn{border:0;border-radius:0;background:transparent;padding:3px 10px;font-size:12px}
+.modes .btn.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.flow-bar{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+.flow-zoom{font-size:12px;color:var(--muted);min-width:42px;text-align:center}
+.flow-canvas{position:relative;overflow:hidden;height:min(58vh,460px);border:1px solid var(--line);border-radius:12px;
+  background:var(--raised);background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px;touch-action:none;cursor:grab}
+.flow-canvas:active{cursor:grabbing}
+.fl-pan{position:absolute;left:0;top:0;transform-origin:0 0}
+.fl-edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;color:var(--accent-line)}
+.fl-edges .fl-edge{fill:none;stroke:var(--accent-line);stroke-width:2.2}
+.fl-edges .fl-edge.back{stroke:var(--warn);stroke-dasharray:6 5;color:var(--warn)}
+.fl-edges .fl-edge.dragging{stroke:var(--accent);stroke-dasharray:4 4}
+.fl-nodes{position:absolute;left:0;top:0}
+.fl-node{position:absolute;width:190px;min-height:78px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:8px 10px;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:grab;user-select:none}
+.fl-node.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.fl-node.ai-claude{border-left:4px solid var(--claude)}
+.fl-node.ai-gpt{border-left:4px solid var(--gpt)}
+.fl-node.ai-custom{border-left:4px solid var(--custom)}
+.fl-top{display:flex;align-items:center;gap:6px}
+.fl-top b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.fl-no{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700}
+.fl-x{border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:12px;padding:0 2px}
+.fl-x:hover{color:var(--bad)}
+.fl-sub{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.fl-ai,.fl-b{font-size:10.5px;border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--muted)}
+.fl-pv{margin-top:4px;font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-port{position:absolute;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:50%;background:var(--panel);border:2px solid var(--accent-line)}
+.fl-port.in{left:-8px}
+.fl-port.out{right:-8px;cursor:crosshair;background:var(--accent-line)}
+.fl-port.out:hover{background:var(--accent);transform:scale(1.25)}
+.flow-opt{margin-top:12px}
+.flow-opt .step{cursor:default}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
 .toast.show{opacity:1}
 .toast.bad{background:var(--bad);color:#fff}
@@ -281,10 +320,27 @@ button,input,select,textarea{font:inherit;color:inherit}
           <p class="hint" id="topicHint"></p>
         </div>
 
-        <div class="sec">
-          <h2>단계 <small>위에서 아래 순서 · 단계마다 새 세션 · 앞 단계 보고 파일을 다음 단계에 실어 보냅니다</small></h2>
+        <div class="sec" id="secSteps">
+          <h2>단계 <small>위에서 아래 순서 · 단계마다 새 세션 · 앞 단계 보고 파일을 다음 단계에 실어 보냅니다</small>
+            <span class="sp"></span>
+            <span class="modes"><button class="btn" id="btnClassic" type="button" title="카드로 위에서 아래로">📋 클래식</button><button class="btn" id="btnFlow" type="button" title="판 위에 놓고 선으로 잇기">🔗 흐름</button></span>
+          </h2>
           <ol class="steps" id="steps"></ol>
           <button class="btn" id="btnAddStep" type="button" style="margin-top:10px">＋ 단계 추가</button>
+          <div id="flow" hidden>
+            <div class="flow-bar">
+              <button class="btn tiny" id="flowAdd" type="button">＋ 단계</button>
+              <span class="sp"></span>
+              <button class="btn tiny" id="flowTidy" type="button" title="한 줄로 다시 늘어놓기">⇄ 정렬</button>
+              <button class="btn tiny" id="flowFit" type="button" title="전부 보이게 맞추기">⤢ 맞춤</button>
+              <button class="btn tiny" id="flowOut" type="button" title="축소">－</button><span class="flow-zoom" id="flowZoom">100%</span><button class="btn tiny" id="flowIn" type="button" title="확대">＋</button>
+            </div>
+            <div class="flow-canvas" id="flowCanvas">
+              <div class="fl-pan" id="flowPan"><svg class="fl-edges" id="flowEdges"></svg><div class="fl-nodes" id="flowNodes"></div></div>
+            </div>
+            <p class="hint">노드를 끌어 자리를 잡고, 오른쪽 점을 끌어 다음 단계로 이으세요. 빈 곳에 놓으면 그 자리에 새 단계가 생기고, 앞 단계에 이으면 「못 미치면 되돌리기」 가 됩니다. 고른 단계의 설정은 아래에 나옵니다.</p>
+            <ol class="steps flow-opt" id="flowOpt"></ol>
+          </div>
         </div>
 
         <div class="sec">
@@ -315,5 +371,6 @@ button,input,select,textarea{font:inherit;color:inherit}
   </div>
 </div>
 <script src="routines-ui.js"></script>
+<script src="routines-flow.js"></script>
 </body>
 </html>
