@@ -262,7 +262,22 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     return lines.join('\n');
   }
 
-  async function sendText(sessId, text) {
+  /* 입력칸에 아직 글이 남아 있나 — 상태줄을 기준으로 바로 위 입력 상자를 본다.
+     (입력 표시는 클로드 설정에 따라 '>' 이기도 '❯' 이기도 하다) */
+  function composerLeft(p) {
+    if (!p || !p.buffer) return false;
+    const L = render(p.buffer.slice(-80000), 200, 100).map(x => x.trimEnd());
+    let foot = -1;
+    for (let i = L.length - 1; i >= 0; i--)
+      if (/shift\+tab to cycle|auto mode on|bypass permissions on|accept edits on|plan mode on/i.test(L[i])) { foot = i; break; }
+    if (foot < 0) return false;
+    for (let i = foot - 1; i >= Math.max(0, foot - 14); i--) {
+      if (/^\s*[>›❯»]/.test(L[i])) return L[i].replace(/^\s*[>›❯»]\s?/, '').trim().length > 0;
+      if (/^\s*[╭┌]/.test(L[i])) break;
+    }
+    return false;
+  }
+  async function sendText(sessId, text, agent) {
     const p = ptys.get(sessId);
     if (!p || p.dead) throw Error('세션이 없습니다');
     const s = signal(sessId);
@@ -271,6 +286,16 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     p.proc.write(written);
     await sleep(enterDelay(sessId, written));
     p.proc.write('\r');
+    /* 정말 들어갔는지 본다 — 긴 지시문은 Enter 가 먹혀 입력칸에 그대로 남는 일이 있다.
+       그러면 AI 는 아무것도 시작하지 않고, 시간 초과까지 아무 일도 안 일어난다(2026-09-22 실측).
+       codex 는 입력칸에 늘 안내 문구가 떠 있어 이 확인을 쓰지 않는다. */
+    if (agent !== 'codex') {
+      for (let i = 0; i < 3; i++) {
+        await sleep(TEST ? 150 : 1500);
+        if (!composerLeft(p)) break;
+        p.proc.write('\r');
+      }
+    }
     p.armed = true; p.done = false; p.busy = true; p.lastMarker = now();
   }
 
@@ -353,7 +378,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     }
     a.status = 'sending';
     a.text = body + footer(run, r, a, step);   // 확인창에 먹혔을 때 그대로 다시 보내려고 기억해 둔다
-    try { await sendText(a.sessionId, a.text); }
+    try { await sendText(a.sessionId, a.text, step.agent); }
     catch (e) { a.status = 'failed'; a.endedAt = now(); finish(run, 'failed', (a.step + 1) + '단계 지시문을 보내지 못했습니다: ' + e.message); return; }
     a.status = 'sent'; a.sentAt = now(); a.tries = 1;
     note(run, (a.step + 1) + '단계 「' + step.name + '」 에 지시문을 보냈습니다');
@@ -459,7 +484,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
         if (readyToSend(p, s, step.agent, t)) {
           a.tries = (a.tries || 1) + 1;
           note(run, (a.step + 1) + '단계: 90초 동안 반응이 없어 지시문을 다시 보냅니다 (' + a.tries + '번째)');
-          try { await sendText(a.sessionId, a.text); a.sentAt = now(); } catch (e) { fail('지시문을 다시 보내지 못했습니다 — ' + e.message); }
+          try { await sendText(a.sessionId, a.text, step.agent); a.sentAt = now(); } catch (e) { fail('지시문을 다시 보내지 못했습니다 — ' + e.message); }
           save();
         }
         return;
