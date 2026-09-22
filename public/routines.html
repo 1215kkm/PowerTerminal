@@ -231,6 +231,79 @@ button,input,select,textarea{font:inherit;color:inherit}
 .fl-port.out:hover{background:var(--accent);transform:scale(1.25)}
 .flow-opt{margin-top:12px}
 .flow-opt .step{cursor:default}
+/* ── 🔗 흐름 모드: 창 전체 — 목록 | 판 | 작업 상황 · 어두운 바탕 ── */
+@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes flSpin{to{--ang:360deg}}
+body.flow-mode{--bg:#0d1117;--panel:#161b22;--raised:#1c2330;--line:#30363d;--line-soft:#21262d;--fg:#e6edf3;--muted:#9da7b3;--faint:#6e7781;
+  --accent:#b39afc;--accent-soft:rgba(124,58,237,.22);--accent-line:rgba(167,139,250,.55);--ok:#3fb950;--ok-soft:rgba(63,185,80,.15);
+  --warn:#d29922;--warn-soft:rgba(210,153,34,.15);--bad:#f85149;--bad-soft:rgba(248,81,73,.15);
+  --claude:#a371f7;--gpt:#2ea98a;--custom:#8b949e;--code:#0d1117;--var:#c4b0ff;--var-bg:rgba(124,58,237,.28);color-scheme:dark;background:var(--bg);color:var(--fg);overflow:hidden}
+body.flow-mode .wrap{max-width:none;padding:10px 12px 12px;height:calc(100vh - 51px);display:flex;flex-direction:column}
+body.flow-mode .intro{display:none}
+body.flow-mode .app{flex:1;min-height:0;grid-template-columns:270px minmax(0,1fr) 330px;gap:12px;align-items:stretch}
+body.flow-mode .list{position:static;max-height:none;height:100%}
+body.flow-mode .editor{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+body.flow-mode #form{display:flex;flex-direction:column;flex:1;min-height:0}
+body.flow-mode #form .sec{display:none}
+body.flow-mode #form #secSteps{display:flex;flex-direction:column;flex:1;min-height:0;padding:10px 12px 12px;border:0}
+body.flow-mode #secSteps > h2,body.flow-mode #secSteps > #steps,body.flow-mode #secSteps > #btnAddStep{display:none}
+body.flow-mode #flow{display:flex;flex-direction:column;flex:1;min-height:0}
+body.flow-mode .flow-canvas{flex:1;height:auto;min-height:320px;background-color:#0b0f14;background-image:radial-gradient(#2a313c 1px,transparent 1px)}
+body.flow-mode #form.show-settings{overflow-y:auto}
+body.flow-mode #form.show-settings .sec{display:block}
+body.flow-mode #form.show-settings #secSteps{display:none}
+.fs-only{display:none}
+body.flow-mode .fs-only{display:inline-flex}
+/* 노드 밑 설정 창 */
+.flow-canvas .flow-opt{position:absolute;z-index:5;margin:0;overflow-y:auto;box-shadow:0 14px 36px rgba(0,0,0,.5);border-radius:12px;cursor:default;touch-action:auto}
+.flow-canvas .flow-opt .step{margin:0}
+.fl-legend{position:absolute;left:12px;bottom:8px;right:12px;font-size:11.5px;color:var(--faint);pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 지금 도는 단계 — 테두리가 돈다 (반응이 없으면 느리고 흐리게) */
+.fl-node.running{border-color:transparent}
+.fl-node.running::before{content:'';position:absolute;inset:-3px;border-radius:14px;padding:3px;pointer-events:none;
+  background:conic-gradient(from var(--ang),#a78bfa,#ec4899,#22d3ee,#a78bfa);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:flSpin 2.2s linear infinite}
+.fl-node.running.idle::before{animation-duration:6s;filter:saturate(.35)}
+.fl-node.done{border-color:var(--ok)}
+.fl-node.done .fl-no{background:var(--ok);color:#fff}
+.fl-node.bad{border-color:var(--bad)}
+.fl-node.bad .fl-no{background:var(--bad);color:#fff}
+.fl-node.stuck{border-color:var(--warn)}
+@media (prefers-reduced-motion:reduce){.fl-node.running::before,.fsn .run .ic{animation:none}}
+/* 오른쪽 작업 상황 */
+.fs-right{display:none}
+body.flow-mode .fs-right:not([hidden]){display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.fs-title{font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.fs-right .sec{display:block;padding:0;border:0}
+.fs-right .sec h2{margin-bottom:8px}
+.fs-right .run{grid-template-columns:1fr auto;gap:4px 8px}
+.fs-right .run .when{grid-column:1;grid-row:1}
+.fs-right .run > span:nth-of-type(2){grid-column:2;grid-row:1}
+.fs-right .run .track{grid-column:1/-1;grid-row:2}
+.fs-right .live{margin:0}
+.fs-right .live-term{max-height:200px}
+.fsn-head{font-size:13px;font-weight:600;margin-bottom:10px}
+.fsn{list-style:none;margin:0;padding:0}
+.fsn li{display:grid;grid-template-columns:26px 1fr;gap:10px;position:relative;padding-bottom:16px}
+.fsn li:not(:last-child)::before{content:'';position:absolute;left:12px;top:28px;bottom:2px;width:2px;background:var(--line)}
+.fsn li.done:not(:last-child)::before{background:var(--ok)}
+.fsn .ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid var(--line);color:var(--muted);background:var(--panel);position:relative}
+.fsn .done .ic{border-color:var(--ok);background:var(--ok);color:#fff}
+.fsn .bad .ic{border-color:var(--bad);background:var(--bad);color:#fff}
+.fsn .stuck .ic,.fsn .back .ic{border-color:var(--warn);color:var(--warn)}
+.fsn .run .ic{border-color:transparent;background:conic-gradient(from var(--ang),#a78bfa,#ec4899,#22d3ee,#a78bfa);animation:flSpin 1.6s linear infinite}
+.fsn .run .ic::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--panel)}
+.fsn .run:not(.working) .ic{animation-duration:5s;filter:saturate(.35)}
+.fsn .tt{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;align-items:baseline}
+.fsn .tt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fsn .tt span{color:var(--muted);white-space:nowrap;font-size:12px}
+.fsn .gauge{height:6px;border-radius:4px;background:var(--line-soft);margin-top:6px;overflow:hidden}
+.fsn .gauge i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.fsn .done .gauge i{background:var(--ok)}
+.fsn .bad .gauge i{background:var(--bad)}
+.fsn .run .gauge i{background:linear-gradient(90deg,var(--accent),#ec4899);animation:pulse 1.6s ease-in-out infinite}
+@media (max-width:1180px){body.flow-mode .app{grid-template-columns:230px minmax(0,1fr)} body.flow-mode .fs-right{display:none!important}}
+@media (max-width:760px){body.flow-mode{overflow:auto} body.flow-mode .wrap{height:auto} body.flow-mode .app{grid-template-columns:1fr} body.flow-mode .list{height:auto;max-height:40vh} body.flow-mode .flow-canvas{min-height:60vh}}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
 .toast.show{opacity:1}
 .toast.bad{background:var(--bad);color:#fff}
@@ -282,6 +355,8 @@ button,input,select,textarea{font:inherit;color:inherit}
       <form id="form" hidden autocomplete="off">
         <div class="ed-head">
           <input id="fName" aria-label="루틴 이름" maxlength="60">
+          <span class="modes" title="화면 보기 바꾸기"><button class="btn" id="btnClassic" type="button" title="카드로 위에서 아래로">📋 클래식</button><button class="btn" id="btnFlow" type="button" title="창 전체를 판으로 — 단계를 놓고 선으로 잇기">🔗 흐름</button></span>
+          <button class="btn fs-only" id="btnFsSet" type="button" title="이름·시각·폴더·주제 같은 루틴 설정">⚙ 루틴 설정</button>
           <button class="btn" id="btnRun" type="button">지금 한 번 실행</button>
           <button class="btn" id="btnCopy" type="button">복사</button>
           <button class="btn ghost danger" id="btnDel" type="button">삭제</button>
@@ -321,10 +396,7 @@ button,input,select,textarea{font:inherit;color:inherit}
         </div>
 
         <div class="sec" id="secSteps">
-          <h2>단계 <small>위에서 아래 순서 · 단계마다 새 세션 · 앞 단계 보고 파일을 다음 단계에 실어 보냅니다</small>
-            <span class="sp"></span>
-            <span class="modes"><button class="btn" id="btnClassic" type="button" title="카드로 위에서 아래로">📋 클래식</button><button class="btn" id="btnFlow" type="button" title="판 위에 놓고 선으로 잇기">🔗 흐름</button></span>
-          </h2>
+          <h2>단계 <small>위에서 아래 순서 · 단계마다 새 세션 · 앞 단계 보고 파일을 다음 단계에 실어 보냅니다</small></h2>
           <ol class="steps" id="steps"></ol>
           <button class="btn" id="btnAddStep" type="button" style="margin-top:10px">＋ 단계 추가</button>
           <div id="flow" hidden>
@@ -337,9 +409,9 @@ button,input,select,textarea{font:inherit;color:inherit}
             </div>
             <div class="flow-canvas" id="flowCanvas">
               <div class="fl-pan" id="flowPan"><svg class="fl-edges" id="flowEdges"></svg><div class="fl-nodes" id="flowNodes"></div></div>
+              <ol class="steps flow-opt" id="flowOpt" hidden></ol>
+              <div class="fl-legend">끌기: 자리 잡기 · 오른쪽 점을 끌어: 다음 단계로 잇기 · 빈 곳에 놓기: 새 단계 · 앞 단계로 잇기: 되돌리기 · 노드 누르기: 설정</div>
             </div>
-            <p class="hint">노드를 끌어 자리를 잡고, 오른쪽 점을 끌어 다음 단계로 이으세요. 빈 곳에 놓으면 그 자리에 새 단계가 생기고, 앞 단계에 이으면 「못 미치면 되돌리기」 가 됩니다. 고른 단계의 설정은 아래에 나옵니다.</p>
-            <ol class="steps flow-opt" id="flowOpt"></ol>
           </div>
         </div>
 
@@ -360,6 +432,14 @@ button,input,select,textarea{font:inherit;color:inherit}
         </div>
       </form>
     </section>
+
+    <!-- 🔗 흐름 모드 오른쪽 — 고른 루틴의 작업 상황. 진행 중 창·회차 기록은 흐름 모드에서 여기로 옮겨 온다 -->
+    <aside class="fs-right" id="fsRight" hidden aria-label="작업 상황">
+      <div class="fs-title">작업 상황</div>
+      <div id="fsNow"></div>
+      <div id="fsLiveSlot"></div>
+      <div id="fsRunsSlot"></div>
+    </aside>
   </div>
 </main>
 <div class="toast" id="toast" role="status"></div>

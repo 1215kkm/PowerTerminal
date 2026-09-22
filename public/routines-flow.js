@@ -1,8 +1,8 @@
 'use strict';
-/* 🔗 흐름 보기 — 단계를 판 위에 놓고 선으로 이어서 짠다 (n8n·마인드맵처럼).
-   클래식(위에서 아래로 쌓인 카드)과 같은 데이터를 본다: 노드 = 단계, 실선 = 진행 순서, 점선 = 되돌리기.
-   루틴 엔진은 단계를 1→2→3 으로 진행하므로 선은 한 줄기다. 뒤 노드를 앞 노드에 이으면 '되돌리기' 가 된다.
-   자리(x·y)는 단계에 같이 저장돼 다음에 열어도 그대로다. */
+/* 🔗 흐름 모드 — 창 전체가 n8n 같은 판이 된다. 왼쪽 루틴 목록 · 가운데 판 · 오른쪽 작업 상황.
+   노드 = 단계, 실선 = 진행 순서, 점선 = 되돌리기. 루틴 엔진은 단계를 1→2→3 으로 진행하므로 선은 한 줄기다.
+   노드를 누르면 그 노드 바로 밑에 설정 창(클래식과 같은 카드)이 뜨고, 빈 곳을 누르면 닫힌다.
+   지금 돌고 있는 단계는 테두리가 돈다. 자리(x·y)는 단계에 같이 저장돼 다음에 열어도 그대로다. */
 (() => {
   const NODE_W = 190, NODE_H = 78, GRID = 10, PAD = 60;
   const $ = id => document.getElementById(id);
@@ -10,6 +10,7 @@
   const svgNS = 'http://www.w3.org/2000/svg';
   let view = { x: 20, y: 10, k: 1 };
   let drag = null;          // 노드 옮기기 {i, dx, dy} · 판 끌기 {pan:true,…} · 선 잇기 {from,…}
+  let optOpen = false;      // 설정 창이 떠 있나
 
   const PTR = () => window.PTR;
   const steps = () => (PTR() && PTR().draft ? PTR().draft.steps : []);
@@ -30,9 +31,22 @@
     return `M ${a.x} ${a.y} C ${a.x + 60} ${low}, ${b.x - 60} ${low}, ${b.x} ${b.y}`;
   }
 
+  /* 고른 루틴의 마지막 회차에서 이 단계가 어떻게 됐나 — 노드 테두리·배지에 쓴다 */
+  function stepState(run, i) {
+    if (!run) return '';
+    const tries = run.attempts.filter(a => a.step === i);
+    const a = tries[tries.length - 1];
+    if (!a) return '';
+    if (a.status === 'done') return 'done';
+    if (a.status === 'failed') return 'bad';
+    if (a.status === 'stuck') return 'stuck';
+    if (run.status === 'running' && !a.endedAt) return 'running' + (run.live && run.live.working ? '' : ' idle');
+    return '';
+  }
+
   function draw() {
     const wrap = $('flowPan'), svg = $('flowEdges'), nodes = $('flowNodes');
-    if (!wrap) return;
+    if (!wrap || !PTR() || !PTR().draft) return;
     const list = steps();
     list.forEach(place);
     wrap.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
@@ -53,10 +67,11 @@
 
     // ── 노드 ──
     nodes.innerHTML = '';
-    const sel = PTR().sel;
+    const sel = PTR().sel, run = PTR().run;
     list.forEach((s, i) => {
       const el = document.createElement('div');
-      el.className = 'fl-node ai-' + (AI_COLOR[s.agent] || 'custom') + (i === sel ? ' on' : '');
+      const st = stepState(run, i);
+      el.className = 'fl-node ai-' + (AI_COLOR[s.agent] || 'custom') + (optOpen && i === sel ? ' on' : '') + (st ? ' ' + st : '');
       el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
       el.dataset.i = i;
       const badges = [];
@@ -65,9 +80,10 @@
       else if (s.browser === 'incognito') badges.push('🕶 시크릿');
       if (s.sameSession) badges.push('이어서');
       if (s.dir) badges.push('📁');
+      const mark = st === 'done' ? '✓' : st === 'bad' ? '!' : st === 'stuck' ? '?' : '';
       el.innerHTML = `<span class="fl-port in" data-port="in" title="여기로 이어 받습니다"></span>
         <span class="fl-port out" data-port="out" title="끌어서 다음 단계로 잇기 · 빈 곳에 놓으면 새 단계"></span>
-        <div class="fl-top"><span class="fl-no">${i + 1}</span><b>${esc(s.name || (i + 1) + '단계')}</b>
+        <div class="fl-top"><span class="fl-no">${mark || i + 1}</span><b>${esc(s.name || (i + 1) + '단계')}</b>
           <button type="button" class="fl-x" data-del="1" title="이 단계 빼기">✕</button></div>
         <div class="fl-sub"><span class="fl-ai">${esc(AI_LABEL[s.agent] || s.agent)}</span>${badges.map(b => `<span class="fl-b">${esc(b)}</span>`).join('')}</div>
         <div class="fl-pv">${esc((s.prompt || '').replace(/\s+/g, ' ').slice(0, 42) || '(지시문 없음)')}</div>`;
@@ -80,6 +96,32 @@
     wrap.style.width = maxX + 'px'; wrap.style.height = maxY + 'px';
     svg.setAttribute('viewBox', `0 0 ${maxX} ${maxY}`);
     svg.style.width = maxX + 'px'; svg.style.height = maxY + 'px';
+
+    placeOpt();
+  }
+
+  /* 설정 창 — 고른 노드 바로 밑에 띄운다. 밑에 자리가 모자라면 위에 띄운다. 확대해도 글자는 100% 로 읽히게
+     판(확대되는 층) 밖에 두고 위치만 따라간다. */
+  function placeOpt() {
+    const opt = $('flowOpt'), canvas = $('flowCanvas');
+    if (!opt || !canvas) return;
+    const s = steps()[PTR().sel];
+    opt.hidden = !(optOpen && s);
+    if (opt.hidden) return;
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    const w = Math.max(280, Math.min(620, cw - 24));
+    const left = Math.max(12, Math.min(view.x + s.x * view.k, cw - w - 12));
+    const below = view.y + (s.y + NODE_H) * view.k + 14;
+    const above = view.y + s.y * view.k - 14;
+    opt.style.width = w + 'px';
+    opt.style.left = left + 'px';
+    if (ch - below >= 260 || ch - below >= above) {
+      opt.style.top = below + 'px'; opt.style.bottom = '';
+      opt.style.maxHeight = Math.max(160, ch - below - 12) + 'px';
+    } else {
+      opt.style.top = ''; opt.style.bottom = (ch - above) + 'px';
+      opt.style.maxHeight = Math.max(160, above - 12) + 'px';
+    }
   }
 
   /* 판 좌표로 바꾸기 (확대·이동 반영) */
@@ -89,6 +131,7 @@
   }
   const snap = v => Math.round(v / GRID) * GRID;
   const nodeAt = p => steps().findIndex(s => p.x >= s.x - 12 && p.x <= s.x + NODE_W + 12 && p.y >= s.y && p.y <= s.y + NODE_H);
+  const capture = (canvas, ev) => { try { canvas.setPointerCapture(ev.pointerId); } catch (e) {} };
 
   function install() {
     const canvas = $('flowCanvas');
@@ -96,6 +139,7 @@
     canvas._wired = true;
 
     canvas.addEventListener('pointerdown', ev => {
+      if (ev.target.closest('#flowOpt')) return;               // 설정 창 안에서는 판을 건드리지 않는다
       const nodeEl = ev.target.closest('.fl-node');
       const portEl = ev.target.closest('.fl-port');
       if (ev.target.closest('[data-del]')) {
@@ -104,23 +148,26 @@
           if (d.steps.length < 2) return '단계는 하나 이상이어야 합니다';
           if (d.steps[i].prompt && !confirm('이 단계를 뺄까요?')) return false;
           d.steps.splice(i, 1);
+          optOpen = false;
         });
         return;
       }
       if (portEl && portEl.dataset.port === 'out') {           // 선 잇기 시작
         drag = { from: Number(nodeEl.dataset.i), to: at(ev) };
-        try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+        capture(canvas, ev);
         draw(); ev.preventDefault(); return;
       }
-      if (nodeEl) {                                            // 노드 고르기 + 옮기기
+      if (nodeEl) {                                            // 노드 고르기(설정 창 열기) + 옮기기
         const i = Number(nodeEl.dataset.i), s = steps()[i], p = at(ev);
+        optOpen = true;
         PTR().select(i);
         drag = { i, dx: p.x - s.x, dy: p.y - s.y, moved: false };
-        try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+        capture(canvas, ev);
         ev.preventDefault(); return;
       }
+      if (optOpen) { optOpen = false; placeOpt(); draw(); }    // 빈 곳을 누르면 설정 창 닫기
       drag = { pan: true, sx: ev.clientX, sy: ev.clientY, vx: view.x, vy: view.y };   // 빈 곳 = 판 끌기
-      try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+      capture(canvas, ev);
     });
 
     canvas.addEventListener('pointermove', ev => {
@@ -140,7 +187,8 @@
       if (d.pan) { draw(); return; }
       if (d.from != null) {
         const p = at(ev), j = nodeAt(p);
-        if (j < 0) {                                           // 빈 곳에 놓으면 그 자리에 새 단계
+        if (j < 0) {                                           // 빈 곳에 놓으면 그 자리에 새 단계 (설정 창을 바로 연다)
+          optOpen = true;
           PTR().apply(dr => {
             const s = PTR().blankStep();
             s.x = Math.max(0, snap(p.x)); s.y = Math.max(0, snap(p.y - NODE_H / 2));
@@ -168,34 +216,45 @@
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', () => { drag = null; draw(); });
 
+    // 설정 창의 「접기」 = 창 닫기 (흐름 모드에서는 카드를 접을 일이 없다)
+    canvas.addEventListener('click', ev => { if (ev.target.closest('#flowOpt [data-tgl]')) { optOpen = false; } }, true);
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && optOpen && document.body.classList.contains('flow-mode')) { optOpen = false; draw(); } });
+
     canvas.addEventListener('wheel', ev => {
+      if (ev.target.closest('#flowOpt')) return;               // 설정 창 안에서는 그냥 스크롤
       ev.preventDefault();
       const r = canvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
       const k = Math.min(1.6, Math.max(0.4, view.k * (ev.deltaY < 0 ? 1.1 : 1 / 1.1)));
       view.x = mx - (mx - view.x) * (k / view.k); view.y = my - (my - view.y) * (k / view.k); view.k = k;
       draw();
     }, { passive: false });
+    window.addEventListener('resize', () => { if (document.body.classList.contains('flow-mode')) placeOpt(); });
 
     $('flowFit').onclick = () => fit();
     $('flowTidy').onclick = () => PTR().apply(d => { d.steps.forEach((s, i) => { s.x = 40 + i * (NODE_W + 70); s.y = 60; }); view = { x: 20, y: 10, k: 1 }; });
-    $('flowAdd').onclick = () => PTR().apply(d => {
+    $('flowAdd').onclick = () => { optOpen = true; PTR().apply(d => {
       const s = PTR().blankStep(), last = d.steps[d.steps.length - 1];
       s.x = (last ? last.x + NODE_W + 70 : 40); s.y = last ? last.y : 60;
       d.steps.push(s); PTR().select(d.steps.length - 1);
-    });
+    }); };
     $('flowIn').onclick = () => { view.k = Math.min(1.6, view.k * 1.15); draw(); };
     $('flowOut').onclick = () => { view.k = Math.max(0.4, view.k / 1.15); draw(); };
   }
 
   function fit() {
     const list = steps(); if (!list.length) return;
+    list.forEach(place);
     const box = $('flowCanvas').getBoundingClientRect();
+    if (!box.width || !box.height) { draw(); return; }
     const minX = Math.min(...list.map(s => s.x)), minY = Math.min(...list.map(s => s.y));
     const maxX = Math.max(...list.map(s => s.x + NODE_W)), maxY = Math.max(...list.map(s => s.y + NODE_H));
-    const k = Math.min(1.2, Math.max(0.4, Math.min((box.width - 40) / (maxX - minX || 1), (box.height - 40) / (maxY - minY || 1))));
-    view = { k, x: 20 - minX * k, y: 20 - minY * k };
+    const k = Math.min(1.2, Math.max(0.4, Math.min((box.width - 60) / (maxX - minX || 1), (box.height - 60) / (maxY - minY || 1))));
+    view = { k, x: 30 - minX * k, y: 30 - minY * k };
     draw();
   }
 
-  window.PTFlow = { draw, install, fit };
+  /* 다른 루틴을 고르면 설정 창을 닫고 새 루틴이 다 보이게 */
+  function reset() { optOpen = false; setTimeout(fit, 0); }
+
+  window.PTFlow = { draw, install, fit, reset, get optOpen() { return optOpen; } };
 })();

@@ -116,6 +116,7 @@ function select(id) {
   //   [지금 한 번 실행] 이 계속 "먼저 저장하세요" 만 띄운다 (2026-09-16 실사용 신고)
   paintAll();
   savedJson = JSON.stringify(collect());
+  if (flowOn && window.PTFlow) window.PTFlow.reset();      // 다른 루틴 — 설정 창 닫고 전체가 보이게
 }
 let savedJson = '';
 const dirty = () => selId && JSON.stringify(collect()) !== savedJson;
@@ -197,10 +198,34 @@ $('fTopic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preven
 let flowOn = false;
 try { flowOn = localStorage.getItem('pt_routines_flow') === '1'; } catch (e) {}
 let stepSel = 0;                                   // 흐름 보기에서 고른 단계 — 그 단계 설정만 판 밑에 그린다
-function setView(on) { flowOn = on; try { localStorage.setItem('pt_routines_flow', on ? '1' : '0'); } catch (e) {} if (draft) paintSteps(); }
+/* 🔗 흐름 모드는 창 전체가 바뀐다 — 왼쪽 목록 · 가운데 판 · 오른쪽 작업 상황, 어두운 바탕.
+   진행 중 창과 회차 기록은 오른쪽 칸으로 옮겨 갔다가, 클래식으로 돌아오면 제자리로 온다(이벤트는 그대로 붙어 있다). */
+const homes = new Map();
+function moveTo(el, parent) {
+  if (!el || !parent) return;
+  if (!homes.has(el)) { const ph = document.createComment('제자리'); el.parentNode.insertBefore(ph, el); homes.set(el, ph); }
+  parent.appendChild(el);
+}
+function moveHome(el) { const ph = homes.get(el); if (el && ph && ph.parentNode) ph.parentNode.insertBefore(el, ph.nextSibling); }
+function paintFsSetBtn() { $('btnFsSet').textContent = $('form').classList.contains('show-settings') ? '🔗 판으로' : '⚙ 루틴 설정'; }
+function applyLayout() {
+  document.body.classList.toggle('flow-mode', flowOn);
+  $('fsRight').hidden = !flowOn;
+  const runsSec = $('runs').closest('.sec');
+  if (flowOn) { moveTo($('live'), $('fsLiveSlot')); moveTo(runsSec, $('fsRunsSlot')); }
+  else { moveHome($('live')); moveHome(runsSec); $('form').classList.remove('show-settings'); }
+  paintFsSetBtn();
+}
+function setView(on) {
+  flowOn = on;
+  try { localStorage.setItem('pt_routines_flow', on ? '1' : '0'); } catch (e) {}
+  applyLayout();
+  if (draft) { paintSteps(); if (on && window.PTFlow) window.PTFlow.reset(); }
+}
 window.PTR = {                                     // routines-flow.js 가 쓰는 창구
   get draft() { return draft; },
   get sel() { return stepSel; },
+  get run() { return selId ? data.runs.filter(x => x.routineId === selId).slice(-1)[0] || null : null; },
   select(i) { stepSel = i; paintSteps(); },
   apply(fn) { const msg = fn(draft); if (msg === false) return; if (typeof msg === 'string') { say(msg, true); return; } fixBackRefs(); paintSteps(); },
   touch() { paintSteps(); },
@@ -212,8 +237,9 @@ function paintSteps() {
   $('steps').hidden = flowOn; $('btnAddStep').hidden = flowOn; $('flow').hidden = !flowOn;
   stepSel = Math.max(0, Math.min(stepSel, draft.steps.length - 1));
   if (flowOn) {
-    if (window.PTFlow) { window.PTFlow.install(); window.PTFlow.draw(); }
     paintStepCards($('flowOpt'), stepSel);
+    if (window.PTFlow) { window.PTFlow.install(); window.PTFlow.draw(); }
+    paintFsNow();
   } else paintStepCards($('steps'), -1);
 }
 function paintStepCards(ol, only) {
@@ -281,6 +307,39 @@ function fixBackRefs() { draft.steps.forEach((s, i) => { if (s.backTo >= i) s.ba
 $('btnAddStep').onclick = () => { draft.steps.push(blankStep()); stepSel = draft.steps.length - 1; paintSteps(); const tas = $('steps').querySelectorAll('textarea'); if (tas.length) tas[tas.length - 1].focus(); };
 $('btnClassic').onclick = () => setView(false);
 $('btnFlow').onclick = () => setView(true);
+$('btnFsSet').onclick = () => { const on = $('form').classList.toggle('show-settings'); paintFsSetBtn(); if (!on && window.PTFlow) window.PTFlow.draw(); };
+/* 오른쪽 「지금 회차」 — 고른 루틴의 마지막 회차를 단계별로 세로로 보여 준다.
+   막대 = 단계당 최대 시간 중 얼마나 썼나. 도는 단계는 동그라미가 돈다(반응이 없으면 느리게). */
+function paintFsNow() {
+  const box = $('fsNow'); if (!box) return;
+  if (!draft || !flowOn) { box.innerHTML = ''; return; }
+  const run = window.PTR.run, nowT = data.now || Date.now();
+  const limit = (Number(draft.stepTimeoutMin) || 40) * 60000;
+  const st = run ? (STATUS[run.status] || ['', run.status])[1] : '';
+  const head = run ? (run.n + '회차 · ' + st + (run.topic ? ' · ' + run.topic : '')) : '아직 돈 회차가 없습니다';
+  const rows = draft.steps.map((s, i) => {
+    const tries = run ? run.attempts.filter(a => a.step === i) : [];
+    const a = tries[tries.length - 1];
+    let cls = 'wait', ic = String(i + 1), txt = '대기', pct = 0;
+    if (a) {
+      const dur = Math.max(0, (a.endedAt || nowT) - (a.startedAt || a.createdAt || nowT));
+      pct = Math.min(100, Math.round(dur / limit * 100));
+      if (a.status === 'done') { cls = 'done'; ic = '✓'; txt = mins(dur); }
+      else if (a.status === 'failed') { cls = 'bad'; ic = '!'; txt = '실패 · ' + mins(dur); }
+      else if (a.status === 'stuck') { cls = 'stuck'; ic = '?'; txt = '사람 확인 · ' + mins(dur); }
+      else if (a.status === 'back') { cls = 'back'; ic = '↺'; txt = '되돌림 · ' + mins(dur); }
+      else if (run.status === 'running' && !a.endedAt) {
+        const working = !!(run.live && run.live.working);
+        cls = 'run' + (working ? ' working' : ''); ic = '';
+        txt = ({ starting: '세션 준비', sending: '보내는 중', limit: '한도 대기' }[a.status] || (working ? '작업 중' : '반응 없음')) + ' · ' + mins(dur);
+      } else { cls = 'stop'; ic = '■'; txt = a.status + ' · ' + mins(dur); }
+    }
+    return '<li class="' + cls + '"><span class="ic">' + esc(ic) + '</span><div class="bd"><div class="tt"><b>' + esc(s.name || (i + 1) + '단계') + '</b><span>' + esc(txt) + '</span></div>'
+      + '<div class="gauge" title="단계당 최대 ' + esc(draft.stepTimeoutMin) + '분 중"><i style="width:' + pct + '%"></i></div></div></li>';
+  }).join('');
+  box.innerHTML = '<div class="fsn-head">' + esc(head) + '</div><ol class="fsn">' + rows + '</ol>';
+}
+applyLayout();
 $('vars').addEventListener('click', ev => {
   const b = ev.target.closest('.var'); if (!b) return;
   const ta = lastPromptTA && lastPromptTA.isConnected ? lastPromptTA : document.querySelector('#flowOpt textarea, #steps textarea');
@@ -328,6 +387,7 @@ $('btnDel').onclick = async () => {
 
 // ---------- 회차 기록 ----------
 function paintRuns() {
+  paintFsNow();
   const box = $('runs'); box.innerHTML = '';
   const runs = data.runs.filter(x => x.routineId === selId).slice().reverse();
   if (!runs.length) { box.innerHTML = '<p class="noruns">아직 돈 회차가 없습니다.</p>'; return; }
@@ -477,7 +537,7 @@ async function refresh(first) {
     if (first) {
       profiles = await api('/api/browser-profiles').catch(() => []);
       if (data.routines.length) select(data.routines[0].id); else paintAll();
-    } else if (draft && selId !== 'new') { paintList(); paintLive(); const r = data.routines.find(x => x.id === selId); if (!r) { selId = null; draft = null; paintAll(); } else { paintRuns(); paintEditorStatusOnly(r); } }
+    } else if (draft && selId !== 'new') { paintList(); paintLive(); const r = data.routines.find(x => x.id === selId); if (!r) { selId = null; draft = null; paintAll(); } else { paintRuns(); paintEditorStatusOnly(r); if (flowOn && window.PTFlow) window.PTFlow.draw(); } }
     else { paintList(); paintLive(); }
   } catch (e) { if (first) say('루틴 서버에 연결할 수 없습니다: ' + e.message, true); }
 }
