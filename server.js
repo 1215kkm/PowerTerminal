@@ -2132,6 +2132,56 @@ app.delete('/api/browser-profiles/:slug', async (req, res) => {
   console.log('  🗑 계정 창 「' + e.name + '」 지움' + (purged ? ' (로그인까지)' : ' (로그인은 남김)'));
   res.json({ ok: true, name: e.name, purged });
 });
+/* 🧠 세션 대화가 얼마나 커졌나 — 클로드가 남기는 대화 기록(~/.claude/projects/<경로>/<세션>.jsonl)의
+   마지막 응답에 실린 토큰 수를 읽는다. 화면 글자를 훑지 않는 이유: 「529 Overloaded」 같은 문구는
+   스크롤로 지나가기만 해도 잡혀 멀쩡한 세션에 경고가 떴다(2026-09-21 사고). 숫자는 거짓말하지 않는다.
+   대화가 90만 토큰을 넘으면 서버가 과부하일 때 가장 먼저 거절당한다(실측: 96만에서 529 반복). */
+const CTX_WARN = 700000;      // 이 이상이면 알려 준다
+const ctxCache = new Map();   // 세션폴더 → { at, tokens }
+function claudeProjectDir(p) {
+  return path.join(os.homedir(), '.claude', 'projects', String(p || '').replace(/[^A-Za-z0-9]/g, '-'));
+}
+function sessionContextTokens(sessPath) {
+  const dir = claudeProjectDir(sessPath);
+  const c = ctxCache.get(dir);
+  if (c && Date.now() - c.at < 60000) return c.tokens;   // 1분 캐시 — 기록 파일이 수백 MB 일 수 있다
+  let tokens = 0;
+  try {
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'))
+      .map(f => { const p = path.join(dir, f); return { p, t: fs.statSync(p).mtimeMs }; })
+      .sort((a, b) => b.t - a.t);
+    if (files[0]) {
+      const size = fs.statSync(files[0].p).size;
+      const start = Math.max(0, size - 400 * 1024);       // 끝부분만 읽는다
+      const fd = fs.openSync(files[0].p, 'r');
+      const buf = Buffer.alloc(size - start);
+      fs.readSync(fd, buf, 0, buf.length, start);
+      fs.closeSync(fd);
+      const lines = buf.toString('utf8').split('\n');
+      for (let i = lines.length - 1; i >= 0 && !tokens; i--) {
+        let j; try { j = JSON.parse(lines[i]); } catch (e) { continue; }
+        const u = j && j.message && j.message.usage;
+        if (!u) continue;
+        const t = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+        if (t > 0) tokens = t;
+      }
+    }
+  } catch (e) {}
+  ctxCache.set(dir, { at: Date.now(), tokens });
+  return tokens;
+}
+/* 커진 대화 알림 — 지금 일하고 있는 세션엔 띄우지 않는다(일하는 중이면 막힌 게 아니다). */
+app.get('/api/context-size', (req, res) => {
+  const out = {};
+  for (const s of sessions) {
+    if ((s.agent || 'claude') !== 'claude') continue;
+    const p = ptys.get(s.id);
+    const working = !!(p && p.lastMarker && Date.now() - p.lastMarker < 6000);
+    const tokens = sessionContextTokens(s.path);
+    if (tokens >= CTX_WARN) out[s.id] = { tokens, working, warnAt: CTX_WARN };
+  }
+  res.json({ warnAt: CTX_WARN, sessions: out });
+});
 // 📝 브라우저 규칙 읽기/저장 (🌐 → 규칙 편집)
 app.get('/api/browser-rules', (req, res) => {
   let text = BROWSER_RULES_DEFAULT;
