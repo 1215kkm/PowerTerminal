@@ -657,7 +657,7 @@
                        position: sticky; top: -4px; background: #fefefe; }
   .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer;
                              font-size: var(--tfs, 13px); }   /* 세션 글자크기 드롭다운을 따라감 */
-  .reqPanel .memo-row.mreq { position: relative; padding-right: 26px; }   /* ↻ 재요청 버튼 자리 */
+  .reqPanel .memo-row.mreq { position: relative; padding-right: 50px; }   /* ↻ 재요청 · ✕ 삭제 버튼 자리 */
   .reqPanel .memo-row.mreq:hover { background: #f3f4f6; }
   /* ↻ 재요청 — 이 요청을 터미널로 다시 보냄. 평소 숨김, 행에 마우스 올리면(또는 터치기기 항상) 표시 */
   .reqPanel .mreq .rp-resend { position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; padding: 0;
@@ -666,6 +666,13 @@
   .reqPanel .mreq:hover .rp-resend { display: block; }
   .reqPanel .mreq .rp-resend:hover { background: #c7d2fe; }
   @media (hover: none) { .reqPanel .mreq .rp-resend { display: block; } }
+  /* ✕ 이 요청을 기록에서 지움 — 중지한 요청이 목록에 남아 다시 눌리는 걸 막는다 */
+  .reqPanel .mreq .rp-del { position: absolute; right: 28px; top: 4px; width: 22px; height: 22px; padding: 0;
+                            border: 1px solid #fecaca; border-radius: 6px; background: #fef2f2; color: #dc2626;
+                            font-size: 12px; line-height: 1; cursor: pointer; display: none; }
+  .reqPanel .mreq:hover .rp-del { display: block; }
+  .reqPanel .mreq .rp-del:hover { background: #fecaca; }
+  @media (hover: none) { .reqPanel .mreq .rp-del { display: block; } }
   /* 패널은 터미널을 줄이지 않고 위에 겹쳐서 뜸(오버레이) — 터미널 폭이 안 바뀌니 글자폭 재계산 문제 없음 */
   .reqPanel { box-shadow: -5px 0 16px rgba(0,0,0,.4); }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
@@ -1874,7 +1881,7 @@ const I18N = {
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — Opus',
     memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
-    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again',
+    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
     memoEdit:'Edit', memoDelBtn:'Del', memoDelConfirm:'Delete this memo?', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
@@ -1972,7 +1979,7 @@ const I18N = {
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
     memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
-    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기',
+    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
@@ -2473,7 +2480,7 @@ const I18N_MORE = {
     mDefaultLong: '自動 — Opus',
     memoDoneCol: '完了', memoReqCol: '送ったリクエスト', memoEmpty: 'まだメモがありません — 下に書いてください。',
     memoDelT: '削除', memoSend: '送信', memoSendTip: 'このメモをセッションのターミナルへ送る — 作業が終わると完了に移ります',
-    reqResendT: 'このリクエストをもう一度ターミナルへ送る',
+    reqResendT: 'このリクエストをもう一度ターミナルへ送る', reqDelT: 'このリクエストを履歴から削除', reqDelAsk: 'このリクエストを履歴から削除しますか?', reqCleared: '中断したリクエスト文を入力欄から消しました', reqDelOld: 'PowerTerminal を再起動すると削除できます',
     memoEdit: '編集', memoDelBtn: '削除', memoDelConfirm: 'このメモを削除しますか?',
     memoEditSaveT: '保存 (Enter)', memoEditCancelT: '編集をやめる (Esc)',
     memoExport: 'Excel', memoExportAllT: 'すべてのセッションのメモとリクエスト履歴を1つのExcelでダウンロード',
@@ -2723,7 +2730,7 @@ const I18N_MORE = {
     mDefaultLong: '自动 — Opus',
     memoDoneCol: '已完成', memoReqCol: '你发过的请求', memoEmpty: '还没有记事 — 在下面写吧。',
     memoDelT: '删除', memoSend: '发送', memoSendTip: '把这条记事发到会话终端 — 工作完成后会移到「已完成」',
-    reqResendT: '把这条请求再发一次到终端',
+    reqResendT: '把这条请求再发一次到终端', reqDelT: '从记录中删除这条请求', reqDelAsk: '要从记录中删除这条请求吗?', reqCleared: '已从输入框清除被中断的请求内容', reqDelOld: '重启 PowerTerminal 后即可删除记录',
     memoEdit: '编辑', memoDelBtn: '删除', memoDelConfirm: '删除这条记事?',
     memoEditSaveT: '保存 (Enter)', memoEditCancelT: '取消编辑 (Esc)',
     memoExport: 'Excel', memoExportAllT: '把所有会话的记事和请求记录下载为一个 Excel',
@@ -2975,7 +2982,7 @@ const I18N_MORE = {
     memoDoneCol: 'Completado', memoReqCol: 'Peticiones que enviaste', memoEmpty: 'Aún no hay notas — escribe abajo.',
     memoDelT: 'Eliminar', memoSend: 'Enviar',
     memoSendTip: 'Envía esta nota a la terminal de la sesión — pasa a Completado cuando el trabajo termine',
-    reqResendT: 'Enviar esta petición otra vez a la terminal',
+    reqResendT: 'Enviar esta petición otra vez a la terminal', reqDelT: 'Borrar esta petición del historial', reqDelAsk: '¿Borrar esta petición del historial?', reqCleared: 'Se borró del cuadro de entrada la petición detenida', reqDelOld: 'Reinicia PowerTerminal para borrar del historial',
     memoEdit: 'Editar', memoDelBtn: 'Borrar', memoDelConfirm: '¿Eliminar esta nota?',
     memoEditSaveT: 'Guardar (Enter)', memoEditCancelT: 'Cancelar la edición (Esc)',
     memoExport: 'Excel', memoExportAllT: 'Descargar las notas y el historial de peticiones de TODAS las sesiones en un Excel',
@@ -3231,7 +3238,7 @@ const I18N_MORE = {
     memoDoneCol: 'Erledigt', memoReqCol: 'Deine gesendeten Anfragen', memoEmpty: 'Noch keine Notizen — schreib unten.',
     memoDelT: 'Löschen', memoSend: 'Senden',
     memoSendTip: 'Diese Notiz an das Sitzungsterminal schicken — sie wandert zu Erledigt, wenn die Arbeit fertig ist',
-    reqResendT: 'Diese Anfrage nochmal ans Terminal schicken',
+    reqResendT: 'Diese Anfrage nochmal ans Terminal schicken', reqDelT: 'Diese Anfrage aus der Liste löschen', reqDelAsk: 'Diese Anfrage aus der Liste löschen?', reqCleared: 'Die gestoppte Anfrage wurde aus dem Eingabefeld entfernt', reqDelOld: 'PowerTerminal neu starten, um Einträge zu löschen',
     memoEdit: 'Bearbeiten', memoDelBtn: 'Löschen', memoDelConfirm: 'Diese Notiz löschen?',
     memoEditSaveT: 'Speichern (Enter)', memoEditCancelT: 'Bearbeiten abbrechen (Esc)',
     memoExport: 'Excel', memoExportAllT: 'Notizen und Anfrageverlauf ALLER Sitzungen als eine Excel-Datei herunterladen',
@@ -3481,7 +3488,7 @@ const I18N_MORE = {
     memoDoneCol: 'Terminé', memoReqCol: 'Demandes envoyées', memoEmpty: 'Pas encore de note — écris en dessous.',
     memoDelT: 'Supprimer', memoSend: 'Envoyer',
     memoSendTip: 'Envoyer cette note au terminal de la session — elle passe dans Terminé quand le travail est fini',
-    reqResendT: 'Renvoyer cette demande au terminal',
+    reqResendT: 'Renvoyer cette demande au terminal', reqDelT: 'Supprimer cette demande de l’historique', reqDelAsk: 'Supprimer cette demande de l’historique ?', reqCleared: 'La demande arrêtée a été effacée du champ de saisie', reqDelOld: 'Redémarre PowerTerminal pour supprimer l’historique',
     memoEdit: 'Modifier', memoDelBtn: 'Suppr.', memoDelConfirm: 'Supprimer cette note ?',
     memoEditSaveT: 'Enregistrer (Entrée)', memoEditCancelT: 'Annuler la modification (Échap)',
     memoExport: 'Excel', memoExportAllT: 'Télécharger les notes et l’historique de TOUTES les sessions dans un seul Excel',
@@ -3733,7 +3740,7 @@ const I18N_MORE = {
     memoDoneCol: 'Concluído', memoReqCol: 'Pedidos que você enviou', memoEmpty: 'Ainda sem notas — escreva abaixo.',
     memoDelT: 'Excluir', memoSend: 'Enviar',
     memoSendTip: 'Manda esta nota para o terminal da sessão — vai para Concluído quando o trabalho terminar',
-    reqResendT: 'Mandar este pedido de novo para o terminal',
+    reqResendT: 'Mandar este pedido de novo para o terminal', reqDelT: 'Apagar este pedido do histórico', reqDelAsk: 'Apagar este pedido do histórico?', reqCleared: 'O pedido parado foi apagado do campo de entrada', reqDelOld: 'Reinicie o PowerTerminal para apagar do histórico',
     memoEdit: 'Editar', memoDelBtn: 'Excluir', memoDelConfirm: 'Excluir esta nota?',
     memoEditSaveT: 'Salvar (Enter)', memoEditCancelT: 'Cancelar a edição (Esc)',
     memoExport: 'Excel', memoExportAllT: 'Baixar as notas e o histórico de pedidos de TODAS as sessões em um Excel só',
@@ -3984,7 +3991,7 @@ const I18N_MORE = {
     memoDoneCol: 'Завершено', memoReqCol: 'Отправленные запросы', memoEmpty: 'Заметок пока нет — напишите ниже.',
     memoDelT: 'Удалить', memoSend: 'Отправить',
     memoSendTip: 'Отправить эту заметку в терминал сессии — когда работа закончится, она уйдёт в «Завершено»',
-    reqResendT: 'Отправить этот запрос в терминал ещё раз',
+    reqResendT: 'Отправить этот запрос в терминал ещё раз', reqDelT: 'Удалить этот запрос из истории', reqDelAsk: 'Удалить этот запрос из истории?', reqCleared: 'Остановленный запрос убран из поля ввода', reqDelOld: 'Перезапустите PowerTerminal, чтобы удалять записи',
     memoEdit: 'Изменить', memoDelBtn: 'Удал.', memoDelConfirm: 'Удалить эту заметку?',
     memoEditSaveT: 'Сохранить (Enter)', memoEditCancelT: 'Отменить правку (Esc)',
     memoExport: 'Excel', memoExportAllT: 'Скачать заметки и историю запросов ВСЕХ сессий одним файлом Excel',
@@ -4235,7 +4242,7 @@ const I18N_MORE = {
     memoDoneCol: 'पूरा हुआ', memoReqCol: 'आपके भेजे अनुरोध', memoEmpty: 'अभी कोई नोट नहीं — नीचे लिखें।',
     memoDelT: 'हटाएँ', memoSend: 'भेजें',
     memoSendTip: 'यह नोट सेशन के टर्मिनल पर भेजें — काम पूरा होते ही यह ‘पूरा हुआ’ में चला जाएगा',
-    reqResendT: 'यह अनुरोध टर्मिनल पर दोबारा भेजें',
+    reqResendT: 'यह अनुरोध टर्मिनल पर दोबारा भेजें', reqDelT: 'इस अनुरोध को सूची से हटाएँ', reqDelAsk: 'इस अनुरोध को सूची से हटाएँ?', reqCleared: 'रोका गया अनुरोध इनपुट बॉक्स से हटा दिया', reqDelOld: 'सूची से हटाने के लिए PowerTerminal दोबारा चालू करें',
     memoEdit: 'बदलें', memoDelBtn: 'हटाएँ', memoDelConfirm: 'यह नोट हटाएँ?',
     memoEditSaveT: 'सेव (Enter)', memoEditCancelT: 'बदलाव रद्द करें (Esc)',
     memoExport: 'Excel', memoExportAllT: 'सभी सेशनों के नोट और अनुरोध इतिहास एक ही Excel में डाउनलोड करें',
@@ -5670,6 +5677,7 @@ function buildPane(sess, idx) {
     autoGrow();
   }
   let lastSendAt = 0;
+  const nap = ms => new Promise(r => setTimeout(r, ms));
   const send = () => {
     let val = qInput.value;
     if (!val.trim()) return;
@@ -5712,7 +5720,10 @@ function buildPane(sess, idx) {
     /* 🗂 백그라운드 작업 목록 화면이면 ESC 로 대화로 돌아온 뒤 보낸다.
        안 그러면 이 글이 "새 작업 설명" 칸에 들어가 대화에는 아무것도 안 간다.
        (평소에는 절대 ESC 를 보내지 않는다 — 대화 중 ESC 는 하던 작업을 끊는다) */
-    if (bgTaskScreen()) { wsSend('\x1b'); setTimeout(deliver, 260); } else deliver();
+    const go = () => { if (bgTaskScreen()) { wsSend('\x1b'); setTimeout(deliver, 260); } else deliver(); };
+    // ⛔ 방금 중지를 눌렀으면 되살아난 요청글을 다 지운 뒤에 보낸다 — 안 그러면 그 글 뒤에 붙어 한 요청이 된다
+    const guard = () => ensureComposerClean().then(() => { el._stoppedText = null; go(); }, go);
+    if (el._cancelClear) Promise.race([el._cancelClear, nap(8000)]).then(guard, guard); else guard();
     qInput.value = ''; attachMap.clear(); attachN = 0; autoGrow();
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 임시저장 글 삭제
     const qt = el.querySelector('.qThumbs'); if (qt) qt.innerHTML = '';   // 전송 후 썸네일 스트립 비우기
@@ -5952,16 +5963,89 @@ function buildPane(sess, idx) {
     api('POST', '/api/memos/req', { path: sess.path, text: t, sid: sess.id, flow: flow || null })
       .then(() => { reqsCache = null; refreshReq(); });
     logSent(el, t);
-    wsSend(t.replace(/\r?\n/g, '\x1b\r'));        // 큐 경유 — 재접속 중이어도 안 사라짐
-    setTimeout(() => wsSend('\r'), 80);
+    // 큐 경유 — 재접속 중이어도 안 사라짐. 방금 중지를 눌렀으면 되살아난 요청글을 지운 뒤에 보낸다.
+    const go = () => { wsSend(t.replace(/\r?\n/g, '\x1b\r')); setTimeout(() => wsSend('\r'), 80); };
+    const guard = () => ensureComposerClean().then(() => { el._stoppedText = null; go(); }, go);
+    if (el._cancelClear) Promise.race([el._cancelClear, nap(8000)]).then(guard, guard); else guard();
     return true;
   };
 
+  /* ⌨ 지금 입력칸에 들어 있는 글 — 아래 상태줄(auto mode on …)을 기준점으로 잡고 그 바로 위 '>' 상자를 읽는다.
+     스크롤백에 남은 옛 요청 상자를 잘못 읽지 않으려고 화면 맨 아래쪽만 본다. */
+  const composerText = () => {
+    try {
+      const buf = term.buffer.active, end = buf.baseY + term.rows;
+      const line = i => { const l = buf.getLine(i); return l ? l.translateToString(true) : ''; };
+      let foot = -1;
+      /* 클로드 화면은 터미널 맨 아래가 아니라 「글이 끝난 자리」에 그려진다 — 아래쪽 빈 줄이 있을 수 있어
+         한 화면(40줄)만큼 위로 훑어 상태줄을 찾는다. 아래에서부터 보므로 제일 최근 것이 잡힌다. */
+      for (let i = end - 1; i >= Math.max(0, end - 40); i--)
+        if (/shift\+tab to cycle|auto mode on|bypass permissions on|accept edits on|plan mode on/i.test(line(i))) { foot = i; break; }
+      if (foot < 0) return '';
+      let start = -1;
+      for (let i = foot - 1; i >= Math.max(0, foot - 14); i--) {
+        const s = line(i);
+        if (/^\s*[>›❯»]/.test(s)) { start = i; break; }
+        if (/^\s*[╭┌]/.test(s)) break;
+      }
+      if (start < 0) return '';
+      const parts = [];
+      for (let i = start; i < foot; i++) {
+        const s = line(i).replace(/^\s*[>›❯»]\s?/, '').trim();
+        if (/^[─━_-]{5,}$/.test(s)) break;
+        if (s) parts.push(s);
+      }
+      return parts.join(' ').trim();
+    } catch (e) { return ''; }
+  };
+  /* 🧹 중지한 요청글을 입력칸에서 지운다.
+     ESC 를 받은 클로드는 '방금 중단된 그 요청글'을 입력칸에 도로 넣어 준다(Claude Code v2.1.278 실측 2026-09-22).
+     그걸 모르고 다음 요청을 보내면 뒤에 그대로 붙어 두 요청이 한 덩어리로 날아간다
+     (실제 사고: 중지해 둔 요청이 세 시간 뒤 새 요청 앞에 붙어 같이 전달됐다).
+     사람이 작업 중에 직접 쳐 둔 글은 건드리지 않는다 — 중단된 요청글과 같은 글일 때만 지운다. */
+  const clearStopped = async text => {
+    const want = String(text || '').replace(/\s+/g, '');
+    if (want.length < 4 || ws.readyState !== 1) return false;
+    let cleared = false, prev = null;
+    // 되살아나는 데 몇 초 걸린다 (긴 답을 쏟아내던 중이면 더 늦다) — 넉넉히 기다린다
+    for (let round = 0; round < 20; round++) {
+      await nap(round ? 400 : 700);
+      const cur = composerText(), now = cur.replace(/\s+/g, '');
+      if (!now) { if (cleared) break; continue; }        // 아직 되살아나기 전 — 조금 더 기다린다
+      const head = now.slice(0, 24);
+      if (!(want.startsWith(head) || now.startsWith(want.slice(0, 24)))) break;   // 사람이 쳐 둔 다른 글 → 그대로 둔다
+      if (now === prev) break;                           // 지워지지 않는다 = 글이 아니라 안내문
+      prev = now;
+      const n = Math.min(cur.length + 4, 400);
+      for (let i = 0; i < n; i++) ws.send(JSON.stringify({ type: 'in', data: '\x7f' }));
+      cleared = true;
+    }
+    if (cleared) { el._stoppedText = null; flashToast(T.reqCleared || '중지한 요청글을 입력칸에서 지웠어요'); }
+    return cleared;
+  };
+  /* 보내기 직전 마지막 확인 — 중지한 뒤 한참 있다가 보내도(되살아난 글이 그때 와 있어도) 안 붙게.
+     시간만 믿고 기다리면 늦게 되살아나는 경우를 놓친다. 실제로 그렇게 두 요청이 한 덩어리로 갔다. */
+  const ensureComposerClean = async () => {
+    const want = String(el._stoppedText || '').replace(/\s+/g, '');
+    if (want.length < 4) return;
+    const cur = composerText().replace(/\s+/g, '');
+    if (!cur) return;
+    if (want.startsWith(cur.slice(0, 24)) || cur.startsWith(want.slice(0, 24))) await clearStopped(el._stoppedText);
+  };
   // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송 = 터미널에서 ESC 누르는 것과 동일). 요청 내역엔 '중단' 스탬프.
   const doCancel = ev => {
     ev.stopPropagation();
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: '\x1b' }));
-    api('POST', '/api/memos/reqst', { path: sess.path, st: 'stop' }).then(() => refreshReq());
+    el._cancelClear = api('POST', '/api/memos/reqst', { path: sess.path, st: 'stop' })
+      .then(() => { reqsCache = null; refreshReq(); return api('GET', '/api/memos?path=' + encodeURIComponent(sess.path)); })
+      .then(m => {   // 방금 '중단' 도장이 찍힌 요청 = 입력칸에 되살아날 바로 그 글
+        const t = Date.now();
+        const hit = ((m && m.reqs) || []).find(r => r.st === 'stop' && r.endTs && t - r.endTs < 15000);
+        el._stoppedText = (hit && hit.text) || null;   // 보내기 직전 마지막 확인에도 쓴다
+        return clearStopped(hit && hit.text);
+      })
+      .catch(() => {})
+      .then(() => { el._cancelClear = null; });
     memoPending.delete(sess.id);   // 중단했으면 메모 자동완료 예약도 해제
     term.focus();
   };
@@ -5998,6 +6082,18 @@ function buildPane(sess, idx) {
       resend.className = 'rp-resend'; resend.textContent = '↻'; resend.title = T.reqResendT || 'Send this request again';
       resend.onclick = ev => { ev.stopPropagation(); if (!sendText(rq.text)) flashToast(T.memoNoSess || ''); };
       r.appendChild(resend);
+      // ✕ 삭제 — 중지한 요청이 목록에 남아 나중에 다시 눌리는 걸 막는다 (한 번 확인)
+      const del = document.createElement('button');
+      del.className = 'rp-del'; del.textContent = '✕'; del.title = T.reqDelT || 'Delete this request';
+      del.onclick = async ev => {
+        ev.stopPropagation();
+        if (!confirm(T.reqDelAsk || '이 요청을 기록에서 지울까요?')) return;
+        let res = null;
+        try { res = await api('POST', '/api/memos/reqdel', { path: sess.path, id: rq.id }); } catch (e) {}
+        if (!res || !res.ok) { flashToast(T.reqDelOld || 'PT를 다시 켜면 지울 수 있어요'); return; }
+        reqsCache = null; refreshReq();
+      };
+      r.appendChild(del);
       list.appendChild(r);
     });
   };

@@ -3408,6 +3408,15 @@ app.post('/api/memos/reqst', (req, res) => {          // 요청 상태 스탬프
   stampReqs(req.body.path, st);
   res.json({ ok: true });
 });
+app.post('/api/memos/reqdel', (req, res) => {         // 요청 내역에서 한 줄 지우기 (중지한 요청이 남아 다시 눌리는 것 방지)
+  const m = memoOf(req.body && req.body.path);
+  const id = String((req.body && req.body.id) || '');
+  const before = m.reqs.length;
+  m.reqs = m.reqs.filter(r => r.id !== id);
+  const gone = m.reqs.length !== before;
+  if (gone) saveMemos();
+  res.json({ ok: gone });
+});
 // 📊 메모·요청내역 엑셀 내보내기 — 서식 있는 HTML 표를 .xls로 (헤더 색·내용 폭 60자·자동 줄바꿈).
 // ?path=폴더: 그 세션만 · ?all=1: 전체 세션. 열: 구분·작성일시·의도·내용·상태·완료일시·세션 폴더
 app.get('/api/memos/export', (req, res) => {
