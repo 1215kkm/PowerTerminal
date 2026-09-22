@@ -134,6 +134,14 @@
   .pane-head .folder { font-size: 11px; color: var(--muted); overflow: hidden;
                        text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
   .pane-head .folder:hover { color: var(--sky); text-decoration: underline; }
+  /* 🧠 advisor 표시 — 제목 아랫줄. 무슨 모델이 검토자인지 늘 보이게 */
+  .pane-head .advWrap { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--muted); }
+  .pane-head .advLbl { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+  .pane-head .advSel { background: #1f2937; border: 1px solid var(--line); color: var(--fg);
+                       font-size: 10.5px; border-radius: 4px; padding: 2px 4px; cursor: pointer; }
+  .pane-head .advSel.off { color: var(--muted); }
+  .pane-head .advSel option { background: #1f2937; color: #fff; }
+  html.light .pane-head .advSel { background: #fff; color: #111; }
   .pane-head .modelSel { background: #1f2937; border: 1px solid var(--line); color: var(--fg);
                          border-radius: 6px; padding: 3px 6px; font-size: 12px; font-family: inherit; }
   /* 🌐 브라우저 조작 — 꺼져 있으면 흐리게, 켜지면 청록 */
@@ -1951,6 +1959,7 @@ const I18N = {
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
+    advT: 'advisor — before Claude answers, a stronger model reviews the whole conversation. The model shown here is that reviewer. Changing it applies to newly opened sessions (this conversation switches after /clear or /compact).', advOff: 'off', advApply: 'applies to newly opened sessions', advWeak: 'That reviewer is weaker than this session model, so Claude will not turn it on', advFail: 'Couldn\'t save the setting',
     cancelLast:'Stop\ncurrent\nrequest', toBottomT:'Jump to the latest output', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
     bnNewVer:'🔄 New version v{v} is out — click to restart & update',
@@ -2049,6 +2058,7 @@ const I18N = {
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
+    advT: 'advisor — 클로드가 답하기 전에 더 강한 모델이 대화 전체를 검토해 줍니다. 여기 적힌 모델이 그 검토자예요. 바꾸면 새로 여는 세션부터 적용됩니다 (지금 대화는 /clear·/compact 뒤부터).', advOff: '안 씀', advApply: '새로 여는 세션부터 적용돼요', advWeak: '지금 세션 모델보다 약한 검토자라 클로드가 켜지 않습니다', advFail: '설정을 저장하지 못했습니다',
     cancelLast:'진행\n요청\n중지', toBottomT:'최신 출력(맨아래)으로 이동', reqHistBtn:'요청내역', reqHistT:'이 터미널 옆에 요청내역 패널 표시/숨기기 — 항목을 클릭하면 그 위치로 이동',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
     bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 업데이트 재실행하기',
@@ -2593,6 +2603,7 @@ const I18N_MORE = {
     memoJumpT: 'ターミナルのこのリクエストへ移動', memoJumpNoSess: 'このフォルダのセッションが開いていません',
     memoJumpMiss: 'ターミナルの履歴に見つかりません (流れて消えたか、セッションが再起動した可能性)',
     cancelReqT: '進行中のリクエストだけ止めます (ESC送信) — 終わった作業は取り消しません',
+    advT: 'advisor — Claude が答える前に、より強いモデルが会話全体を見てくれます。ここに出ているのがその検討役です。変えると新しく開くセッションから反映されます (今の会話は /clear・/compact の後から)。', advOff: '使わない', advApply: '新しく開くセッションから反映されます', advWeak: '今のセッションのモデルより弱い検討役なので、Claude は有効にしません', advFail: '設定を保存できませんでした',
     cancelLast: '進行中の\nリクエストを\n停止', toBottomT: '最新の出力へ移動',
     reqHistBtn: 'リクエスト履歴', reqHistT: 'このターミナル横のリクエスト履歴を表示/非表示 — 項目クリックでその位置へ',
     stRun: '進行中', stDone: '完了', stStop: '停止', stOff: '終了で中断',
@@ -2843,6 +2854,7 @@ const I18N_MORE = {
     memoJumpT: '跳到终端里的这条请求', memoJumpNoSess: '这个文件夹的会话没有打开',
     memoJumpMiss: '在终端回滚记录里找不到 (可能已滚出，或会话重启过)',
     cancelReqT: '只停止正在进行的请求 (发送 ESC) — 不会撤销已完成的工作',
+    advT: 'advisor — Claude 回答前，由更强的模型通读整个对话做复核。这里显示的就是那个复核模型。修改后对新开的会话生效（当前会话在 /clear 或 /compact 之后）。', advOff: '不使用', advApply: '对新开的会话生效', advWeak: '该复核模型比本会话模型弱，Claude 不会启用', advFail: '设置没能保存',
     cancelLast: '停止\n当前\n请求', toBottomT: '跳到最新输出',
     reqHistBtn: '请求记录', reqHistT: '显示/隐藏这个终端旁的请求记录面板 — 点一条就跳过去',
     stRun: '进行中', stDone: '完成', stStop: '已停止', stOff: '因关闭而中断',
@@ -3100,6 +3112,7 @@ const I18N_MORE = {
     memoJumpT: 'Saltar a esta petición en la terminal', memoJumpNoSess: 'La sesión de esta carpeta no está abierta',
     memoJumpMiss: 'No se encuentra en el historial de la terminal (puede haberse ido con el scroll o la sesión se reinició)',
     cancelReqT: 'Detiene solo la petición en curso (envía ESC) — no deshace el trabajo ya terminado',
+    advT: 'advisor — antes de responder, un modelo más potente revisa toda la conversación. El modelo indicado aquí es ese revisor. El cambio se aplica a las sesiones que abras después (esta conversación, tras /clear o /compact).', advOff: 'sin usar', advApply: 'se aplica a las sesiones nuevas', advWeak: 'Ese revisor es más débil que el modelo de esta sesión, así que Claude no lo activará', advFail: 'No se pudo guardar el ajuste',
     cancelLast: 'Detener\npetición\nen curso', toBottomT: 'Saltar a la salida más reciente',
     reqHistBtn: 'Peticiones', reqHistT: 'Mostrar/ocultar el panel de historial junto a esta terminal — haz clic en una entrada para saltar a ella',
     stRun: 'en curso', stDone: 'hecho', stStop: 'detenido', stOff: 'cortado al apagar',
@@ -3349,6 +3362,7 @@ const I18N_MORE = {
     memoJumpT: 'Im Terminal zu dieser Anfrage springen', memoJumpNoSess: 'Die Sitzung dieses Ordners ist nicht offen',
     memoJumpMiss: 'Im Terminalverlauf nicht gefunden (vielleicht rausgescrollt, oder die Sitzung wurde neu gestartet)',
     cancelReqT: 'Stoppt nur die laufende Anfrage (sendet ESC) — macht fertige Arbeit nicht rückgängig',
+    advT: 'advisor — bevor Claude antwortet, prüft ein stärkeres Modell das ganze Gespräch. Das hier gezeigte Modell ist dieser Prüfer. Die Änderung gilt für neu geöffnete Sitzungen (dieses Gespräch nach /clear oder /compact).', advOff: 'aus', advApply: 'gilt für neu geöffnete Sitzungen', advWeak: 'Dieser Prüfer ist schwächer als das Modell dieser Sitzung — Claude schaltet ihn nicht ein', advFail: 'Einstellung konnte nicht gespeichert werden',
     cancelLast: 'Laufende\nAnfrage\nstoppen', toBottomT: 'Zur neuesten Ausgabe springen',
     reqHistBtn: 'Anfragen', reqHistT: 'Den Anfrageverlauf neben diesem Terminal ein-/ausblenden — ein Eintrag springt dorthin',
     stRun: 'läuft', stDone: 'fertig', stStop: 'gestoppt', stOff: 'durch Beenden abgebrochen',
@@ -3601,6 +3615,7 @@ const I18N_MORE = {
     memoJumpT: 'Aller à cette demande dans le terminal', memoJumpNoSess: 'La session de ce dossier n’est pas ouverte',
     memoJumpMiss: 'Introuvable dans l’historique du terminal (peut-être défilé, ou la session a redémarré)',
     cancelReqT: 'N’arrête que la demande en cours (envoie Échap) — n’annule pas le travail terminé',
+    advT: 'advisor — avant de répondre, un modèle plus fort relit toute la conversation. Le modèle affiché ici est ce relecteur. Le changement vaut pour les sessions ouvertes ensuite (cette conversation après /clear ou /compact).', advOff: 'non utilisé', advApply: 's\'applique aux nouvelles sessions', advWeak: 'Ce relecteur est plus faible que le modèle de cette session : Claude ne l’activera pas', advFail: 'Impossible d\'enregistrer le réglage',
     cancelLast: 'Arrêter\nla demande\nen cours', toBottomT: 'Aller à la sortie la plus récente',
     reqHistBtn: 'Demandes', reqHistT: 'Afficher/masquer l’historique à côté de ce terminal — clique une entrée pour y aller',
     stRun: 'en cours', stDone: 'fait', stStop: 'arrêté', stOff: 'coupé à l’arrêt',
@@ -3853,6 +3868,7 @@ const I18N_MORE = {
     memoJumpT: 'Pular para este pedido no terminal', memoJumpNoSess: 'A sessão desta pasta não está aberta',
     memoJumpMiss: 'Não encontrado no histórico do terminal (pode ter rolado para fora, ou a sessão reiniciou)',
     cancelReqT: 'Para só o pedido em andamento (manda ESC) — não desfaz o trabalho já pronto',
+    advT: 'advisor — antes de responder, um modelo mais forte revisa a conversa inteira. O modelo mostrado aqui é esse revisor. A mudança vale para as sessões abertas depois (esta conversa após /clear ou /compact).', advOff: 'sem uso', advApply: 'vale para as sessões novas', advWeak: 'Esse revisor é mais fraco que o modelo desta sessão, então o Claude não vai ligá-lo', advFail: 'Não deu para salvar a configuração',
     cancelLast: 'Parar\no pedido\natual', toBottomT: 'Pular para a saída mais recente',
     reqHistBtn: 'Pedidos', reqHistT: 'Mostrar/ocultar o histórico ao lado deste terminal — clique num item para pular até ele',
     stRun: 'em andamento', stDone: 'pronto', stStop: 'parado', stOff: 'cortado ao desligar',
@@ -4104,6 +4120,7 @@ const I18N_MORE = {
     memoJumpT: 'Перейти к этому запросу в терминале', memoJumpNoSess: 'Сессия этой папки не открыта',
     memoJumpMiss: 'Не найдено в истории терминала (могло уйти за пределы прокрутки или сессия перезапускалась)',
     cancelReqT: 'Останавливает только текущий запрос (посылает ESC) — уже сделанную работу не отменяет',
+    advT: 'advisor — прежде чем ответить, более сильная модель просматривает весь разговор. Здесь показана эта модель-рецензент. Изменение действует для новых сессий (в текущем разговоре — после /clear или /compact).', advOff: 'не используется', advApply: 'действует для новых сессий', advWeak: 'Этот рецензент слабее модели этой сессии, поэтому Claude его не включит', advFail: 'Не удалось сохранить настройку',
     cancelLast: 'Остановить\nтекущий\nзапрос', toBottomT: 'Перейти к самому свежему выводу',
     reqHistBtn: 'Запросы', reqHistT: 'Показать/скрыть историю рядом с этим терминалом — нажмите на запись, чтобы перейти к ней',
     stRun: 'выполняется', stDone: 'готово', stStop: 'остановлено', stOff: 'прервано выключением',
@@ -4355,6 +4372,7 @@ const I18N_MORE = {
     memoJumpT: 'टर्मिनल में इस अनुरोध पर जाएँ', memoJumpNoSess: 'इस फ़ोल्डर का सेशन खुला नहीं है',
     memoJumpMiss: 'टर्मिनल के इतिहास में नहीं मिला (शायद स्क्रॉल होकर निकल गया, या सेशन दोबारा चालू हुआ)',
     cancelReqT: 'सिर्फ़ चल रहा अनुरोध रोकता है (ESC भेजता है) — पूरा हो चुका काम वापस नहीं लेता',
+    advT: 'advisor — जवाब देने से पहले एक ज़्यादा सक्षम मॉडल पूरी बातचीत जाँचता है। यहाँ दिखा मॉडल वही जाँचने वाला है। बदलाव नई खुलने वाली सेशन से लागू होगा (यह बातचीत /clear या /compact के बाद)।', advOff: 'बंद', advApply: 'नई सेशन से लागू होगा', advWeak: 'यह जाँचकर्ता इस सेशन के मॉडल से कमज़ोर है, इसलिए Claude इसे चालू नहीं करेगा', advFail: 'सेटिंग सेव नहीं हो पाई',
     cancelLast: 'चल रहा\nअनुरोध\nरोकें', toBottomT: 'सबसे नए आउटपुट पर जाएँ',
     reqHistBtn: 'अनुरोध', reqHistT: 'इस टर्मिनल के बगल में अनुरोध इतिहास दिखाएँ/छिपाएँ — किसी पर क्लिक करें और वहीं पहुँचें',
     stRun: 'चल रहा है', stDone: 'हो गया', stStop: 'रोक दिया', stOff: 'बंद होने से बीच में रुका',
@@ -4727,6 +4745,7 @@ function buildPane(sess, idx) {
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         ${aiBadge}
         ${modelSel}
+        ${isClaude ? `<span class="advWrap" style="display:none"><span class="advLbl" title="${escA(T.advT || '')}">advisor:</span><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
         <!-- 👤 담당 — .claude/agents 가 있는 레포에서만 채워지고, 없으면 이 자리는 비어 있다 -->
         <select class="small memberSel" title="${escA(T.memberT || '')}" style="display:none"></select>
@@ -5951,6 +5970,36 @@ function buildPane(sess, idx) {
       document.addEventListener('contextmenu', cmCtxHide, { once: true });
     }, 0);
   };
+  /* 🧠 advisor — 지금 어떤 모델이 검토자인지 보여 주고, 거기서 바로 바꾼다.
+     바꾼 값은 설정 파일에 저장된다: 새로 여는 세션부터 적용되고, 지금 대화는 /clear·/compact 뒤부터 바뀐다. */
+  const advWrap = el.querySelector('.advWrap');
+  if (advWrap) {
+    const advSel = advWrap.querySelector('.advSel');
+    const ADV_RANK = { sonnet: 1, opus: 2, fable: 3 };            // 검토자가 본 모델보다 약하면 클로드가 안 켠다
+    const baseAlias = () => String(sess.model || '').replace(/\[.*$/, '').toLowerCase();
+    const fill = (cur, aliases) => {
+      const list = (aliases && aliases.length ? aliases : ['fable', 'opus', 'sonnet']).slice();
+      if (cur && list.indexOf(cur) < 0) list.push(cur);           // 별칭이 아니라 전체 ID 로 적어 둔 경우도 보이게
+      advSel.innerHTML = list.map(m => '<option value="' + escA(m) + '"' + (m === cur ? ' selected' : '') + '>' + esc(m) + '</option>').join('')
+        + '<option value=""' + (cur ? '' : ' selected') + '>' + esc(T.advOff || '안 씀') + '</option>';
+      advSel.classList.toggle('off', !cur);
+    };
+    api('GET', '/api/advisor?path=' + encodeURIComponent(sess.path))
+      .then(j => { fill((j && j.model) || '', j && j.aliases); advWrap.style.display = ''; })
+      .catch(() => {});
+    advSel.onchange = () => {
+      const m = advSel.value;
+      api('POST', '/api/advisor', { path: sess.path, model: m })
+        .then(j => {
+          if (!j || !j.ok) throw Error('');
+          advSel.classList.toggle('off', !m);
+          flashToast('advisor: ' + (m || (T.advOff || '안 씀')) + ' — ' + (T.advApply || '새로 여는 세션부터 적용돼요'));
+          const b = ADV_RANK[baseAlias()];
+          if (m && ADV_RANK[m] && b && ADV_RANK[m] < b) flashToast(T.advWeak || '');
+        })
+        .catch(() => flashToast(T.advFail || ''));
+    };
+  }
   refreshGit();
   const gitTimer = setInterval(refreshGit, 20000);   // 브랜치·변경사항 주기 갱신 (서버 8초 캐시)
   el.addEventListener('ptclose', () => clearInterval(gitTimer));

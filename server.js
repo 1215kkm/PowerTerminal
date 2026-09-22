@@ -3408,6 +3408,47 @@ app.post('/api/memos/reqst', (req, res) => {          // 요청 상태 스탬프
   stampReqs(req.body.path, st);
   res.json({ ok: true });
 });
+/* 🧠 advisor — 클로드가 답을 내기 전에 더 강한 모델에게 검토를 받는 기능(/advisor).
+   설정은 claude 의 settings.json 안 advisorModel (공개 별칭 opus·sonnet·fable 또는 전체 ID).
+   어느 파일이 이기는지는 claude 규칙 그대로: 폴더 .claude/settings.local.json > 폴더 .claude/settings.json > ~/.claude/settings.json.
+   "켜 뒀는지 아닌지 기억이 안 난다"는 말이 나와서, 세션마다 지금 값을 화면에 띄우려고 만들었다. */
+const ADV_ALIASES = ['fable', 'opus', 'sonnet'];      // 검토자는 본 모델보다 약하면 안 켜진다 (fable > opus > sonnet)
+function advisorFiles(dir) {
+  const out = [];
+  if (dir) {
+    out.push({ where: 'local', file: path.join(dir, '.claude', 'settings.local.json') });
+    out.push({ where: 'project', file: path.join(dir, '.claude', 'settings.json') });
+  }
+  out.push({ where: 'user', file: path.join(os.homedir(), '.claude', 'settings.json') });
+  return out;
+}
+function advReadJson(f) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } }
+app.get('/api/advisor', (req, res) => {
+  for (const s of advisorFiles(String(req.query.path || ''))) {
+    const j = advReadJson(s.file);
+    if (j && typeof j.advisorModel === 'string' && j.advisorModel)
+      return res.json({ model: j.advisorModel, where: s.where, file: s.file, aliases: ADV_ALIASES });
+  }
+  res.json({ model: '', where: '', file: '', aliases: ADV_ALIASES });
+});
+app.post('/api/advisor', (req, res) => {
+  const dir = String((req.body && req.body.path) || '');
+  const model = String((req.body && req.body.model) || '').trim().slice(0, 60);
+  if (model && !/^[A-Za-z0-9._\[\]-]+$/.test(model)) return res.status(400).json({ error: '모델 이름에 쓸 수 없는 글자가 있습니다' });
+  // 이미 advisorModel 이 적혀 있는 파일이 있으면 거기를 고친다 (폴더 설정을 사용자 설정이 덮어써 헷갈리는 일 방지)
+  let target = null;
+  for (const s of advisorFiles(dir)) { const j = advReadJson(s.file); if (j && typeof j.advisorModel === 'string') { target = s; break; } }
+  if (!target) target = advisorFiles('').pop();
+  const j = advReadJson(target.file) || {};
+  if (model) j.advisorModel = model; else delete j.advisorModel;
+  try {
+    fs.mkdirSync(path.dirname(target.file), { recursive: true });
+    const tmp = target.file + '.pt-tmp';                         // 쓰다 말고 깨지지 않게 임시파일 → 이름 바꾸기
+    fs.writeFileSync(tmp, JSON.stringify(j, null, 2) + '\n');
+    fs.renameSync(tmp, target.file);
+  } catch (e) { return res.status(500).json({ error: '설정을 저장하지 못했습니다: ' + e.message }); }
+  res.json({ ok: true, model, where: target.where, file: target.file });
+});
 app.post('/api/memos/reqdel', (req, res) => {         // 요청 내역에서 한 줄 지우기 (중지한 요청이 남아 다시 눌리는 것 방지)
   const m = memoOf(req.body && req.body.path);
   const id = String((req.body && req.body.id) || '');
