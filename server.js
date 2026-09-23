@@ -1220,8 +1220,8 @@ function agentCommandRaw(sess, fresh, resume) {
    뒤에 붙인다. codex 의 붙여넣기 감지 자체를 끄는 설정(disable_paste_burst)도 있지만, 그러면 터미널 영역에 여러 줄을
    붙여넣을 때 첫 줄에서 바로 제출돼 버려서 쓰지 않는다. */
 function codexEnterDelay(len) { return Math.max(300, 250 + len * 0.6); }
-/* Claude 도 긴 글 뒤에는 Enter 를 늦춰야 한다 — 100ms 고정이던 때, 1.5KB 짜리 지시문이 입력칸에 그대로 남고
-   AI 는 아무 일도 시작하지 않은 채 90분 뒤 시간 초과로 끝났다(2026-09-22 루틴 4단계 실측). */
+/* Claude 도 긴 글 뒤에는 Enter 를 늦춰야 한다 — 100ms 고정이던 때, 1.5KB 짜리 여러 줄 지시문이 입력칸에 그대로
+   남고 아무 일도 시작되지 않았다(2026-09-22 루틴 4단계 실측: 90분 뒤 시간 초과). 예약 전송도 같은 길로 나간다. */
 function claudeEnterDelay(len) { return Math.max(120, Math.min(2500, 120 + len * 0.5)); }
 function writeIn(sess, p, data) {
   if (sess.agent !== 'codex') { p.proc.write(data); return; }
@@ -2284,7 +2284,7 @@ app.delete('/api/browser-profiles/:slug', async (req, res) => {
   try { saveConfig(); } catch (x) {}
   let purged = false;
   if (String(req.query.purge || '') === '1') {
-    // ⚠ fs.rmSync 금지 — 계정 창 이름은 보통 한글이고(종합몰·할로윈), 그 경로면 rmSync 가 프로세스를 즉사시킨다
+    // ⚠ fs.rmSync 금지 — 계정 창 이름은 보통 한글이고(종합몰·할로윈), 그 경로면 rmSync 가 프로세스를 즉사시킨다(위 74줄 설명)
     try { const d = path.join(BROWSER_PROFILES_DIR, slug); if (fs.existsSync(d)) rmTree(d); purged = true; } catch (x) {}
   }
   console.log('  🗑 계정 창 「' + e.name + '」 지움' + (purged ? ' (로그인까지)' : ' (로그인은 남김)'));
@@ -3583,6 +3583,56 @@ app.post('/api/memos/reqst', (req, res) => {          // 요청 상태 스탬프
   const st = ['done', 'stop', 'off'].includes(req.body && req.body.st) ? req.body.st : 'done';
   stampReqs(req.body.path, st);
   res.json({ ok: true });
+});
+/* 🧠 advisor — 클로드가 답을 내기 전에 더 강한 모델에게 검토를 받는 기능(/advisor).
+   설정은 claude 의 settings.json 안 advisorModel (공개 별칭 opus·sonnet·fable 또는 전체 ID).
+   어느 파일이 이기는지는 claude 규칙 그대로: 폴더 .claude/settings.local.json > 폴더 .claude/settings.json > ~/.claude/settings.json.
+   "켜 뒀는지 아닌지 기억이 안 난다"는 말이 나와서, 세션마다 지금 값을 화면에 띄우려고 만들었다. */
+const ADV_ALIASES = ['fable', 'opus', 'sonnet'];      // 검토자는 본 모델보다 약하면 안 켜진다 (fable > opus > sonnet)
+function advisorFiles(dir) {
+  const out = [];
+  if (dir) {
+    out.push({ where: 'local', file: path.join(dir, '.claude', 'settings.local.json') });
+    out.push({ where: 'project', file: path.join(dir, '.claude', 'settings.json') });
+  }
+  out.push({ where: 'user', file: path.join(os.homedir(), '.claude', 'settings.json') });
+  return out;
+}
+function advReadJson(f) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } }
+app.get('/api/advisor', (req, res) => {
+  for (const s of advisorFiles(String(req.query.path || ''))) {
+    const j = advReadJson(s.file);
+    if (j && typeof j.advisorModel === 'string' && j.advisorModel)
+      return res.json({ model: j.advisorModel, where: s.where, file: s.file, aliases: ADV_ALIASES });
+  }
+  res.json({ model: '', where: '', file: '', aliases: ADV_ALIASES });
+});
+app.post('/api/advisor', (req, res) => {
+  const dir = String((req.body && req.body.path) || '');
+  const model = String((req.body && req.body.model) || '').trim().slice(0, 60);
+  if (model && !/^[A-Za-z0-9._\[\]-]+$/.test(model)) return res.status(400).json({ error: '모델 이름에 쓸 수 없는 글자가 있습니다' });
+  // 이미 advisorModel 이 적혀 있는 파일이 있으면 거기를 고친다 (폴더 설정을 사용자 설정이 덮어써 헷갈리는 일 방지)
+  let target = null;
+  for (const s of advisorFiles(dir)) { const j = advReadJson(s.file); if (j && typeof j.advisorModel === 'string') { target = s; break; } }
+  if (!target) target = advisorFiles('').pop();
+  const j = advReadJson(target.file) || {};
+  if (model) j.advisorModel = model; else delete j.advisorModel;
+  try {
+    fs.mkdirSync(path.dirname(target.file), { recursive: true });
+    const tmp = target.file + '.pt-tmp';                         // 쓰다 말고 깨지지 않게 임시파일 → 이름 바꾸기
+    fs.writeFileSync(tmp, JSON.stringify(j, null, 2) + '\n');
+    fs.renameSync(tmp, target.file);
+  } catch (e) { return res.status(500).json({ error: '설정을 저장하지 못했습니다: ' + e.message }); }
+  res.json({ ok: true, model, where: target.where, file: target.file });
+});
+app.post('/api/memos/reqdel', (req, res) => {         // 요청 내역에서 한 줄 지우기 (중지한 요청이 남아 다시 눌리는 것 방지)
+  const m = memoOf(req.body && req.body.path);
+  const id = String((req.body && req.body.id) || '');
+  const before = m.reqs.length;
+  m.reqs = m.reqs.filter(r => r.id !== id);
+  const gone = m.reqs.length !== before;
+  if (gone) saveMemos();
+  res.json({ ok: gone });
 });
 // 📊 메모·요청내역 엑셀 내보내기 — 서식 있는 HTML 표를 .xls로 (헤더 색·내용 폭 60자·자동 줄바꿈).
 // ?path=폴더: 그 세션만 · ?all=1: 전체 세션. 열: 구분·작성일시·의도·내용·상태·완료일시·세션 폴더

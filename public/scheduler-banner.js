@@ -1,11 +1,17 @@
 'use strict';
 (() => {
   const css = document.createElement('style');
-  css.textContent = '.pt-limit-box{background:#30223e;border:1px solid #9d6bc1;border-radius:9px;margin:5px 8px;padding:9px 11px;font-size:12px;line-height:1.5;color:#f0e5fa;flex-shrink:0}.pt-limit-box[hidden]{display:none}.pt-limit-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.pt-limit-actions button{font:inherit;padding:5px 8px;background:#7141ae;border:1px solid #a87bdd;border-radius:6px;color:white;cursor:pointer}.pt-limit-actions button:disabled{opacity:.5;cursor:default}.pt-limit-note{margin-top:5px;color:#ffcece}.pt-ctx-box{background:#2a2438;border-color:#c58bd9}.pt-ctx-box .pt-limit-note{color:#ffe1a8}';
+  css.textContent = '.pt-limit-box{background:#30223e;border:1px solid #9d6bc1;border-radius:9px;margin:5px 8px;padding:9px 11px;font-size:12px;line-height:1.5;color:#f0e5fa;flex-shrink:0}.pt-limit-box[hidden]{display:none}.pt-limit-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.pt-limit-actions button{font:inherit;padding:5px 8px;background:#7141ae;border:1px solid #a87bdd;border-radius:6px;color:white;cursor:pointer}.pt-limit-actions button:disabled{opacity:.5;cursor:default}.pt-limit-note{margin-top:5px;color:#ffcece}.pt-ctx-box{background:#2a2438;border-color:#c58bd9}.pt-ctx-snooze{border-top:1px dashed #6b5b86;padding-top:7px;margin-top:7px}.pt-ctx-snooze .pt-snooze-q{align-self:center;margin-right:2px;color:#e6d8f5}.pt-ctx-snooze button{background:#3f3357;border-color:#8c6fb5}.pt-ctx-box .pt-limit-note{color:#ffe1a8}';
   document.head.append(css);
   const boxes = new Map();
   const ctxBoxes = new Map();
   const ESC = '\u001b', CTRL_U = '\u0015', ENTER = '\r';
+  /* 🔕 닫기를 누르면 언제까지 안 볼지 — 폴더별로 이 브라우저에만 저장한다.
+     예전엔 닫아도 새로고침하면 다시 떠서, 이미 알고 있는 세션에도 계속 떴다. */
+  const snoozeKey = p => 'ptCtxSnooze:' + String(p || '');
+  const snoozedUntil = p => { try { return Number(localStorage.getItem(snoozeKey(p))) || 0; } catch (e) { return 0; } };
+  const snooze = (p, ms) => { try { localStorage.setItem(snoozeKey(p), String(Date.now() + ms)); } catch (e) {} };
+  const endOfToday = () => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime() - Date.now(); };
   async function request(url, method = 'GET', body) {
     const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, ...(body ? {body:JSON.stringify(body)} : {}) });
     const d = await r.json(); if (!r.ok) throw Error(d.error || '예약 실패'); return d;
@@ -58,12 +64,31 @@
           try { addSession(pane.sess.path, pane.sess.title, pane.sess.agent, '', true, { model: pane.sess.model || 'default' }); }
           catch (e) { b.note.textContent = '새 세션은 창 번호 자리의 ＋ 로 열어 주세요'; }
         };
-        hide.onclick = () => { b.hidden = true; box.hidden = true; };
+        // 닫기 → 얼마나 안 볼지 고르는 줄을 편다 (한 번 더 누르면 접힌다)
+        const snoozeRow = document.createElement('div');
+        snoozeRow.className = 'pt-limit-actions pt-ctx-snooze'; snoozeRow.hidden = true;
+        const q = document.createElement('span'); q.className = 'pt-snooze-q'; q.textContent = '얼마나 안 볼까요?';
+        snoozeRow.append(q);
+        const mkSnooze = (text, ms) => {
+          const x = document.createElement('button'); x.textContent = text; snoozeRow.append(x);
+          x.onclick = () => {
+            if (ms > 0) snooze(pane.sess.path, ms);
+            b.hidden = true; box.hidden = true; snoozeRow.hidden = true;
+            b.note.textContent = ms > 0 ? ('알림을 ' + text + ' 동안 끕니다') : '이번만 닫았습니다 — 새로고침하면 다시 보입니다';
+          };
+          return x;
+        };
+        mkSnooze('지금만', 0);
+        mkSnooze('오늘', endOfToday());
+        mkSnooze('일주일', 7 * 24 * 3600 * 1000);
+        mkSnooze('한달', 30 * 24 * 3600 * 1000);
+        box.append(snoozeRow);
+        hide.onclick = () => { snoozeRow.hidden = !snoozeRow.hidden; };
       }
       if (!b) continue;
       if (!st) { b.box.hidden = true; continue; }
-      // 일하는 중이면 막힌 게 아니다 — 띄우지 않는다
-      b.box.hidden = b.hidden || !!st.working;
+      // 일하는 중이면 막힌 게 아니다 — 띄우지 않는다. 안 보기로 한 기간에도 띄우지 않는다.
+      b.box.hidden = b.hidden || !!st.working || Date.now() < snoozedUntil(pane.sess.path);
       const man = Math.round(st.tokens / 10000);
       b.status.textContent = '이 세션 대화가 약 ' + Number(st.tokens).toLocaleString() + ' 토큰(' + man + '만)입니다. '
         + '요청마다 이만큼을 서버로 보내기 때문에, 서버가 바쁠 때 「529 과부하」로 거절당하고 재시도만 돌 수 있습니다.';
