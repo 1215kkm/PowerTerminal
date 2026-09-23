@@ -14,7 +14,7 @@ const when = ms => ms ? new Date(ms).toLocaleString('ko-KR', { month: 'numeric',
 const mins = ms => { const m = Math.round(ms / 60000); return m < 1 ? '<1분' : m + '분'; };
 const AI_LABEL = { claude: 'Claude', codex: 'GPT', custom: 'Custom' };
 const MODELS = {
-  claude: [['default', '자동'], ['opus', 'Opus 5'], ['sonnet', 'Sonnet 5'], ['haiku', 'Haiku 4.5'], ['fable', 'Fable 5.1'], ['opusplan', 'Opus Plan']],
+  claude: [['default', '자동'], ['opus', 'Opus 5.5'], ['sonnet', 'Sonnet 5'], ['haiku', 'Haiku 4.5'], ['fable', 'Fable 5.1'], ['opusplan', 'Opus Plan (5.5)']],
   codex: [['default', '자동 (config.toml)'], ['gpt-6-astra', 'GPT-6 Astra'], ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'], ['gpt-5.5', 'GPT-5.5']],
   custom: [['default', '—']],
 };
