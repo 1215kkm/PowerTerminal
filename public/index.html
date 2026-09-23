@@ -102,16 +102,12 @@
   @media (hover: hover) and (pointer: fine) {
     .pane:not(:hover):not(:focus-within) .ph-tools { background: none; border-color: transparent; box-shadow: none; }
   }
-  /* 제목 칸 — 윗줄 제목, 밑 작은 줄 경로·advisor. 좁아지면 경로가 말줄임으로 줄어든다(사라지지 않는다) */
+  /* 제목 칸 — 윗줄 제목, 밑 작은 줄 경로. 좁아지면 경로가 말줄임으로 줄어든다(사라지지 않는다) */
   .ph-top > .ttlcol { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; }
   .ttlcol .ttlrow { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .ttlcol .ttlrow .title { min-width: 0; }
   .ph-sub { display: flex; align-items: center; gap: 8px; min-width: 0; padding-left: 4px; line-height: 1.35; }
   .ph-sub .folder { flex: 0 1 auto; min-width: 24px; }
-  .ph-sub .advWrap { font-size: 10px; flex: 0 0 auto; }
-  .ph-sub .advSel { font-size: 10px; padding: 0 2px; border: 1px solid transparent; background: transparent; border-radius: 4px; }
-  .ph-sub .advSel:hover, .ph-sub .advSel:focus { border-color: var(--line); background: #1f2937; }
-  html.light .ph-sub .advSel:hover, html.light .ph-sub .advSel:focus { background: #fff; }
   .ph-bottom { display: flex; align-items: center; gap: 8px; }
   .ph-bottom .folder { flex: 0 1 auto; }
   /* 제목/경로 옆 빈 공간 = 손바닥(grab) 드래그 영역 (pane-head가 draggable이라 여기 잡고 옮김) */
@@ -4727,13 +4723,13 @@ function buildPane(sess, idx) {
     <div class="pane-head" draggable="true">
       <div class="ph-top">
         <span class="numwrap"><span class="num" title="${escA(T.numAddT || '')}">${idx + 1}</span><span class="donebadge">${esc(T.doneBadge)}</span></span>
-        <!-- 제목 칸: 윗줄 = 제목·작업시간, 밑의 작은 줄 = 작업 폴더 경로 · advisor. 아랫줄에 두었더니 칸이 좁으면 경로가 0px 로 눌려 사라졌다 -->
+        <!-- 제목 칸: 윗줄 = 제목·작업시간, 밑의 작은 줄 = 작업 폴더 경로. 아랫줄에 두었더니 칸이 좁으면 경로가 0px 로 눌려 사라졌다 -->
         <span class="ttlcol"><span class="ttlrow">
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
         <!-- ✳ 작업 시간은 제목 바로 옆에 — 오른쪽 끝에 두었더니 그 위에 떠 있는 도구 버튼에 가려 안 보였다 -->
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
         <span class="st"></span>
-        </span><span class="ph-sub"><span class="folder" title="${esc(sess.path)}">${esc(sess.path)}</span>${isClaude ? `<span class="advWrap" style="display:none"><span class="advLbl" title="${escA(T.advT || '')}">advisor:</span><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}</span></span>
+        </span><span class="ph-sub"><span class="folder" title="${esc(sess.path)}">${esc(sess.path)}</span></span></span>
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         <!-- 도구버튼 묶음 — 창이 좁아지면 제목이 먼저 줄고, 그래도 모자라면 이 묶음이 통째로 아랫줄로 내려간다.
              예전엔 버튼들이 그냥 오른쪽으로 밀려 .pane 의 overflow:hidden 에 잘려 안 보였다. -->
@@ -4757,6 +4753,7 @@ function buildPane(sess, idx) {
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         ${aiBadge}
         ${modelSel}
+        ${isClaude ? `<span class="advWrap" style="display:none"><span class="advLbl" title="${escA(T.advT || '')}">advisor:</span><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
         <!-- 👤 담당 — .claude/agents 가 있는 레포에서만 채워지고, 없으면 이 자리는 비어 있다 -->
         <select class="small memberSel" title="${escA(T.memberT || '')}" style="display:none"></select>
