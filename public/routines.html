@@ -313,6 +313,54 @@ body.flow-mode .fs-right:not([hidden]){display:flex;flex-direction:column;gap:14
 .fl-times .live b{color:var(--accent)}
 .fl-times .bad b{color:var(--bad)}
 .fsn .prev{font-size:11px;color:var(--faint);margin-top:3px}
+/* ── 🔗 흐름 모드: 세 칸을 이름으로 배치 — 접으면 그 칸이 빠지고 판이 넓어진다 ── */
+body.flow-mode .app{grid-template-areas:"list main side"}
+body.flow-mode .app > .list{grid-area:list}
+body.flow-mode .app > .editor{grid-area:main}
+body.flow-mode .app > .fs-right{grid-area:side}
+body.flow-mode.hide-list .app{grid-template-areas:"main side";grid-template-columns:minmax(0,1fr) 330px}
+body.flow-mode.hide-side .app{grid-template-areas:"list main";grid-template-columns:270px minmax(0,1fr)}
+body.flow-mode.hide-list.hide-side .app{grid-template-areas:"main";grid-template-columns:minmax(0,1fr)}
+body.flow-mode.hide-list .app > .list{display:none}
+body.flow-mode.hide-side .app > .fs-right{display:none!important}
+.bar-flow{gap:4px}
+.bar-flow .btn.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-line)}
+/* 모든 루틴 줄 */
+.fl-lane-bg{position:absolute;left:0;border-top:1px dashed var(--line);pointer-events:none}
+.fl-lane-bg.sel{background:rgba(124,58,237,.07);border-top-color:var(--accent-line)}
+.fl-lane-head{position:absolute;display:flex;align-items:center;gap:8px;height:26px;font-size:12.5px;white-space:nowrap;z-index:2}
+.fl-lane-head .ln-no{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:6px;background:var(--raised);border:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:700}
+.fl-lane-head.sel .ln-no{background:var(--accent);border-color:var(--accent);color:#fff}
+.fl-lane-head b{cursor:pointer;font-size:13.5px}
+.fl-lane-head b:hover{text-decoration:underline}
+.fl-lane-head.sel b{color:var(--accent)}
+.fl-lane-head.off b{color:var(--muted)}
+.fl-lane-head .ln-meta{color:var(--muted);font-size:11.5px}
+.fl-lane-head .ln-btns{display:inline-flex;gap:4px;margin-left:4px}
+.fl-lane-head .ln-btn{width:26px;height:22px;border:1px solid var(--line);background:var(--raised);color:var(--fg);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.fl-lane-head .ln-btn svg{width:13px;height:13px}
+.fl-lane-head .ln-btn:hover{border-color:var(--accent-line);color:var(--accent)}
+.fl-lane-head .ln-btn.stop:hover{color:var(--bad);border-color:var(--bad)}
+.fl-lane-head .ln-btn.dis{opacity:.35;cursor:default}
+/* 1단계 앞 동그라미 — 초록: 예약 걸림 · 파랑(부드럽게 깜빡): 도는 중 · 빈 회색: 꺼짐 */
+.fl-dot{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;z-index:2}
+.fl-dot.on{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.22)}
+.fl-dot.run{background:#3b82f6;animation:flBlink 1.8s ease-in-out infinite}
+.fl-dot.off{border:2px solid #6e7781;background:transparent}
+@keyframes flBlink{0%,100%{opacity:1;box-shadow:0 0 0 3px rgba(59,130,246,.35)}50%{opacity:.35;box-shadow:0 0 0 7px rgba(59,130,246,0)}}
+/* 꺼진 루틴 — 줄 전체를 흐리게 */
+.fl-node.lane-off{filter:grayscale(1);opacity:.42}
+.fl-edges .fl-edge.off{stroke:var(--line);color:var(--line)}
+.fl-node.other{cursor:pointer}
+/* 지금 도는 단계 — 점선 테두리가 흘러간다 (반응이 없으면 회색으로 느리게) */
+.fl-node.running::before{display:none}
+.fl-node.running{border-color:transparent}
+.fl-ants{position:absolute;left:-5px;top:-5px;width:calc(100% + 10px);height:calc(100% + 10px);pointer-events:none;overflow:visible}
+.fl-ants rect{width:calc(100% - 3px);height:calc(100% - 3px);fill:none;stroke:#60a5fa;stroke-width:2.5;stroke-dasharray:9 6;animation:flAnts .9s linear infinite}
+.fl-node.running.idle .fl-ants rect{stroke:#9ca3af;animation-duration:3.2s}
+@keyframes flAnts{to{stroke-dashoffset:-15}}
+@media (prefers-reduced-motion:reduce){.fl-ants rect,.fl-dot.run{animation:none}}
+@media (max-width:1180px){body.flow-mode .app{grid-template-areas:"list main";grid-template-columns:230px minmax(0,1fr)} body.flow-mode.hide-list .app{grid-template-areas:"main";grid-template-columns:minmax(0,1fr)}}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(92vw,560px);z-index:20}
 .toast.show{opacity:1}
 .toast.bad{background:var(--bad);color:#fff}
@@ -328,6 +376,10 @@ body.flow-mode .fs-right:not([hidden]){display:flex;flex-direction:column;gap:14
     <a class="tab on" href="/routines.html" aria-current="page">🔁 루틴</a>
   </nav>
   <span class="sp"></span>
+  <!-- 흐름 모드에서만: 왼쪽 목록 · 오른쪽 작업 상황 접기 -->
+  <span class="bar-flow fs-only"><button class="btn tiny" id="btnList" type="button" title="왼쪽 루틴 목록 접기/펴기">☰ 목록</button><button class="btn tiny" id="btnSide" type="button" title="오른쪽 작업 상황 접기/펴기">▤ 작업 상황</button></span>
+  <!-- 보기 — 루틴마다가 아니라 화면 전체의 보기라 머리줄에 하나만 -->
+  <span class="modes" title="화면 보기 바꾸기"><button class="btn" id="btnClassic" type="button" title="카드로 위에서 아래로">📋 클래식</button><button class="btn" id="btnFlow" type="button" title="창 전체를 판으로 — 모든 루틴을 한 줄씩">🔗 흐름</button></span>
   <button class="btn" id="themeBtn" type="button">🌙 다크</button>
 </header>
 
@@ -364,7 +416,6 @@ body.flow-mode .fs-right:not([hidden]){display:flex;flex-direction:column;gap:14
       <form id="form" hidden autocomplete="off">
         <div class="ed-head">
           <input id="fName" aria-label="루틴 이름" maxlength="60">
-          <span class="modes" title="화면 보기 바꾸기"><button class="btn" id="btnClassic" type="button" title="카드로 위에서 아래로">📋 클래식</button><button class="btn" id="btnFlow" type="button" title="창 전체를 판으로 — 단계를 놓고 선으로 잇기">🔗 흐름</button></span>
           <button class="btn fs-only" id="btnFsSet" type="button" title="이름·시각·폴더·주제 같은 루틴 설정">⚙ 루틴 설정</button>
           <button class="btn" id="btnRun" type="button">지금 한 번 실행</button>
           <button class="btn" id="btnCopy" type="button">복사</button>

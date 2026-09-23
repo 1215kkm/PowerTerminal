@@ -227,6 +227,34 @@ window.PTR = {                                     // routines-flow.js 가 쓰�
   get sel() { return stepSel; },
   get run() { return selId ? data.runs.filter(x => x.routineId === selId).slice(-1)[0] || null : null; },
   get runs() { return selId ? data.runs.filter(x => x.routineId === selId) : []; },   // 오래된 것부터
+  // 판에 모든 루틴을 줄로 그릴 때 쓰는 것들
+  get routines() { return data.routines; },
+  get selId() { return selId; },
+  runsFor(id) { return data.runs.filter(x => x.routineId === id); },
+  selectRoutine(id) { if (id !== selId) select(id); },
+  schedText, when,
+  /* 줄 머리 버튼 — ▶/⏸ 예약 켜기·끄기 · ⚡ 지금 한 번 · ⏹ 도는 회차 멈추기.
+     일시정지는 따로 없다: 엔진이 「AI 가 하던 일을 반쯤 한 채 세워 두기」 를 못 하므로, 예약 끄기(⏸)가 곧 일시정지다. */
+  async laneAct(id, act) {
+    const r = data.routines.find(x => x.id === id); if (!r) return;
+    try {
+      if (act === 'toggle') { data = await api('/api/routines/' + id + '/enabled', 'POST', { enabled: !r.enabled }); say(r.enabled ? '예약을 껐습니다 — ▶ 로 다시 켭니다' : '예약을 켰습니다'); }
+      else if (act === 'run') {
+        if (id === selId && dirty()) { say('먼저 저장하세요', true); return; }
+        if (!confirm('「' + r.name + '」 을 지금 한 번 돌릴까요? 단계마다 세션이 새로 뜹니다.')) return;
+        data = await api('/api/routines/' + id + '/run', 'POST', {}); say('회차를 시작했습니다');
+      } else if (act === 'stop') {
+        const run = runOf(r); if (!run || run.status !== 'running') return;
+        if (!confirm('「' + r.name + '」 의 도는 회차를 멈출까요? 세션은 열어 둡니다.')) return;
+        data = await api('/api/routines/runs/' + run.id + '/stop', 'POST', {}); say('회차를 멈췄습니다');
+      } else return;
+      // 편집 중인 값은 건드리지 않고 목록·상황·판만 다시 그린다
+      paintList(); paintLive();
+      const cur = data.routines.find(x => x.id === selId);
+      if (draft && cur) { paintRuns(); paintEditorStatusOnly(cur); }
+      if (window.PTFlow) window.PTFlow.draw();
+    } catch (e) { say(e.message, true); }
+  },
   get now() { return data.now || Date.now(); },
   stepTime,
   fmtDur,
@@ -365,6 +393,21 @@ function paintFsNow() {
   }).join('');
   box.innerHTML = '<div class="fsn-head">' + esc(head) + '</div><ol class="fsn">' + rows + '</ol>';
 }
+/* 흐름 모드에서 왼쪽 목록 · 오른쪽 작업 상황 접기 — 판을 넓게 쓰려고. 이 브라우저에 기억한다 */
+let hideList = false, hideSide = false;
+try { const h = JSON.parse(localStorage.getItem('pt_routines_hide') || '{}'); hideList = !!h.list; hideSide = !!h.side; } catch (e) {}
+function paintHide() {
+  document.body.classList.toggle('hide-list', hideList);
+  document.body.classList.toggle('hide-side', hideSide);
+  $('btnList').classList.toggle('on', !hideList); $('btnSide').classList.toggle('on', !hideSide);
+  $('btnList').title = hideList ? '왼쪽 루틴 목록 펴기' : '왼쪽 루틴 목록 접기';
+  $('btnSide').title = hideSide ? '오른쪽 작업 상황 펴기' : '오른쪽 작업 상황 접기';
+  try { localStorage.setItem('pt_routines_hide', JSON.stringify({ list: hideList, side: hideSide })); } catch (e) {}
+  if (flowOn && window.PTFlow) setTimeout(() => window.PTFlow.draw(), 0);   // 판 폭이 바뀌었으니 설정 창 자리도 다시
+}
+$('btnList').onclick = () => { hideList = !hideList; paintHide(); };
+$('btnSide').onclick = () => { hideSide = !hideSide; paintHide(); };
+paintHide();
 applyLayout();
 $('vars').addEventListener('click', ev => {
   const b = ev.target.closest('.var'); if (!b) return;
@@ -564,7 +607,7 @@ async function refresh(first) {
       profiles = await api('/api/browser-profiles').catch(() => []);
       if (data.routines.length) select(data.routines[0].id); else paintAll();
     } else if (draft && selId !== 'new') { paintList(); paintLive(); const r = data.routines.find(x => x.id === selId); if (!r) { selId = null; draft = null; paintAll(); } else { paintRuns(); paintEditorStatusOnly(r); if (flowOn && window.PTFlow) window.PTFlow.draw(); } }
-    else { paintList(); paintLive(); }
+    else { paintList(); paintLive(); if (flowOn && window.PTFlow) window.PTFlow.draw(); }
   } catch (e) { if (first) say('루틴 서버에 연결할 수 없습니다: ' + e.message, true); }
 }
 // 진행 중 창의 '몇 분째' 는 1초마다 갱신 (서버를 다시 부르지 않고 화면만)
