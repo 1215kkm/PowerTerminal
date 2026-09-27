@@ -4595,7 +4595,9 @@ function applyTermFont(v) {
 }
 const DEFAULT_FONT = 13;
 /* 🔠 글자 크기를 바꿀 때 터미널만 바꿀지, 이 세션 칸의 머리줄·입력줄 글자도 같이 바꿀지 (이 브라우저에 기억) */
-function fontScope() { try { return localStorage.getItem('pt_fontscope') === 'all' ? 'all' : 'term'; } catch (e) { return 'term'; } }
+// 적용 범위 고르기는 폰(터치)에서만 — PC 에선 긴 선택지 때문에 글자 크기 칸이 넓어져 도구 줄이 두 줄로 터미널을 가렸다
+const IS_TOUCH = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })();
+function fontScope() { if (!IS_TOUCH) return 'term'; try { return localStorage.getItem('pt_fontscope') === 'all' ? 'all' : 'term'; } catch (e) { return 'term'; } }
 function uiScale(size) { return fontScope() === 'all' ? Math.max(.8, Math.min(1.7, size / DEFAULT_FONT)) : 1; }
 function savedFont() {
   const v = Math.floor(Number(localStorage.getItem('pt_fontsize')));
@@ -4770,7 +4772,7 @@ function buildPane(sess, idx) {
         <button class="small btnRead hv" title="${esc(T.readT || '')}" style="display:none">📖</button><!-- 넓게 읽기 — 사용자 요청으로 숨김(openReader 배선은 유지) -->
         <select class="small fontSel hv" title="${T.fontSel}">
           ${FONT_SIZES.map(s => `<option value="${s}" ${s === savedFont() ? 'selected' : ''}>${s}</option>`).join('')}
-          <optgroup label="${escA(T.fontScopeGrp || '적용 범위')}"><option value="scope:term">${fontScope() === 'all' ? '　' : '✓'} ${esc(T.fontScopeTerm || '터미널만')}</option><option value="scope:all">${fontScope() === 'all' ? '✓' : '　'} ${esc(T.fontScopeAll || '터미널 + 화면 글자')}</option></optgroup>
+          ${IS_TOUCH ? `<optgroup label="${escA(T.fontScopeGrp || '적용 범위')}"><option value="scope:term">${fontScope() === 'all' ? '　' : '✓'} ${esc(T.fontScopeTerm || '터미널만')}</option><option value="scope:all">${fontScope() === 'all' ? '✓' : '　'} ${esc(T.fontScopeAll || '터미널 + 화면 글자')}</option></optgroup>` : ""}
         </select>
         <button class="small btnFlow hv" title="${escA(T.flowT || '')}">◎</button><!-- ✕ 바로 왼쪽 고정 -->
         <button class="small btnClose" title="${T.closeT}" style="color:#f87171">✕</button>
