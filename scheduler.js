@@ -84,6 +84,8 @@ function createScheduler({ dataDir, sessions, ptys, notify = () => {}, now = Dat
     const s = signal(id);
     s.lastInput = now();
     // Conservative: any unsubmitted user input prevents scheduled insertion.
+    // Esc·Ctrl+U 만 누른 건 글을 친 게 아니라 비운 것 — 루틴이 "사람이 쳐 둔 글" 로 오해해 멈췄다(2026-09-29)
+    if (/^[\x1b\x15]+$/.test(text)) { s.dirty = false; return; }
     if (/\r|\n/.test(text)) { s.dirty = false; s.blocked = false; s.rate = false; s.reset = null; s.text = ''; s.ready = false; }
     else s.dirty = true;
   }
