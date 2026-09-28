@@ -35,7 +35,8 @@
         actions.className = 'pt-limit-actions'; note.className = 'pt-limit-note';
         title.textContent = '🧠 대화가 너무 커졌습니다';
         const make = text => { const x = document.createElement('button'); x.textContent = text; actions.append(x); return x; };
-        const compact = make('대화 정리 (/compact)'), clear = make('새로 시작 (/clear)'),
+        // 「새로 시작 (/clear)」 는 뺐다 — 대화를 통째로 잊어 버려 쓰면 안 되는 버튼이었다(CEO 2026-09-29). 정리는 /compact 로
+        const compact = make('대화 정리 (/compact)'),
               fresh = make('이 폴더로 새 세션'), hide = make('닫기');
         box.append(title, status, actions, note);
         pane.el.insertBefore(box, pane.el.children[1] || null);
@@ -59,7 +60,6 @@
           } catch (e) { b.note.textContent = '보내지 못했습니다 — 세션 연결을 확인하세요'; }
         };
         compact.onclick = () => send('/compact');
-        clear.onclick = () => send('/clear', '이 세션의 대화를 비웁니다. 지금까지 주고받은 내용은 사라지고, 폴더의 규칙·기억은 그대로입니다. 계속할까요?');
         fresh.onclick = () => {
           try { addSession(pane.sess.path, pane.sess.title, pane.sess.agent, '', true, { model: pane.sess.model || 'default' }); }
           catch (e) { b.note.textContent = '새 세션은 창 번호 자리의 ＋ 로 열어 주세요'; }
