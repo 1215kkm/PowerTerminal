@@ -44,9 +44,15 @@
           display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
           min-width: 0;   /* 그리드 아이템이 터미널 내용폭(min-content) 아래로도 줄어들게 — 없으면 '크게보기'의 3fr 1fr가 균등폭으로 무시됨 */
           transition: border-color .3s; }
-  .pane.busy { border-color: #7dd8ff;                         /* 작업 중 — 밝은 하늘색 + 은은한 빛 (더 눈에 띄게) */
-               outline: 2px solid rgba(125,216,255,.55);
-               box-shadow: 0 0 14px rgba(56,189,248,.4); }
+  /* 작업 중 — 밝은 회색(#ccc) 테두리가 밝아졌다 어두워졌다 숨 쉬듯 (CEO 2026-09-29: 하늘색 → ccc, 돌고 있는 느낌) */
+  .pane.busy { border-color: #ccc; outline: 2px solid rgba(204,204,204,.55);
+               box-shadow: 0 0 14px rgba(204,204,204,.35);
+               animation: paneBusyPulse 1.6s ease-in-out infinite alternate; }
+  @keyframes paneBusyPulse {
+    from { border-color: #5f5f5f; outline-color: rgba(204,204,204,.12); box-shadow: 0 0 2px rgba(204,204,204,.05); }
+    to   { border-color: #e2e2e2; outline-color: rgba(226,226,226,.75); box-shadow: 0 0 18px rgba(226,226,226,.45); }
+  }
+  @media (prefers-reduced-motion: reduce) { .pane.busy { animation: none; } }
   .pane.done { border-color: var(--green);                    /* 전부 완료(초록·2배 두께 — outline이라 레이아웃 안 흔들림) */
                outline: 2px solid var(--green);
                box-shadow: 0 0 14px rgba(34,197,94,.55); }
@@ -1386,7 +1392,13 @@
     .mm-cell.active { border-color: var(--pink); }
     /* 📱 지금 보고 있는 세션 = 보라 링 유지 (busy 하늘·done 초록 테두리와 별개라 안 겹침) */
     .pane.current { box-shadow: 0 0 0 3px var(--violet); }
-    .mm-cell.busy { border-color: #7dd8ff; }
+    /* 작업 중 숨쉬기 애니메이션이 box-shadow 를 덮어 보라 링이 사라지지 않게 — 링을 넣은 같은 숨쉬기 */
+    .pane.current.busy { animation-name: paneBusyPulseCur; }
+    @keyframes paneBusyPulseCur {
+      from { border-color: #5f5f5f; outline-color: rgba(204,204,204,.12); box-shadow: 0 0 0 3px var(--violet); }
+      to   { border-color: #e2e2e2; outline-color: rgba(226,226,226,.75); box-shadow: 0 0 0 3px var(--violet), 0 0 18px rgba(226,226,226,.45); }
+    }
+    .mm-cell.busy { border-color: #ccc; animation: paneBusyPulse 1.6s ease-in-out infinite alternate; }
     .mm-cell.done { border-color: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); }
     /* ⋯ 자리를 항상 잡아둠 — 작업중 표시가 생겼다 사라져도 탭 폭이 안 변해 줄바꿈이 안 흔들림 */
     .mm-cell .mm-title::after { content: ' ⋯'; color: var(--sky); opacity: 0; }
