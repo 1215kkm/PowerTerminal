@@ -765,6 +765,11 @@ async function sweepIdleBrowsers() {
   }
 }
 setInterval(() => { sweepIdleBrowsers().catch(() => {}); }, Number(process.env.PT_BROWSER_SWEEP_MS) || 5 * 60 * 1000).unref();
+/* 🌐 미리 띄우기 — AI 의 브라우저 도구는 PT 중계를 거쳐 붙고, 중계가 첫 연결 때 크롬을 띄운다(아래 cdpWss).
+   그래서 중계가 살아 있으면 미리 띄우지 않는다: 요청마다 빈 창이 먼저 튀어나와 화면을 가렸고,
+   브라우저를 안 쓰는 요청에도 떴다(CEO 2026-09-29). 중계를 못 열었을 때만 예전처럼 미리 띄운다 — 그땐
+   도구가 크롬 포트에 바로 붙어서, 창이 없으면 실패한다. */
+function preLaunchBrowser(prof) { if (!cdpProxy.up) ensureBrowser(prof); }
 async function ensureBrowser(prof) {
   const p = prof || browserProfile('');
   if (Date.now() - (browserCheckAt.get(p.port) || 0) < 5000) return;
@@ -1250,7 +1255,7 @@ function getPty(sess) {
   const cmd = agentCommand(sess, dupAlive, resume);
   if (isClaudeAgent || sess.agent === 'codex') {
     const bm = browserMode(sess);
-    if (bm === 'normal') ensureBrowser(sessProfile(sess));
+    if (bm === 'normal') preLaunchBrowser(sessProfile(sess));
     // 7일 정리가 폴더째 지웠을 수 있다 — 없으면 도구가 임시 프로필을 못 만든다
     else if (bm === 'incognito') { try { fs.mkdirSync(BROWSER_INCOG_TMP, { recursive: true }); } catch (e) {} }
   }
@@ -2670,7 +2675,7 @@ app.patch('/api/sessions/:id', (req, res) => {
     if (typeof req.body.browserProfile === 'string') s.browserProfile = req.body.browserProfile.trim().slice(0, 40);
     s.resumeOnStart = false;   // 아래 agent 분기와 같은 이유
     saveSessions();
-    if (s.browser === 'normal') ensureBrowser(sessProfile(s));
+    if (s.browser === 'normal') preLaunchBrowser(sessProfile(s));
     const p = ptys.get(s.id);
     if (p && !p.dead && ((s.agent || 'claude') === 'claude' || s.agent === 'codex')) {
       try { p.proc.kill(); } catch (e) {}
@@ -4047,7 +4052,7 @@ wss.on('connection', (ws, req) => {
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
       if (isSubmitInput(m.data)) p.armed = true;
-      if (browserMode(sess) === 'normal' && isSubmitInput(m.data)) ensureBrowser(sessProfile(sess));
+      if (browserMode(sess) === 'normal' && isSubmitInput(m.data)) preLaunchBrowser(sessProfile(sess));
       // Claude·codex 는 화면 마커가 busy를 결정 — 여기서 켜면 타이핑만 해도 '작업 중'이 돼 버린다
       const markerBased = !sess.agent || sess.agent === 'claude' || sess.agent === 'codex';
       const wasDone = p.done, wasBusy = p.busy;
