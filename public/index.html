@@ -684,6 +684,14 @@
               background: #fefefe; color: #1f2937; border-left: 1px solid #d1d5db;
               overflow-y: auto; padding: 4px; }
   .reqPanel.hidden { display: none; }
+  /* 🔍 요청내역 검색칸 — 📜 패널 머리와 메모장 요청내역 칸 위 (둘이 같은 모양) */
+  .req-search { display: block; width: 100%; box-sizing: border-box; margin: 4px 0 2px; padding: 4px 8px;
+                font: inherit; font-size: 12px; font-weight: 400; color: #1f2937; background: #fff;
+                border: 1px solid #d1d5db; border-radius: 6px; outline: none; }
+  .req-search:focus { border-color: #818cf8; box-shadow: 0 0 0 2px rgba(129,140,248,.25); }
+  .req-nomatch { font-size: 12px; color: #9ca3af; padding: 8px 4px; }
+  .memo-row.mreq.req-hide { display: none; }
+  mark.req-hit { background: #fde68a; color: inherit; padding: 0; border-radius: 2px; }
   .reqPanel .rp-head { font-size: 11px; font-weight: 700; color: #6b7280; padding: 2px 4px 5px;
                        position: sticky; top: -4px; background: #fefefe; }
   .reqPanel .memo-row.mreq { grid-template-columns: 1fr; gap: 2px; cursor: pointer;
@@ -1118,7 +1126,7 @@
     .memo-colhead { cursor: pointer; padding: 6px 4px; }   /* 폰: 터치 목표 넉넉히 */
     .memo-colhead .mfold { display: inline; }
     .memo-col.mcollapsed { min-height: 0; }
-    .memo-col.mcollapsed .memo-list, .memo-col.mcollapsed #memoNew { display: none; }
+    .memo-col.mcollapsed .memo-list, .memo-col.mcollapsed #memoNew, .memo-col.mcollapsed .req-search { display: none; }
     .memo-col.mcollapsed .memo-savebar { display: none !important; }   /* 인라인 display:flex보다 우선 */
   }
   /* 📖 넓게 읽기 리더 — 스크롤백을 문단 복원해 넓은 폭으로 */
@@ -1882,6 +1890,7 @@
     </div>
     <div class="memo-col">
       <div class="memo-colhead" id="memoReqH"></div>
+      <input class="req-search" id="memoReqSearch" type="search">
       <div class="memo-list" id="memoReqs"></div>
     </div>
   </div>
@@ -1916,7 +1925,7 @@ const I18N = {
     themeT:'Light / dark mode (terminal included)',
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — Opus',
-    memoDoneCol:'Completed', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
+    memoDoneCol:'Completed', reqSearchPh:'🔍 Search requests', reqSearchNone:'No matching requests', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
     memoEdit:'Edit', memoDelBtn:'Del', memoDelConfirm:'Delete this memo?', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
@@ -2015,7 +2024,7 @@ const I18N = {
     themeT:'라이트/다크 모드 전환 (터미널 포함)',
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
-    memoDoneCol:'완료된 항목', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
+    memoDoneCol:'완료된 항목', reqSearchPh:'🔍 요청 검색', reqSearchNone:'찾는 요청이 없어요', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
@@ -2516,7 +2525,7 @@ const I18N_MORE = {
     themeT: 'ライト / ダークモード (ターミナルも)',
     previewNoIndex: 'このフォルダに index.html がないので直接プレビューできません。フォルダ直下に index.html を置くか、開発サーバーを起動してそのアドレス (例 http://localhost:3000) を入力してください。',
     mDefaultLong: '自動 — Opus',
-    memoDoneCol: '完了', memoReqCol: '送ったリクエスト', memoEmpty: 'まだメモがありません — 下に書いてください。',
+    memoDoneCol: '完了', reqSearchPh: '🔍 リクエストを検索', reqSearchNone: '一致するリクエストはありません', memoReqCol: '送ったリクエスト', memoEmpty: 'まだメモがありません — 下に書いてください。',
     memoDelT: '削除', memoSend: '送信', memoSendTip: 'このメモをセッションのターミナルへ送る — 作業が終わると完了に移ります',
     reqResendT: 'このリクエストをもう一度ターミナルへ送る', reqDelT: 'このリクエストを履歴から削除', reqDelAsk: 'このリクエストを履歴から削除しますか?', reqCleared: '中断したリクエスト文を入力欄から消しました', reqDelOld: 'PowerTerminal を再起動すると削除できます',
     memoEdit: '編集', memoDelBtn: '削除', memoDelConfirm: 'このメモを削除しますか?',
@@ -2767,7 +2776,7 @@ const I18N_MORE = {
     themeT: '浅色 / 深色模式 (包括终端)',
     previewNoIndex: '这个文件夹里没有 index.html，所以无法直接预览。可以在文件夹根目录放一个 index.html，或者启动你的开发服务器并输入它的地址 (例如 http://localhost:3000)。',
     mDefaultLong: '自动 — Opus',
-    memoDoneCol: '已完成', memoReqCol: '你发过的请求', memoEmpty: '还没有记事 — 在下面写吧。',
+    memoDoneCol: '已完成', reqSearchPh: '🔍 搜索请求', reqSearchNone: '没有匹配的请求', memoReqCol: '你发过的请求', memoEmpty: '还没有记事 — 在下面写吧。',
     memoDelT: '删除', memoSend: '发送', memoSendTip: '把这条记事发到会话终端 — 工作完成后会移到「已完成」',
     reqResendT: '把这条请求再发一次到终端', reqDelT: '从记录中删除这条请求', reqDelAsk: '要从记录中删除这条请求吗?', reqCleared: '已从输入框清除被中断的请求内容', reqDelOld: '重启 PowerTerminal 后即可删除记录',
     memoEdit: '编辑', memoDelBtn: '删除', memoDelConfirm: '删除这条记事?',
@@ -3019,7 +3028,7 @@ const I18N_MORE = {
     themeT: 'Modo claro / oscuro (terminal incluida)',
     previewNoIndex: 'No hay index.html en esta carpeta, así que no se puede previsualizar directamente. Añade un index.html en la raíz de la carpeta, o arranca tu servidor de desarrollo e introduce su dirección (p. ej. http://localhost:3000).',
     mDefaultLong: 'Auto — Opus',
-    memoDoneCol: 'Completado', memoReqCol: 'Peticiones que enviaste', memoEmpty: 'Aún no hay notas — escribe abajo.',
+    memoDoneCol: 'Completado', reqSearchPh: '🔍 Buscar peticiones', reqSearchNone: 'Ninguna petición coincide', memoReqCol: 'Peticiones que enviaste', memoEmpty: 'Aún no hay notas — escribe abajo.',
     memoDelT: 'Eliminar', memoSend: 'Enviar',
     memoSendTip: 'Envía esta nota a la terminal de la sesión — pasa a Completado cuando el trabajo termine',
     reqResendT: 'Enviar esta petición otra vez a la terminal', reqDelT: 'Borrar esta petición del historial', reqDelAsk: '¿Borrar esta petición del historial?', reqCleared: 'Se borró del cuadro de entrada la petición detenida', reqDelOld: 'Reinicia PowerTerminal para borrar del historial',
@@ -3276,7 +3285,7 @@ const I18N_MORE = {
     themeT: 'Heller / dunkler Modus (Terminal inklusive)',
     previewNoIndex: 'In diesem Ordner gibt es keine index.html, deshalb lässt sich nichts direkt anzeigen. Leg entweder eine index.html in den Ordner, oder starte deinen Dev-Server und gib dessen Adresse ein (z. B. http://localhost:3000).',
     mDefaultLong: 'Automatisch — Opus',
-    memoDoneCol: 'Erledigt', memoReqCol: 'Deine gesendeten Anfragen', memoEmpty: 'Noch keine Notizen — schreib unten.',
+    memoDoneCol: 'Erledigt', reqSearchPh: '🔍 Anfragen durchsuchen', reqSearchNone: 'Keine passende Anfrage', memoReqCol: 'Deine gesendeten Anfragen', memoEmpty: 'Noch keine Notizen — schreib unten.',
     memoDelT: 'Löschen', memoSend: 'Senden',
     memoSendTip: 'Diese Notiz an das Sitzungsterminal schicken — sie wandert zu Erledigt, wenn die Arbeit fertig ist',
     reqResendT: 'Diese Anfrage nochmal ans Terminal schicken', reqDelT: 'Diese Anfrage aus der Liste löschen', reqDelAsk: 'Diese Anfrage aus der Liste löschen?', reqCleared: 'Die gestoppte Anfrage wurde aus dem Eingabefeld entfernt', reqDelOld: 'PowerTerminal neu starten, um Einträge zu löschen',
@@ -3527,7 +3536,7 @@ const I18N_MORE = {
     themeT: 'Mode clair / sombre (terminal compris)',
     previewNoIndex: 'Pas d’index.html dans ce dossier, donc rien à prévisualiser directement. Ajoute un index.html à la racine du dossier, ou lance ton serveur de dev et saisis son adresse (p. ex. http://localhost:3000).',
     mDefaultLong: 'Auto — Opus',
-    memoDoneCol: 'Terminé', memoReqCol: 'Demandes envoyées', memoEmpty: 'Pas encore de note — écris en dessous.',
+    memoDoneCol: 'Terminé', reqSearchPh: '🔍 Rechercher', reqSearchNone: 'Aucune demande trouvée', memoReqCol: 'Demandes envoyées', memoEmpty: 'Pas encore de note — écris en dessous.',
     memoDelT: 'Supprimer', memoSend: 'Envoyer',
     memoSendTip: 'Envoyer cette note au terminal de la session — elle passe dans Terminé quand le travail est fini',
     reqResendT: 'Renvoyer cette demande au terminal', reqDelT: 'Supprimer cette demande de l’historique', reqDelAsk: 'Supprimer cette demande de l’historique ?', reqCleared: 'La demande arrêtée a été effacée du champ de saisie', reqDelOld: 'Redémarre PowerTerminal pour supprimer l’historique',
@@ -3780,7 +3789,7 @@ const I18N_MORE = {
     themeT: 'Modo claro / escuro (terminal incluso)',
     previewNoIndex: 'Não há index.html nesta pasta, então não dá para pré-visualizar direto. Coloque um index.html na raiz da pasta, ou suba seu servidor de dev e informe o endereço dele (ex. http://localhost:3000).',
     mDefaultLong: 'Auto — Opus',
-    memoDoneCol: 'Concluído', memoReqCol: 'Pedidos que você enviou', memoEmpty: 'Ainda sem notas — escreva abaixo.',
+    memoDoneCol: 'Concluído', reqSearchPh: '🔍 Buscar pedidos', reqSearchNone: 'Nenhum pedido encontrado', memoReqCol: 'Pedidos que você enviou', memoEmpty: 'Ainda sem notas — escreva abaixo.',
     memoDelT: 'Excluir', memoSend: 'Enviar',
     memoSendTip: 'Manda esta nota para o terminal da sessão — vai para Concluído quando o trabalho terminar',
     reqResendT: 'Mandar este pedido de novo para o terminal', reqDelT: 'Apagar este pedido do histórico', reqDelAsk: 'Apagar este pedido do histórico?', reqCleared: 'O pedido parado foi apagado do campo de entrada', reqDelOld: 'Reinicie o PowerTerminal para apagar do histórico',
@@ -4032,7 +4041,7 @@ const I18N_MORE = {
     themeT: 'Светлая / тёмная тема (вместе с терминалом)',
     previewNoIndex: 'В этой папке нет index.html, поэтому показать напрямую нечего. Либо положите index.html в корень папки, либо запустите свой dev-сервер и введите его адрес (например http://localhost:3000).',
     mDefaultLong: 'Авто — Opus',
-    memoDoneCol: 'Завершено', memoReqCol: 'Отправленные запросы', memoEmpty: 'Заметок пока нет — напишите ниже.',
+    memoDoneCol: 'Завершено', reqSearchPh: '🔍 Поиск запросов', reqSearchNone: 'Ничего не найдено', memoReqCol: 'Отправленные запросы', memoEmpty: 'Заметок пока нет — напишите ниже.',
     memoDelT: 'Удалить', memoSend: 'Отправить',
     memoSendTip: 'Отправить эту заметку в терминал сессии — когда работа закончится, она уйдёт в «Завершено»',
     reqResendT: 'Отправить этот запрос в терминал ещё раз', reqDelT: 'Удалить этот запрос из истории', reqDelAsk: 'Удалить этот запрос из истории?', reqCleared: 'Остановленный запрос убран из поля ввода', reqDelOld: 'Перезапустите PowerTerminal, чтобы удалять записи',
@@ -4284,7 +4293,7 @@ const I18N_MORE = {
     themeT: 'हल्का / गहरा मोड (टर्मिनल सहित)',
     previewNoIndex: 'इस फ़ोल्डर में index.html नहीं है, इसलिए सीधे दिखाने को कुछ नहीं है। या तो फ़ोल्डर की जड़ में index.html रखें, या अपना dev सर्वर चलाकर उसका पता डालें (जैसे http://localhost:3000)।',
     mDefaultLong: 'अपने आप — Opus',
-    memoDoneCol: 'पूरा हुआ', memoReqCol: 'आपके भेजे अनुरोध', memoEmpty: 'अभी कोई नोट नहीं — नीचे लिखें।',
+    memoDoneCol: 'पूरा हुआ', reqSearchPh: '🔍 अनुरोध खोजें', reqSearchNone: 'कोई मेल खाता अनुरोध नहीं', memoReqCol: 'आपके भेजे अनुरोध', memoEmpty: 'अभी कोई नोट नहीं — नीचे लिखें।',
     memoDelT: 'हटाएँ', memoSend: 'भेजें',
     memoSendTip: 'यह नोट सेशन के टर्मिनल पर भेजें — काम पूरा होते ही यह ‘पूरा हुआ’ में चला जाएगा',
     reqResendT: 'यह अनुरोध टर्मिनल पर दोबारा भेजें', reqDelT: 'इस अनुरोध को सूची से हटाएँ', reqDelAsk: 'इस अनुरोध को सूची से हटाएँ?', reqCleared: 'रोका गया अनुरोध इनपुट बॉक्स से हटा दिया', reqDelOld: 'सूची से हटाने के लिए PowerTerminal दोबारा चालू करें',
@@ -4792,7 +4801,7 @@ function buildPane(sess, idx) {
     <div class="pane-body">
       <div class="term"></div>
       <button class="small termCancel" title="${T.cancelReqT}">⏹ ${esc(T.cancelLast || T.cancel)}</button>
-      <div class="reqPanel hidden"><div class="rp-head">📜 ${esc(T.memoReqCol || 'Requests')}</div><div class="rp-list"></div></div>
+      <div class="reqPanel hidden"><div class="rp-head">📜 ${esc(T.memoReqCol || 'Requests')}<input class="req-search rp-search" type="search" placeholder="${escA(T.reqSearchPh || '🔍 Search requests')}"></div><div class="rp-list"></div></div>
       <iframe class="preview hidden"></iframe>
     </div>
     <div class="qThumbs"></div>
@@ -6326,7 +6335,14 @@ function buildPane(sess, idx) {
       r.appendChild(del);
       list.appendChild(r);
     });
+    filterReqRows(list, (reqPanel.querySelector('.rp-search') || {}).value);   // 새로 그려도 검색어는 유지
   };
+  const rpSearch = reqPanel.querySelector('.rp-search');
+  rpSearch.addEventListener('input', () => filterReqRows(el.querySelector('.rp-list'), rpSearch.value));
+  rpSearch.addEventListener('keydown', ev => {
+    ev.stopPropagation();   // 검색칸 글자가 터미널·단축키로 새지 않게
+    if (ev.key === 'Escape' && rpSearch.value) { ev.preventDefault(); rpSearch.value = ''; filterReqRows(el.querySelector('.rp-list'), ''); }
+  });
   const setHist = on => {
     // 패널은 터미널 위에 겹쳐 뜨는 오버레이 — 터미널 폭이 안 바뀌므로 refit도, 스크롤 튐도 없음
     reqPanel.classList.toggle('hidden', !on);
@@ -12202,6 +12218,47 @@ function fmtMemoDate(ts) {   // 날짜, 요일, 시:분 — 회색 작은 글씨
   return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 let memoDataDir = '';   // 메모 실제 저장 폴더 (~/.powerterminal) — /api/info에서 1회 조회
+// 🔍 요청내역 거르기 — 띄어쓴 낱말이 모두 들어간 줄만 남긴다 (대소문자·띄어쓰기 무시), 맞은 글자는 노랗게
+function filterReqRows(listEl, q) {
+  if (!listEl) return;
+  listEl.querySelectorAll('mark.req-hit').forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  listEl.querySelectorAll('.mtext').forEach(t => t.normalize());
+  const old = listEl.querySelector('.req-nomatch'); if (old) old.remove();
+  const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const rows = [...listEl.querySelectorAll('.memo-row.mreq')];
+  if (!words.length) { rows.forEach(r => r.classList.remove('req-hide')); return; }
+  const flat = x => x.toLowerCase().replace(/\s+/g, '');
+  let shown = 0;
+  rows.forEach(r => {
+    const txt = flat(r.textContent);
+    const ok = words.every(w => txt.includes(flat(w)));
+    r.classList.toggle('req-hide', !ok);
+    if (!ok) return;
+    shown++;
+    const t = r.querySelector('.mtext'); if (!t) return;
+    const walker = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);   // 본문 글자에서 맞은 곳 표시
+    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(n => {
+      const low = n.nodeValue.toLowerCase(); let hits = [];
+      words.forEach(w => { let i = -1; while ((i = low.indexOf(w, i + 1)) >= 0) hits.push([i, i + w.length]); });
+      if (!hits.length) return;
+      hits.sort((a, b) => a[0] - b[0]);
+      const merged = []; hits.forEach(h => { const l = merged[merged.length - 1]; if (l && h[0] <= l[1]) l[1] = Math.max(l[1], h[1]); else merged.push(h.slice()); });
+      const frag = document.createDocumentFragment(); let at = 0;
+      merged.forEach(([a, b]) => {
+        if (a > at) frag.appendChild(document.createTextNode(n.nodeValue.slice(at, a)));
+        const m = document.createElement('mark'); m.className = 'req-hit'; m.textContent = n.nodeValue.slice(a, b); frag.appendChild(m);
+        at = b;
+      });
+      if (at < n.nodeValue.length) frag.appendChild(document.createTextNode(n.nodeValue.slice(at)));
+      n.replaceWith(frag);
+    });
+  });
+  if (!shown && rows.length) {
+    const d = document.createElement('div'); d.className = 'req-nomatch'; d.textContent = T.reqSearchNone || 'No matching requests';
+    listEl.appendChild(d);
+  }
+}
 async function openMemo(sess) {
   memoPath = sess.path;
   document.getElementById('memoTitle').textContent = (T.memoTitle || '📝 Memo') + ' — ' + sess.title;
@@ -12231,6 +12288,13 @@ async function openMemo(sess) {
     () => (memoData.items || []).filter(i => !i.done).map(i => fmtMemoDate(i.ts) + '  ' + i.text));
   colHead('memoDoneH', T.memoQaCol || 'Questions & answers',
     () => (memoData.reqs || []).filter(r => r.q).map(r => fmtMemoDate(r.ts) + '  ' + r.text + (r.answer ? '\n  💬 ' + String(r.answer).replace(/\n/g, '\n  ') : '')));
+  const mrs = document.getElementById('memoReqSearch');
+  mrs.placeholder = T.reqSearchPh || '🔍 Search requests';
+  mrs.value = '';
+  mrs.oninput = () => filterReqRows(document.getElementById('memoReqs'), mrs.value);
+  mrs.onkeydown = ev => {
+    if (ev.key === 'Escape' && mrs.value) { ev.preventDefault(); ev.stopPropagation(); mrs.value = ''; mrs.oninput(); }   // 첫 Esc 는 검색어만 지움
+  };
   colHead('memoReqH', T.memoReqCol || 'Requests',
     () => (memoData.reqs || []).map(r => { const n = reqNotes(r, true); return fmtMemoDate(r.ts) + '  ' + r.text + (n ? '\n  ' + n.replace(/\n/g, '\n  ') : ''); }));
   // 📱 좁은 화면(한 줄 배치) 아코디언 — 제목 탭하면 그 컬럼만 펼치고 나머지 접기. 데스크톱은 무동작(CSS도 미적용).
@@ -12356,6 +12420,8 @@ function renderMemo() {
     r.querySelector('.mcopy').onclick = () => copyTxt(rq.text + (notesTxt ? '\n' + notesTxt : '') + (rq.answer ? '\n💬 ' + rq.answer : ''));
     boxR.appendChild(r);
   });
+  const mrs = document.getElementById('memoReqSearch');
+  if (mrs && mrs.value) filterReqRows(boxR, mrs.value);   // 메모를 고쳐 다시 그려도 검색어 유지
 }
 // 세션(pane) 안에 겹쳐 뜨는 확인창 — 전역 confirm() 대신. resolve(true/false)
 function paneConfirm(paneEl, msg) {
