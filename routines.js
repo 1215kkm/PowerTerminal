@@ -87,6 +87,8 @@ function normalize(b, prev) {
   r.stepTimeoutMin = int(b.stepTimeoutMin, 1, 600, r.stepTimeoutMin != null ? r.stepTimeoutMin : 40, '단계당 최대 시간은 1~600분입니다');
   r.waitOnLimit = b.waitOnLimit === undefined ? (r.waitOnLimit !== false) : !!b.waitOnLimit;
   r.closeWhenDone = b.closeWhenDone === undefined ? (r.closeWhenDone !== false) : !!b.closeWhenDone;
+  // 실패·사람 확인이어도 루틴을 끄지 않고 다음 회차(다음 주제)로 — 여러 몰을 차례로 도는 루틴용(CEO 2026-09-30)
+  r.skipOnFail = b.skipOnFail === undefined ? !!r.skipOnFail : !!b.skipOnFail;
 
   const baseDir = String(b.baseDir != null ? b.baseDir : r.baseDir || '').trim();
   if (!baseDir || !path.isAbsolute(baseDir) || baseDir.length > 240) err('작업 폴더 위치를 전체 경로로 적어 주세요 (예: D:\\routine-work)');
@@ -236,7 +238,11 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (r) {
       r.lastStatus = status;
       // 실패·사람 확인이면 루틴을 멈춘다 — 밤마다 같은 곳에서 실패하며 사용량만 쓰지 않게
-      if (pause || status === 'failed') { r.enabled = false; r.nextAt = null; r.note = run.n + '회차가 ' + (status === 'failed' ? '실패해' : '사람 확인이 필요해') + ' 멈췄습니다 — 확인 후 켜세요'; }
+      if ((pause || status === 'failed') && r.skipOnFail) {
+        // 건너뛰기 — 루틴은 켠 채로 두고 다음 예약 때 남은 주제로 간다. 멈춘 세션은 닫는다(쌓이면 메모리를 먹는다), 폴더·보고서는 남긴다
+        r.note = run.n + '회차(' + (run.topic || '') + ')가 ' + (status === 'failed' ? '실패해' : '사람 확인이 필요해') + ' 건너뛰었습니다 — 폴더의 .routine 보고서를 보세요';
+        const a = cur(run); if (a && a.sessionId && !a.closed) { try { closeSession(a.sessionId); } catch (e) {} a.closed = true; }
+      } else if (pause || status === 'failed') { r.enabled = false; r.nextAt = null; r.note = run.n + '회차가 ' + (status === 'failed' ? '실패해' : '사람 확인이 필요해') + ' 멈췄습니다 — 확인 후 켜세요'; }
     }
     save();
   }

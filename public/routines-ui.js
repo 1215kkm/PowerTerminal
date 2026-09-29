@@ -85,7 +85,7 @@ $('maxConc').onchange = async () => { try { data = await api('/api/routines/sett
 
 // ---------- 편집 ----------
 function blankRoutine() {
-  return { name: '', schedule: { repeat: 'daily', time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, maxRuns: 30, stepTimeoutMin: 40, waitOnLimit: true, closeWhenDone: true,
+  return { name: '', schedule: { repeat: 'daily', time: '02:00', weekdays: [1, 2, 3, 4, 5], minutes: 60, at: '' }, maxRuns: 30, stepTimeoutMin: 40, waitOnLimit: true, closeWhenDone: true, skipOnFail: false,
            baseDir: data.defaultBaseDir || '', folder: '{날짜}-{주제}', topics: [], steps: [blankStep()] };
 }
 function blankStep() { return { name: '', agent: 'claude', model: 'default', effort: '', browser: '', browserProfile: '', dir: '', prompt: '', backTo: -1, maxBack: 1 }; }
@@ -133,7 +133,7 @@ function paintEditor() {
   $('fAt').value = draft.schedule.at ? toLocalInput(draft.schedule.at) : '';
   $('fMaxRuns').value = draft.maxRuns; $('fTimeout').value = draft.stepTimeoutMin;
   $('lblTimeout').textContent = '단계당 최대 시간 (' + (data.testMode ? '초 · 시험 모드' : '분') + ')';
-  $('fWait').checked = !!draft.waitOnLimit; $('fClose').checked = !!draft.closeWhenDone;
+  $('fWait').checked = !!draft.waitOnLimit; $('fClose').checked = !!draft.closeWhenDone; $('fSkip').checked = !!draft.skipOnFail;
   $('fBaseDir').value = draft.baseDir; $('fFolder').value = draft.folder;
   $('wds').innerHTML = WD.map((n, i) => `<label><input type="checkbox" value="${i}"${(draft.schedule.weekdays || []).includes(i) ? ' checked' : ''}> ${n}</label>`).join('');
   paintRepeat();
@@ -424,7 +424,7 @@ function collect() {
   return { name: $('fName').value.trim(),
     schedule: { repeat: rep, time: $('fTime').value, minutes: Number($('fMinutes').value), at: $('fAt').value ? new Date($('fAt').value).toISOString() : '',
                 weekdays: [...$('wds').querySelectorAll('input:checked')].map(i => Number(i.value)) },
-    maxRuns: Number($('fMaxRuns').value), stepTimeoutMin: Number($('fTimeout').value), waitOnLimit: $('fWait').checked, closeWhenDone: $('fClose').checked,
+    maxRuns: Number($('fMaxRuns').value), stepTimeoutMin: Number($('fTimeout').value), waitOnLimit: $('fWait').checked, closeWhenDone: $('fClose').checked, skipOnFail: $('fSkip').checked,
     baseDir: $('fBaseDir').value.trim(), folder: $('fFolder').value.trim(), topics: draft.topics,
     steps: draft.steps.map(s => { const c = Object.assign({}, s); delete c._open; return c; }) };   // _open 은 화면 접기 상태일 뿐
 }
@@ -441,7 +441,7 @@ $('form').onsubmit = async ev => {
     say('저장했습니다');
   } catch (e) { say(e.message, true); }
 };
-function collectFrom(r) { return { name: r.name, schedule: r.schedule, maxRuns: r.maxRuns, stepTimeoutMin: r.stepTimeoutMin, waitOnLimit: r.waitOnLimit, closeWhenDone: r.closeWhenDone, baseDir: r.baseDir, folder: r.folder, topics: r.topics, steps: r.steps }; }
+function collectFrom(r) { return { name: r.name, schedule: r.schedule, maxRuns: r.maxRuns, stepTimeoutMin: r.stepTimeoutMin, waitOnLimit: r.waitOnLimit, closeWhenDone: r.closeWhenDone, skipOnFail: !!r.skipOnFail, baseDir: r.baseDir, folder: r.folder, topics: r.topics, steps: r.steps }; }
 $('btnRun').onclick = async () => {
   if (dirty()) { say('먼저 저장하세요', true); return; }
   if (!confirm('지금 한 번 돌릴까요? 단계마다 세션이 새로 뜹니다.')) return;
