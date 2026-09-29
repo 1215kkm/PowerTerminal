@@ -342,7 +342,12 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
      아래 창들은 server.js 가 루틴 세션에 한해 대신 답해 주므로, 여기서는 답이 처리될 때까지 보내지 않고 기다리기만 한다. */
   function blockedScreen(p) {
     if (!p || !p.buffer) return '';
-    const flat = p.buffer.slice(-3000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
+    let flat = p.buffer.slice(-3000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
+    /* 창이 닫힌 뒤 아무것도 새로 안 찍히면 옛 창 글자가 꼬리에 남아 「떠 있다」 로 잘못 봤다(2026-09-30: 업데이트 창을 넘긴 뒤에도
+       47분 대기). 입력칸 안내가 그 뒤에 다시 그려졌으면 창은 닫힌 것 — 마지막 입력칸 안내 뒤의 글자만 본다 */
+    const ready = /AskCodextodoanything|\?forshortcuts|automodeon|shift\+tabtocycle/gi; let last = -1, mm;
+    while ((mm = ready.exec(flat))) last = mm.index + mm[0].length;
+    if (last >= 0) flat = flat.slice(last);
     if (/hooks?needs?review|Pressttotrust/i.test(flat)) return '훅 승인 확인창';
     if (/Doyoutrustthecontents|Isthisaprojectyoucreated|Yes,Itrustthisfolder/i.test(flat)) return '폴더 신뢰 확인창';
     if (/Updateavailable/i.test(flat)) return '업데이트 안내';
@@ -455,6 +460,14 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       if (step.agent === 'codex') { const at = codexLimitAt(p.buffer.slice(-5000), t); if (at) { relaunchLater(run, r, a, step, at, 'GPT 사용량 한도 메뉴가 떴습니다'); return; } }
       if (t - a.startedAt > r.stepTimeoutMin * MIN) { fail(r.stepTimeoutMin + '분 안에 입력 준비가 안 됐습니다 — 세션을 열어 로그인·확인창·업데이트 안내를 보세요'); return; }
       const why = whyNotReady(p, s, step.agent, t);
+      /* codex 「Update available」 메뉴 — Esc 는 「이번엔 건너뛰기」 라 업데이트를 돌리지 않는다(Enter 는 전역 npm 업데이트라 절대 안 누름).
+         새 버전이 나올 때마다 떠서 회차가 47분씩 서 있었다(2026-09-30 오프비트). 15초에 한 번까지만 누른다 */
+      if (why && /업데이트 안내/.test(why) && step.agent === 'codex' && (!a.updSkipAt || t - a.updSkipAt > 15000)) {
+        a.updSkipAt = t;
+        try { p.proc.write('\x1b'); } catch (e) {}
+        note(run, (a.step + 1) + '단계: GPT 업데이트 안내를 건너뛰었습니다 (Esc — 업데이트는 하지 않음)'); save();
+        return;
+      }
       if (why && a.waitNote !== why && t - a.startedAt > 20000) {
         a.waitNote = why; note(run, (a.step + 1) + '단계: 기다리는 중 — ' + why); save();
       }
