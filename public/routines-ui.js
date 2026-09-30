@@ -15,7 +15,7 @@ const mins = ms => { const m = Math.round(ms / 60000); return m < 1 ? '<1분' : 
 const AI_LABEL = { claude: 'Claude', codex: 'GPT', custom: 'Custom' };
 const MODELS = {
   claude: [['default', '자동'], ['opus', 'Opus 5.5'], ['sonnet', 'Sonnet 5'], ['haiku', 'Haiku 4.5'], ['fable', 'Fable 5.1'], ['opusplan', 'Opus Plan (5.5)']],
-  codex: [['default', '자동 (config.toml)'], ['gpt-6-astra', 'GPT-6 Astra'], ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'], ['gpt-5.5', 'GPT-5.5']],
+  codex: [['default', '자동 (config.toml)'], ['gpt-6.1-sol', 'GPT-6.1 Sol'], ['gpt-6-astra', 'GPT-6 Astra'], ['gpt-5.6-sol', 'GPT-5.6 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-5.6-luna', 'GPT-5.6 Luna'], ['gpt-5.5', 'GPT-5.5']],
   custom: [['default', '—']],
 };
 const VARS = [['{주제}', '주제 목록에서 고른 것'], ['{날짜}', '회차 시작 날짜'], ['{회차}', '몇 번째'], ['{루틴 이름}', ''], ['{작업 폴더}', '이 회차 폴더'], ['{이전 단계가 한 일}', '앞 단계 보고 파일 내용']];
