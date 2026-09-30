@@ -3564,6 +3564,9 @@ app.delete('/api/sessions/:id', (req, res) => {
           // 폴더를 지웠으면 '최근 닫은 세션' 에서도 뺀다 — 안 그러면 목록에 남아 눌러도 안 열린다
           recent = recent.filter(r => String(r.path || '').toLowerCase() !== dir.toLowerCase());
           saveRecent();
+          // PT 가 만든 작업 브랜치(pt/…)도 치운다 — 폴더만 지우면 이름이 쌓였다(2026-10-01).
+          // -d 라서 원래 브랜치에 합쳐지지 않은 커밋이 있으면 git 이 거부하고 브랜치는 남는다(작업 유실 없음).
+          if (/^pt\//.test(String(gone.branch || ''))) git(gone.repo, ['branch', '-d', gone.branch], 8000).catch(() => {});
           return { kept: false };
         });
     }).catch(() => {});
