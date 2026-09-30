@@ -98,6 +98,9 @@
                     padding: 3px 5px; border-radius: 9px; background: #111827; border: 1px solid var(--line);
                     box-shadow: 0 5px 16px rgba(0,0,0,.5); }
   html.light .pane .ph-tools { background: #eef0f4; }
+  /* 글자크기 칸은 숫자만 보이면 된다 — 모바일의 '적용 범위' 항목(터미널 + 화면 글자) 길이에 맞춰
+     select 가 넓어져서 도구 묶음이 세션 헤더(제목)를 덮었다. 폭을 숫자에 고정한다. */
+  .pane .fontSel { width: 3.6em; max-width: 3.6em; }
   /* 버튼이 안 보이는 평소엔 배경·테두리도 없어야 헤더가 깔끔하다 (✕·⛶ 만 떠 있는 상태) */
   @media (hover: hover) and (pointer: fine) {
     .pane:not(:hover):not(:focus-within) .ph-tools { background: none; border-color: transparent; box-shadow: none; }
