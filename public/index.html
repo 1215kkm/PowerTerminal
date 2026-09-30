@@ -4857,6 +4857,9 @@ function buildPane(sess, idx) {
     if (isTouch) { window.open(uri, '_blank', 'noopener'); return; }
     if (event.ctrlKey || event.metaKey) { hideLinkTip(); window.open(uri, '_blank', 'noopener,noreferrer,width=1200,height=820'); }
   };
+  // 🖱 휠(가운데) 클릭으로도 링크 열기 — xterm 의 링크 activate 는 버튼을 가리지 않고 Ctrl 여부만 본다.
+  //    마우스가 올라가 있는 링크(hover 때 기억)를 mousedown 에서 바로 연다. preventDefault 로 크롬 자동스크롤 표시도 막는다.
+  let hovLink = null;   // { url } 또는 { open }
   try {
     // 후보를 긴 것부터 차례로 — 서버는 실제로 있는 파일만 연다(없으면 오류) → 줄을 잘못 이었어도 맞는 후보가 열린다
     const openPath = async cands => {
@@ -4951,9 +4954,9 @@ function buildPane(sess, idx) {
           links.push({
             range: { start: { x: a[1] + 1, y: a[0] + 1 }, end: { x: we + 1, y: e[0] + 1 } },
             text,
-            activate(ev) { if (kind === 'url') openUrl(ev, text); else if (isTouch || ev.ctrlKey || ev.metaKey) openPath(cands); },
-            hover(ev) { try { showLinkTip(ev); } catch (err) {} },
-            leave() { try { hideLinkTip(); } catch (err) {} }
+            activate(ev) { if (ev.button === 1) return; if (kind === 'url') openUrl(ev, text); else if (isTouch || ev.ctrlKey || ev.metaKey) openPath(cands); },
+            hover(ev) { hovLink = kind === 'url' ? { url: text } : { open: () => openPath(cands) }; try { showLinkTip(ev); } catch (err) {} },
+            leave() { hovLink = null; try { hideLinkTip(); } catch (err) {} }
           });
         };
         let m;
@@ -4979,10 +4982,17 @@ function buildPane(sess, idx) {
     });
   } catch (e) {}
   try {
-    if (window.WebLinksAddon) term.loadAddon(new WebLinksAddon.WebLinksAddon(openUrl,
-      { hover: (event) => showLinkTip(event), leave: () => hideLinkTip() }));
+    if (window.WebLinksAddon) term.loadAddon(new WebLinksAddon.WebLinksAddon((ev, uri) => { if (ev.button !== 1) openUrl(ev, uri); },
+      { hover: (event, uri) => { hovLink = { url: uri }; showLinkTip(event); }, leave: () => { hovLink = null; hideLinkTip(); } }));
   } catch (e) {}
   term.open(el.querySelector('.term'));
+  el.querySelector('.term').addEventListener('mousedown', ev => {
+    if (ev.button !== 1 || !hovLink) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const l = hovLink; hideLinkTip();
+    if (l.url) window.open(l.url, '_blank', 'noopener,noreferrer,width=1200,height=820');
+    else if (l.open) l.open();
+  }, true);
   // 드래그로 글자 선택 후 놓으면 자동 복사 (터미널은 Ctrl+C가 '중단'이라 복사가 안 됨)
   el.querySelector('.term').addEventListener('mouseup', () => {
     const s = term.getSelection();
