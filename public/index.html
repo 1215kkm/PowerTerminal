@@ -5395,6 +5395,31 @@ function buildPane(sess, idx) {
   // 폴더 경로 클릭 → OS 파일 관리자로 그 폴더 열기
   const folderEl = el.querySelector('.folder');
   if (folderEl) folderEl.addEventListener('click', e => { e.stopPropagation(); openFolder(sess.path); });
+  // 📁 폴더 경로 오른쪽 클릭(폰은 길게 누르기) → 폴더 바꾸기. 프로젝트 폴더를 옮겼을 때(C → D) 쓴다.
+  //    서버가 대화 기록·메모를 새 폴더 쪽으로 옮기고 세션을 새 폴더에서 다시 띄운다(대화는 이어짐).
+  if (folderEl && !sess.worktree) folderEl.addEventListener('contextmenu', e => {
+    e.preventDefault(); e.stopPropagation();
+    const input = document.createElement('input');
+    input.className = 'title-edit'; input.value = sess.path;
+    input.title = T.moveFolderT || '옮긴 폴더 경로를 넣고 Enter — 대화·메모는 그대로 이어져요';
+    folderEl.replaceWith(input);
+    input.focus(); input.select();
+    let done = false;
+    const back = () => { if (!done) { done = true; input.replaceWith(folderEl); } };
+    const commit = async () => {
+      const np = input.value.trim().replace(/^"(.*)"$/, '$1');
+      if (!np || np === sess.path) return back();
+      done = true;
+      const r = await api('PATCH', '/api/sessions/' + sess.id, { path: np });
+      input.replaceWith(folderEl);
+      if (!r || r.error) { flashToast('⚠ ' + ((r && r.error) || 'error')); return; }
+      sess.path = r.path;
+      folderEl.textContent = r.path; folderEl.title = r.path;
+      flashToast((T.movedFolderT || '폴더를 바꿨어요 — 새 폴더에서 다시 시작합니다') + ' 📁 ' + r.path);
+    };
+    input.addEventListener('keydown', ev => { if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') back(); });
+    input.addEventListener('blur', back);
+  });
 
   // 제목 더블클릭 수정
   const titleEl = el.querySelector('.title');

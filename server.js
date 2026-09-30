@@ -2625,6 +2625,46 @@ app.post('/api/resolve-drop', (req, res) => {
 app.patch('/api/sessions/:id', (req, res) => {
   const s = sessions.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({});
+  /* 📁 폴더 바꾸기 — 사용자가 프로젝트 폴더를 옮겼을 때(예: C → D) 세션이 새 폴더를 가리키게 한다.
+     Claude 는 대화를 '폴더 경로' 별로 저장하므로(~/.claude/projects/<경로>) 기록을 새 경로 쪽으로 복사해야
+     --continue 가 대화를 이어받는다. 옛 기록은 지우지 않는다(되돌릴 수 있게). 메모·요청내역도 새 폴더로 옮긴다. */
+  if (typeof req.body.path === 'string') {
+    const raw = req.body.path.trim().replace(/^"(.*)"$/, '$1');
+    const np = raw && path.resolve(raw);
+    let isDir = false; try { isDir = !!np && fs.statSync(np).isDirectory(); } catch (e) {}
+    if (!isDir) return res.status(400).json({ error: '폴더가 없습니다: ' + raw });
+    if (s.worktree) return res.status(400).json({ error: '트리 세션은 폴더를 바꿀 수 없어요' });
+    const op = s.path;
+    if (pathKey(op) === pathKey(np)) return res.json(s);
+    const copyNewer = (a, b) => {   // 새 쪽에 없거나 더 오래된 파일만 덮는다
+      for (const e of fs.readdirSync(a, { withFileTypes: true })) {
+        const fa = path.join(a, e.name), fb = path.join(b, e.name);
+        if (e.isDirectory()) { fs.mkdirSync(fb, { recursive: true }); copyNewer(fa, fb); continue; }
+        let tb = 0; try { tb = fs.statSync(fb).mtimeMs; } catch (err) {}
+        if (fs.statSync(fa).mtimeMs > tb) fs.copyFileSync(fa, fb);
+      }
+    };
+    let conv = false;
+    try { const a = claudeProjectDir(op); if (fs.existsSync(a)) { fs.mkdirSync(claudeProjectDir(np), { recursive: true }); copyNewer(a, claudeProjectDir(np)); conv = true; } } catch (e) {}
+    const ok = memoKey(op), nk = memoKey(np);
+    if (memos[ok] && ok !== nk) {
+      const m = memoOf(np);
+      m.items = (memos[ok].items || []).concat(m.items); m.reqs = (memos[ok].reqs || []).concat(m.reqs);
+      delete memos[ok]; flushMemos();
+    }
+    for (const r of recent) if (pathKey(r.path) === pathKey(op)) r.path = np;
+    saveRecent();
+    s.path = np;
+    s.resumeOnStart = false;   // 사람이 고른 재시작 — '이어서 하라' 문구 자동 제출 안 함
+    saveSessions();
+    const p = ptys.get(s.id);
+    if (p && !p.dead) {
+      try { p.proc.kill(); } catch (e) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }   // 클라 자동 재접속 → 새 폴더에서 다시 뜬다
+    }
+    return res.json(Object.assign({}, s, { convCopied: conv }));
+  }
   if (typeof req.body.title === 'string') s.title = req.body.title;
   if (typeof req.body.previewUrl === 'string') s.previewUrl = req.body.previewUrl;
   // 👤 이 세션의 담당(서브에이전트 id). 인계 문구 앞에 "이 에이전트로 처리해줘" 가 붙는다.
