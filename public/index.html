@@ -1926,7 +1926,7 @@ const I18N = {
     themeT:'Light / dark mode (terminal included)',
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — Opus',
-    memoDoneCol:'Completed', reqSearchPh:'🔍 Search requests', reqSearchNone:'No matching requests', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
+    memoDoneCol:'Completed', wtRemovedT:'Nothing was done there, so the tree (separate working folder) was removed', wtKeptT:'The tree has changed files, so its folder was kept — merge it back or delete it yourself', reqSearchPh:'🔍 Search requests', reqSearchNone:'No matching requests', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
     memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
     memoEdit:'Edit', memoDelBtn:'Del', memoDelConfirm:'Delete this memo?', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
@@ -2025,7 +2025,7 @@ const I18N = {
     themeT:'라이트/다크 모드 전환 (터미널 포함)',
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
-    memoDoneCol:'완료된 항목', reqSearchPh:'🔍 요청 검색', reqSearchNone:'찾는 요청이 없어요', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
+    memoDoneCol:'완료된 항목', wtRemovedT:'작업한 게 없어서 트리(분리 작업 폴더)를 지웠어요', wtKeptT:'트리에 바뀐 파일이 있어 폴더는 남겨 뒀어요 — 원래 브랜치로 합치거나 직접 지우세요', reqSearchPh:'🔍 요청 검색', reqSearchNone:'찾는 요청이 없어요', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
     memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
@@ -2526,7 +2526,7 @@ const I18N_MORE = {
     themeT: 'ライト / ダークモード (ターミナルも)',
     previewNoIndex: 'このフォルダに index.html がないので直接プレビューできません。フォルダ直下に index.html を置くか、開発サーバーを起動してそのアドレス (例 http://localhost:3000) を入力してください。',
     mDefaultLong: '自動 — Opus',
-    memoDoneCol: '完了', reqSearchPh: '🔍 リクエストを検索', reqSearchNone: '一致するリクエストはありません', memoReqCol: '送ったリクエスト', memoEmpty: 'まだメモがありません — 下に書いてください。',
+    memoDoneCol: '完了', wtRemovedT: '作業がなかったので、ツリー（分離作業フォルダ）を削除しました', wtKeptT: 'ツリーに変更が残っているのでフォルダは残しました — 元のブランチに統合するか手動で削除してください', reqSearchPh: '🔍 リクエストを検索', reqSearchNone: '一致するリクエストはありません', memoReqCol: '送ったリクエスト', memoEmpty: 'まだメモがありません — 下に書いてください。',
     memoDelT: '削除', memoSend: '送信', memoSendTip: 'このメモをセッションのターミナルへ送る — 作業が終わると完了に移ります',
     reqResendT: 'このリクエストをもう一度ターミナルへ送る', reqDelT: 'このリクエストを履歴から削除', reqDelAsk: 'このリクエストを履歴から削除しますか?', reqCleared: '中断したリクエスト文を入力欄から消しました', reqDelOld: 'PowerTerminal を再起動すると削除できます',
     memoEdit: '編集', memoDelBtn: '削除', memoDelConfirm: 'このメモを削除しますか?',
@@ -2777,7 +2777,7 @@ const I18N_MORE = {
     themeT: '浅色 / 深色模式 (包括终端)',
     previewNoIndex: '这个文件夹里没有 index.html，所以无法直接预览。可以在文件夹根目录放一个 index.html，或者启动你的开发服务器并输入它的地址 (例如 http://localhost:3000)。',
     mDefaultLong: '自动 — Opus',
-    memoDoneCol: '已完成', reqSearchPh: '🔍 搜索请求', reqSearchNone: '没有匹配的请求', memoReqCol: '你发过的请求', memoEmpty: '还没有记事 — 在下面写吧。',
+    memoDoneCol: '已完成', wtRemovedT: '里面没有任何工作，已删除该树（独立工作文件夹）', wtKeptT: '树里有改动的文件，文件夹已保留 — 请合并回原分支或自行删除', reqSearchPh: '🔍 搜索请求', reqSearchNone: '没有匹配的请求', memoReqCol: '你发过的请求', memoEmpty: '还没有记事 — 在下面写吧。',
     memoDelT: '删除', memoSend: '发送', memoSendTip: '把这条记事发到会话终端 — 工作完成后会移到「已完成」',
     reqResendT: '把这条请求再发一次到终端', reqDelT: '从记录中删除这条请求', reqDelAsk: '要从记录中删除这条请求吗?', reqCleared: '已从输入框清除被中断的请求内容', reqDelOld: '重启 PowerTerminal 后即可删除记录',
     memoEdit: '编辑', memoDelBtn: '删除', memoDelConfirm: '删除这条记事?',
@@ -3029,7 +3029,7 @@ const I18N_MORE = {
     themeT: 'Modo claro / oscuro (terminal incluida)',
     previewNoIndex: 'No hay index.html en esta carpeta, así que no se puede previsualizar directamente. Añade un index.html en la raíz de la carpeta, o arranca tu servidor de desarrollo e introduce su dirección (p. ej. http://localhost:3000).',
     mDefaultLong: 'Auto — Opus',
-    memoDoneCol: 'Completado', reqSearchPh: '🔍 Buscar peticiones', reqSearchNone: 'Ninguna petición coincide', memoReqCol: 'Peticiones que enviaste', memoEmpty: 'Aún no hay notas — escribe abajo.',
+    memoDoneCol: 'Completado', wtRemovedT: 'No se hizo nada allí, así que se eliminó el árbol (carpeta de trabajo aparte)', wtKeptT: 'El árbol tiene archivos cambiados, así que se conservó su carpeta — fusiónalo o bórralo tú', reqSearchPh: '🔍 Buscar peticiones', reqSearchNone: 'Ninguna petición coincide', memoReqCol: 'Peticiones que enviaste', memoEmpty: 'Aún no hay notas — escribe abajo.',
     memoDelT: 'Eliminar', memoSend: 'Enviar',
     memoSendTip: 'Envía esta nota a la terminal de la sesión — pasa a Completado cuando el trabajo termine',
     reqResendT: 'Enviar esta petición otra vez a la terminal', reqDelT: 'Borrar esta petición del historial', reqDelAsk: '¿Borrar esta petición del historial?', reqCleared: 'Se borró del cuadro de entrada la petición detenida', reqDelOld: 'Reinicia PowerTerminal para borrar del historial',
@@ -3286,7 +3286,7 @@ const I18N_MORE = {
     themeT: 'Heller / dunkler Modus (Terminal inklusive)',
     previewNoIndex: 'In diesem Ordner gibt es keine index.html, deshalb lässt sich nichts direkt anzeigen. Leg entweder eine index.html in den Ordner, oder starte deinen Dev-Server und gib dessen Adresse ein (z. B. http://localhost:3000).',
     mDefaultLong: 'Automatisch — Opus',
-    memoDoneCol: 'Erledigt', reqSearchPh: '🔍 Anfragen durchsuchen', reqSearchNone: 'Keine passende Anfrage', memoReqCol: 'Deine gesendeten Anfragen', memoEmpty: 'Noch keine Notizen — schreib unten.',
+    memoDoneCol: 'Erledigt', wtRemovedT: 'Dort wurde nichts gemacht, daher wurde der Baum (separater Arbeitsordner) entfernt', wtKeptT: 'Im Baum gibt es geänderte Dateien, der Ordner bleibt — zurückführen oder selbst löschen', reqSearchPh: '🔍 Anfragen durchsuchen', reqSearchNone: 'Keine passende Anfrage', memoReqCol: 'Deine gesendeten Anfragen', memoEmpty: 'Noch keine Notizen — schreib unten.',
     memoDelT: 'Löschen', memoSend: 'Senden',
     memoSendTip: 'Diese Notiz an das Sitzungsterminal schicken — sie wandert zu Erledigt, wenn die Arbeit fertig ist',
     reqResendT: 'Diese Anfrage nochmal ans Terminal schicken', reqDelT: 'Diese Anfrage aus der Liste löschen', reqDelAsk: 'Diese Anfrage aus der Liste löschen?', reqCleared: 'Die gestoppte Anfrage wurde aus dem Eingabefeld entfernt', reqDelOld: 'PowerTerminal neu starten, um Einträge zu löschen',
@@ -3537,7 +3537,7 @@ const I18N_MORE = {
     themeT: 'Mode clair / sombre (terminal compris)',
     previewNoIndex: 'Pas d’index.html dans ce dossier, donc rien à prévisualiser directement. Ajoute un index.html à la racine du dossier, ou lance ton serveur de dev et saisis son adresse (p. ex. http://localhost:3000).',
     mDefaultLong: 'Auto — Opus',
-    memoDoneCol: 'Terminé', reqSearchPh: '🔍 Rechercher', reqSearchNone: 'Aucune demande trouvée', memoReqCol: 'Demandes envoyées', memoEmpty: 'Pas encore de note — écris en dessous.',
+    memoDoneCol: 'Terminé', wtRemovedT: 'Rien n’y a été fait, l’arbre (dossier de travail séparé) a été supprimé', wtKeptT: 'L’arbre contient des fichiers modifiés, son dossier est conservé — fusionne-le ou supprime-le toi-même', reqSearchPh: '🔍 Rechercher', reqSearchNone: 'Aucune demande trouvée', memoReqCol: 'Demandes envoyées', memoEmpty: 'Pas encore de note — écris en dessous.',
     memoDelT: 'Supprimer', memoSend: 'Envoyer',
     memoSendTip: 'Envoyer cette note au terminal de la session — elle passe dans Terminé quand le travail est fini',
     reqResendT: 'Renvoyer cette demande au terminal', reqDelT: 'Supprimer cette demande de l’historique', reqDelAsk: 'Supprimer cette demande de l’historique ?', reqCleared: 'La demande arrêtée a été effacée du champ de saisie', reqDelOld: 'Redémarre PowerTerminal pour supprimer l’historique',
@@ -3790,7 +3790,7 @@ const I18N_MORE = {
     themeT: 'Modo claro / escuro (terminal incluso)',
     previewNoIndex: 'Não há index.html nesta pasta, então não dá para pré-visualizar direto. Coloque um index.html na raiz da pasta, ou suba seu servidor de dev e informe o endereço dele (ex. http://localhost:3000).',
     mDefaultLong: 'Auto — Opus',
-    memoDoneCol: 'Concluído', reqSearchPh: '🔍 Buscar pedidos', reqSearchNone: 'Nenhum pedido encontrado', memoReqCol: 'Pedidos que você enviou', memoEmpty: 'Ainda sem notas — escreva abaixo.',
+    memoDoneCol: 'Concluído', wtRemovedT: 'Nada foi feito lá, então a árvore (pasta de trabalho separada) foi removida', wtKeptT: 'A árvore tem arquivos alterados, então a pasta foi mantida — mescle de volta ou apague você mesmo', reqSearchPh: '🔍 Buscar pedidos', reqSearchNone: 'Nenhum pedido encontrado', memoReqCol: 'Pedidos que você enviou', memoEmpty: 'Ainda sem notas — escreva abaixo.',
     memoDelT: 'Excluir', memoSend: 'Enviar',
     memoSendTip: 'Manda esta nota para o terminal da sessão — vai para Concluído quando o trabalho terminar',
     reqResendT: 'Mandar este pedido de novo para o terminal', reqDelT: 'Apagar este pedido do histórico', reqDelAsk: 'Apagar este pedido do histórico?', reqCleared: 'O pedido parado foi apagado do campo de entrada', reqDelOld: 'Reinicie o PowerTerminal para apagar do histórico',
@@ -4042,7 +4042,7 @@ const I18N_MORE = {
     themeT: 'Светлая / тёмная тема (вместе с терминалом)',
     previewNoIndex: 'В этой папке нет index.html, поэтому показать напрямую нечего. Либо положите index.html в корень папки, либо запустите свой dev-сервер и введите его адрес (например http://localhost:3000).',
     mDefaultLong: 'Авто — Opus',
-    memoDoneCol: 'Завершено', reqSearchPh: '🔍 Поиск запросов', reqSearchNone: 'Ничего не найдено', memoReqCol: 'Отправленные запросы', memoEmpty: 'Заметок пока нет — напишите ниже.',
+    memoDoneCol: 'Завершено', wtRemovedT: 'Там ничего не делали, поэтому дерево (отдельная рабочая папка) удалено', wtKeptT: 'В дереве есть изменённые файлы, папка сохранена — слейте обратно или удалите сами', reqSearchPh: '🔍 Поиск запросов', reqSearchNone: 'Ничего не найдено', memoReqCol: 'Отправленные запросы', memoEmpty: 'Заметок пока нет — напишите ниже.',
     memoDelT: 'Удалить', memoSend: 'Отправить',
     memoSendTip: 'Отправить эту заметку в терминал сессии — когда работа закончится, она уйдёт в «Завершено»',
     reqResendT: 'Отправить этот запрос в терминал ещё раз', reqDelT: 'Удалить этот запрос из истории', reqDelAsk: 'Удалить этот запрос из истории?', reqCleared: 'Остановленный запрос убран из поля ввода', reqDelOld: 'Перезапустите PowerTerminal, чтобы удалять записи',
@@ -4294,7 +4294,7 @@ const I18N_MORE = {
     themeT: 'हल्का / गहरा मोड (टर्मिनल सहित)',
     previewNoIndex: 'इस फ़ोल्डर में index.html नहीं है, इसलिए सीधे दिखाने को कुछ नहीं है। या तो फ़ोल्डर की जड़ में index.html रखें, या अपना dev सर्वर चलाकर उसका पता डालें (जैसे http://localhost:3000)।',
     mDefaultLong: 'अपने आप — Opus',
-    memoDoneCol: 'पूरा हुआ', reqSearchPh: '🔍 अनुरोध खोजें', reqSearchNone: 'कोई मेल खाता अनुरोध नहीं', memoReqCol: 'आपके भेजे अनुरोध', memoEmpty: 'अभी कोई नोट नहीं — नीचे लिखें।',
+    memoDoneCol: 'पूरा हुआ', wtRemovedT: 'वहाँ कोई काम नहीं हुआ, इसलिए ट्री (अलग वर्किंग फ़ोल्डर) हटा दिया गया', wtKeptT: 'ट्री में बदली हुई फ़ाइलें हैं, इसलिए फ़ोल्डर रखा गया — मूल ब्रांच में मिलाएँ या खुद हटाएँ', reqSearchPh: '🔍 अनुरोध खोजें', reqSearchNone: 'कोई मेल खाता अनुरोध नहीं', memoReqCol: 'आपके भेजे अनुरोध', memoEmpty: 'अभी कोई नोट नहीं — नीचे लिखें।',
     memoDelT: 'हटाएँ', memoSend: 'भेजें',
     memoSendTip: 'यह नोट सेशन के टर्मिनल पर भेजें — काम पूरा होते ही यह ‘पूरा हुआ’ में चला जाएगा',
     reqResendT: 'यह अनुरोध टर्मिनल पर दोबारा भेजें', reqDelT: 'इस अनुरोध को सूची से हटाएँ', reqDelAsk: 'इस अनुरोध को सूची से हटाएँ?', reqCleared: 'रोका गया अनुरोध इनपुट बॉक्स से हटा दिया', reqDelOld: 'सूची से हटाने के लिए PowerTerminal दोबारा चालू करें',
@@ -5763,7 +5763,12 @@ function buildPane(sess, idx) {
               mates.map(i => (panes.get(i).sess.title || i)).join(', '));
     if (zoomedId === sess.id) closeZoom();   // 전체화면 중이면 먼저 원위치
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 쓰다 만 글 임시저장도 정리
-    await api('DELETE', '/api/sessions/' + sess.id);
+    // 🌿 트리(worktree) 세션이면 서버가 폴더 정리 결과를 몇 초 뒤 돌려준다 — 창은 기다리지 않고 닫고, 결과만 알림으로
+    const delP = api('DELETE', '/api/sessions/' + sess.id);
+    if (sess.worktree) delP.then(r => {
+      if (r && r.removed) flashToast(T.wtRemovedT || '작업한 게 없어서 트리(분리 작업 폴더)를 지웠어요');
+      else if (r && r.kept) flashToast(T.wtKeptT || '트리에 바뀐 파일이 있어 폴더는 남겨 뒀어요 — 원래 브랜치로 합치거나 직접 지우세요');
+    }).catch(() => {});
     closedByUser = true;
     el.dispatchEvent(new Event('ptclose'));   // 이 창의 주기 타이머(브랜치 갱신 등) 정리
     ws.close(); el.remove(); panes.delete(sess.id);

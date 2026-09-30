@@ -3569,8 +3569,12 @@ app.delete('/api/sessions/:id', (req, res) => {
           if (/^pt\//.test(String(gone.branch || ''))) git(gone.repo, ['branch', '-d', gone.branch], 8000).catch(() => {});
           return { kept: false };
         });
-    }).catch(() => {});
-    return res.json({ ok: true, worktree: dir, branch: gone.branch });
+    })
+      // 결과를 기다렸다 알려 준다 — 화면이 「작업한 게 없어 트리를 지웠어요 / 변경이 남아 남겨 뒀어요」 를 띄운다(2026-10-01).
+      // 화면은 이 응답을 기다리지 않고 창부터 닫으므로 몇 초 걸려도 괜찮다.
+      .then(r => res.json({ ok: true, worktree: dir, branch: gone.branch, removed: !!(r && r.kept === false), kept: !!(r && r.kept) }),
+            () => res.json({ ok: true, worktree: dir, branch: gone.branch }));
+    return;
   }
   res.json({ ok: true });
 });
