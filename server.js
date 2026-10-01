@@ -1712,6 +1712,13 @@ app.post('/api/gh-login/poll', async (req, res) => {
   } catch (e) { res.json({ status: 'error', detail: 'network' }); }
 });
 
+// 받을 위치를 따로 안 골랐을 때 실제로 받게 될 폴더 — 화면에 '받을 위치' 로 보여 준다 (아래 /api/clone 과 같은 규칙)
+app.get('/api/clone-base', (req, res) => {
+  let base = '';
+  try { base = readJson(LAUNCHER_PROJECTS).baseDir || ''; } catch (e) {}
+  try { if (!base || !fs.existsSync(base)) base = os.homedir(); } catch (e) {}
+  res.json({ base });
+});
 // GitHub 저장소 clone 후 세션 시작
 app.post('/api/clone', (req, res) => {
   const url = (req.body.url || '').toString().trim();

@@ -1624,6 +1624,12 @@
       <input id="cloneUrl" placeholder="https://github.com/user/repo" style="flex:1">
       <button class="primary" onclick="cloneRepo()" data-i18n="cloneBtn">⬇ Clone & Start</button>
     </div>
+    <!-- 받을 위치 — 고른 폴더 안에 저장소 이름으로 폴더가 생긴다. 이 기기에 기억해 둔다 -->
+    <div style="display:flex;gap:6px;margin-top:6px;align-items:center;font-size:12px;color:var(--muted)">
+      <span id="cloneBaseLbl" style="white-space:nowrap"></span>
+      <span id="cloneBase" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left;color:var(--text,#e5e7eb)"></span>
+      <button class="small" id="cloneBaseBtn" onclick="pickCloneBase(this)"></button>
+    </div>
   </div>
 
   <!-- 새 프로젝트 -->
@@ -8531,15 +8537,16 @@ async function newProject() {
 
 // ---------- 📁 폴더 고르기 창 — 세션 폴더 바꾸기에 쓴다 (경로를 치지 않고 눌러서 찾아 들어간다) ----------
 // 시작 위치는 지금 폴더의 상위(옮겼으면 대개 없어서 드라이브 목록부터). 한 번 클릭 = 들어가기, [✔ 이 폴더로] = 선택.
-function pickFolderDlg(cur, anchorEl) {
+function pickFolderDlg(cur, anchorEl, opts) {
+  opts = opts || {};   // { start: 처음 보여줄 폴더 그대로, title, note }
   return new Promise(resolve => {
     const box = document.createElement('div');
     box.className = 'pfdlg';
     box.style.cssText = 'position:fixed;z-index:9999;width:min(420px,calc(100vw - 32px));max-height:min(460px,70vh);display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:10px;background:var(--panel,#1f2937);border:1px solid var(--line,#374151);box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px';
-    box.innerHTML = '<div style="font-weight:600">📁 ' + esc(T.pickFolderH || '옮긴 폴더를 찾아 고르세요') + '</div>'
+    box.innerHTML = '<div style="font-weight:600">📁 ' + esc(opts.title || T.pickFolderH || '옮긴 폴더를 찾아 고르세요') + '</div>'
       + '<div style="display:flex;gap:6px;align-items:center"><button class="small pfUp" title="' + escA(T.upT || '위로') + '">⬆</button><span class="pfCur" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left"></span></div>'
       + '<div class="pfList" style="flex:1;overflow:auto;min-height:120px;border:1px solid var(--line,#374151);border-radius:6px;padding:4px"></div>'
-      + '<div style="font-size:11px;opacity:.7">' + esc(T.pickFolderNote || '대화 기록·메모는 새 폴더로 옮겨 이어집니다') + '</div>'
+      + '<div style="font-size:11px;opacity:.7">' + esc(opts.note || T.pickFolderNote || '대화 기록·메모는 새 폴더로 옮겨 이어집니다') + '</div>'
       + '<div style="display:flex;gap:6px;justify-content:flex-end"><button class="small pfNo">' + esc(T.cancel || '취소') + '</button><button class="small pfOk" style="background:#2563eb;color:#fff">✔ ' + esc(T.pickThisT || '이 폴더로') + '</button></div>';
     document.body.appendChild(box);
     const r0 = anchorEl && anchorEl.getBoundingClientRect();
@@ -8578,7 +8585,7 @@ function pickFolderDlg(cur, anchorEl) {
     box.querySelector('.pfOk').onclick = () => dir && done(dir);
     // 옮긴 폴더는 대개 다른 드라이브라 옛 위치가 없다 — 옛 상위 폴더가 있으면 거기서, 없으면 드라이브 목록부터
     const up = String(cur || '').replace(/[\\/][^\\/]*$/, '');
-    go(up);
+    go(opts.start != null ? opts.start : up);
   });
 }
 
@@ -8666,7 +8673,7 @@ function switchTab(tab) {
     document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
   });
   document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  if (tab === 'github') loadRepos();
+  if (tab === 'github') { loadRepos(); renderCloneBase(); }
   if (tab === 'new') updateNpWarn();   // 새 프로젝트도 gh 필요 → 미설치 시 경고
 }
 // 새 프로젝트 탭: GitHub 저장소 생성에 gh가 필요 → 미설치면 안내 문구 표시
@@ -8988,6 +8995,24 @@ function clearAddMsg() {
   const m = document.getElementById('addMsg'); if (m) { m.style.display = 'none'; m.textContent = ''; }
 }
 function cloneRepo() { doClone(document.getElementById('cloneUrl').value.trim()); }
+// ⬇ 받을 위치 — 비어 있으면 서버 기본값(런처 baseDir 또는 홈 폴더). 고른 값은 이 기기에 기억한다.
+function cloneBase() { try { return localStorage.getItem('pt_clonebase') || ''; } catch (e) { return ''; } }
+let cloneBaseDef = '';
+async function renderCloneBase() {
+  const lb = document.getElementById('cloneBaseLbl'), el = document.getElementById('cloneBase'), bt = document.getElementById('cloneBaseBtn');
+  if (!el) return;
+  lb.textContent = (T.cloneToT || '받을 위치') + ':';
+  bt.textContent = '📂 ' + (T.cloneToBtn || '바꾸기');
+  if (!cloneBase() && !cloneBaseDef) { const r = await api('GET', '/api/clone-base'); cloneBaseDef = (r && r.base) || ''; }
+  const b = cloneBase() || cloneBaseDef;
+  el.textContent = b; el.title = b;
+}
+async function pickCloneBase(btn) {
+  const d = await pickFolderDlg('', btn, { start: cloneBase() || cloneBaseDef, title: T.cloneToPickH || '저장소를 받을 폴더를 고르세요', note: T.cloneToNote || '고른 폴더 안에 저장소 이름으로 새 폴더가 생겨요' });
+  if (!d) return;
+  try { localStorage.setItem('pt_clonebase', d); } catch (e) {}
+  renderCloneBase();
+}
 async function doClone(url) {
   if (!url) return;
   const btn = document.querySelector('#tab-github .primary');
@@ -8996,7 +9021,7 @@ async function doClone(url) {
   // 끝이 안 보이면 "무한정 늘기만 한다"가 된다 — 최대 대기(5분)를 같이 보여준다.
   let secs = 0; btn.textContent = '⬇ 0s / 300s';
   const tick = setInterval(() => { secs++; btn.textContent = '⬇ ' + secs + 's / 300s'; }, 1000);
-  const r = await api('POST', '/api/clone', { url, agent: document.getElementById('addAgent').value, model: curAddModel() });
+  const r = await api('POST', '/api/clone', { url, base: cloneBase(), agent: document.getElementById('addAgent').value, model: curAddModel() });
   clearInterval(tick);
   btn.disabled = false; btn.textContent = old;
   if (r.error) { alert(r.error); return; }
