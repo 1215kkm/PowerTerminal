@@ -4068,9 +4068,15 @@ app.use((req, res, next) => {
 const server = http.createServer(app);
 // 한 세션(PTY)을 여러 브라우저가 볼 때 크기가 하나뿐이라 충돌 → 연결된 창 중 "최대" 크기로 통일.
 // (작은 폰·백그라운드·유령 탭이 큰 PC 화면을 절반으로 줄이던 문제 방지. 떠나면 재계산해 안 남게.)
+/* 터미널 크기 = *마지막으로 직접 입력한 기기* 의 창 크기. 그런 기기가 없으면 가장 큰 창.
+   예전엔 늘 가장 큰 창(PC) 기준이라, 폰에서 쓰면 넓은 줄이 좁은 화면에서 접혀 보였다. Claude 는 입력칸·진행 표시를
+   '커서를 N줄 올려 다시 그리기' 로 갱신하는데, 접힌 줄은 N 보다 많아서 덜 지워진다 → 보낸 요청("진행중?")과
+   답변이 2~3번씩 겹쳐 찍혀 보였다(실제 전송은 한 번 — 2026-10-01 대화 기록으로 확인). 쓰는 기기에 맞추면 접히지 않는다. */
 function applyPtySize(p) {
-  let cols = 0, rows = 0;
-  for (const s of p.sockets) {
+  let cols = 0, rows = 0, act = null;
+  for (const s of p.sockets) if (s._size && s._act && (!act || s._act > act._act)) act = s;
+  if (act) { cols = act._size.cols; rows = act._size.rows; }
+  else for (const s of p.sockets) {
     if (s._size) { if (s._size.cols > cols) cols = s._size.cols; if (s._size.rows > rows) rows = s._size.rows; }
   }
   if (cols > 10 && rows > 5 && (cols !== p.cols || rows !== p.rows)) {
@@ -4103,6 +4109,12 @@ wss.on('connection', (ws, req) => {
     if (m.type === 'in') {
       scheduler.input(id, m.data);
       writeIn(sess, p, m.data);
+      // 사람이 친 입력이면 이 기기를 '지금 쓰는 기기' 로 — 터미널이 자동으로 돌려주는 응답(커서 위치·포커스 신호 등)은 빼야
+      // 보기만 하는 다른 창이 크기를 뺏어가지 않는다. 기기가 바뀔 때만 크기를 다시 맞춘다.
+      if (!/^(\x1b\[[\d;?>]*[A-Za-z~]|\x1b\][^\x07]*(\x07|\x1b\\))+$/.test(String(m.data || ''))) {
+        const prev = ws._act || 0; ws._act = Date.now();
+        if (!prev || [...p.sockets].some(o => o !== ws && (o._act || 0) > prev)) applyPtySize(p);
+      }
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
       //    폰에서 보내고 PC에서 듣는 것도 그대로 된다.
       if (isSubmitInput(m.data)) p.armed = true;
@@ -4118,7 +4130,7 @@ wss.on('connection', (ws, req) => {
       p.lastOut = Date.now();
     } else if (m.type === 'resize' && m.cols > 10 && m.rows > 5) {
       ws._size = { cols: m.cols, rows: m.rows };
-      applyPtySize(p);   // 여러 클라이언트가 봐도 가장 큰 창 기준 → 작은 창이 큰 화면을 줄이지 않음
+      applyPtySize(p);   // 지금 쓰는 기기 크기 기준 (applyPtySize 설명 참고)
     }
   });
   ws.on('close', () => { p.sockets.delete(ws); applyPtySize(p); });   // 떠난 클라이언트 크기가 남지 않게 재계산
