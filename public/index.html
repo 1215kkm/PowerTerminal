@@ -8540,24 +8540,24 @@ async function newProject() {
 function pickFolderDlg(cur, anchorEl, opts) {
   opts = opts || {};   // { start: 처음 보여줄 폴더 그대로, title, note }
   return new Promise(resolve => {
-    const box = document.createElement('div');
+    /* <dialog>.showModal() 로 띄운다 — 세션 추가 창 같은 모달은 '최상위 층' 에 있어서, 보통 div 는 z-index 를 아무리
+       올려도 그 뒤에 깔리고(클릭도 막힘) 위치도 버튼 기준으로 엉뚱하게 잡혔다. 모달 위에 또 모달로 열면 화면 가운데에 뜬다. */
+    const box = document.createElement('dialog');
     box.className = 'pfdlg';
-    box.style.cssText = 'position:fixed;z-index:9999;width:min(420px,calc(100vw - 32px));max-height:min(460px,70vh);display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:10px;background:var(--panel,#1f2937);border:1px solid var(--line,#374151);box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px';
+    box.style.cssText = 'width:min(440px,calc(100vw - 32px));height:min(480px,75vh);box-sizing:border-box;flex-direction:column;gap:6px;padding:12px;font-size:13px';
     box.innerHTML = '<div style="font-weight:600">📁 ' + esc(opts.title || T.pickFolderH || '옮긴 폴더를 찾아 고르세요') + '</div>'
       + '<div style="display:flex;gap:6px;align-items:center"><button class="small pfUp" title="' + escA(T.upT || '위로') + '">⬆</button><span class="pfCur" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left"></span></div>'
       + '<div class="pfList" style="flex:1;overflow:auto;min-height:120px;border:1px solid var(--line,#374151);border-radius:6px;padding:4px"></div>'
       + '<div style="font-size:11px;opacity:.7">' + esc(opts.note || T.pickFolderNote || '대화 기록·메모는 새 폴더로 옮겨 이어집니다') + '</div>'
       + '<div style="display:flex;gap:6px;justify-content:flex-end"><button class="small pfNo">' + esc(T.cancel || '취소') + '</button><button class="small pfOk" style="background:#2563eb;color:#fff">✔ ' + esc(T.pickThisT || '이 폴더로') + '</button></div>';
     document.body.appendChild(box);
-    const r0 = anchorEl && anchorEl.getBoundingClientRect();
-    const W = box.offsetWidth, H = box.offsetHeight;
-    box.style.left = Math.max(16, Math.min((r0 ? r0.left : 16), innerWidth - W - 16)) + 'px';
-    box.style.top = Math.max(16, Math.min((r0 ? r0.bottom + 4 : 60), innerHeight - H - 16)) + 'px';
-    let dir = '', parent = '';
-    const done = v => { box.remove(); document.removeEventListener('mousedown', outside, true); document.removeEventListener('keydown', onKey, true); resolve(v); };
-    const outside = ev => { if (!box.contains(ev.target)) done(null); };
-    const onKey = ev => { if (ev.key === 'Escape') { ev.stopPropagation(); done(null); } };
-    setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('keydown', onKey, true); }, 0);
+    box.showModal();
+    box.style.display = 'flex';
+    let dir = '', parent = '', closed = false;
+    const done = v => { if (closed) return; closed = true; try { box.close(); } catch (e) {} box.remove(); resolve(v); };
+    box.addEventListener('cancel', ev => { ev.preventDefault(); done(null); });               // Esc — 아래 세션 추가 창은 그대로 둔다
+    box.addEventListener('mousedown', ev => { if (ev.target === box) { const r = box.getBoundingClientRect();   // 바깥(배경) 클릭 = 취소
+      if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) done(null); } });
     const go = async d => {
       const r = await api('GET', '/api/browse?dir=' + encodeURIComponent(d));
       if (!r || r.error) { if (d) return go(''); return; }
