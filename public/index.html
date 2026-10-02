@@ -7134,16 +7134,23 @@ function flowCatchUp() {
 }
 setInterval(flowCatchUp, 12000);
 // 열려 있는 창들의 flowTo 를 서버 값으로 다시 맞춘다 (복원된 화살표를 바로 그리기 위해)
-async function flowRefreshAll() {
+async function flowRefreshAll(quiet) {
   let live = [];
   try { live = await api('GET', '/api/sessions'); } catch (e) { return; }
   if (!Array.isArray(live)) return;
+  let changed = false;
   for (const s of live) {
     const p = panes.get(s.id);
-    if (p) { p.sess.flowTo = Array.isArray(s.flowTo) ? s.flowTo : []; p.sess.flowMeta = s.flowMeta || {}; }
+    if (!p) continue;
+    const to = Array.isArray(s.flowTo) ? s.flowTo : [], meta = s.flowMeta || {};
+    if (JSON.stringify(to) !== JSON.stringify(p.sess.flowTo || []) || JSON.stringify(meta) !== JSON.stringify(p.sess.flowMeta || {})) changed = true;
+    p.sess.flowTo = to; p.sess.flowMeta = meta;
   }
-  flowDraw();
+  if (changed || !quiet) flowDraw();
 }
+/* 다른 기기·AI 가 서버에 건 화살표도 이 화면에 들어오게 — 예전엔 페이지를 연 순간의 값만 들고 있어서,
+   밖에서 건 화살표가 F5 전까지 안 보였고 인계(이 화면이 실행한다)도 안 됐다. 바뀐 게 있을 때만 다시 그린다. */
+setInterval(() => { if (!document.hidden) flowRefreshAll(true); }, 10000);
 // 이 세션과 한 덩어리로 이어진 '열려 있는' 세션 id 들 (양방향·간접 포함, 자기 자신 제외)
 function flowOpenMates(id) {
   const seen = new Set([id]), out = [], q = [id];
