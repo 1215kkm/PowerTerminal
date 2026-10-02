@@ -7708,16 +7708,17 @@ function flowDragStart(fromId, ev, existingTo) {
    자동 전송을 켜 둔 화살표만 실제로 보내고, 나머지는 채워만 두고 사람이 [전송]을 누르게 한다. */
 // 왕복(↩) 화살표로 일을 받은 세션 → 끝나면 돌려보낼 곳. 대상id → 부탁한 세션id
 const flowReturns = new Map();
-// 받는 세션이 작업 중이라 아직 못 보낸 인계. 대상id → {fromId, text}
+// 받는 세션이 작업 중이라 아직 못 보낸 인계. 대상id → [{fromId, text}, …] (GPT 세션만 — 아래 flowSend 설명)
+// 예전엔 한 칸이라, 바쁜 동안 두 번 넘어오면 앞의 인계가 덮여 사라졌다 → 쌓아 두었다가 한 번에 보낸다.
 const flowPending = new Map();
 // 그 세션이 한가해지면 들고 있던 인계를 보낸다 (setState 에서 busy 가 풀릴 때 호출)
 function flowFlushPending(toId) {
-  const q = flowPending.get(toId); if (!q) return;
+  const q = flowPending.get(toId); if (!q || !q.length) return;
   const dst = panes.get(toId);
   if (!dst || !dst.el.isConnected) { flowPending.delete(toId); return; }
   if (dst.el.classList.contains('busy')) return;
   flowPending.delete(toId);
-  dst.sendText(q.text);
+  dst.sendText(q.map(x => x.text).join('\n\n---\n\n'));
   dst.el.classList.add('flow-incoming');
   setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
 }
@@ -7738,14 +7739,19 @@ function flowSend(fromId, toId, text, auto) {
   // 받는 세션이 작업 중이면 예전엔 조용히 '요청창에 채우기' 로 내려앉아, 자동을 켜 뒀는데도 아무 일이 안 일어난 것처럼 보였다.
   // (단계를 고르는 순간 그 세션에 역할 브리핑이 가므로, 설정 직후엔 십중팔구 작업 중이다.)
   // 이제는 끝날 때까지 들고 있다가 한가해지면 보낸다.
-  if (auto && busy) {
-    flowPending.set(toId, { fromId, text });
+  /* 받는 쪽이 Claude 면 작업 중이어도 바로 보낸다 — Claude 는 작업 도중 들어온 요청을 하던 동작 하나가 끝나는 대로
+     읽고 이어서 반영한다(2026-10-03 CEO: 두 세션이 동시에 일하며 주고받기). 순서는 보낸 순서 그대로.
+     GPT(codex) 는 작업 중 Enter 가 하던 일을 끊을 수 있어 예전처럼 끝날 때까지 들고 있는다. */
+  const holdWhileBusy = (dst.sess.agent || 'claude') !== 'claude';
+  if (auto && busy && holdWhileBusy) {
+    const list = flowPending.get(toId) || [];
+    list.push({ fromId, text }); flowPending.set(toId, list);
     dst.el.classList.add('flow-incoming');
     setTimeout(() => dst.el.classList.remove('flow-incoming'), 4000);
     flashToast((T.flowQueued || '').replace('{t}', dst.sess.title || ''));
     return 'queued';
   }
-  const sent = auto && !busy;
+  const sent = auto && (!busy || !holdWhileBusy);
   if (sent) {
     dst.sendText(text, flowStamp(fromId, toId));        // 요청내역에도 기록되고 터미널로 바로 들어간다
   } else {

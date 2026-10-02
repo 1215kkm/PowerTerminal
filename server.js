@@ -486,7 +486,9 @@ function stampReqs(dir, st, auto) {
   // 요청이 끝나면 터미널 출력에서 ① 질문이었다면 답변 ② 사람이 직접 해야 할 일 을 뽑아 기록한다.
   // 둘 다 한 번의 Haiku 호출로 끝내 호출 수를 늘리지 않는다.
   if (st === 'done') stamped.forEach(r => {
-    const wantA = (r.q || r.flow) && !r.answer;   // 플로우 단계는 그 자체가 '결과를 남겨야 하는 일'
+    /* 질문이 아닌 요청도 '답변(AI 가 한 일과 결과)' 을 남긴다 — 예전엔 질문·플로우만 답을 뽑아서, 질문-답변 기록에
+       할 일만 있고 답이 비어 있었다(2026-10-03 CEO). 할 일과 같은 Haiku 호출 한 번에 같이 뽑으므로 호출 수는 그대로. */
+    const wantA = (r.q || r.flow || config.qaDoc !== false) && !r.answer;
     const wantS = config.nextSteps !== false && !r.steps;
     if (wantA || wantS) genReqOutcome(dir, r.id, r.text, wantA, wantS);
   });
@@ -3314,7 +3316,8 @@ function writeQaDoc(dir) {
   try {
     const m = memos[memoKey(dir)];
     // 답을 못 뽑은 질문도 남긴다 — 예전엔 답이 있는 것만 실어서, 추출이 실패하면 물어본 사실 자체가 사라졌다.
-    const list = ((m && m.reqs) || []).filter(r => r.q);
+    // 질문뿐 아니라 답(한 일)이나 할 일이 남은 요청 전부 — 답변과 할 일은 칸을 나눠 적는다
+    const list = ((m && m.reqs) || []).filter(r => r.q || r.answer || (Array.isArray(r.steps) && r.steps.length));
     const todo = ((m && m.reqs) || []).filter(r => Array.isArray(r.steps) && r.steps.length);
     // 🔀 플로우로 넘어온 요청들 — 어느 단계에서 무엇을 했고 어떻게 끝났는지
     const flow = ((m && m.reqs) || []).filter(r => r.flow && r.flow.stage);
@@ -3326,7 +3329,7 @@ function writeQaDoc(dir) {
       const p = n => (n < 10 ? '0' + n : '' + n);
       const day = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
       if (!byDay.has(day)) byDay.set(day, []);
-      byDay.get(day).push({ time: p(d.getHours()) + ':' + p(d.getMinutes()), q: r.text, a: r.answer });
+      byDay.get(day).push({ time: p(d.getHours()) + ':' + p(d.getMinutes()), q: r.text, a: r.answer, isQ: !!r.q, steps: Array.isArray(r.steps) ? r.steps : null, st: r.st });
     });
     const title = path.basename(dir.replace(/[\\/]+$/, '')) + ' — 질문 답변 기록';
     let body = '';
@@ -3369,10 +3372,15 @@ function writeQaDoc(dir) {
       body += '</tbody>\n</table>\n';
     }
     for (const [day, rows] of byDay) {
-      body += '<h2>' + qaEsc(day) + '</h2>\n<table>\n<thead><tr><th class="t">시각</th><th class="q">질문</th><th>답</th></tr></thead>\n<tbody>\n';
+      body += '<h2>' + qaEsc(day) + '</h2>\n<table>\n<thead><tr><th class="t">시각</th><th class="q">요청·질문</th><th class="a">답변</th><th class="do">내가 할 일</th></tr></thead>\n<tbody>\n';
       for (const r of rows) {
-        const a = r.a ? qaEsc(r.a) : '<span class="noans">답을 못 뽑았습니다 (세션이 닫혀 있었거나 추출 실패)</span>';
-        body += '<tr><td class="t">' + qaEsc(r.time) + '</td><td class="q">' + qaEsc(r.q) + '</td><td>' + a + '</td></tr>\n';
+        const a = r.a ? qaEsc(r.a)
+          : r.st === 'run' ? '<span class="noans">아직 작업 중</span>'
+          : '<span class="noans">답을 못 뽑았습니다 (세션이 닫혀 있었거나 추출 실패)</span>';
+        const todo = r.steps && r.steps.length ? '<ol class="steps">' + r.steps.map(x => '<li>' + qaEsc(x) + '</li>').join('') + '</ol>'
+          : r.steps ? '<span class="none">없음</span>' : '';
+        body += '<tr><td class="t">' + qaEsc(r.time) + '</td><td class="q">' + (r.isQ ? '<span class="qb">질문</span> ' : '') + qaEsc(r.q) + '</td>'
+              + '<td class="a">' + a + '</td><td class="do">' + todo + '</td></tr>\n';
       }
       body += '</tbody>\n</table>\n';
     }
@@ -3384,7 +3392,10 @@ function writeQaDoc(dir) {
       + '.lead{color:#6b7280;font-size:14px;margin:0 0 4px}\n'
       + 'table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid #eef0f3}\n'
       + 'thead th{background:#f8fafc;color:#475569;font-weight:600;font-size:13px}\n'
-      + 'td.t,th.t{width:64px;color:#6b7280;white-space:nowrap} td.q,th.q{width:34%;font-weight:600}\n'
+      + 'td.t,th.t{width:64px;color:#6b7280;white-space:nowrap} td.q,th.q{width:30%;font-weight:600}\n'
+      + 'td.a{white-space:pre-wrap} td.do,th.do{width:26%;background:#fffbeb} thead th.do{background:#fef3c7;color:#92400e}\n'
+      + '.qb{display:inline-block;padding:0 6px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:700}\n'
+      + '.none{color:#9ca3af;font-size:12px}\n'
       + 'h2.todo{color:#b45309;border-bottom-color:#fcd34d}\n'
       + 'h2.flow{color:#4338ca;border-bottom-color:#c7d2fe}\n'
       + 'td.st,th.st{width:96px} td.who,th.who{width:190px;color:#475569;font-size:13px}\n'
@@ -3398,7 +3409,7 @@ function writeQaDoc(dir) {
       + ' tr{border-bottom:1px solid #e5e7eb;padding:8px 0} td{border:0;padding:3px 0}}\n'
       + '</style></head><body>\n'
       + '<h1>' + qaEsc(title) + '</h1>\n'
-      + '<p class="lead">물어본 것과 그 답, 플로우가 단계를 거치며 한 일, 그리고 AI 가 끝낸 뒤 내가 손으로 해야 할 일이 남습니다. 최신이 위에 옵니다.</p>\n'
+      + '<p class="lead">요청·질문마다 AI 의 답변(한 일과 결과)과 내가 할 일을 칸을 나눠 적습니다. 플로우가 단계를 거치며 한 일, 그리고 AI 가 끝낸 뒤 내가 손으로 해야 할 일이 남습니다. 최신이 위에 옵니다.</p>\n'
       + '<p class="lead">PowerTerminal이 자동으로 갱신합니다 — 직접 고쳐도 다음 질문 때 덮어씁니다.</p>\n'
       + body
       + '</body></html>\n';
@@ -3447,7 +3458,9 @@ function genReqOutcome(dir, reqId, question, wantAnswer, wantSteps) {
     });
     proc.on('error', () => clearTimeout(kill));
     const ask = [];
-    if (wantAnswer) ask.push('ANSWER: <the assistant\'s answer to the question — keep the substance, at most ~600 characters>');
+    if (wantAnswer) ask.push('ANSWER: <if the request was a question, the assistant\'s answer to it; otherwise what the assistant did and the result '
+      + '(what changed, whether it worked, anything it could not do) — keep the substance, at most ~600 characters. '
+      + 'Do NOT put the human\'s to-do steps here>');
     if (wantSteps) ask.push('STEPS: <things the HUMAN must now do by hand, one per line, in order — running a command, '
       + 'opening a page and checking it, restarting something, entering a key. Write only what the assistant asked the '
       + 'person to do or clearly left for them; do NOT invent steps and do NOT list what the assistant already did itself. '
