@@ -1562,6 +1562,51 @@ const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, se
   enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : claudeEnterDelay(written.length); } });
 scheduler.install(app);
 
+/* 🧠 세션별 메모리(RAM) — 컴퓨터가 버벅일 때 어느 세션이 자원을 많이 쓰는지 보려고(2026-10-03 CEO).
+   세션 터미널 프로세스 + 그 밑에 딸린 모든 프로세스(AI·MCP·개발서버·브라우저 자동화 등)의 실제 사용량(작업 집합)을 더한다.
+   프로세스 목록을 읽는 데 1초 가까이 걸려서 8초 동안은 지난 값을 그대로 준다. */
+let memCache = { at: 0, data: null, busy: null };
+function readProcTable() {
+  return new Promise(resolve => {
+    if (IS_WIN) {
+      execFile('powershell', ['-NoProfile', '-Command',
+        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize)" }'],
+        { windowsHide: true, timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
+          const rows = [];
+          String(so || '').split(/\r?\n/).forEach(l => { const [a, b, c] = l.trim().split(','); if (a) rows.push([+a, +b, +c || 0]); });
+          resolve(rows);
+        });
+    } else {
+      execFile('ps', ['-A', '-o', 'pid=,ppid=,rss='], { timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
+        const rows = [];
+        String(so || '').split('\n').forEach(l => { const [a, b, c] = l.trim().split(/\s+/); if (a) rows.push([+a, +b, (+c || 0) * 1024]); });
+        resolve(rows);
+      });
+    }
+  });
+}
+async function sessionMem() {
+  if (memCache.data && Date.now() - memCache.at < 8000) return memCache.data;
+  if (memCache.busy) return memCache.busy;
+  memCache.busy = (async () => {
+    const rows = await readProcTable();
+    const kids = new Map(), ws = new Map();
+    for (const [pid, ppid, w] of rows) { ws.set(pid, w); if (!kids.has(ppid)) kids.set(ppid, []); kids.get(ppid).push(pid); }
+    const sumTree = root => {
+      let total = 0, n = 0; const seen = new Set(), st = [root];
+      while (st.length) { const p = st.pop(); if (seen.has(p) || !ws.has(p)) continue; seen.add(p); total += ws.get(p); n++; (kids.get(p) || []).forEach(c => st.push(c)); }
+      return { bytes: total, procs: n };
+    };
+    const out = {};
+    for (const s of sessions) { const p = ptys.get(s.id); if (p && !p.dead && p.proc && p.proc.pid) out[s.id] = sumTree(p.proc.pid); }
+    const data = { at: Date.now(), sessions: out, server: sumTree(process.pid).bytes, totalMem: os.totalmem(), freeMem: os.freemem() };
+    memCache = { at: Date.now(), data, busy: null };
+    return data;
+  })().catch(() => { memCache.busy = null; return { at: Date.now(), sessions: {} }; });
+  return memCache.busy;
+}
+app.get('/api/sessions-mem', async (req, res) => res.json(await sessionMem()));
+
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {
     const p = ptys.get(s.id);

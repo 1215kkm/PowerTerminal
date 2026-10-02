@@ -111,6 +111,11 @@
   .ttlcol .ttlrow .title { min-width: 0; }
   .ph-sub { display: flex; align-items: center; gap: 8px; min-width: 0; padding-left: 4px; line-height: 1.35; }
   .ph-sub .folder { flex: 0 1 auto; min-width: 24px; }
+  /* 🧠 이 세션이 쓰는 메모리 — 많이 쓰면 주황·빨강 */
+  .ph-sub .memv { flex: 0 0 auto; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ph-sub .memv:empty { display: none; }
+  .ph-sub .memv.warm { color: #f59e0b; font-weight: 700; }
+  .ph-sub .memv.hot { color: #ef4444; font-weight: 700; }
   /* 🔢 선택창 버튼 — AI 가 「1. Yes / 2. No」 같은 선택창을 띄우면 입력칸 위에 뜬다 (폰에서는 방향키가 없어서) */
   .qMenu { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; margin: 0 0 6px;
            background: #1e1b4b; border: 1px solid #6366f1; border-radius: 10px; }
@@ -4780,7 +4785,7 @@ function buildPane(sess, idx) {
         <!-- ✳ 작업 시간은 제목 바로 옆에 — 오른쪽 끝에 두었더니 그 위에 떠 있는 도구 버튼에 가려 안 보였다 -->
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
         <span class="st"></span>
-        </span><span class="ph-sub"><span class="folder" title="${esc(sess.path)}${sess.worktree ? '' : '&#10;' + esc(T.folderHintT || '클릭: 폴더 열기 · 오른쪽 클릭: 폴더 바꾸기')}">${esc(sess.path)}</span></span></span>
+        </span><span class="ph-sub"><span class="folder" title="${esc(sess.path)}${sess.worktree ? '' : '&#10;' + esc(T.folderHintT || '클릭: 폴더 열기 · 오른쪽 클릭: 폴더 바꾸기')}">${esc(sess.path)}</span><span class="memv" title=""></span></span></span>
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         <!-- 도구버튼 묶음 — 창이 좁아지면 제목이 먼저 줄고, 그래도 모자라면 이 묶음이 통째로 아랫줄로 내려간다.
              예전엔 버튼들이 그냥 오른쪽으로 밀려 .pane 의 overflow:hidden 에 잘려 안 보였다. -->
@@ -7151,6 +7156,25 @@ async function flowRefreshAll(quiet) {
 /* 다른 기기·AI 가 서버에 건 화살표도 이 화면에 들어오게 — 예전엔 페이지를 연 순간의 값만 들고 있어서,
    밖에서 건 화살표가 F5 전까지 안 보였고 인계(이 화면이 실행한다)도 안 됐다. 바뀐 게 있을 때만 다시 그린다. */
 setInterval(() => { if (!document.hidden) flowRefreshAll(true); }, 10000);
+/* 🧠 세션별 메모리(RAM) — 세션 + 딸린 프로세스 전부의 실제 사용량. 컴퓨터가 버벅일 때 범인 찾기용.
+   1.5GB 넘으면 주황, 3GB 넘으면 빨강. 화면이 안 보일 땐 묻지 않는다. */
+const fmtMem = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + 'GB' : Math.round(b / 1048576) + 'MB';
+async function refreshMem() {
+  if (document.hidden) return;
+  let r; try { r = await api('GET', '/api/sessions-mem'); } catch (e) { return; }
+  if (!r || !r.sessions) return;
+  for (const [id, p] of panes) {
+    const el = p.el.querySelector('.memv'); if (!el) continue;
+    const m = r.sessions[id];
+    if (!m) { el.textContent = ''; continue; }
+    el.textContent = '🧠 ' + fmtMem(m.bytes);
+    el.classList.toggle('hot', m.bytes >= 3 * 1073741824);
+    el.classList.toggle('warm', m.bytes >= 1.5 * 1073741824 && m.bytes < 3 * 1073741824);
+    el.title = (T.memT || '이 세션이 쓰는 메모리(RAM) — 세션과 딸린 프로세스 {n}개 합계').replace('{n}', m.procs)
+      + (r.totalMem ? '\n' + (T.memSysT || '컴퓨터 전체') + ': ' + fmtMem(r.totalMem - r.freeMem) + ' / ' + fmtMem(r.totalMem) : '');
+  }
+}
+setInterval(refreshMem, 10000); setTimeout(refreshMem, 1500);
 // 이 세션과 한 덩어리로 이어진 '열려 있는' 세션 id 들 (양방향·간접 포함, 자기 자신 제외)
 function flowOpenMates(id) {
   const seen = new Set([id]), out = [], q = [id];
