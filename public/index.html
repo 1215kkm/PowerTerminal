@@ -12282,6 +12282,20 @@ let _pinnedQuick = null;
 function positionPinnedQuick() {
   if (!_pinnedQuick) return;
   const vv = window.visualViewport;
+  /* 입력줄은 화면에 고정(position:fixed)이라 세션창과 따로 논다 — 입력창이 포커스된 채 화면을 밀어 다른 세션으로 가면
+     (키보드를 뒤로가기로 내려도 포커스는 남는다) 입력줄이 남의 세션 위에 그대로 떠 있었다. 이 입력줄의 세션창이
+     보이는 화면에서 거의 벗어났으면 고정을 풀고 포커스도 놓는다. */
+  const pane = _pinnedQuick.closest('.pane');
+  if (pane) {
+    const r = pane.getBoundingClientRect();
+    const top = vv ? vv.offsetTop : 0, bot = top + (vv ? vv.height : window.innerHeight);
+    if (r.bottom < top + 60 || r.top > bot - 60) {
+      const q = _pinnedQuick;
+      try { const a = document.activeElement; if (a && q.contains(a)) a.blur(); } catch (e) {}
+      unpinQuick(q);
+      return;
+    }
+  }
   const gap = vv ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)) : 0;
   // bottom 자체는 CSS calc(--kb-gap + safe-area 여유)가 계산 — 여기선 키보드 높이만 변수로 넘김
   _pinnedQuick.style.setProperty('--kb-gap', gap + 'px');
@@ -12306,6 +12320,7 @@ if (window.visualViewport) {
   visualViewport.addEventListener('scroll', scheduleRefit);
   visualViewport.addEventListener('resize', positionPinnedQuick);   // 키보드 오르내림에 맞춰 입력줄 위치 갱신
   visualViewport.addEventListener('scroll', positionPinnedQuick);
+  document.addEventListener('scroll', () => { if (_pinnedQuick) positionPinnedQuick(); }, { capture: true, passive: true });   // 세션 목록(안쪽 스크롤)을 밀 때도
 }
 // 탭으로 돌아왔을 때(폰 잠금 해제 등)도 한 번 더 맞춤
 document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(refitAll, 150); });
