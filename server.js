@@ -3380,13 +3380,15 @@ function writeQaDoc(dir) {
     let body = '';
     // 🙋 내가 직접 할 일 — AI 가 끝낸 뒤 사람이 손으로 해야 하는 것들. 맨 위에 둔다(제일 급한 정보라서).
     if (todo.length) {
+      // 맨 위 표에도 답변 칸을 둔다 — 여기만 보고 "답이 안 적힌다"로 보였다(2026-10-03 CEO). 답변과 할 일은 칸을 나눈다.
       body += '<h2 class="todo">🙋 내가 직접 할 일</h2>\n<table>\n'
-            + '<thead><tr><th class="t">시각</th><th class="q">요청</th><th>순서대로 할 일</th></tr></thead>\n<tbody>\n';
+            + '<thead><tr><th class="t">시각</th><th class="q">요청</th><th class="a">답변</th><th class="do">순서대로 할 일</th></tr></thead>\n<tbody>\n';
       todo.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 40).forEach(r => {
         const d = new Date(r.ts || Date.now());
         const p = n => (n < 10 ? '0' + n : '' + n);
         const when = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
-        body += '<tr><td class="t">' + qaEsc(when) + '</td><td class="q">' + qaEsc(r.text) + '</td><td><ol class="steps">'
+        const a = r.answer ? qaEsc(r.answer) : '<span class="noans">' + (r.st === 'run' ? '아직 작업 중' : '답을 못 뽑았습니다') + '</span>';
+        body += '<tr><td class="t">' + qaEsc(when) + '</td><td class="q">' + qaEsc(r.text) + '</td><td class="a">' + a + '</td><td class="do"><ol class="steps">'
               + r.steps.map(s => '<li>' + qaEsc(s) + '</li>').join('') + '</ol></td></tr>\n';
       });
       body += '</tbody>\n</table>\n';
@@ -3509,6 +3511,8 @@ function genReqOutcome(dir, reqId, question, wantAnswer, wantSteps) {
     if (wantSteps) ask.push('STEPS: <things the HUMAN must now do by hand, one per line, in order — running a command, '
       + 'opening a page and checking it, restarting something, entering a key. Write only what the assistant asked the '
       + 'person to do or clearly left for them; do NOT invent steps and do NOT list what the assistant already did itself. '
+      + 'Do NOT list work that an AI, another session or an agent will do, and do NOT list waiting or monitoring '
+      + '(e.g. "wait until X finishes", "the other session prepares Y") — only actions the person performs with their own hands or decisions only they can make. '
       + 'If there is nothing for the person to do, write exactly: none>');
     proc.stdin.write('Below is the tail of a terminal log where an AI assistant worked on a request.\n'
       + 'Reply in the SAME language as the request, formatted EXACTLY as these lines and nothing else:\n'
