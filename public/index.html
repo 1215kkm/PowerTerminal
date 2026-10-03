@@ -4907,6 +4907,14 @@ function buildPane(sess, idx) {
       if (quoted) return n || lastCol >= term.cols - 1 ? n : -1;
       const tail = (u.match(/\S+$/) || [''])[0];
       if (/["'`)\]>]$/.test(tail) || !(/[\\/]/.test(tail) || tail.length >= 20)) return -1;   // 경로·URL 조각으로 끝나야
+      /* URL 이 줄 끝에서 끊기고 다음 줄이 URL 조각 하나로 시작하면 줄 길이와 상관없이 잇는다.
+         터미널 폭이 '지금 입력하는 기기' 를 따르게 된 뒤로(2026-10-03) AI 가 다른 기기 폭으로 줄을 끊어 보낼 때가 있어,
+         이 화면 기준으로는 줄이 끝까지 안 찬 것처럼 보여 아래 검사에 걸렸다 → 폰에서 "…/boo" 와 "k.html" 이 따로 열렸다. */
+      if (/https?:\/\/\S*$/.test(tail) && !/[.,;:!?…]$/.test(tail)) {
+        const first = ((dn.s.slice(n).match(/^\S+/) || [''])[0]).replace(/[.,;:!?)\]'"»…]+$/, '');
+        // 평범한 낱말(and·then)이 이어지면 잇지 않는다 — URL 조각다운 글자(. / ? # = & % _ - 숫자)가 있어야
+        if (first && /^[A-Za-z0-9\-._~:/?#@!$&*+=%]+$/.test(first) && /[./?#=&%_\-\d]/.test(first)) return n;
+      }
       if (lastCol < term.cols - (n ? EDGE : 1)) return -1;                    // 끝까지 안 찬 줄은 끊긴 게 아니다
       // 들여쓴 줄은 공백 없는 조각 하나(+닫는 따옴표·문장부호)여야 — 평범한 문장이 이어지면 잇지 않는다.
       // 들여쓰기 없이 꽉 찬 줄 다음(콘솔이 끊은 긴 줄)은 뒤에 다른 글이 붙어 있어도 된다.
