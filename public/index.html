@@ -723,12 +723,12 @@
   /* 패널은 터미널을 줄이지 않고 위에 겹쳐서 뜸(오버레이) — 터미널 폭이 안 바뀌니 글자폭 재계산 문제 없음 */
   .reqPanel { box-shadow: -5px 0 16px rgba(0,0,0,.4); }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
-  /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 3줄까지 표시(말줄임), 마우스 올리면 전문, 클릭하면 그 위치로 */
+  /* 📌 스크롤 중 "지금 보는 구간의 요청"을 터미널 상단에 고정 — 한 줄만 표시(말줄임), 마우스 올리면 전문, 클릭하면 그 위치로 */
   .reqSticky { position: absolute; top: 0; left: 0; right: 0; z-index: 6; cursor: pointer;
                background: #fefefe; color: #111827; font-weight: 700; font-size: var(--tfs, 12px); line-height: 1.5;
                padding: 6px 96px 6px 10px;              /* 오른쪽 여백 = 취소 버튼 자리 */
                border-bottom: 2px solid #c4b5fd; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
-  .reqSticky .rs-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  .reqSticky .rs-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1;
                         overflow: hidden; white-space: pre-wrap; word-break: break-word; }
   .reqSticky:hover { max-height: 60%; overflow-y: auto; }
   .reqSticky:hover .rs-text { -webkit-line-clamp: unset; }   /* 호버 = 전문 */
