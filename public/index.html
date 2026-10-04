@@ -98,6 +98,16 @@
                     padding: 3px 5px; border-radius: 9px; background: #111827; border: 1px solid var(--line);
                     box-shadow: 0 5px 16px rgba(0,0,0,.5); }
   html.light .pane .ph-tools { background: #eef0f4; }
+  /* 좁은 세션창(세션이 많을 때): 버튼 묶음이 두 줄로 접히면 아랫줄(AI 모델 선택)을 덮어 고를 수 없었다.
+     → 늘 한 줄로만 두고, 넘치면 좌우로 민다(휠·터치로 밀기). ✕ 는 밀어도 오른쪽 끝에 붙어 있다.
+     위쪽 여백은 🔗 숫자 배지가 잘리지 않게 (가로로 넘치게 하면 세로는 잘린다). */
+  .pane .ph-tools { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; overflow-y: hidden;
+                    scrollbar-width: none; padding-top: 8px; top: -8px; overscroll-behavior: contain; }
+  .pane .ph-tools::-webkit-scrollbar { display: none; }
+  .pane .ph-tools > * { flex: 0 0 auto; }
+  .pane .ph-tools .btnClose { position: sticky; right: 0; z-index: 1; }
+  .pane:hover .ph-tools .btnClose, .pane:focus-within .ph-tools .btnClose { box-shadow: -10px 0 8px -3px #111827; }
+  html.light .pane:hover .ph-tools .btnClose, html.light .pane:focus-within .ph-tools .btnClose { box-shadow: -10px 0 8px -3px #eef0f4; }
   /* 글자크기 칸은 숫자만 보이면 된다 — 모바일의 '적용 범위' 항목(터미널 + 화면 글자) 길이에 맞춰
      select 가 넓어져서 도구 묶음이 세션 헤더(제목)를 덮었다. 폭을 숫자에 고정한다. */
   .pane .fontSel { width: 3.6em; max-width: 3.6em; }
@@ -5427,6 +5437,13 @@ function buildPane(sess, idx) {
     flashToast((T.movedFolderT || '폴더를 바꿨어요 — 새 폴더에서 다시 시작합니다') + ' 📁 ' + r.path);
   });
 
+  // 버튼 묶음이 한 줄에 다 안 들어가면 마우스 휠로 좌우로 민다 (세로 휠 → 가로 이동)
+  { const tools = el.querySelector('.ph-tools');
+    if (tools) tools.addEventListener('wheel', ev => {
+      if (tools.scrollWidth <= tools.clientWidth + 1) return;
+      tools.scrollLeft += (Math.abs(ev.deltaY) > Math.abs(ev.deltaX) ? ev.deltaY : ev.deltaX);
+      ev.preventDefault();
+    }, { passive: false }); }
   // 🪟 머리의 빈 곳(끌어서 자리 바꾸는 손잡이)이나 제목을 오른쪽 클릭 → 새 창으로 / 다른 PT 창으로 옮기기
   el.querySelectorAll('.pane-head .dragsp, .pane-head .title').forEach(h => h.addEventListener('contextmenu', ev => paneWinMenu(ev, sess)));
 
