@@ -2908,9 +2908,10 @@ app.post('/api/win', (req, res) => {
     winReg.set(key, cur);
   }
   cur.t = now;
+  cur.main = !!(req.body && req.body.main);   // 메인 창인지 — 세션을 '다른 창으로 옮기기' 메뉴에 표시
   // 실행 중인 서버 버전도 같이 알려준다 — 창들이 이걸 보고 "업데이트됐네" 하고 스스로 새로고침한다.
   // (예전엔 업데이트를 누른 창만 새로고침돼서 나머지 창은 옛 화면이 남았다)
-  res.json({ n: cur.n, total: winReg.size, v: VERSION });
+  res.json({ n: cur.n, total: winReg.size, v: VERSION, wins: [...winReg.values()].map(v => ({ n: v.n, main: !!v.main })).sort((a, b) => a.n - b.n) });
 });
 // 창이 닫힐 때 즉시 반납 (sendBeacon) — 20초 기다리지 않고 번호가 바로 비게
 app.post('/api/win-bye', (req, res) => {
