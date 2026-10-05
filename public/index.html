@@ -30,6 +30,14 @@
               -webkit-background-clip: text; background-clip: text; color: transparent; }
   header .sp { flex: 1; }
   .logo-wrap { position: relative; display: inline-flex; align-items: center; gap: 10px; }
+  /* 🧠 로고 바로 밑: 컴퓨터 전체 메모리 사용률(가상 메모리 포함) — 버벅일 때 한눈에. 70% 넘으면 주황, 85% 넘으면 빨강 */
+  #ramBar { position: absolute; left: 0; top: calc(100% + 1px); width: 100%; min-width: 150px; display: flex; align-items: center; gap: 5px;
+            font-size: 9.5px; line-height: 1; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; cursor: default; }
+  #ramBar .rb-track { flex: 1 1 auto; height: 4px; border-radius: 2px; background: #374151; overflow: hidden; }
+  #ramBar .rb-fill { display: block; height: 100%; width: 0; border-radius: 2px; background: #22c55e; transition: width .6s, background .3s; }
+  #ramBar.warm .rb-fill { background: #f59e0b; } #ramBar.hot .rb-fill { background: #ef4444; }
+  #ramBar.hot .rb-txt { color: #ef4444; font-weight: 700; }
+  html.light #ramBar .rb-track { background: #d1d5db; }
   button { border: 0; border-radius: 8px; background: #374151; color: var(--fg);
            padding: 8px 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
   button.primary { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
@@ -1447,7 +1455,7 @@
 <body>
 <header>
   <span id="winNo" title=""></span>
-  <span class="logo-wrap"><h1>🚀 PowerTerminal</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span></span>
+  <span class="logo-wrap"><h1>🚀 PowerTerminal</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span><span id="ramBar" style="display:none"><span class="rb-track"><span class="rb-fill"></span></span><span class="rb-txt"></span></span></span>
   <a id="banner" target="_blank" rel="noopener"
      style="display:none;font-size:12px;font-weight:700;color:#fff;text-decoration:none;
             padding:5px 12px;border-radius:99px;white-space:nowrap;overflow:hidden;
@@ -7191,6 +7199,20 @@ async function refreshMem() {
   if (document.hidden) return;
   let r; try { r = await api('GET', '/api/sessions-mem'); } catch (e) { return; }
   if (!r || !r.sessions) return;
+  // 로고 밑 전체 메모리 막대 — 가상 메모리(실제 RAM + 페이징 파일)를 알면 그 기준으로, 모르면 실제 RAM 기준
+  { const rb = document.getElementById('ramBar');
+    if (rb && r.totalMem) {
+      const useV = r.virtTotal > 0;
+      const tot = useV ? r.virtTotal : r.totalMem, free = useV ? r.virtFree : r.freeMem;
+      const pct = Math.max(0, Math.min(100, Math.round((tot - free) / tot * 100)));
+      rb.style.display = 'flex';
+      rb.querySelector('.rb-fill').style.width = pct + '%';
+      rb.querySelector('.rb-txt').textContent = pct + '% · ' + fmtMem(free) + ' ' + (T.ramLeft || '남음');
+      rb.classList.toggle('hot', pct >= 85); rb.classList.toggle('warm', pct >= 70 && pct < 85);
+      rb.title = (useV ? (T.ramVirtT || '메모리(가상 메모리 포함)') + ': ' + fmtMem(r.virtTotal - r.virtFree) + ' / ' + fmtMem(r.virtTotal) + '\n' : '')
+        + (T.ramPhysT || '실제 RAM') + ': ' + fmtMem(r.totalMem - r.freeMem) + ' / ' + fmtMem(r.totalMem)
+        + (r.server ? '\n' + (T.ramPtT || 'PT 세션 전체') + ': ' + fmtMem(r.server) : '');
+    } }
   for (const [id, p] of panes) {
     const el = p.el.querySelector('.memv'); if (!el) continue;
     const m = r.sessions[id];

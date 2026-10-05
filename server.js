@@ -1566,14 +1566,21 @@ scheduler.install(app);
    세션 터미널 프로세스 + 그 밑에 딸린 모든 프로세스(AI·MCP·개발서버·브라우저 자동화 등)의 실제 사용량(작업 집합)을 더한다.
    프로세스 목록을 읽는 데 1초 가까이 걸려서 8초 동안은 지난 값을 그대로 준다. */
 let memCache = { at: 0, data: null, busy: null };
+let osVirt = null;   // { total, free } — 가상 메모리 포함 전체/남은 양 (윈도우만)
 function readProcTable() {
   return new Promise(resolve => {
     if (IS_WIN) {
       execFile('powershell', ['-NoProfile', '-Command',
-        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize)" }'],
+        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize)" }; '
+        + '$o = Get-CimInstance Win32_OperatingSystem; "OS,$($o.TotalVisibleMemorySize),$($o.FreePhysicalMemory),$($o.TotalVirtualMemorySize),$($o.FreeVirtualMemory)"'],
         { windowsHide: true, timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
           const rows = [];
-          String(so || '').split(/\r?\n/).forEach(l => { const [a, b, c] = l.trim().split(','); if (a) rows.push([+a, +b, +c || 0]); });
+          String(so || '').split(/\r?\n/).forEach(l => {
+            const [a, b, c, d, e2] = l.trim().split(',');
+            // 가상 메모리 = 실제 RAM + 페이징 파일(커밋 한도). KB 단위로 온다
+            if (a === 'OS') { osVirt = { total: (+d || 0) * 1024, free: (+e2 || 0) * 1024, at: Date.now() }; return; }
+            if (a) rows.push([+a, +b, +c || 0]);
+          });
           resolve(rows);
         });
     } else {
@@ -1599,7 +1606,8 @@ async function sessionMem() {
     };
     const out = {};
     for (const s of sessions) { const p = ptys.get(s.id); if (p && !p.dead && p.proc && p.proc.pid) out[s.id] = sumTree(p.proc.pid); }
-    const data = { at: Date.now(), sessions: out, server: sumTree(process.pid).bytes, totalMem: os.totalmem(), freeMem: os.freemem() };
+    const data = { at: Date.now(), sessions: out, server: sumTree(process.pid).bytes, totalMem: os.totalmem(), freeMem: os.freemem(),
+      virtTotal: osVirt ? osVirt.total : 0, virtFree: osVirt ? osVirt.free : 0 };
     memCache = { at: Date.now(), data, busy: null };
     return data;
   })().catch(() => { memCache.busy = null; return { at: Date.now(), sessions: {} }; });
