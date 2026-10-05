@@ -1536,7 +1536,7 @@ app.post('/api/pair', (req, res) => {
 // 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
 app.use((req, res, next) => {
   if (isLocal(req.socket)) return next();
-  const t = req.query.token || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
+  const t = req.query.token || req.headers['x-pt-token'] || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
   if (t === config.token) {
     if (req.query.token) res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
     return next();
@@ -3252,6 +3252,74 @@ app.post('/api/memos/del', (req, res) => {            // 완료 항목 빨강 �
   m.items = m.items.filter(x => x.id !== req.body.id);
   saveMemos();
   res.json({ ok: true, memo: m });
+});
+/* 🎙 말로 시키기 — 아이폰 단축어("시리야, 클로드")·자동화가 글 한 줄을 세션에 요청으로 넣는 입구 (CEO 2026-10-05).
+   GET  /api/voice/sessions → 보낼 수 있는 세션 이름 목록
+   POST /api/voice { text, to? } → to(세션 이름 일부·id)가 없으면 ① 글 맨 앞의 "○○에/한테 …" 에서 세션을 찾고 ② 없으면 마지막으로 요청한 세션.
+   응답의 say 는 단축어가 소리 내어 읽는 한 문장. 루틴이 쓰는 세션에는 보내지 않는다(루틴 진행을 깨뜨린다). */
+const voiceNorm = t => String(t || '').toLowerCase().replace(/[^0-9a-z가-힣]/g, '');
+const voiceTargets = () => sessions.filter(x => !x.routineRun);
+function voiceLastSession() {
+  let best = null, at = 0;
+  for (const x of voiceTargets()) {
+    const m = memos[memoKey(x.path)];
+    const r = m && (m.reqs || []).find(q => !q.sid || q.sid === x.id);
+    if (r && r.ts > at) { at = r.ts; best = x; }
+  }
+  return best || voiceTargets()[0] || null;
+}
+function voiceFind(to) {
+  const k = voiceNorm(to); if (!k) return null;
+  const list = voiceTargets();
+  // 부르는 이름(별명) — 세션 제목이 영어라 받아쓰기(한글)와 안 맞는다. 데이터 폴더의 voice-aliases.json: { "카페": "km-cafe24" }
+  // (매번 읽는다 — 고치면 PT 를 다시 켜지 않아도 바로 먹는다. config.json 의 voiceAliases 도 받는다)
+  let al = (config.voiceAliases && typeof config.voiceAliases === 'object') ? config.voiceAliases : {};
+  try { al = Object.assign({}, al, readJson(dataFile('voice-aliases.json'))); } catch (e) {}
+  for (const [name, title] of Object.entries(al)) {
+    const n = voiceNorm(name); if (!n) continue;
+    if (k === n || (n.length >= 2 && k.includes(n))) { const hit = list.find(x => voiceNorm(x.title) === voiceNorm(title)) || list.find(x => voiceNorm(x.title).includes(voiceNorm(title))); if (hit) return hit; }
+  }
+  return list.find(x => x.id === to) || list.find(x => voiceNorm(x.title) === k)
+      || list.find(x => voiceNorm(x.title).includes(k)) || list.find(x => k.includes(voiceNorm(x.title)) && voiceNorm(x.title).length >= 2) || null;
+}
+let voiceLastAt = 0;
+app.get('/api/voice/sessions', (req, res) => {
+  const list = voiceTargets().map(x => { const p = ptys.get(x.id); return { id: x.id, title: x.title, busy: !!(p && p.busy), alive: !!(p && !p.dead) }; });
+  const last = voiceLastSession();
+  res.json({ sessions: list, titles: list.map(x => x.title), last: last ? last.title : '' });
+});
+app.post('/api/voice', (req, res) => {
+  let text = String((req.body && req.body.text) || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+  if (!text) return res.json({ ok: false, say: '요청이 비어 있어요.' });
+  if (Date.now() - voiceLastAt < 1500) return res.json({ ok: false, say: '방금 보낸 요청과 너무 붙어 있어요. 잠시 뒤 다시 말해 주세요.' });
+  let sess = null;
+  if (req.body && req.body.to) {
+    sess = voiceFind(String(req.body.to));
+    if (!sess) return res.json({ ok: false, say: String(req.body.to).slice(0, 30) + ' 세션을 못 찾았어요.' });
+  } else {
+    // "카페24에 진행해" · "미러 세션한테 어디까지 했어" 처럼 맨 앞에 세션을 부른 경우
+    const m = text.match(/^(.{1,24}?)\s*(?:세션)?\s*(?:에게|한테|에다가|에다|에)\s+(.+)$/);
+    if (m) { const hit = voiceFind(m[1]); if (hit) { sess = hit; text = m[2].trim(); } }
+    if (!sess) sess = voiceLastSession();
+  }
+  if (!sess) return res.json({ ok: false, say: '열려 있는 세션이 없어요.' });
+  const p = ptys.get(sess.id);
+  if (!p || p.dead) return res.json({ ok: false, say: sess.title + ' 세션이 꺼져 있어요. PT 화면에서 먼저 켜 주세요.' });
+  voiceLastAt = Date.now();
+  try {
+    const m = memoOf(sess.path);
+    const entry = { id: crypto.randomBytes(6).toString('hex'), text, ts: Date.now(), st: 'run', sid: sess.id, voice: true };
+    if (looksLikeQuestion(text, config.qaDoc !== false)) entry.q = true;
+    m.reqs.unshift(entry); m.reqs = m.reqs.slice(0, 200); saveMemos();
+  } catch (e) {}
+  try {
+    scheduler.input(sess.id, text);
+    writeIn(sess, p, text);
+    const wait = sess.agent === 'codex' ? codexEnterDelay(text.length) : claudeEnterDelay(text.length);
+    setTimeout(() => { try { scheduler.input(sess.id, '\r'); writeIn(sess, p, '\r'); p.armed = true; p.lastOut = Date.now(); } catch (e) {} }, wait);
+  } catch (e) { return res.json({ ok: false, say: '보내다가 오류가 났어요.' }); }
+  res.json({ ok: true, session: sess.title, text, busy: !!p.busy,
+    say: sess.title + ' 세션에 보냈어요' + (p.busy ? '. 지금 하던 일 다음에 처리합니다.' : '.') });
 });
 app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보낸 요청 자동 기록
   const m = memoOf(req.body.path);
