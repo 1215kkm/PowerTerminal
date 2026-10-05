@@ -8581,7 +8581,17 @@ async function renderQR() {
   cols2.innerHTML = '';
   cols2.appendChild(qrColumn('🌍 ' + T.lte, 'var(--pink)', lte, T.noTunnel));
   cols2.appendChild(qrColumn('📶 ' + T.wifi, 'var(--violet)', wifi, '—'));
-  // (다른 PC 페어링 코드 패널은 제거 — 같은 와이파이 전용이라 QR과 중복. 서버 /pair 기능 자체는 유지)
+  // 다른 PC 연결 코드 — 한때 「같은 와이파이 전용이라 QR 과 중복」이라 뺐지만, Tailscale 같은 사설망 주소(100.x)로
+  // 다른 PC 에서 들어올 때는 QR 을 찍을 수 없어 이 코드가 유일한 길이다. 한 줄로 다시 보여 준다.
+  { let pl = document.getElementById('pairLine');
+    if (!pl) { pl = document.createElement('div'); pl.id = 'pairLine'; pl.style.cssText = 'margin-top:12px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;line-height:1.7'; cols2.parentNode.insertBefore(pl, cols2.nextSibling); }
+    if (i.pairCode) {
+      const addrs = i.ips.map(ip => 'http://' + ip + ':' + i.port).join('  ·  ');
+      pl.innerHTML = '<b>' + esc(T.pairTitle || 'Connect another PC — no long link to type') + '</b><br>' + esc(T.pairStep1 || 'On the other PC open') + ' <span style="user-select:all;color:var(--muted)">' + esc(addrs) + '</span><br>'
+        + esc(T.pairStep2 || 'and enter this code:') + ' <b style="font-size:20px;letter-spacing:5px;user-select:all">' + esc(i.pairCode) + '</b>';
+      pl.style.display = '';
+    } else pl.style.display = 'none';
+  }
   if (!i.tunnelUrl) _qrPoll = setTimeout(renderQR, 3000);   // 외부주소 '준비 중'이면 뜰 때까지 3초마다 자동 갱신
 }
 function qrBlob() {
