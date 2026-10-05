@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PowerTerminal — Book</title>
+<link rel="icon" href="/icon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<style>
+  /* 📖 Book mode — a session read as a book: one page = request → answer → work window.
+     A separate page on purpose: the main screen is one big inline script and must not grow. */
+  :root { --desk:#2b2d33; --bar:#1f2126; --bar-text:#e8e9ee; --paper:#fdfcf8; --ink:#1f2330; --muted:#8a8f9c; --accent:#4f7cff; --line:#3a3d46;
+          --body:"Noto Serif KR","Nanum Myeongjo","Batang",Georgia,serif; --ui:-apple-system,"Segoe UI","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+          --padx:32px; --pady:28px; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; }
+  body { display:flex; flex-direction:column; background:var(--desk); color:var(--bar-text); font:14px/1.5 var(--ui); overflow:hidden; }
+  button { font: inherit; cursor: pointer; }
+  .bar { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 14px; padding-top:calc(8px + env(safe-area-inset-top)); background:var(--bar); }
+  .bar .ttl { font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bar .sub { color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .bar .sp { flex:1; }
+  .btn { font-size:13px; padding:6px 11px; border-radius:6px; border:1px solid var(--line); background:#2a2d34; color:var(--bar-text); white-space:nowrap; text-decoration:none; }
+  .btn:hover { border-color:var(--accent); }
+  .stage { flex:1 1 auto; min-height:0; display:flex; }
+  /* shelf = session list */
+  .shelf { flex:0 0 140px; background:#24262c; border-right:1px solid #33363e; padding:10px 8px; overflow-y:auto; }
+  .shelf h3 { font-size:11px; color:var(--muted); font-weight:600; margin:10px 4px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .shelf h3:first-child { margin-top:0; }
+  .spine { all:unset; display:flex; align-items:center; gap:7px; width:100%; box-sizing:border-box; padding:8px; margin-bottom:5px; border-radius:4px 7px 7px 4px; cursor:pointer;
+           font-size:12.5px; color:#fff; border-left:5px solid rgba(0,0,0,.28); box-shadow:0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
+  .spine:hover { transform: translateX(3px); }
+  .spine:focus-visible { outline:2px solid #fff; }
+  .spine.cur { transform: translateX(8px); box-shadow:0 3px 10px rgba(0,0,0,.45); }
+  .spine i { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.35); flex:0 0 auto; }
+  .spine.busy i { background:#34d399; animation: pulse 1.2s infinite; }
+  .spine span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  .center { flex:1 1 auto; min-width:0; max-width:100%; display:flex; flex-direction:column; }
+  .bookwrap { flex:1 1 auto; min-height:0; display:flex; align-items:stretch; justify-content:center; padding:34px 20px 8px; }
+  .book { position:relative; width:min(100%, 1160px); filter: drop-shadow(0 10px 24px rgba(0,0,0,.45)); }
+  .marks { position:absolute; left:26px; right:26px; bottom:100%; display:flex; gap:4px; align-items:flex-end; overflow:hidden; }
+  .mark { all:unset; cursor:pointer; font-size:11px; padding:4px 8px; border-radius:5px 5px 0 0; background:#c9b78a; color:#3a2f12; white-space:nowrap; }
+  .mark.cur { background:#f0d98c; font-weight:700; padding-top:8px; }
+  /* pages: the text flows through CSS columns; turning a page slides the flow sideways */
+  .vp { position:absolute; inset:0; background:var(--paper); border-radius:6px; overflow:hidden; padding:var(--pady) var(--padx) calc(var(--pady) + 12px); }
+  .clip { width:100%; height:100%; overflow:hidden; }
+  .flow { height:100%; columns:2; column-gap:calc(var(--padx) * 2); column-fill:auto; color:var(--ink); font-family:var(--body); font-size:14.5px; line-height:1.75;
+          transition: transform .38s cubic-bezier(.3,.7,.2,1); will-change: transform; }
+  .gutter { position:absolute; top:0; bottom:0; left:50%; width:60px; margin-left:-30px; pointer-events:none;
+            background:linear-gradient(90deg, transparent, rgba(0,0,0,.10) 46%, rgba(0,0,0,.16) 50%, rgba(0,0,0,.10) 54%, transparent); }
+  .pno { position:absolute; bottom:9px; font:11px var(--ui); color:var(--muted); pointer-events:none; }
+  .pno.l { left:var(--padx); } .pno.r { right:var(--padx); }
+  .turnbtn { all:unset; cursor:pointer; position:absolute; top:0; bottom:0; width:30px; display:flex; align-items:center; justify-content:center; color:transparent; font-size:22px; z-index:2; }
+  .turnbtn:hover, .turnbtn:focus-visible { color:var(--muted); background:rgba(0,0,0,.04); }
+  .turnbtn.prev { left:0; border-radius:6px 0 0 6px; } .turnbtn.next { right:0; border-radius:0 6px 6px 0; }
+  .turnbtn[disabled] { display:none; }
+  .turn { break-before: column; }
+  .turn:first-child { break-before: auto; }
+  .cover { text-align:center; padding-top:18%; font-family:var(--ui); }
+  .cover h1 { font:700 24px var(--body); margin:0 0 8px; }
+  .cover p { color:var(--muted); font-size:12.5px; margin:4px 0; word-break:break-all; }
+  .cover button { margin-top:18px; padding:8px 14px; border-radius:8px; border:1px solid #cfc9b8; background:#f3f0e7; color:var(--ink); font-size:13px; }
+  .q { font:13px/1.55 var(--ui); background:#eef3ff; border-left:4px solid var(--accent); border-radius:0 6px 6px 0; padding:9px 12px; margin:0 0 12px; break-inside:avoid; white-space:pre-wrap; word-break:break-word; max-height:60%; overflow:auto; }
+  .q small { display:block; color:#5d6b8a; font-size:11px; margin-bottom:2px; white-space:normal; }
+  .q .att { display:inline-block; font-size:11.5px; background:#dfe7fb; border-radius:4px; padding:0 6px; margin:0 2px; }
+  .a h4 { font:700 14px var(--ui); margin:14px 0 4px; break-after:avoid; }
+  .a h5 { font:700 13px var(--ui); margin:10px 0 3px; break-after:avoid; }
+  .a p { margin:0 0 9px; } .a ul, .a ol { margin:0 0 9px; padding-left:20px; } .a li { margin:2px 0; }
+  .a li.in1 { margin-left:18px; } .a li.in2 { margin-left:36px; }
+  .a code { font:12.5px Consolas, "D2Coding", monospace; background:#f0ede4; padding:1px 4px; border-radius:3px; word-break:break-all; }
+  .a pre { font:12px/1.5 Consolas, "D2Coding", monospace; background:#f3f0e7; border-radius:6px; padding:9px 11px; margin:0 0 10px; overflow:auto; max-height:55vh; white-space:pre; break-inside:avoid; }
+  .a pre code { background:none; padding:0; word-break:normal; }
+  .a blockquote { margin:0 0 9px; padding:6px 12px; border-left:3px solid #cfc9b8; color:#4b5063; background:#f8f6ef; }
+  .a hr { border:none; border-top:1px solid #e3dfd2; margin:12px 0; }
+  .a a { color:#2f5be0; word-break:break-all; }
+  .a .tw { overflow-x:auto; margin:0 0 10px; }
+  .a table { border-collapse:collapse; font:12.5px/1.5 var(--ui); min-width:60%; }
+  .a th, .a td { border:1px solid #ddd8c9; padding:4px 8px; text-align:left; vertical-align:top; }
+  .a th { background:#f3f0e7; } .a tr { break-inside:avoid; }
+  .work { margin:12px 0 4px; border:1px solid #d9d4c6; border-radius:8px; overflow:hidden; font-family:var(--ui); break-inside:avoid; }
+  .wh { display:flex; align-items:center; gap:8px; padding:6px 10px; background:#f3f0e7; font-size:12px; color:#5c5648; }
+  .wh b { color:var(--ink); }
+  .wh button { all:unset; cursor:pointer; margin-left:auto; color:#2f5be0; font-size:12px; white-space:nowrap; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#9ca3af; flex:0 0 auto; }
+  .work.live .dot { background:#34d399; animation:pulse 1.2s infinite; }
+  .steps { display:none; padding:8px 12px; font-size:12px; line-height:1.6; color:#4b4638; background:#faf8f1; border-top:1px solid #e9e5da; max-height:40vh; overflow:auto; }
+  .work.open .steps { display:block; }
+  .steps div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .steps .f { color:#2f5be0; } .steps .n { color:#6b6657; white-space:normal; margin:3px 0; }
+  .termbox { position:relative; height:210px; background:#16181d; overflow:hidden; }
+  .work.big .termbox { height:440px; }
+  .termbox .tin { position:absolute; left:0; bottom:0; transform-origin:left bottom; }
+  .termbox .xterm-viewport { overflow:hidden !important; }
+  .pending { color:var(--muted); font:13px var(--ui); margin-top:8px; }
+  .empty { color:var(--muted); font:14px var(--ui); text-align:center; padding-top:30%; }
+  /* request box */
+  .ask { flex:0 0 auto; display:flex; gap:8px; align-items:flex-end; padding:8px 20px calc(14px + env(safe-area-inset-bottom)); width:min(100%, 1200px); margin:0 auto; }
+  .ask textarea { flex:1; resize:none; height:44px; max-height:160px; font:14px/1.5 var(--ui); padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:#1f2126; color:var(--bar-text); outline:none; }
+  .ask textarea:focus { border-color:var(--accent); }
+  .ask .send { padding:11px 16px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-weight:700; }
+  .ask .send:disabled { opacity:.5; cursor:default; }
+  @media (max-width: 820px) {
+    :root { --padx:18px; --pady:18px; }
+    .stage { flex-direction:column; }
+    .shelf { flex:0 0 auto; display:flex; gap:6px; overflow-x:auto; border-right:none; border-bottom:1px solid #33363e; padding:8px; }
+    .shelf h3 { display:none; } .spine { width:auto; max-width:170px; flex:0 0 auto; margin:0; } .spine.cur, .spine:hover { transform:none; } .spine.cur { outline:2px solid #fff; }
+    .bookwrap { padding:28px 8px 4px; } .ask { padding-left:8px; padding-right:8px; }
+    .flow { columns:1; font-size:15px; } .gutter, .pno.l { display:none; }
+    .bar .hideS { display:none; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <span style="font-size:18px">📖</span>
+  <span class="ttl" id="ttl">PowerTerminal</span>
+  <span class="sub" id="sub"></span>
+  <span class="sp"></span>
+  <button class="btn hideS" id="exp"></button>
+  <a class="btn" id="back" href="/"></a>
+</header>
+<div class="stage">
+  <aside class="shelf" id="shelf" aria-label="sessions"></aside>
+  <div class="center">
+    <div class="bookwrap">
+      <div class="book" id="book">
+        <nav class="marks" id="marks"></nav>
+        <div class="vp" id="vp"><div class="clip"><div class="flow" id="flow"></div></div></div>
+        <div class="gutter"></div>
+        <span class="pno l" id="pnl"></span><span class="pno r" id="pnr"></span>
+        <button class="turnbtn prev" id="prev" aria-label="previous page">‹</button>
+        <button class="turnbtn next" id="next" aria-label="next page">›</button>
+      </div>
+    </div>
+    <form class="ask" id="ask">
+      <textarea id="inp" rows="1"></textarea>
+      <button class="send" id="send" type="submit"></button>
+    </form>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script>
+const QS = new URLSearchParams(location.search);
+const TOKEN = QS.get('token') || (document.cookie.split('cc_token=')[1] || '').split(';')[0];
+const KO = (localStorage.getItem('pt_lang') || navigator.language || 'en').toLowerCase().startsWith('ko');
+const T = KO ? {
+  ph:'이 책(세션)에 요청하기 — Enter 로 보내기 · Shift+Enter 줄바꿈', send:'보내기', back:'터미널 화면', exp:'원고로 내보내기',
+  req:'요청', working:'작업 중', work:'작업', tools:'도구 {n}번', files:'고친 파일 {n}개', noedit:'확인만 함', open:'작업 과정 펼치기', close:'접기', big:'크게 보기', small:'작게 보기',
+  pending:'답변은 작업이 끝나면 이 자리에 들어옵니다.', sending:'보냈습니다. 세션이 받으면 새 쪽이 생깁니다.', more:'앞 대화 {n}개 더 불러오기', turns:'요청 {n}개',
+  empty:'아직 대화가 없습니다. 아래에 요청을 적어 보세요.', unsup:'이 세션(GPT 등)은 아직 답변 읽기를 지원하지 않습니다. 터미널 화면에서 확인해 주세요.', min:'분', sec:'초', att:'첨부', noSess:'열려 있는 세션이 없습니다.'
+} : {
+  ph:'Ask this book (session) — Enter to send · Shift+Enter for a new line', send:'Send', back:'Terminal view', exp:'Export manuscript',
+  req:'Request', working:'Working', work:'Work', tools:'{n} tool calls', files:'{n} files edited', noedit:'read only', open:'Show the work', close:'Hide', big:'Larger', small:'Smaller',
+  pending:'The answer lands here when the work is done.', sending:'Sent. A new page appears once the session picks it up.', more:'Load {n} earlier requests', turns:'{n} requests',
+  empty:'No conversation yet. Type a request below.', unsup:'Reading answers is not supported for this session type (e.g. GPT) yet. Use the terminal view.', min:'m', sec:'s', att:'attachment', noSess:'No open sessions.'
+};
+document.documentElement.lang = KO ? 'ko' : 'en';
+const $ = id => document.getElementById(id);
+$('inp').placeholder = innerWidth <= 820 ? T.ph.split(' — ')[0] : T.ph; $('send').textContent = T.send; $('back').textContent = T.back; $('exp').textContent = T.exp;
+const api = (method, url, body) => fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(r => r.json()).catch(() => null);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+// ── small markdown renderer (headings, lists, tables, code, quotes, links) — enough for assistant answers
+function inline(s) {
+  const keep = [];
+  s = esc(s).replace(/`([^`]+)`/g, (m, c) => { keep.push('<code>' + c + '</code>'); return '\u0001' + (keep.length - 1) + '\u0001'; });
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+       .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+       .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
+  return s.replace(/\u0001(\d+)\u0001/g, (m, i) => keep[+i]);
+}
+function md(src) {
+  const L = String(src || '').replace(/\r/g, '').split('\n'); let out = '', i = 0, para = [];
+  const flush = () => { if (para.length) { out += '<p>' + para.map(inline).join('<br>') + '</p>'; para = []; } };
+  while (i < L.length) {
+    const l = L[i];
+    if (/^\s*```/.test(l)) { flush(); const b = []; i++; while (i < L.length && !/^\s*```/.test(L[i])) b.push(L[i++]); i++; out += '<pre><code>' + esc(b.join('\n')) + '</code></pre>'; continue; }
+    if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < L.length && /^\s*\|[\s:|-]+\|\s*$/.test(L[i + 1])) {
+      flush(); const row = x => x.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      let h = '<div class="tw"><table><thead><tr>' + row(l).map(c => '<th>' + inline(c) + '</th>').join('') + '</tr></thead><tbody>'; i += 2;
+      while (i < L.length && /^\s*\|.*\|\s*$/.test(L[i])) h += '<tr>' + row(L[i++]).map(c => '<td>' + inline(c) + '</td>').join('') + '</tr>';
+      out += h + '</tbody></table></div>'; continue;
+    }
+    let m;
+    if ((m = /^(#{1,6})\s+(.*)$/.exec(l))) { flush(); out += (m[1].length <= 2 ? '<h4>' : '<h5>') + inline(m[2]) + (m[1].length <= 2 ? '</h4>' : '</h5>'); i++; continue; }
+    if (/^\s*(---+|\*\*\*+)\s*$/.test(l)) { flush(); out += '<hr>'; i++; continue; }
+    if (/^\s*>/.test(l)) { flush(); const b = []; while (i < L.length && /^\s*>/.test(L[i])) b.push(L[i++].replace(/^\s*>\s?/, '')); out += '<blockquote>' + b.map(inline).join('<br>') + '</blockquote>'; continue; }
+    if (/^\s*([-*+]|\d+[.)])\s+/.test(l)) {
+      flush(); const ord = /^\s*\d/.test(l); let h = ord ? '<ol>' : '<ul>';
+      while (i < L.length && (/^\s*([-*+]|\d+[.)])\s+/.test(L[i]) || (/^\s{2,}\S/.test(L[i]) && L[i].trim()))) {
+        const mm = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(L[i]);
+        if (mm) { const d = Math.min(2, Math.floor(mm[1].length / 2)); h += '<li' + (d ? ' class="in' + d + '"' : '') + '>' + inline(mm[3]); }
+        else h += '<br>' + inline(L[i].trim());
+        i++;
+      }
+      out += h + (ord ? '</ol>' : '</ul>'); continue;
+    }
+    if (!l.trim()) { flush(); i++; continue; }
+    para.push(l); i++;
+  }
+  flush(); return out;
+}
+
+// ── state
+let sessions = [], cur = null, turns = [], total = 0, start = 0, busy = false, page = 0, pages = 1, sentAt = 0, sentTotal = -1;
+let ws = null, term = null, ptyCols = 120, ptyRows = 34;
+const flow = $('flow'), vp = $('vp');
+const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
+liveBox.className = 'work live';
+liveBox.innerHTML = '<div class="wh"><i class="dot"></i><b></b><span class="st"></span><button type="button"></button></div><div class="termbox"><div class="tin"></div></div>';
+liveBox.querySelector('button').onclick = () => { liveBox.classList.toggle('big'); fitTerm(); layout(true); };
+
+const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 60 ? Math.round(s / 60) + T.min : s + T.sec; };
+const reqHtml = t => esc(t).replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '<span class="att">📎 ' + T.att + ' .' + ext.toLowerCase() + '</span>');
+
+function turnEl(t) {
+  const el = document.createElement('article'); el.className = 'turn'; el.dataset.i = t.i; el.dataset.day = fmtT(t.ts).slice(0, 5);
+  el.innerHTML = '<div class="q"><small></small><span></span></div><div class="a"></div><div class="wslot"></div>';
+  return el;
+}
+function fillTurn(el, t, isLive) {
+  const sig = [t.req.length, t.ans.length, t.tools, t.files.length, isLive].join('|');
+  if (el._sig === sig) return false; el._sig = sig;
+  el.querySelector('.q small').textContent = T.req + ' · ' + fmtT(t.ts);
+  el.querySelector('.q span').innerHTML = reqHtml(t.req);
+  el.querySelector('.a').innerHTML = md(t.ans);
+  const slot = el.querySelector('.wslot');
+  if (isLive) {
+    if (liveBox.parentNode !== slot) { slot.textContent = ''; slot.append(liveBox); }
+    let p = el.querySelector('.pending'); if (!t.ans) { if (!p) { p = document.createElement('div'); p.className = 'pending'; p.textContent = T.pending; el.append(p); } } else if (p) p.remove();
+  } else {
+    const p = el.querySelector('.pending'); if (p) p.remove();
+    if (liveBox.parentNode === slot) liveBox.remove();
+    if (!t.tools) { slot.textContent = ''; return true; }
+    const wasOpen = !!slot.querySelector('.work.open');
+    const sum = [fmtDur(t.end - t.ts), T.tools.replace('{n}', t.tools), t.files.length ? T.files.replace('{n}', t.files.length) : T.noedit].join(' · ');
+    slot.innerHTML = '<div class="work' + (wasOpen ? ' open' : '') + '"><div class="wh"><i class="dot"></i><b>' + T.work + '</b><span>' + esc(sum) + '</span><button type="button">' + (wasOpen ? T.close : T.open) + '</button></div><div class="steps">'
+      + t.files.map(f => '<div class="f" title="' + esc(f) + '">✎ ' + esc(f.split(/[\\/]/).slice(-2).join('/')) + '</div>').join('')
+      + t.steps.map(s => '<div title="' + esc(s) + '">· ' + esc(s) + '</div>').join('') + '</div></div>';
+    const w = slot.firstChild, b = w.querySelector('button');
+    b.onclick = () => { const on = w.classList.toggle('open'); b.textContent = on ? T.close : T.open; layout(true); };
+  }
+  return true;
+}
+function render(full) {
+  if (full) { flow.textContent = ''; liveBox.remove(); }
+  if (!cur) { flow.innerHTML = '<div class="empty">' + T.noSess + '</div>'; return layout(); }
+  let cover = flow.querySelector('.cover');
+  if (!cover) { cover = document.createElement('article'); cover.className = 'turn cover'; flow.prepend(cover); }
+  cover.innerHTML = '<h1>' + esc(cur.title || '') + '</h1><p>' + esc(cur.path || '') + '</p><p>' + T.turns.replace('{n}', total) + '</p>'
+    + (cur._unsup ? '<p>' + T.unsup + '</p>' : !total ? '<p>' + T.empty + '</p>' : '')
+    + (start > 0 ? '<button type="button" id="more">' + T.more.replace('{n}', Math.min(30, start)) + '</button>' : '');
+  const more = cover.querySelector('#more'); if (more) more.onclick = loadEarlier;
+  const have = new Map([...flow.querySelectorAll('.turn[data-i]')].map(e => [+e.dataset.i, e]));
+  const lastI = turns.length ? turns[turns.length - 1].i : -1;
+  for (const t of turns) {
+    let el = have.get(t.i);
+    if (!el) {
+      el = turnEl(t);
+      const after = [...flow.querySelectorAll('.turn[data-i]')].find(e => +e.dataset.i > t.i);
+      if (after) flow.insertBefore(el, after); else flow.append(el);
+    }
+    fillTurn(el, t, busy && t.i === lastI);
+  }
+  if (cur._unsup && liveBox.parentNode !== flow) flow.append(liveBox);   // no transcript to read — show the terminal only
+  let note = flow.querySelector('.sentnote');
+  if (sentAt && Date.now() - sentAt < 90000 && total <= sentTotal) { if (!note) { note = document.createElement('div'); note.className = 'pending sentnote'; note.textContent = T.sending; flow.append(note); } }
+  else { if (note) note.remove(); sentAt = 0; }
+  liveBox.querySelector('b').textContent = T.working;
+  liveBox.querySelector('button').textContent = liveBox.classList.contains('big') ? T.small : T.big;
+  const lt = turns[turns.length - 1];
+  liveBox.querySelector('.st').textContent = lt && busy ? fmtDur(Date.now() - lt.ts) + ' · ' + T.tools.replace('{n}', lt.tools) : '';
+  layout();
+}
+
+// ── pages: columns of the flow. One step = the visible columns (2 on a wide screen, 1 on a phone)
+const perView = () => (innerWidth <= 820 ? 1 : 2);
+function metrics() {
+  const clip = flow.parentNode, w = clip.clientWidth, gap = parseFloat(getComputedStyle(flow).columnGap) || 0, n = perView();
+  const colW = (w - gap * (n - 1)) / n;
+  return { w, gap, n, colW, step: w + gap };
+}
+function layout(keep) {
+  const m = metrics();
+  const cols = Math.max(1, Math.round((flow.scrollWidth + m.gap) / (m.colW + m.gap)));
+  const wasLast = page >= pages - 1;
+  pages = Math.max(1, Math.ceil(cols / m.n));
+  if (!keep && wasLast) page = pages - 1;        // reading the newest page → keep following it
+  page = Math.max(0, Math.min(pages - 1, page));
+  flow.style.transform = 'translateX(' + (-page * m.step) + 'px)';
+  $('prev').disabled = page <= 0; $('next').disabled = page >= pages - 1;
+  $('pnl').textContent = m.n === 2 ? page * 2 + 1 : '';
+  $('pnr').textContent = (m.n === 2 ? Math.min(cols, page * 2 + 2) : page + 1) + ' / ' + cols;
+  marks();
+}
+const colOf = el => { const m = metrics(); return Math.round(el.offsetLeft / (m.colW + m.gap)); };
+function go(p, instant) {
+  if (instant) flow.style.transition = 'none';
+  page = Math.max(0, Math.min(pages - 1, p)); layout(true);
+  if (instant) { void flow.offsetWidth; flow.style.transition = ''; }
+}
+function marks() {
+  const days = []; let curDay = '';
+  const n = perView();
+  for (const el of flow.querySelectorAll('.turn[data-i]')) {
+    const pg = Math.floor(colOf(el) / n);
+    if (!days.length || days[days.length - 1].d !== el.dataset.day) days.push({ d: el.dataset.day, pg });
+    if (pg <= page) curDay = el.dataset.day;
+  }
+  $('marks').innerHTML = days.slice(-14).map(x => '<button class="mark' + (x.d === curDay ? ' cur' : '') + '" data-pg="' + x.pg + '">' + x.d + '</button>').join('');
+  $('marks').querySelectorAll('.mark').forEach(b => b.onclick = () => go(+b.dataset.pg));
+}
+$('prev').onclick = () => go(page - 1); $('next').onclick = () => go(page + 1);
+addEventListener('keydown', e => {
+  if (e.target === $('inp') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ) return;
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (e.target !== $('inp')) { go(page - 1); e.preventDefault(); } }
+  else if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (e.target !== $('inp')) { go(page + 1); e.preventDefault(); } }
+});
+let wheelAt = 0;
+vp.addEventListener('wheel', e => {
+  // let scrollable boxes (code, tables, the work log) use the wheel first
+  for (let n = e.target; n && n !== vp; n = n.parentNode) if (n.scrollHeight > n.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(n).overflowY)) return;
+  if (Date.now() - wheelAt < 350 || Math.abs(e.deltaY) < 8) return; wheelAt = Date.now(); go(page + (e.deltaY > 0 ? 1 : -1));
+}, { passive: true });
+let tx = 0, ty = 0;
+vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(page + (dx < 0 ? 1 : -1)); }, { passive: true });
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
+
+// ── live work window: the session's real terminal, view only (never sends a size, so it cannot shrink the real one)
+function fitTerm() {
+  if (!term) return;
+  const box = liveBox.querySelector('.termbox'), tin = liveBox.querySelector('.tin'), scr = tin.querySelector('.xterm-screen');
+  if (!scr || !box.clientWidth || !scr.offsetWidth) return;
+  const k = Math.min(1, box.clientWidth / scr.offsetWidth);
+  // show the part being written: hide the empty rows below the cursor instead of the output above it
+  const cellH = scr.offsetHeight / term.rows, below = Math.max(0, term.rows - term.buffer.active.cursorY - 2);
+  const hidden = Math.min(below * cellH * k, Math.max(0, scr.offsetHeight * k - box.clientHeight));
+  tin.style.transform = 'scale(' + k + ')'; tin.style.bottom = (-hidden) + 'px';
+}
+function connect() {
+  if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} ws = null; }
+  if (term) { try { term.dispose(); } catch (e) {} term = null; liveBox.querySelector('.tin').textContent = ''; }
+  if (!cur) return;
+  const id = cur.id;
+  term = new Terminal({ cols: ptyCols, rows: ptyRows, fontSize: 13, fontFamily: 'Consolas, "D2Coding", monospace', disableStdin: true, cursorBlink: false, scrollback: 200, theme: { background: '#16181d' } });
+  term.open(liveBox.querySelector('.tin'));
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/term?id=' + id + '&token=' + TOKEN);
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (!cur || cur.id !== id) return;
+    if (m.type === 'out') term.write(m.data, fitTerm);
+    else if (m.type === 'status') { if (!!m.busy !== busy) { busy = !!m.busy; poll(); } }
+  };
+  ws.onclose = () => { if (cur && cur.id === id) setTimeout(() => { if (cur && cur.id === id) connect(); }, 2500); };
+}
+
+// ── data
+const HUES = ['#7c3aed', '#0e7490', '#b45309', '#be185d', '#15803d', '#1d4ed8', '#a16207', '#475569', '#9333ea', '#0f766e'];
+const hue = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return HUES[h % HUES.length]; };
+const folder = p => String(p || '').split(/[\\/]/).filter(Boolean).pop() || '';
+function drawShelf() {
+  const groups = new Map();
+  for (const s of sessions) { const k = s.repo ? folder(s.repo) : folder(s.path); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(s); }
+  let h = '';
+  for (const [g, list] of groups) {
+    h += '<h3 title="' + esc(g) + '">' + esc(g) + '</h3>';
+    for (const s of list) h += '<button class="spine' + (s.busy ? ' busy' : '') + (cur && s.id === cur.id ? ' cur' : '') + '" data-id="' + s.id + '" style="background:' + hue(s.path) + '" title="' + esc(s.title + '\n' + s.path) + '"><i></i><span>' + esc(s.title || folder(s.path)) + '</span></button>';
+  }
+  $('shelf').innerHTML = h;
+  $('shelf').querySelectorAll('.spine').forEach(b => b.onclick = () => openBook(b.dataset.id));
+}
+async function loadSessions() {
+  const r = await api('GET', '/api/sessions'); if (!Array.isArray(r)) return;
+  sessions = r;
+  if (cur) { const s = sessions.find(x => x.id === cur.id); if (s) { cur.title = s.title; cur.path = s.path; } }
+  drawShelf();
+}
+function apply(r) {
+  cur.title = r.title; cur.path = r.path; cur._unsup = !!r.unsupported; busy = !!r.busy; total = r.total;
+  if ((r.cols && r.cols !== ptyCols) || (r.rows && r.rows !== ptyRows)) { ptyCols = r.cols || ptyCols; ptyRows = r.rows || ptyRows; if (term) { try { term.resize(ptyCols, ptyRows); } catch (e) {} fitTerm(); } }
+  for (const t of r.turns) { const k = turns.findIndex(x => x.i === t.i); if (k >= 0) turns[k] = t; else turns.push(t); }
+  turns.sort((a, b) => a.i - b.i); start = turns.length ? turns[0].i : r.start;
+  $('ttl').textContent = r.title || ''; $('sub').textContent = r.path || ''; document.title = (r.title || 'Book') + ' — PowerTerminal';
+}
+async function openBook(id) {
+  const s = sessions.find(x => x.id === id); if (!s) return;
+  cur = { id, title: s.title, path: s.path }; turns = []; total = 0; start = 0; page = 0; pages = 1; sentAt = 0;
+  try { localStorage.setItem('pt_book_last', id); } catch (e) {}
+  history.replaceState(null, '', '?s=' + id + (QS.get('token') ? '&token=' + TOKEN : ''));
+  drawShelf(); render(true); connect();
+  const r = await api('GET', '/api/sessions/' + id + '/book?last=30');
+  if (!r || r.error || !cur || cur.id !== id) return;
+  apply(r); cur._loaded = true; render(true); go(pages - 1, true);
+}
+async function loadEarlier() {
+  const id = cur.id, r = await api('GET', '/api/sessions/' + id + '/book?last=30&before=' + start);
+  if (!r || r.error || !cur || cur.id !== id) return;
+  const first = flow.querySelector('.turn[data-i]'), anchor = first ? first.dataset.i : null;
+  apply(r); render();
+  const el = anchor && flow.querySelector('.turn[data-i="' + anchor + '"]');
+  if (el) go(Math.max(0, Math.floor(colOf(el) / perView()) - 1), true);   // stay where the reader was, one page back
+}
+let polling = false;
+async function poll() {
+  if (!cur || !cur._loaded || polling || document.hidden) return; polling = true;   // before the first load a poll would fetch the whole book
+  const id = cur.id, from = turns.length ? turns[turns.length - 1].i : 0;
+  const r = await api('GET', '/api/sessions/' + id + '/book?from=' + from);
+  polling = false;
+  if (!r || r.error || !cur || cur.id !== id) return;
+  apply(r); render();
+}
+(function loop() { setTimeout(async () => { await poll(); loop(); }, busy || sentAt ? 2500 : 6000); })();
+setInterval(loadSessions, 7000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { loadSessions(); poll(); } });
+
+// ── sending a request: same route as the main screen's quick input (recorded in the request log, then typed into the terminal)
+const inp = $('inp');
+inp.addEventListener('input', () => { inp.style.height = '44px'; inp.style.height = Math.min(160, inp.scrollHeight + 2) + 'px'; });
+inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ask').requestSubmit(); } });
+$('ask').addEventListener('submit', e => {
+  e.preventDefault();
+  const text = inp.value.trim();
+  if (!text || !cur || !ws || ws.readyState !== 1) return;
+  api('POST', '/api/memos/req', { path: cur.path, text, sid: cur.id });
+  ws.send(JSON.stringify({ type: 'in', data: text.replace(/\r?\n/g, '\x1b\r') }));
+  setTimeout(() => { try { ws.send(JSON.stringify({ type: 'in', data: '\r' })); } catch (e2) {} }, 300);
+  inp.value = ''; inp.style.height = '44px';
+  sentAt = Date.now(); sentTotal = total; render(); go(pages - 1);
+  setTimeout(poll, 1500);
+});
+
+// ── export: the whole conversation as a Markdown manuscript (## chapter per day, ### per request)
+$('exp').onclick = async () => {
+  if (!cur) return; const id = cur.id; let all = [], before;
+  for (;;) { const r = await api('GET', '/api/sessions/' + id + '/book?last=200' + (before !== undefined ? '&before=' + before : '')); if (!r || !r.turns || !r.turns.length) break; all = r.turns.concat(all); before = r.start; if (r.start <= 0) break; }
+  const demote = t => t.split('\n').map(l => /^#{1,3}\s/.test(l) ? '#### ' + l.replace(/^#+\s*/, '') : l).join('\n');
+  let out = '---\ntitle: ' + (cur.title || 'Session') + '\n---\n', day = '', ch = 0;
+  for (const t of all) {
+    if (!t.ans) continue;
+    const d = new Date(t.ts), p = n => String(n).padStart(2, '0'), dd = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    if (dd !== day) { ch++; out += '\n## ' + ch + '. ' + dd + '\n\n'; day = dd; }
+    const one = t.req.replace(/\s+/g, ' ').trim();
+    out += '### ' + one.slice(0, 40) + (one.length > 40 ? '…' : '') + '\n\n> [!why] ' + T.req + ' · ' + fmtT(t.ts).slice(6) + '\n> ' + one.slice(0, 900) + '\n\n' + demote(t.ans) + '\n\n---\n\n';
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out], { type: 'text/markdown' })); a.download = (cur.title || 'session').replace(/[\\/:*?"<>|]/g, '_') + '.md'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+
+(async () => {
+  await loadSessions();
+  const want = QS.get('s') || (() => { try { return localStorage.getItem('pt_book_last'); } catch (e) { return null; } })();
+  const s = sessions.find(x => x.id === want) || sessions.find(x => (x.agent || 'claude') === 'claude') || sessions[0];
+  if (s) openBook(s.id); else render(true);
+})();
+</script>
+</body>
+</html>

@@ -2461,6 +2461,7 @@ const I18N_MORE = {
     flowNext: "다음으로 넘기기",
     flowNextSkip: "아무 데도 안 넘김",
     numAddT: '이 폴더로 세션 하나 더 열기 — git 레포면 worktree 로 분리돼 서로 안 겹칩니다 (Shift+클릭 = 같은 폴더 그대로)',
+    bookT: '책 모드 — 이 세션의 대화를 책처럼 읽고 그 자리에서 요청합니다 (새 탭)',
     flowT: '플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션과 연결됩니다 (클릭 = 고르기 모드) · 화살표 클릭 후 Delete = 삭제',
     flowPickHint: '‘{t}’ 다음으로 이어질 세션들을 클릭하세요. 다시 누르면 연결이 풀립니다.',
     flowDone: '완료',
@@ -4819,6 +4820,7 @@ function buildPane(sess, idx) {
           ${FONT_SIZES.map(s => `<option value="${s}" ${s === savedFont() ? 'selected' : ''}>${s}</option>`).join('')}
           ${IS_TOUCH ? `<optgroup label="${escA(T.fontScopeGrp || '적용 범위')}"><option value="scope:term">${fontScope() === 'all' ? '　' : '✓'} ${esc(T.fontScopeTerm || '터미널만')}</option><option value="scope:all">${fontScope() === 'all' ? '✓' : '　'} ${esc(T.fontScopeAll || '터미널 + 화면 글자')}</option></optgroup>` : ""}
         </select>
+        <button class="small btnBook hv" title="${escA(T.bookT || 'Book mode — read this session as a book and ask from there (opens in a new tab)')}">📖</button>
         <button class="small btnFlow hv" title="${escA(T.flowT || '')}">◎</button><!-- ✕ 바로 왼쪽 고정 -->
         <button class="small btnClose" title="${T.closeT}" style="color:#f87171">✕</button>
         </span>
@@ -5577,6 +5579,8 @@ function buildPane(sess, idx) {
   // 📖 넓게 읽기 — 터미널 스크롤백(위로 올려야 보이는 옛 작업 포함)을 문단 복원해 화면 전체폭 리더로.
   // 좁은 폭에서 소프트랩된 줄을 isWrapped로 다시 이어붙여, 넓은 창에서 자연스럽게 다시 흘러가게 함.
   el.querySelector('.btnRead').onclick = (ev) => { ev.stopPropagation(); openReader(sess, term); };
+  // 📖 책 모드 — 별도 페이지(/book.html). 본 화면 스크립트를 키우지 않으려고 따로 뒀다.
+  el.querySelector('.btnBook').onclick = (ev) => { ev.stopPropagation(); window.open('/book.html?s=' + sess.id + (TOKEN ? '&token=' + TOKEN : ''), '_blank'); };
   // 🌿 worktree 뱃지 — 눌러서 이 세션의 브랜치를 원본 브랜치로 합치기
   const wtb = el.querySelector('.wtBadge');
   if (wtb) wtb.onclick = async (ev) => {

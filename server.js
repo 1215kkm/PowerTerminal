@@ -2240,6 +2240,99 @@ function sessionContextTokens(sessPath) {
   ctxCache.set(dir, { at: Date.now(), tokens });
   return tokens;
 }
+/* 📖 책 모드 — 세션의 대화를 「요청 → 답변」 쪽으로 읽어 준다 (public/book.html 이 쓴다).
+   화면 글자를 긁지 않고 클로드가 남기는 대화 기록(.jsonl)을 읽는다 — 표·목록이 그대로 살아 있다.
+   기록 파일은 수백 MB 일 수 있어, 한 번 읽은 곳까지 기억해 두고 늘어난 뒷부분만 이어 읽는다. */
+const bookCache = new Map();   // 기록 파일 → { offset, turns, cur, busy(읽는 중인 약속) }
+const bookClean = t => String(t || '')
+  .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
+  .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '')
+  .replace(/<local-command-[a-z]+>[\s\S]*?<\/local-command-[a-z]+>/g, '')
+  .replace(/<command-(name|message|args)>[\s\S]*?<\/command-\1>/g, '')
+  .replace(/\[SYSTEM NOTIFICATION[\s\S]*$/, '')
+  .trim();
+function bookFeed(c, line) {
+  if (!line || line[0] !== '{') return;
+  let j; try { j = JSON.parse(line); } catch (e) { return; }
+  if (!j || j.isSidechain || j.isMeta || j.isCompactSummary) return;
+  const m = j.message, ts = Date.parse(j.timestamp) || 0;
+  if (j.type === 'user' && m) {
+    let text = '';
+    if (typeof m.content === 'string') text = m.content;
+    else if (Array.isArray(m.content)) {
+      if (m.content.some(x => x.type === 'tool_result')) return;      // 도구 결과는 요청이 아니다
+      text = m.content.filter(x => x.type === 'text').map(x => x.text).join('\n');
+    }
+    text = bookClean(text);
+    if (!text || /^This session is being continued|^Caveat:|^\[Request interrupted/.test(text)) return;
+    c.cur = { ts, req: text.slice(0, 20000), ans: '', notes: [], steps: [], files: [], tools: 0, end: ts };
+    c.turns.push(c.cur);
+  } else if (j.type === 'assistant' && m && c.cur && Array.isArray(m.content)) {
+    const t = c.cur; if (ts) t.end = ts;
+    for (const x of m.content) {
+      if (x.type === 'text' && x.text && x.text.trim()) {
+        if (t.ans && t.notes.length < 60) t.notes.push(t.ans.slice(0, 300));   // 앞서 한 말은 「작업 과정」으로
+        t.ans = x.text.trim().slice(0, 60000);                                    // 마지막 글 = 답변
+      } else if (x.type === 'tool_use') {
+        t.tools++;
+        const inp = x.input || {};
+        const fp = inp.file_path || inp.notebook_path || '';
+        if (fp && /^(Edit|Write|NotebookEdit|MultiEdit)$/.test(x.name) && !t.files.includes(fp) && t.files.length < 40) t.files.push(fp);
+        if (t.steps.length < 80) t.steps.push(String(x.name) + (inp.description ? ' — ' + String(inp.description).slice(0, 90) : fp ? ' — ' + path.basename(fp) : ''));
+      }
+    }
+  }
+}
+function bookFile(sessPath) {
+  const dir = claudeProjectDir(sessPath);
+  try {
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'))
+      .map(f => { const p = path.join(dir, f); const st = fs.statSync(p); return { p, t: st.mtimeMs, size: st.size }; })
+      .sort((a, b) => b.t - a.t);
+    return files[0] || null;
+  } catch (e) { return null; }
+}
+async function bookTurns(sessPath) {
+  const f = bookFile(sessPath);
+  if (!f) return [];
+  let c = bookCache.get(f.p);
+  if (!c || f.size < c.offset) { c = { offset: 0, turns: [], cur: null, busy: null }; bookCache.set(f.p, c); }
+  if (c.busy) { await c.busy; return c.turns; }
+  if (f.size === c.offset) return c.turns;
+  c.busy = new Promise(resolve => {
+    let rest = Buffer.alloc(0), read = 0;
+    const rs = fs.createReadStream(f.p, { start: c.offset, end: f.size - 1, highWaterMark: 1 << 20 });
+    rs.on('data', buf => {
+      read += buf.length;
+      let b = rest.length ? Buffer.concat([rest, buf]) : buf, from = 0, nl;
+      while ((nl = b.indexOf(10, from)) >= 0) { bookFeed(c, b.toString('utf8', from, nl)); from = nl + 1; }
+      rest = b.subarray(from);
+    });
+    const fin = () => { c.offset += read - rest.length; c.busy = null; resolve(); };   // 끝나지 않은 줄은 다음에 다시
+    rs.on('end', fin); rs.on('error', fin);
+  });
+  await c.busy;
+  return c.turns;
+}
+// ?last=30 — 맨 뒤 30개 · ?before=120 — 그 앞쪽 · ?from=150 — 150번부터(새로 생긴 것 받기)
+app.get('/api/sessions/:id/book', async (req, res) => {
+  const sess = sessions.find(x => x.id === req.params.id);
+  if (!sess) return res.status(404).json({ error: 'no session' });
+  const p = ptys.get(sess.id);
+  const base = { id: sess.id, title: sess.title, path: sess.path, agent: sess.agent || 'claude',
+    busy: !!(p && p.busy), cols: (p && p.cols) || 0, rows: (p && p.rows) || 0 };
+  if (base.agent !== 'claude' && !process.env.PT_BOOK_ANY) return res.json({ ...base, total: 0, start: 0, turns: [], unsupported: true });
+  try {
+    const all = await bookTurns(sess.path);
+    const total = all.length;
+    const last = Math.max(1, Math.min(200, parseInt(req.query.last, 10) || 30));
+    let start, end = total;
+    if (req.query.from !== undefined) start = Math.max(0, Math.min(total, parseInt(req.query.from, 10) || 0));
+    else if (req.query.before !== undefined) { end = Math.max(0, Math.min(total, parseInt(req.query.before, 10) || 0)); start = Math.max(0, end - last); }
+    else start = Math.max(0, total - last);
+    res.json({ ...base, total, start, turns: all.slice(start, end).map((t, i) => ({ i: start + i, ...t })) });
+  } catch (e) { res.status(500).json({ error: String(e && e.message || e) }); }
+});
 /* 커진 대화 알림 — 지금 일하고 있는 세션엔 띄우지 않는다(일하는 중이면 막힌 게 아니다). */
 app.get('/api/context-size', (req, res) => {
   const out = {};
