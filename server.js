@@ -3397,6 +3397,7 @@ function voicePlain(md, max) {
   for (let l of String(md || '').replace(/\r/g, '').split('\n')) {
     if (/^\s*```/.test(l)) { code = !code; continue; }
     if (code || /^\s*\|/.test(l) || /^\s*(---+|\*\*\*+)\s*$/.test(l)) continue;
+    if (/^\s*#{1,6}\s/.test(l) || /https?:\/\/\S+/.test(l) || /[A-Za-z]:\\\S/.test(l)) continue;   // 제목·주소·파일 경로가 든 줄은 읽어 봐야 소음이다
     l = l.replace(/^\s*#{1,6}\s*/, '').replace(/^\s*([-*+]|\d+[.)])\s+/, '').replace(/^\s*>\s?/, '')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/https?:\/\/\S+/g, '주소').replace(/[A-Za-z]:\\[^\s"'`]+/g, '파일').replace(/[*_`]/g, '').trim();
     if (l) out.push(/[.!?。다요]$/.test(l) ? l : l + '.');
