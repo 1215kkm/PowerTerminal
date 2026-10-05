@@ -12347,28 +12347,31 @@ let _pinnedQuick = null;
 function positionPinnedQuick() {
   if (!_pinnedQuick) return;
   const vv = window.visualViewport;
-  /* 입력줄은 화면에 고정(position:fixed)이라 세션창과 따로 논다 — 입력창이 포커스된 채 화면을 밀어 다른 세션으로 가면
-     (키보드를 뒤로가기로 내려도 포커스는 남는다) 입력줄이 남의 세션 위에 그대로 떠 있었다. 이 입력줄의 세션창이
-     보이는 화면에서 거의 벗어났으면 고정을 풀고 포커스도 놓는다. */
+  const gap = vv ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)) : 0;
+  /* 입력줄은 화면에 고정(position:fixed)이라 세션창과 따로 논다 — 키보드를 뒤로가기로 내린 뒤(포커스는 남는다)
+     화면을 밀어 다른 세션으로 가면 입력줄이 남의 세션 위에 떠 있었다 → 이 세션창이 화면에서 벗어나면 고정을 푼다.
+     ⚠ 단, 키보드가 떠 있는 동안(=입력 중)과 방금 누른 직후에는 절대 풀지 않는다. 키보드가 올라오면 보이는 화면이
+     절반으로 줄고 브라우저가 화면을 밀어, 세션창이 '벗어난 것처럼' 보인다 — 그때 포커스를 놓아 버려서 자판이 안 뜨고
+     화면만 밑으로 밀리며 입력을 못 했다(2026-10-05). */
   const pane = _pinnedQuick.closest('.pane');
-  if (pane) {
+  if (pane && gap < 60 && Date.now() - _pinnedAt > 1500) {
     const r = pane.getBoundingClientRect();
-    const top = vv ? vv.offsetTop : 0, bot = top + (vv ? vv.height : window.innerHeight);
-    if (r.bottom < top + 60 || r.top > bot - 60) {
+    if (r.bottom < 60 || r.top > window.innerHeight - 60) {
       const q = _pinnedQuick;
-      try { const a = document.activeElement; if (a && q.contains(a)) a.blur(); } catch (e) {}
+      try { const el = document.activeElement; if (el && q.contains(el)) el.blur(); } catch (e) {}
       unpinQuick(q);
       return;
     }
   }
-  const gap = vv ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)) : 0;
   // bottom 자체는 CSS calc(--kb-gap + safe-area 여유)가 계산 — 여기선 키보드 높이만 변수로 넘김
   _pinnedQuick.style.setProperty('--kb-gap', gap + 'px');
 }
+let _pinnedAt = 0;   // 입력줄을 마지막으로 누른 때 — 키보드가 올라오는 동안은 '벗어남' 판정을 쉰다
 function pinQuick(quick) {
   if (!isMobileNow()) return;                        // 폰 레이아웃일 때만 (PC·태블릿 가로는 원래대로)
   if (_pinnedQuick && _pinnedQuick !== quick) unpinQuick(_pinnedQuick);
   _pinnedQuick = quick;
+  _pinnedAt = Date.now();
   quick.classList.add('kb-pin');
   positionPinnedQuick();
   setTimeout(positionPinnedQuick, 120);              // 키보드가 뜨는 데 시간이 걸려 몇 번 더 보정
