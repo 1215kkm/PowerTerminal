@@ -3408,7 +3408,7 @@ function voicePlain(md, max) {
   return t;
 }
 const voiceName = x => String(x.title || '').replace(/^🔁\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
-async function voiceAsk(text) {
+async function voiceAsk(text, def) {
   const t = text.replace(/[?？!.~]+$/g, '').trim();
   if (t.length > 44) return null;                                   // 긴 말은 지시로 본다
   const all = sessions.map(x => ({ x, p: ptys.get(x.id) })).filter(o => o.p && !o.p.dead);
@@ -3430,6 +3430,7 @@ async function voiceAsk(text) {
   const m = t.match(/^(.{1,24}?)\s*(?:세션)?\s*(?:에게|한테|에서|에|은|는|이|가)?\s+\S/);
   if (m && !VOICE_Q.test(m[1])) sess = voiceFind(m[1]);
   if (!sess) { const w = t.split(/\s+/)[0].replace(/(에게|한테|에서|에|은|는|이|가)$/, ''); if (w && !VOICE_Q.test(w)) sess = voiceFind(w); }
+  if (!sess && def) sess = voiceFind(def);            // 이름을 안 불렀을 때 갈 세션(단축어가 정해 둔 것)
   if (!sess) sess = voiceLastSession();
   if (!sess) return '열려 있는 세션이 없어요.';
   const p = ptys.get(sess.id), name = voiceName(sess);
@@ -3454,7 +3455,7 @@ app.post('/api/voice', async (req, res) => {
   if (Date.now() - voiceLastAt < 1500) return res.json({ ok: false, say: '방금 보낸 요청과 너무 붙어 있어요. 잠시 뒤 다시 말해 주세요.' });
   // 물어본 말이면 세션에 보내지 않고 기록에서 바로 답한다 (to 를 직접 지정한 호출은 언제나 보내기)
   if (!(req.body && req.body.to) && req.body.ask !== false) {
-    try { const say = await voiceAsk(text); if (say) return res.json({ ok: true, asked: true, say }); } catch (e) {}
+    try { const say = await voiceAsk(text, req.body && req.body.default ? String(req.body.default) : ''); if (say) return res.json({ ok: true, asked: true, say }); } catch (e) {}
   }
   let sess = null;
   if (req.body && req.body.to) {
@@ -3464,6 +3465,8 @@ app.post('/api/voice', async (req, res) => {
     // "카페24에 진행해" · "미러 세션한테 어디까지 했어" 처럼 맨 앞에 세션을 부른 경우
     const m = text.match(/^(.{1,24}?)\s*(?:세션)?\s*(?:에게|한테|에다가|에다|에)\s+(.+)$/);
     if (m) { const hit = voiceFind(m[1]); if (hit) { sess = hit; text = m[2].trim(); } }
+    // default — 이름을 안 불렀을 때 갈 세션. 없으면 마지막으로 요청한 세션(다른 세션에서 타이핑한 뒤엔 그쪽으로 가 버린다)
+    if (!sess && req.body && req.body.default) sess = voiceFind(String(req.body.default));
     if (!sess) sess = voiceLastSession();
   }
   if (!sess) return res.json({ ok: false, say: '열려 있는 세션이 없어요.' });
