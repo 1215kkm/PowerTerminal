@@ -93,6 +93,20 @@
   .termbox .tin { position:absolute; left:0; bottom:0; transform-origin:left bottom; }
   .termbox .xterm-viewport { overflow:hidden !important; }
   .pending { color:var(--muted); font:13px var(--ui); margin-top:8px; }
+  /* 📖 thick-paper flip (StPageFlip, wide screens). The column flow above stays as the source; its blocks are
+     copied into fixed pages here. Phones keep the simple slide. */
+  .flipwrap { position:absolute; inset:0; display:none; }
+  .book.flip .flipwrap { display:block; }
+  .book.flip .vp, .book.flip .gutter { visibility:hidden; pointer-events:none; }
+  .meas { position:absolute; left:0; top:0; width:0; height:0; overflow:hidden; visibility:hidden; pointer-events:none; }   /* zero box: measuring pages must not widen the document */
+  .pg { background:var(--paper); color:var(--ink); font-family:var(--body); font-size:14.5px; line-height:1.75; padding:var(--pady) var(--padx) calc(var(--pady) + 12px); overflow:hidden; box-sizing:border-box; }
+  .pg .pgin { height:100%; overflow:hidden; }
+  .pg .pgin > .tall { overflow:auto; }
+  .pg.--left { border-radius:6px 0 0 6px; box-shadow: inset -22px 0 26px -20px rgba(0,0,0,.30), inset 0 0 0 1px rgba(0,0,0,.05); }
+  .pg.--right { border-radius:0 6px 6px 0; box-shadow: inset 22px 0 26px -20px rgba(0,0,0,.30), inset 0 0 0 1px rgba(0,0,0,.05); }
+  .pg .pgno { position:absolute; bottom:9px; font:11px var(--ui); color:var(--muted); }
+  .pg.--left .pgno { left:var(--padx); } .pg.--right .pgno { right:var(--padx); }
+  .book.flip .pno { display:none; }
   .empty { color:var(--muted); font:14px var(--ui); text-align:center; padding-top:30%; }
   /* request box */
   .ask { flex:0 0 auto; display:flex; gap:8px; align-items:flex-end; padding:8px 20px calc(14px + env(safe-area-inset-bottom)); width:min(100%, 1200px); margin:0 auto; }
@@ -128,6 +142,8 @@
         <nav class="marks" id="marks"></nav>
         <div class="vp" id="vp"><div class="clip"><div class="flow" id="flow"></div></div></div>
         <div class="gutter"></div>
+        <div class="flipwrap" id="flipwrap"></div>
+        <div class="meas" id="meas"></div>
         <span class="pno l" id="pnl"></span><span class="pno r" id="pnr"></span>
         <button class="turnbtn prev" id="prev" aria-label="previous page">‹</button>
         <button class="turnbtn next" id="next" aria-label="next page">›</button>
@@ -140,6 +156,8 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<!-- page flip: StPageFlip 2.0.7 (MIT, see /vendor/page-flip.LICENSE.txt) -->
+<script src="/vendor/page-flip.browser.js"></script>
 <script>
 const QS = new URLSearchParams(location.search);
 const TOKEN = QS.get('token') || (document.cookie.split('cc_token=')[1] || '').split(';')[0];
@@ -206,10 +224,13 @@ function md(src) {
 let sessions = [], cur = null, turns = [], total = 0, start = 0, busy = false, page = 0, pages = 1, sentAt = 0, sentTotal = -1;
 let ws = null, term = null, ptyCols = 120, ptyRows = 34;
 const flow = $('flow'), vp = $('vp');
+const openWork = new Set();                       // turns whose work log is unfolded
+const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
+let pf = null, pfPages = [], dimKey = '', turnPages = new Map(), blankPg = null;
 const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
 liveBox.className = 'work live';
 liveBox.innerHTML = '<div class="wh"><i class="dot"></i><b></b><span class="st"></span><button type="button"></button></div><div class="termbox"><div class="tin"></div></div>';
-liveBox.querySelector('button').onclick = () => { liveBox.classList.toggle('big'); fitTerm(); layout(true); };
+liveBox.querySelector('button').onclick = () => { liveBox.classList.toggle('big'); turnPages.clear(); fitTerm(); layout(true); };
 
 const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 60 ? Math.round(s / 60) + T.min : s + T.sec; };
@@ -221,38 +242,36 @@ function turnEl(t) {
   return el;
 }
 function fillTurn(el, t, isLive) {
-  const sig = [t.req.length, t.ans.length, t.tools, t.files.length, isLive].join('|');
+  const sig = [t.req.length, t.ans.length, t.tools, t.files.length, isLive, openWork.has(t.i)].join('|');
   if (el._sig === sig) return false; el._sig = sig;
   el.querySelector('.q small').textContent = T.req + ' · ' + fmtT(t.ts);
   el.querySelector('.q span').innerHTML = reqHtml(t.req);
   el.querySelector('.a').innerHTML = md(t.ans);
   const slot = el.querySelector('.wslot');
   if (isLive) {
-    if (liveBox.parentNode !== slot) { slot.textContent = ''; slot.append(liveBox); }
+    if (flipMode()) slot.textContent = ''; else if (liveBox.parentNode !== slot) { slot.textContent = ''; slot.append(liveBox); }
     let p = el.querySelector('.pending'); if (!t.ans) { if (!p) { p = document.createElement('div'); p.className = 'pending'; p.textContent = T.pending; el.append(p); } } else if (p) p.remove();
   } else {
     const p = el.querySelector('.pending'); if (p) p.remove();
     if (liveBox.parentNode === slot) liveBox.remove();
     if (!t.tools) { slot.textContent = ''; return true; }
-    const wasOpen = !!slot.querySelector('.work.open');
+    const wasOpen = openWork.has(t.i);
     const sum = [fmtDur(t.end - t.ts), T.tools.replace('{n}', t.tools), t.files.length ? T.files.replace('{n}', t.files.length) : T.noedit].join(' · ');
     slot.innerHTML = '<div class="work' + (wasOpen ? ' open' : '') + '"><div class="wh"><i class="dot"></i><b>' + T.work + '</b><span>' + esc(sum) + '</span><button type="button">' + (wasOpen ? T.close : T.open) + '</button></div><div class="steps">'
       + t.files.map(f => '<div class="f" title="' + esc(f) + '">✎ ' + esc(f.split(/[\\/]/).slice(-2).join('/')) + '</div>').join('')
       + t.steps.map(s => '<div title="' + esc(s) + '">· ' + esc(s) + '</div>').join('') + '</div></div>';
-    const w = slot.firstChild, b = w.querySelector('button');
-    b.onclick = () => { const on = w.classList.toggle('open'); b.textContent = on ? T.close : T.open; layout(true); };
   }
   return true;
 }
 function render(full) {
-  if (full) { flow.textContent = ''; liveBox.remove(); }
+  if (full) { flow.textContent = ''; liveBox.remove(); dropFlip(); dimKey = ''; }
   if (!cur) { flow.innerHTML = '<div class="empty">' + T.noSess + '</div>'; return layout(); }
   let cover = flow.querySelector('.cover');
   if (!cover) { cover = document.createElement('article'); cover.className = 'turn cover'; flow.prepend(cover); }
   cover.innerHTML = '<h1>' + esc(cur.title || '') + '</h1><p>' + esc(cur.path || '') + '</p><p>' + T.turns.replace('{n}', total) + '</p>'
     + (cur._unsup ? '<p>' + T.unsup + '</p>' : !total ? '<p>' + T.empty + '</p>' : '')
-    + (start > 0 ? '<button type="button" id="more">' + T.more.replace('{n}', Math.min(30, start)) + '</button>' : '');
-  const more = cover.querySelector('#more'); if (more) more.onclick = loadEarlier;
+    + (start > 0 ? '<button type="button" class="more">' + T.more.replace('{n}', Math.min(30, start)) + '</button>' : '');
+  cover._sig = cover.innerHTML;
   const have = new Map([...flow.querySelectorAll('.turn[data-i]')].map(e => [+e.dataset.i, e]));
   const lastI = turns.length ? turns[turns.length - 1].i : -1;
   for (const t of turns) {
@@ -264,7 +283,7 @@ function render(full) {
     }
     fillTurn(el, t, busy && t.i === lastI);
   }
-  if (cur._unsup && liveBox.parentNode !== flow) flow.append(liveBox);   // no transcript to read — show the terminal only
+  if (cur._unsup && !flipMode() && liveBox.parentNode !== flow) flow.append(liveBox);   // no transcript to read — show the terminal only
   let note = flow.querySelector('.sentnote');
   if (sentAt && Date.now() - sentAt < 90000 && total <= sentTotal) { if (!note) { note = document.createElement('div'); note.className = 'pending sentnote'; note.textContent = T.sending; flow.append(note); } }
   else { if (note) note.remove(); sentAt = 0; }
@@ -283,6 +302,10 @@ function metrics() {
   return { w, gap, n, colW, step: w + gap };
 }
 function layout(keep) {
+  const fl = flipMode();
+  $('book').classList.toggle('flip', fl);
+  if (fl) return buildFlip(keep);
+  if (pf) dropFlip();
   const m = metrics();
   const cols = Math.max(1, Math.round((flow.scrollWidth + m.gap) / (m.colW + m.gap)));
   const wasLast = page >= pages - 1;
@@ -297,6 +320,7 @@ function layout(keep) {
 }
 const colOf = el => { const m = metrics(); return Math.round(el.offsetLeft / (m.colW + m.gap)); };
 function go(p, instant) {
+  if (pf) { const n = pf.getPageCount(), k = Math.max(0, Math.min(n - 2, p * 2)); if (instant) pf.turnToPage(k); else pf.flip(k); return flipUi(); }
   if (instant) flow.style.transition = 'none';
   page = Math.max(0, Math.min(pages - 1, p)); layout(true);
   if (instant) { void flow.offsetWidth; flow.style.transition = ''; }
@@ -304,25 +328,127 @@ function go(p, instant) {
 function marks() {
   const days = []; let curDay = '';
   const n = perView();
-  for (const el of flow.querySelectorAll('.turn[data-i]')) {
-    const pg = Math.floor(colOf(el) / n);
+  const firsts = pf ? pfPages.map((p, k) => ({ p, k })).filter(x => x.p.dataset.i !== undefined && (x.k === 0 || pfPages[x.k - 1].dataset.i !== x.p.dataset.i))
+      .map(x => ({ day: (flow.querySelector('.turn[data-i="' + x.p.dataset.i + '"]') || { dataset: {} }).dataset.day || '', pg: Math.floor(x.k / 2) }))
+    : [...flow.querySelectorAll('.turn[data-i]')].map(el => ({ day: el.dataset.day, pg: Math.floor(colOf(el) / n) }));
+  for (const x of firsts) {
+    const el = { dataset: { day: x.day } }, pg = x.pg;
     if (!days.length || days[days.length - 1].d !== el.dataset.day) days.push({ d: el.dataset.day, pg });
     if (pg <= page) curDay = el.dataset.day;
   }
   $('marks').innerHTML = days.slice(-14).map(x => '<button class="mark' + (x.d === curDay ? ' cur' : '') + '" data-pg="' + x.pg + '">' + x.d + '</button>').join('');
   $('marks').querySelectorAll('.mark').forEach(b => b.onclick = () => go(+b.dataset.pg));
 }
-$('prev').onclick = () => go(page - 1); $('next').onclick = () => go(page + 1);
+const nav = d => { if (pf) { d > 0 ? pf.flipNext() : pf.flipPrev(); } else go(page + d); };
+$('prev').onclick = () => nav(-1); $('next').onclick = () => nav(1);
+// clicks inside pages (pages are copies in flip mode, so handlers are delegated)
+$('book').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.classList.contains('more')) return loadEarlier();
+  const w = b.closest('.work'); if (!w || w === liveBox) return;
+  const host = b.closest('[data-i]'); if (!host) return;
+  const i = +host.dataset.i; openWork.has(i) ? openWork.delete(i) : openWork.add(i);
+  render();
+});
+
+// ── thick-paper flip ────────────────────────────────────────────────────────
+function dropFlip() { if (pf) { try { liveBox.remove(); pf.destroy(); } catch (e) {} pf = null; } pfPages = []; turnPages.clear(); $('flipwrap').textContent = ''; $('meas').textContent = ''; }
+function newPg(d, i) {
+  const p = document.createElement('div'); p.className = 'pg'; p.dataset.density = 'hard'; if (i !== undefined) p.dataset.i = i;
+  p.style.width = d.w + 'px'; p.style.height = d.h + 'px';
+  const inn = document.createElement('div'); inn.className = 'pgin'; p.append(inn); p._in = inn;
+  $('meas').append(p); return p;
+}
+const over = p => p._in.scrollHeight > p._in.clientHeight + 1;
+const rowsOf = x => x.tagName === 'UL' || x.tagName === 'OL' ? x : x.firstElementChild && (x.firstElementChild.tagName === 'UL' || x.firstElementChild.tagName === 'OL') ? x.firstElementChild : x.querySelector && x.querySelector('tbody');
+// a list / table that does not fit: move its tail into a twin element for the next page
+function splitTail(b, p) {
+  const box = rowsOf(b); if (!box || box.children.length < 2) return null;
+  const rest = b.cloneNode(true), rbox = rowsOf(rest); rbox.textContent = '';
+  while (over(p) && box.children.length > 1) rbox.prepend(box.lastElementChild);
+  if (box.tagName === 'OL') rbox.start = (box.start || 1) + box.children.length;
+  return rest;
+}
+function paginate(blocks, d, i) {
+  const out = []; let p = newPg(d, i); out.push(p);
+  const fresh = () => { p = newPg(d, i); out.push(p); };
+  const place = b => {
+    p._in.append(b);
+    if (!over(p)) return;
+    const alone = p._in.children.length === 1;
+    const rest = splitTail(b, p);
+    if (rest && !over(p)) { fresh(); return place(rest); }
+    if (rest) { const box = rowsOf(b), rb = rowsOf(rest); while (rb.firstElementChild) box.append(rb.firstElementChild); }   // undo
+    if (!alone) { b.remove(); fresh(); return place(b); }
+    b.classList.add('tall'); b.style.maxHeight = p._in.clientHeight + 'px';   // last resort: scroll inside the page
+  };
+  blocks.forEach(place);
+  return out;
+}
+function turnBlocks(el, isLive) {
+  if (el.classList.contains('cover')) { const c = el.cloneNode(true); c.classList.remove('turn'); return [c]; }
+  const bl = [el.querySelector('.q').cloneNode(true)];
+  for (const ch of el.querySelector('.a').children) { const w = document.createElement('div'); w.className = 'a'; w.append(ch.cloneNode(true)); bl.push(w); }
+  if (isLive) { bl.push(liveBox); const pd = el.querySelector('.pending'); if (pd) bl.push(pd.cloneNode(true)); }
+  else { const w = el.querySelector('.wslot .work'); if (w) bl.push(w.cloneNode(true)); }
+  return bl;
+}
+function buildFlip(keep) {
+  const book = $('book'), d = { w: Math.floor(book.clientWidth / 2), h: book.clientHeight };
+  if (d.w < 200 || d.h < 200) return;
+  const key = d.w + 'x' + d.h; if (key !== dimKey) { dropFlip(); dimKey = key; }
+  const lastI = turns.length ? turns[turns.length - 1].i : -1;
+  const pages = [], seen = new Set();
+  for (const el of flow.querySelectorAll('.turn')) {
+    const id = el.dataset.i === undefined ? 'cover' : +el.dataset.i, live = busy && id === lastI;
+    let c = turnPages.get(id);
+    if (!c || c.sig !== el._sig) {
+      if (c && c.pages.some(p => p.contains(liveBox))) liveBox.remove();
+      c = { sig: el._sig, pages: paginate(turnBlocks(el, live), d, id === 'cover' ? undefined : id) }; turnPages.set(id, c);
+    }
+    seen.add(id); pages.push(...c.pages);
+  }
+  for (const k of [...turnPages.keys()]) if (!seen.has(k)) turnPages.delete(k);
+  if (!pages.length) { const p = newPg(d); p._in.innerHTML = flow.innerHTML; pages.push(p); }
+  if (cur && cur._unsup) { const p = newPg(d); p._in.append(liveBox); pages.push(p); }
+  if (pages.length % 2) { if (!blankPg || blankPg.style.width !== d.w + 'px' || blankPg.style.height !== d.h + 'px') blankPg = newPg(d); pages.push(blankPg); }
+  const same = pages.length === pfPages.length && pages.every((p, k) => p === pfPages[k]);
+  if (!same) {
+    const curIdx = pf ? pf.getCurrentPageIndex() : 0, wasLast = !pf || curIdx >= pfPages.length - 2;
+    const old = pfPages[curIdx], anchor = old && old.dataset.i;            // the turn being read
+    pages.forEach((p, k) => { let n = p.querySelector('.pgno'); if (!n) { n = document.createElement('span'); n.className = 'pgno'; p.append(n); } n.textContent = k + 1; });
+    let target = (!keep && wasLast) ? pages.length - 2 : curIdx;
+    if (!(!keep && wasLast) && old) { const k = pages.includes(old) ? pages.indexOf(old) : anchor !== undefined ? pages.findIndex(p => p.dataset.i === anchor) : -1; if (k >= 0) target = k; }
+    target = Math.max(0, Math.min(pages.length - 1, target)); target -= target % 2;
+    if (!pf) {
+      const host = document.createElement('div'); $('flipwrap').textContent = ''; $('flipwrap').append(host);
+      // mouse dragging is off on purpose: pages hold selectable text, links and scroll boxes. Turning = edge buttons, keys, wheel.
+      pf = new St.PageFlip(host, { width: d.w, height: d.h, size: 'fixed', usePortrait: false, showCover: false, drawShadow: true, maxShadowOpacity: .45,
+        flippingTime: 650, useMouseEvents: false, startPage: target, autoSize: false });
+      pf.loadFromHTML(pages);
+      pf.on('flip', flipUi);
+    } else { pf.updateFromHtml(pages); if (pf.getCurrentPageIndex() !== target) pf.turnToPage(target); }
+    pfPages = pages;
+  }
+  fitTerm(); flipUi();
+}
+function flipUi() {
+  if (!pf) return;
+  const k = pf.getCurrentPageIndex(), n = pf.getPageCount();
+  page = Math.floor(k / 2); pages = Math.ceil(n / 2);
+  $('prev').disabled = k <= 0; $('next').disabled = k >= n - 2;
+  marks();
+}
 addEventListener('keydown', e => {
   if (e.target === $('inp') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ) return;
-  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (e.target !== $('inp')) { go(page - 1); e.preventDefault(); } }
-  else if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (e.target !== $('inp')) { go(page + 1); e.preventDefault(); } }
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (e.target !== $('inp')) { nav(-1); e.preventDefault(); } }
+  else if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (e.target !== $('inp')) { nav(1); e.preventDefault(); } }
 });
 let wheelAt = 0;
-vp.addEventListener('wheel', e => {
+$('book').addEventListener('wheel', e => {
   // let scrollable boxes (code, tables, the work log) use the wheel first
-  for (let n = e.target; n && n !== vp; n = n.parentNode) if (n.scrollHeight > n.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(n).overflowY)) return;
-  if (Date.now() - wheelAt < 350 || Math.abs(e.deltaY) < 8) return; wheelAt = Date.now(); go(page + (e.deltaY > 0 ? 1 : -1));
+  for (let n = e.target; n && n !== $('book'); n = n.parentNode) if (n.scrollHeight > n.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(n).overflowY)) return;
+  if (Date.now() - wheelAt < (pf ? 700 : 350) || Math.abs(e.deltaY) < 8) return; wheelAt = Date.now(); nav(e.deltaY > 0 ? 1 : -1);
 }, { passive: true });
 let tx = 0, ty = 0;
 vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
@@ -401,7 +527,8 @@ async function loadEarlier() {
   const first = flow.querySelector('.turn[data-i]'), anchor = first ? first.dataset.i : null;
   apply(r); render();
   const el = anchor && flow.querySelector('.turn[data-i="' + anchor + '"]');
-  if (el) go(Math.max(0, Math.floor(colOf(el) / perView()) - 1), true);   // stay where the reader was, one page back
+  if (pf) { const k = pfPages.findIndex(p => p.dataset.i === anchor); if (k >= 0) pf.turnToPage(Math.max(0, k - (k % 2) - 2)); flipUi(); }
+  else if (el) go(Math.max(0, Math.floor(colOf(el) / perView()) - 1), true);   // stay where the reader was, one page back
 }
 let polling = false;
 async function poll() {
