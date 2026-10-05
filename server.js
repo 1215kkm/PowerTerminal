@@ -3451,6 +3451,8 @@ app.get('/api/voice/sessions', (req, res) => {
 });
 app.post('/api/voice', async (req, res) => {
   let text = String((req.body && req.body.text) || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+  // end — 「여기까지」를 알리는 말(예: 전송). 단축어가 그 말이 나올 때까지 받아 적어 모아 보내면, 맨 끝의 그 말은 떼고 넘긴다
+  if (req.body && req.body.end) { const e = String(req.body.end).trim(); if (e) { const cut = text.lastIndexOf(e); if (cut >= 0 && text.slice(cut + e.length).replace(/[s.!?,~해줘요]/g, '') === '') text = text.slice(0, cut).trim(); } }
   if (!text) return res.json({ ok: false, say: '요청이 비어 있어요.' });
   if (Date.now() - voiceLastAt < 1500) return res.json({ ok: false, say: '방금 보낸 요청과 너무 붙어 있어요. 잠시 뒤 다시 말해 주세요.' });
   // 물어본 말이면 세션에 보내지 않고 기록에서 바로 답한다 (to 를 직접 지정한 호출은 언제나 보내기)
