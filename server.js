@@ -3384,15 +3384,77 @@ function voiceFind(to) {
       || list.find(x => voiceNorm(x.title).includes(k)) || list.find(x => k.includes(voiceNorm(x.title)) && voiceNorm(x.title).length >= 2) || null;
 }
 let voiceLastAt = 0;
+/* 🎙 물어보면 읽어 준다 — "카페 어디까지 했어", "지금 일하는 세션 뭐 있어", "루틴 끝났어" 같은 말은 세션에 새 일을 시키지 않고
+   PT 가 가진 기록(대화 기록의 마지막 답변 · 세션 상태)에서 바로 답한다. 단축어는 say 를 소리 내어 읽는다.
+   질문으로 볼 말을 좁게 잡는다 — 애매하면 평소처럼 세션에 보낸다(시킨 일을 삼켜 버리는 쪽이 더 나쁘다). */
+const VOICE_Q = /(어디까지|뭐라고?\s*(했|하|답|그래|그러)|뭐래|답변?\s*(을\s*)?(읽|들려|알려|뭐)|결과\s*(를\s*)?(알려|뭐|읽|들려|어때)|진행\s*상황|상태\s*(를\s*)?(알려|어때|뭐)|끝났|다\s*했|다\s*됐|마지막\s*(답|말))/;
+const VOICE_ALL = /((일하는|작업\s*중인?|돌고\s*있는|바쁜)\s*세션|전체\s*(상태|상황)|세션\s*(상태|상황|목록)|세션\s*(들\s*)?뭐\s*하)/;
+const voiceAgo = ts => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m / 60) + '시간 전' : Math.round(m / 1440) + '일 전'; };
+// 답변(마크다운)을 소리 내어 읽기 좋은 글로 — 표·코드는 빼고 앞부분만
+function voicePlain(md, max) {
+  const out = [];
+  let code = false;
+  for (let l of String(md || '').replace(/\r/g, '').split('\n')) {
+    if (/^\s*```/.test(l)) { code = !code; continue; }
+    if (code || /^\s*\|/.test(l) || /^\s*(---+|\*\*\*+)\s*$/.test(l)) continue;
+    l = l.replace(/^\s*#{1,6}\s*/, '').replace(/^\s*([-*+]|\d+[.)])\s+/, '').replace(/^\s*>\s?/, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/https?:\/\/\S+/g, '주소').replace(/[A-Za-z]:\\[^\s"'`]+/g, '파일').replace(/[*_`]/g, '').trim();
+    if (l) out.push(/[.!?。다요]$/.test(l) ? l : l + '.');
+    if (out.join(' ').length >= max) break;
+  }
+  let t = out.join(' ');
+  if (t.length > max) { t = t.slice(0, max); const k = Math.max(t.lastIndexOf('. '), t.lastIndexOf('다. '), t.lastIndexOf('요. ')); t = k > max * 0.5 ? t.slice(0, k + 1) : t + '…'; }
+  return t;
+}
+const voiceName = x => String(x.title || '').replace(/^🔁\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+async function voiceAsk(text) {
+  const t = text.replace(/[?？!.~]+$/g, '').trim();
+  if (t.length > 44) return null;                                   // 긴 말은 지시로 본다
+  const all = sessions.map(x => ({ x, p: ptys.get(x.id) })).filter(o => o.p && !o.p.dead);
+  // ① 루틴 · 전체 상태
+  if (/루틴/.test(t) && (VOICE_Q.test(t) || /(상태|돌고|있어|뭐)/.test(t))) {
+    const r = all.filter(o => o.x.routineRun);
+    if (!r.length) return '지금 돌고 있는 루틴 세션이 없어요.';
+    return '루틴 세션 ' + r.length + '개가 열려 있어요. ' + r.slice(0, 3).map(o => voiceName(o.x) + (o.p.busy ? ', 일하는 중' : ', 멈춰 있음')).join('. ') + '.';
+  }
+  if (VOICE_ALL.test(t)) {
+    const busy = all.filter(o => o.p.busy), idle = all.filter(o => !o.p.busy);
+    if (!all.length) return '열려 있는 세션이 없어요.';
+    return (busy.length ? '일하는 세션은 ' + busy.length + '개예요. ' + busy.slice(0, 5).map(o => voiceName(o.x)).join(', ') + '. ' : '지금 일하는 세션은 없어요. ')
+      + (idle.length ? '쉬는 세션은 ' + idle.slice(0, 5).map(o => voiceName(o.x)).join(', ') + '.' : '');
+  }
+  if (!VOICE_Q.test(t)) return null;
+  // ② 어느 세션인지 — "카페 어디까지 했어" · "카페에 진행 상황 알려줘" · 이름이 없으면 마지막으로 요청한 세션
+  let sess = null;
+  const m = t.match(/^(.{1,24}?)\s*(?:세션)?\s*(?:에게|한테|에서|에|은|는|이|가)?\s+\S/);
+  if (m && !VOICE_Q.test(m[1])) sess = voiceFind(m[1]);
+  if (!sess) { const w = t.split(/\s+/)[0].replace(/(에게|한테|에서|에|은|는|이|가)$/, ''); if (w && !VOICE_Q.test(w)) sess = voiceFind(w); }
+  if (!sess) sess = voiceLastSession();
+  if (!sess) return '열려 있는 세션이 없어요.';
+  const p = ptys.get(sess.id), name = voiceName(sess);
+  const state = !p || p.dead ? '꺼져 있어요' : p.busy ? '지금 일하는 중이에요' : '지금은 쉬고 있어요';
+  // ③ 마지막 답변 — 클로드는 대화 기록에서, 그 밖(GPT 등)은 요청 기록의 요약에서
+  let ans = '', when = 0;
+  if ((sess.agent || 'claude') === 'claude' || process.env.PT_BOOK_ANY) {
+    try { const turns = await bookTurns(sess.path); for (let i = turns.length - 1; i >= 0 && !ans; i--) if (turns[i].ans) { ans = turns[i].ans; when = turns[i].end || turns[i].ts; } } catch (e) {}
+  }
+  if (!ans) { const mm = memos[memoKey(sess.path)]; const r = mm && (mm.reqs || []).find(q => q.answer && (!q.sid || q.sid === sess.id)); if (r) { ans = r.answer; when = r.ts; } }
+  if (!ans) return name + ' 세션은 ' + state + '. 읽어 드릴 답변 기록은 아직 없어요.';
+  return name + ' 세션은 ' + state + '. ' + (p && p.busy ? '그 전에 한 말은 이래요. ' : voiceAgo(when) + ' 답변이에요. ') + voicePlain(ans, 260);
+}
 app.get('/api/voice/sessions', (req, res) => {
   const list = voiceTargets().map(x => { const p = ptys.get(x.id); return { id: x.id, title: x.title, busy: !!(p && p.busy), alive: !!(p && !p.dead) }; });
   const last = voiceLastSession();
   res.json({ sessions: list, titles: list.map(x => x.title), last: last ? last.title : '' });
 });
-app.post('/api/voice', (req, res) => {
+app.post('/api/voice', async (req, res) => {
   let text = String((req.body && req.body.text) || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
   if (!text) return res.json({ ok: false, say: '요청이 비어 있어요.' });
   if (Date.now() - voiceLastAt < 1500) return res.json({ ok: false, say: '방금 보낸 요청과 너무 붙어 있어요. 잠시 뒤 다시 말해 주세요.' });
+  // 물어본 말이면 세션에 보내지 않고 기록에서 바로 답한다 (to 를 직접 지정한 호출은 언제나 보내기)
+  if (!(req.body && req.body.to) && req.body.ask !== false) {
+    try { const say = await voiceAsk(text); if (say) return res.json({ ok: true, asked: true, say }); } catch (e) {}
+  }
   let sess = null;
   if (req.body && req.body.to) {
     sess = voiceFind(String(req.body.to));
