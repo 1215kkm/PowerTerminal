@@ -5864,7 +5864,7 @@ function buildPane(sess, idx) {
       who.title = t.trim();
       quick.classList.add('typing');
     };
-    qInput.addEventListener('focus', () => { showWho(); pinQuick(quick); });   // 폰: 입력 시작 → 입력줄을 화면 하단 고정
+    qInput.addEventListener('focus', () => { showWho(); pinQuick(quick); mobInputDiag(sess, el, qInput); });   // 폰: 입력 시작 → 입력줄을 화면 하단 고정
     qInput.addEventListener('blur', () => {
       quick.classList.remove('typing');
       // 전송버튼 탭 등으로 잠깐 포커스가 옮겨간 것뿐이면 고정 유지, 진짜 입력줄을 떠났을 때만 해제
@@ -12365,6 +12365,48 @@ function positionPinnedQuick() {
   }
   // bottom 자체는 CSS calc(--kb-gap + safe-area 여유)가 계산 — 여기선 키보드 높이만 변수로 넘김
   _pinnedQuick.style.setProperty('--kb-gap', gap + 'px');
+}
+/* 🔎 임시 진단(2026-10-05) — 폰에서 "입력칸을 누르면 화면이 밑으로 밀리고 자판이 안 뜬다" 가 시험 환경에서 재현되지 않아,
+   실제 폰에서 입력칸을 누른 뒤 5초 동안 무슨 일이 일어나는지(포커스 이동·화면 이동·자판 높이)를 적어 그 세션 폴더의
+   .pt-images/paste-*.txt 로 보낸다. 원인을 찾으면 이 함수와 호출 한 줄을 지운다. */
+let _diagAt = 0;
+function mobInputDiag(sess, el, qInput) {
+  try {
+    if (!isMobileNow() || Date.now() - _diagAt < 20000) return;
+    _diagAt = Date.now();
+    const t0 = performance.now(), L = [];
+    const vv = window.visualViewport;
+    const st = () => { const r = el.getBoundingClientRect(), q = qInput.getBoundingClientRect(), a = document.activeElement;
+      return 'y=' + Math.round(scrollY) + ' ih=' + innerHeight + ' vv=' + (vv ? Math.round(vv.height) + '/' + Math.round(vv.offsetTop) : '-')
+        + ' pane=' + Math.round(r.top) + '..' + Math.round(r.bottom) + ' ta=' + Math.round(q.top) + '..' + Math.round(q.bottom)
+        + ' pin=' + (el.querySelector('.quick').classList.contains('kb-pin') ? 1 : 0) + ' act=' + (a ? a.tagName + '.' + String(a.className).slice(0, 18) : '-'); };
+    const log = m => { if (L.length < 160) L.push(Math.round(performance.now() - t0) + 'ms ' + m + ' | ' + st()); };
+    log('START ua=' + navigator.userAgent.slice(0, 120) + ' panes=' + panes.size + ' dpr=' + devicePixelRatio);
+    const offs = [];
+    const on = (tg, ev, fn, opt) => { tg.addEventListener(ev, fn, opt); offs.push(() => tg.removeEventListener(ev, fn, opt)); };
+    const nm = e => e && e.target && e.target.tagName ? e.target.tagName + '.' + String(e.target.className || '').slice(0, 24) : '?';
+    on(document, 'focusin', e => log('focusin ' + nm(e)), true);
+    on(document, 'focusout', e => log('focusout ' + nm(e) + ' -> ' + (e.relatedTarget ? e.relatedTarget.tagName : 'null')), true);
+    on(document, 'scroll', e => log('scroll ' + (e.target === document ? 'page' : nm(e))), true);
+    on(document, 'touchstart', e => log('touchstart ' + nm(e)), true);
+    on(document, 'touchend', e => log('touchend ' + nm(e)), true);
+    on(document, 'visibilitychange', () => log('visibility ' + document.visibilityState), true);
+    on(window, 'resize', () => log('win resize'));
+    if (vv) { on(vv, 'resize', () => log('vv resize')); on(vv, 'scroll', () => log('vv scroll')); }
+    const ob = HTMLElement.prototype.blur;
+    HTMLElement.prototype.blur = function () { log('blur() by code: ' + String(new Error().stack).split('\n').slice(2, 5).map(x => x.trim().slice(0, 90)).join(' < ')); return ob.apply(this, arguments); };
+    const os = window.scrollTo;
+    window.scrollTo = function () { log('scrollTo by code: ' + String(new Error().stack).split('\n').slice(2, 4).map(x => x.trim().slice(0, 90)).join(' < ')); return os.apply(this, arguments); };
+    const oi = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function () { log('scrollIntoView by code: ' + String(new Error().stack).split('\n').slice(2, 4).map(x => x.trim().slice(0, 90)).join(' < ')); return oi.apply(this, arguments); };
+    [300, 800, 1500, 2500, 4000].forEach(ms => setTimeout(() => log('tick'), ms));
+    setTimeout(() => {
+      offs.forEach(f => f());
+      HTMLElement.prototype.blur = ob; window.scrollTo = os; Element.prototype.scrollIntoView = oi;
+      log('END');
+      api('POST', '/api/sessions/' + sess.id + '/upload-text', { text: 'PTDIAG mobile-input ' + new Date().toISOString() + ' session=' + (sess.title || '') + '\n' + L.join('\n') }).catch(() => {});
+    }, 5000);
+  } catch (e) {}
 }
 let _pinnedAt = 0;   // 입력줄을 마지막으로 누른 때 — 키보드가 올라오는 동안은 '벗어남' 판정을 쉰다
 function pinQuick(quick) {
