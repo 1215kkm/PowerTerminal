@@ -1221,20 +1221,27 @@ function codexEnterDelay(len) { return Math.max(300, 250 + len * 0.6); }
 /* Claude 도 긴 글 뒤에는 Enter 를 늦춰야 한다 — 100ms 고정이던 때, 1.5KB 짜리 여러 줄 지시문이 입력칸에 그대로
    남고 아무 일도 시작되지 않았다(2026-09-22 루틴 4단계 실측: 90분 뒤 시간 초과). 예약 전송도 같은 길로 나간다. */
 function claudeEnterDelay(len) { return Math.max(120, Math.min(2500, 120 + len * 0.5)); }
+/* 화면의 요청 입력줄은 "글 → 80ms 뒤 Enter" 로 보낸다. Claude 세션에서 그 Enter 를 그대로 흘려보내던 때, 긴 요청이
+   입력칸에 들어가기만 하고 제출되지 않은 채 멈춰 있는 일이 있었다(2026-10-07 대표 보고 — 루틴·예약·음성 전송은
+   이미 claudeEnterDelay 만큼 늦춰 보내고 있었고, 손으로 치는 입력줄만 빠져 있었다). 그래서 Claude 도 codex 처럼
+   글 직후에 온 Enter 를 글자 수에 비례해 늦춘다. 셸·사용자 지정 명령 세션은 건드리지 않는다. */
 function writeIn(sess, p, data) {
-  if (sess.agent !== 'codex') { p.proc.write(data); return; }
+  const kind = sess.agent === 'codex' ? 'codex' : (!sess.agent || sess.agent === 'claude') ? 'claude' : '';
+  if (!kind) { p.proc.write(data); return; }
   if (p.inHold) { p.inHold.push(data); return; }
   const now = Date.now();
-  if (data === '\r' && p.lastTextAt && now - p.lastTextAt < codexEnterDelay(p.lastTextLen)) {
+  const need = kind === 'codex' ? codexEnterDelay(p.lastTextLen || 0) : claudeEnterDelay(p.lastTextLen || 0);
+  if (data === '\r' && p.lastTextAt && now - p.lastTextAt < need) {
     p.inHold = [];
     setTimeout(() => {
       const q = p.inHold; p.inHold = null;
       try { p.proc.write('\r'); } catch (e) {}
       for (const d of q) writeIn(sess, p, d);
-    }, p.lastTextAt + codexEnterDelay(p.lastTextLen) - now);
+    }, p.lastTextAt + need - now);
     return;
   }
-  if (data !== '\r' && data.length >= 3) { p.lastTextAt = now; p.lastTextLen = data.length; }
+  // 손으로 한 글자씩 치는 입력은 세지 않는다(Claude 는 8자 이상 한 덩어리일 때만 — 붙여넣기·입력줄 전송)
+  if (data !== '\r' && data.length >= (kind === 'codex' ? 3 : 8)) { p.lastTextAt = now; p.lastTextLen = data.length; }
   p.proc.write(data);
 }
 
