@@ -8480,13 +8480,20 @@ function applyLayout() {
   if (isMobile) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; grid.style.height = ''; return; }
 
   grid.style.gridTemplateRows = '';
+  grid.style.gridAutoRows = '';
   grid.style.height = '';
   // 1=전체 · 2=좌우 반반 · 3개↑=가로로 나란히 (한 줄).
   // 한 칸이 MIN_W(300px) 미만으로 좁아지면 2줄로 접어서 배치.
   const gw = grid.clientWidth || window.innerWidth;
   let cols, singleRow;
+  // 7개 이상(넓은 화면) — 6개는 그대로 한 줄에 두고, 7번째부터는 화면 아래로 내려 스크롤로 본다(CEO 2026-10-08).
+  // 예전엔 4+3 두 줄로 접혀 칸이 전부 반 높이가 됐다. 아래에 세션이 더 있다는 걸 알 수 있게 첫 줄 높이를
+  // 조금 줄여 다음 줄의 제목이 화면에 걸치게 한다.
+  const PER_ROW = 6, PEEK = 62;
+  const overflowRows = n > PER_ROW && gw / PER_ROW >= MIN_W && !hasMax;
   if (n <= 1) { cols = 1; singleRow = true; }
   else if (n === 2) { cols = 2; singleRow = true; }
+  else if (overflowRows) { cols = PER_ROW; singleRow = false; }
   else { singleRow = (gw / n >= MIN_W); cols = singleRow ? n : Math.ceil(n / 2); }
 
   // 열 너비 — 확대 중이면 그 칸의 열만 크게. 위치는 그대로, grid 트랜지션으로 부드럽게 커짐
@@ -8503,6 +8510,10 @@ function applyLayout() {
   const rows = singleRow ? 1 : Math.ceil(n / cols);
   const off = (document.querySelector('header').offsetHeight || 56) + 24;
   const avail = window.innerHeight - off;
+  if (overflowRows) {   // 줄 높이 = 화면 높이에서 다음 줄 제목만큼 뺀 값. 전체 높이는 잡지 않아 페이지가 아래로 스크롤된다
+    grid.style.gridAutoRows = Math.max(MIN_ROW_H, avail - PEEK) + 'px';
+    return;
+  }
   // 줄당 높이가 이보다 낮아지면 오히려 못 쓰니 그때만 스크롤을 허용한다 (짧은 화면 대비)
   if (rows === 1 || avail / rows >= MIN_ROW_H) {
     // minmax(0,1fr) 이어야 한다 — 그냥 1fr(=minmax(auto,1fr))이면 칸 내용의 최소높이만큼 줄이 늘어나 또 넘친다
