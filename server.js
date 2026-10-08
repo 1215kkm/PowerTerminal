@@ -1613,8 +1613,11 @@ async function sessionMem() {
     };
     const out = {};
     for (const s of sessions) { const p = ptys.get(s.id); if (p && !p.dead && p.proc && p.proc.pid) out[s.id] = sumTree(p.proc.pid); }
+    // 세션이 지금 실제로 쓰는 모델(「자동」 세션의 머리에 이름으로 보여 주려고 같이 실어 보낸다)
+    const models = {};
+    for (const s of sessions) { try { const m = sessionModelNow(s); if (m) models[s.id] = m; } catch (e) {} }
     const data = { at: Date.now(), sessions: out, server: sumTree(process.pid).bytes, totalMem: os.totalmem(), freeMem: os.freemem(),
-      virtTotal: osVirt ? osVirt.total : 0, virtFree: osVirt ? osVirt.free : 0 };
+      virtTotal: osVirt ? osVirt.total : 0, virtFree: osVirt ? osVirt.free : 0, models };
     memCache = { at: Date.now(), data, busy: null };
     return data;
   })().catch(() => { memCache.busy = null; return { at: Date.now(), sessions: {} }; });
@@ -2222,7 +2225,7 @@ function sessionContextTokens(sessPath) {
   const dir = claudeProjectDir(sessPath);
   const c = ctxCache.get(dir);
   if (c && Date.now() - c.at < 60000) return c.tokens;   // 1분 캐시 — 기록 파일이 수백 MB 일 수 있다
-  let tokens = 0;
+  let tokens = 0, model = '';
   try {
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'))
       .map(f => { const p = path.join(dir, f); return { p, t: fs.statSync(p).mtimeMs }; })
@@ -2235,17 +2238,36 @@ function sessionContextTokens(sessPath) {
       fs.readSync(fd, buf, 0, buf.length, start);
       fs.closeSync(fd);
       const lines = buf.toString('utf8').split('\n');
-      for (let i = lines.length - 1; i >= 0 && !tokens; i--) {
+      for (let i = lines.length - 1; i >= 0 && (!tokens || !model); i--) {
         let j; try { j = JSON.parse(lines[i]); } catch (e) { continue; }
-        const u = j && j.message && j.message.usage;
-        if (!u) continue;
+        const msg = j && !j.isSidechain && j.message;
+        // 마지막 응답을 실제로 낸 모델 — 「자동」으로 둔 세션의 머리에 이름으로 보여 준다
+        if (msg && !model && j.type === 'assistant' && typeof msg.model === 'string' && /^claude-/.test(msg.model)) model = msg.model;
+        const u = msg && msg.usage;
+        if (!u || tokens) continue;
         const t = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
         if (t > 0) tokens = t;
       }
     }
   } catch (e) {}
-  ctxCache.set(dir, { at: Date.now(), tokens });
+  ctxCache.set(dir, { at: Date.now(), tokens, model });
   return tokens;
+}
+/* 🤖 「자동」으로 둔 세션이 지금 실제로 쓰는 모델. Claude = 대화 기록의 마지막 응답 모델(화면 글자를 긁지 않는다),
+   GPT(codex) = ~/.codex/config.toml 의 model (자동 = 인자를 안 주는 것이라 이 값을 그대로 따른다). 모르면 ''. */
+let codexDefaultModel = { at: 0, model: '' };
+function sessionModelNow(sess) {
+  const a = sess.agent || 'claude';
+  if (a === 'claude') { sessionContextTokens(sess.path); const c = ctxCache.get(claudeProjectDir(sess.path)); return (c && c.model) || ''; }
+  if (a === 'codex') {
+    if (Date.now() - codexDefaultModel.at > 60000) {
+      let m = '';
+      try { const t = fs.readFileSync(path.join(os.homedir(), '.codex', 'config.toml'), 'utf8'); const hit = /^\s*model\s*=\s*"([^"]+)"/m.exec(t.split(/^\s*\[/m)[0]); if (hit) m = hit[1]; } catch (e) {}
+      codexDefaultModel = { at: Date.now(), model: m };
+    }
+    return codexDefaultModel.model;
+  }
+  return '';
 }
 /* 📖 책 모드 — 세션의 대화를 「요청 → 답변」 쪽으로 읽어 준다 (public/book.html 이 쓴다).
    화면 글자를 긁지 않고 클로드가 남기는 대화 기록(.jsonl)을 읽는다 — 표·목록이 그대로 살아 있다.

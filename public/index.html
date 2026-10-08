@@ -4765,14 +4765,25 @@ function autoOptExpand(sel) {
   if (!sel) return;
   const opt = sel.querySelector('option[value="default"]');
   if (!opt) return;
-  const expand = () => { opt.textContent = T.mDefaultLong || T.mDefault || 'Auto'; };
-  const collapse = () => { opt.textContent = T.mDefault || 'Auto'; };
+  // opt.dataset.real = 이 세션이 지금 실제로 쓰는 모델 이름(서버가 알려 준다). 있으면 「자동」 대신 그 이름을 보여 준다.
+  const expand = () => { opt.textContent = opt.dataset.real ? (T.mDefault || 'Auto') + ' — ' + opt.dataset.real : (T.mDefaultLong || T.mDefault || 'Auto'); };
+  const collapse = () => { opt.textContent = opt.dataset.real || T.mDefault || 'Auto'; };
+  sel._autoCollapse = collapse;
   sel.addEventListener('mousedown', expand);   // 펼치기 직전에 긴 설명으로
   sel.addEventListener('focus', expand);       // 키보드로 펼칠 때도
   sel.addEventListener('change', collapse);
   sel.addEventListener('blur', collapse);
 }
 autoOptExpand(document.getElementById('addModel'));   // 세션추가 창의 모델 선택
+// 모델 id → 보기 좋은 이름 (claude-opus-5-5 → Opus 5.5 · gpt-6.1-sol → GPT-6.1 Sol)
+function modelPretty(id) {
+  if (!id) return '';
+  const hit = MODEL_PINNED.concat(GPT_MODELS).find(m => m[0] === id);
+  if (hit) return hit[1];
+  const m = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-|$)/.exec(id);
+  if (m) return m[1][0].toUpperCase() + m[1].slice(1) + ' ' + m[2] + (m[3] ? '.' + m[3] : '');
+  return id;
+}
 
 function buildPane(sess, idx) {
   if (panes.has(sess.id)) return;   // 이미 그려진 세션은 다시 안 그림 — 생성 직후 addHere와 5초 reconcile이 겹치면
@@ -7203,6 +7214,16 @@ async function refreshMem() {
   if (document.hidden) return;
   let r; try { r = await api('GET', '/api/sessions-mem'); } catch (e) { return; }
   if (!r || !r.sessions) return;
+  // 🤖 「자동」으로 둔 세션의 머리에 실제 모델 이름 — 서버가 대화 기록(Claude)·codex 설정(GPT)에서 읽어 준다
+  if (r.models) for (const [id, p] of panes) {
+    const sel = p.el.querySelector('.modelSel'), opt = sel && sel.querySelector('option[value="default"]');
+    if (!opt) continue;
+    const real = modelPretty(r.models[id] || '');
+    if ((opt.dataset.real || '') === real) continue;
+    if (real) opt.dataset.real = real; else delete opt.dataset.real;
+    if (document.activeElement !== sel && sel._autoCollapse) sel._autoCollapse();   // 펼쳐 보는 중이면 건드리지 않는다
+    if (real) sel.title = (T.modelTip || '') + '\n' + (T.mDefault || 'Auto') + ' → ' + real;
+  }
   // 로고 밑 전체 메모리 막대 — 가상 메모리(실제 RAM + 페이징 파일)를 알면 그 기준으로, 모르면 실제 RAM 기준
   { const rb = document.getElementById('ramBar');
     if (rb && r.totalMem) {
