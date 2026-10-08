@@ -8458,6 +8458,26 @@ function animateMax(applyFn) {
 }
 
 // PC 배치 규칙: 1개=전체 · 2개=좌우 · 3개=좌상/우상/하단(전체폭) · 4개=2×2 · 5개↑=3열
+/* 🧹 파일 끌어다 놓기 표시(점선 테두리) 지우기 — 세션 칸·입력칸이 각자 dragleave/drop 에서 지우는데, 빠지는 길이 있었다:
+   ① 입력칸 위에 놓으면 입력칸이 이벤트를 막아(stopPropagation) 세션 칸의 표시가 그대로 남고
+   ② Esc 로 끌기를 취소하면 dragleave·drop 이 아예 오지 않는다.
+   그래서 문서 전체에서 한 번 더 지운다: 어디에 놓든(drop), 끌기가 끝나든(dragend), 창 밖으로 나가든,
+   그리고 끄는 동안 계속 오는 dragover 가 0.4초 넘게 끊기면(취소) 모두 지운다. */
+let _dragOverAt = 0, _dragWatch = null;
+function clearDropMarks() {
+  document.querySelectorAll('.pane.filedrop, .pane.dragover').forEach(x => x.classList.remove('filedrop', 'dragover'));
+  document.querySelectorAll('.quick').forEach(q => { if (q.style.outline) q.style.outline = ''; });
+  document.querySelectorAll('.imgdrop').forEach(x => x.classList.remove('imgdrop'));
+  if (_dragWatch) { clearInterval(_dragWatch); _dragWatch = null; }
+}
+document.addEventListener('dragover', () => {
+  _dragOverAt = Date.now();
+  if (!_dragWatch) _dragWatch = setInterval(() => { if (Date.now() - _dragOverAt > 400) clearDropMarks(); }, 200);
+}, true);
+document.addEventListener('drop', () => setTimeout(clearDropMarks, 0), true);       // 각 칸의 처리 뒤에
+document.addEventListener('dragend', () => setTimeout(clearDropMarks, 0), true);
+window.addEventListener('dragleave', ev => { if (!ev.relatedTarget) clearDropMarks(); });   // 창 밖으로 나감
+
 function applyLayout() {
   const els = [...grid.children];
   const n = els.length;
