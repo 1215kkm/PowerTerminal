@@ -4303,6 +4303,121 @@ function killDev(id) {
 function killAllDev() { for (const id of [...devProcs.keys()]) killDev(id); }
 
 // 프로젝트 폴더 정적 서빙 (미리보기 토글용) — index.html이 없는 폴더는 파일 목록으로 보여줌
+/* 📨 새 접속 주소 알림 — 외부(LTE) 주소는 터널이 새로 열릴 때마다 바뀐다. 밖에 있을 때 PT 가 다시 켜지면 새 주소를
+   알 방법이 없어서, 바뀔 때마다 본인 텔레그램·메일로 보내 준다(QR 창의 「새 주소를 내 텔레그램·메일로 받기」에서 켠다).
+   설정(봇 토큰·앱 비밀번호)은 이 PC 의 config.json 에만 두고 화면에는 다시 내보내지 않는다.
+   주소에는 인증값이 들어 있어 PC 를 조종할 수 있는 열쇠와 같다 — 메시지에도 그 경고를 붙인다. */
+const NOTIFY_LAST = path.join(DATA_DIR, 'notify-last.json');
+function notifyCfg() { if (!config.notify || typeof config.notify !== 'object') config.notify = {}; return config.notify; }
+function tgSend(token, chatId, text) {
+  return fetch('https://api.telegram.org/bot' + token + '/sendMessage', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }) })
+    .then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.description || 'telegram error'); return true; });
+}
+// 의존성 없이 쓰는 최소 메일 보내기(SMTP over TLS, 465) — Gmail·네이버·다음 모두 465 를 받는다
+function smtpSend(o) {
+  return new Promise((resolve, reject) => {
+    const sock = (o.plain ? require('net') : require('tls')).connect({ host: o.host, port: o.port || 465, servername: o.host });
+    const b64 = x => Buffer.from(x, 'utf8').toString('base64');
+    const body = b64(o.text).replace(/.{1,76}/g, '$&\r\n');
+    const msg = ['From: ' + o.from, 'To: ' + o.to, 'Subject: =?UTF-8?B?' + b64(o.subject) + '?=', 'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', 'Date: ' + new Date().toUTCString(), '', body].join('\r\n');
+    const steps = [
+      ['220', 'EHLO powerterminal'], ['250', 'AUTH PLAIN ' + Buffer.from('\0' + o.user + '\0' + o.pass).toString('base64')],
+      ['235', 'MAIL FROM:<' + o.from + '>'], ['250', 'RCPT TO:<' + o.to + '>'], ['250', 'DATA'], ['354', msg + '\r\n.'], ['250', 'QUIT']];
+    let buf = '', i = 0, finished = false;
+    const end = (err) => { if (finished) return; finished = true; try { sock.end(); } catch (e) {} err ? reject(err) : resolve(true); };
+    const to = setTimeout(() => end(new Error('메일 서버 응답 없음')), 20000);
+    sock.on('data', d => {
+      buf += d.toString('utf8');
+      for (;;) {
+        const lines = buf.split('\r\n'); if (lines.length < 2) return;
+        const k = lines.findIndex(l => /^\d{3} /.test(l)); if (k < 0) return;   // 여러 줄 응답의 마지막 줄(코드 뒤 빈칸)까지 모은다
+        const line = lines[k]; buf = lines.slice(k + 1).join('\r\n');
+        if (i >= steps.length) { clearTimeout(to); return end(); }
+        const [want, cmd] = steps[i];
+        if (!line.startsWith(want)) { clearTimeout(to); return end(new Error(line.slice(0, 160))); }
+        i++; sock.write(cmd + '\r\n');
+        if (i === steps.length) { clearTimeout(to); setTimeout(() => end(), 300); return; }
+      }
+    });
+    sock.on('error', e => { clearTimeout(to); end(e); });
+  });
+}
+function notifyText(full) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return '🔑 PowerTerminal 새 접속 주소 (' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ')\n' + full
+    + '\n\n밖에서(LTE) 이 주소로 접속하세요. 이 주소를 아는 사람은 PC 의 세션을 조종할 수 있으니 다른 사람에게 보내지 마세요.';
+}
+async function notifySend(full, onlyKind) {
+  const n = notifyCfg(), out = {};
+  if (n.telegram && n.telegram.token && n.telegram.chatId && (!onlyKind || onlyKind === 'telegram')) {
+    try { await tgSend(n.telegram.token, n.telegram.chatId, notifyText(full)); out.telegram = 'ok'; } catch (e) { out.telegram = String(e.message || e); }
+  }
+  if (n.email && n.email.user && n.email.pass && (!onlyKind || onlyKind === 'email')) {
+    try { await smtpSend({ host: n.email.host, port: n.email.port, user: n.email.user, pass: n.email.pass, from: n.email.user, to: n.email.to || n.email.user,
+      subject: 'PowerTerminal 새 접속 주소', text: notifyText(full) }); out.email = 'ok'; } catch (e) { out.email = String(e.message || e); }
+  }
+  return out;
+}
+// 터널 주소가 정해질 때마다 — 같은 주소를 두 번 보내지 않는다(업데이트 재시작에도 터널을 재사용하면 주소가 같다)
+async function notifyNewUrl(url, full) {
+  const n = notifyCfg(); if (!(n.telegram && n.telegram.chatId) && !(n.email && n.email.user)) return;
+  let last = ''; try { last = JSON.parse(fs.readFileSync(NOTIFY_LAST, 'utf8')).url || ''; } catch (e) {}
+  if (last === url) return;
+  const r = await notifySend(full);
+  try { fs.writeFileSync(NOTIFY_LAST, JSON.stringify({ url, at: Date.now(), result: r })); } catch (e) {}
+  console.log('  📨 새 접속 주소 알림: ' + JSON.stringify(r));
+}
+const maskTail = v => { v = String(v || ''); return v.length > 4 ? '…' + v.slice(-4) : v; };
+app.get('/api/notify', (req, res) => {
+  const n = notifyCfg();
+  res.json({ telegram: n.telegram && n.telegram.token ? { on: !!n.telegram.chatId, chat: maskTail(n.telegram.chatId) } : null,
+             email: n.email && n.email.user ? { on: true, user: n.email.user, to: n.email.to || n.email.user, host: n.email.host } : null,
+             tunnel: !!global.__tunnelUrl });
+});
+// 텔레그램 연결 — 봇 토큰만 넣으면 그 봇과 마지막으로 대화한 사람(=본인)의 chat_id 를 찾아 붙인다
+app.post('/api/notify/telegram', async (req, res) => {
+  const token = String((req.body && req.body.token) || '').trim();
+  let chatId = String((req.body && req.body.chatId) || '').trim();
+  if (!/^\d+:[\w-]{20,}$/.test(token)) return res.status(400).json({ error: 'bad_token' });
+  try {
+    if (!chatId) {
+      const j = await (await fetch('https://api.telegram.org/bot' + token + '/getUpdates')).json();
+      if (!j.ok) return res.status(400).json({ error: 'bad_token', detail: j.description || '' });
+      const ups = (j.result || []).map(u => u.message || u.edited_message || u.channel_post || u.my_chat_member).filter(Boolean);
+      const last = ups.reverse().find(m => m.chat && m.chat.id);
+      if (!last) return res.status(400).json({ error: 'no_chat' });   // 봇에게 아직 아무 말도 안 보냄
+      chatId = String(last.chat.id);
+    }
+    await tgSend(token, chatId, '✅ PowerTerminal 과 연결됐어요. 앞으로 외부 접속 주소가 바뀌면 여기로 알려 드릴게요.');
+    notifyCfg().telegram = { token, chatId }; saveConfig();
+    if (global.__tunnelUrl) notifySend(global.__tunnelUrl + '/?token=' + config.token, 'telegram').catch(() => {});
+    res.json({ ok: true, chat: maskTail(chatId) });
+  } catch (e) { res.status(400).json({ error: 'send_failed', detail: String(e.message || e).slice(0, 200) }); }
+});
+// 메일 연결 — 기본은 Gmail(앱 비밀번호). 다른 메일은 host·port 를 함께 보낸다(465 SSL 만)
+app.post('/api/notify/email', async (req, res) => {
+  const b = req.body || {};
+  const user = String(b.user || '').trim(), pass = String(b.pass || '').replace(/\s+/g, ''), to = String(b.to || '').trim();
+  const host = String(b.host || '').trim() || (/@(naver)\.com$/i.test(user) ? 'smtp.naver.com' : /@(daum|hanmail)\.net$/i.test(user) ? 'smtp.daum.net' : 'smtp.gmail.com');
+  const port = parseInt(b.port, 10) || 465;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user) || !pass) return res.status(400).json({ error: 'bad_input' });
+  try {
+    await smtpSend({ host, port, user, pass, from: user, to: to || user, subject: 'PowerTerminal 연결 확인', text: '✅ PowerTerminal 과 연결됐어요. 앞으로 외부 접속 주소가 바뀌면 이 메일로 알려 드릴게요.' });
+    notifyCfg().email = { user, pass, to: to || '', host, port }; saveConfig();
+    if (global.__tunnelUrl) notifySend(global.__tunnelUrl + '/?token=' + config.token, 'email').catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: 'send_failed', detail: String(e.message || e).slice(0, 200) }); }
+});
+app.post('/api/notify/test', async (req, res) => {
+  if (!global.__tunnelUrl) return res.json({ ok: false, error: 'no_tunnel' });
+  res.json({ ok: true, result: await notifySend(global.__tunnelUrl + '/?token=' + config.token) });
+});
+app.delete('/api/notify/:kind', (req, res) => {
+  const k = req.params.kind; if (k !== 'telegram' && k !== 'email') return res.status(400).json({ error: 'kind' });
+  delete notifyCfg()[k]; saveConfig(); res.json({ ok: true });
+});
 app.use('/preview/:id', (req, res, next) => {
   const s = sessions.find(x => x.id === req.params.id);
   if (!s) return res.status(404).end();
@@ -4582,6 +4697,7 @@ async function startTunnel(wifiUrl) {
     console.log('  ③ 폰 — 외부 어디서든(LTE): ' + full);
     console.log('     (업데이트 재시작에도 이 주소는 유지됩니다 — 터널이 완전히 끊긴 경우에만 새 주소)');
     printQR('외부 어디서든(LTE) 접속용', full);
+    notifyNewUrl(url, full).catch(e => console.log('  ⚠ 새 주소 알림 실패: ' + (e && e.message)));   // 📨 본인 텔레그램·메일로
   };
   const watch = pid => {   // 터널 생존 감시(비동기) — 두 번 연속 죽음 확인 후에만 재스폰 (오탐 → 중복 터널 방지)
     let checking = false;

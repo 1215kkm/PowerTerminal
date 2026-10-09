@@ -2462,6 +2462,24 @@ const I18N_MORE = {
     flowNextSkip: "아무 데도 안 넘김",
     numAddT: '이 폴더로 세션 하나 더 열기 — git 레포면 worktree 로 분리돼 서로 안 겹칩니다 (Shift+클릭 = 같은 폴더 그대로)',
     bookT: '책 모드 — 이 세션의 대화를 책처럼 읽고 그 자리에서 요청합니다 (새 탭)',
+    ntTitle: '새 접속 주소를 내 텔레그램·메일로 받기', ntWhy: '밖(LTE)에서 쓰는 주소는 PT 를 다시 켤 때마다 바뀝니다. 바뀔 때마다 나에게만 자동으로 보내 줍니다.',
+    ntOn: '켜짐', ntSetup: '설정하기', ntManage: '설정', ntEmail: '메일',
+    ntIntro: '밖(LTE)에서 쓰는 주소는 PT 를 다시 켜거나 터널이 끊기면 바뀝니다. 아래 중 하나를 켜 두면 새 주소가 나에게만 옵니다. 봇 토큰과 비밀번호는 이 PC 에만 저장됩니다.',
+    ntWarn: '이 주소는 이 PC 의 열쇠와 같습니다. 본인 텔레그램·메일만 쓰고, 다른 사람에게 전달하지 마세요.',
+    ntTg1: '텔레그램 앱에서 @BotFather 를 검색해 들어갑니다.',
+    ntTg2: '/newbot 을 보내고, 봇 이름(아무거나)과 사용자 이름(끝이 bot 으로 끝나게)을 정합니다.',
+    ntTg3: 'BotFather 가 긴 토큰(예: 123456789:ABC…)을 줍니다. 복사해서 아래 칸에 붙여 넣습니다.',
+    ntTg4: '방금 만든 봇을 텔레그램에서 열고 「시작(Start)」을 누릅니다(아무 말이나 보내도 됩니다). 그래야 봇이 누구에게 보낼지 압니다.',
+    ntTg5: '「연결하고 시험 보내기」를 누릅니다. 텔레그램에 시험 메시지가 오면 끝입니다.',
+    ntEm1: 'Gmail 이면: 구글 계정 → 보안에서 「2단계 인증」을 켭니다.',
+    ntEm2: '구글 계정 검색창에 「앱 비밀번호」를 검색해, 이름을 PowerTerminal 로 하고 만듭니다.',
+    ntEm3: '나온 16자리 비밀번호를 복사해 아래에 Gmail 주소와 함께 넣습니다. (네이버·다음 메일도 됩니다 — 그 서비스의 앱 비밀번호/SMTP 비밀번호를 쓰세요.)',
+    ntEm4: '「연결하고 시험 보내기」를 누릅니다. 시험 메일이 오면 끝입니다.',
+    ntEmPassPh: '앱 비밀번호 (16자리)', ntEmToPh: '받을 주소 (비우면 같은 주소)',
+    ntConnect: '연결하고 시험 보내기', ntOff: '끄기', ntOffDone: '껐습니다',
+    ntNoChat: '텔레그램에서 방금 만든 봇을 열고 「시작」을 누른 뒤 다시 눌러 주세요.', ntBadTok: '토큰이 맞지 않습니다 — BotFather 에서 다시 복사해 주세요.',
+    ntBadIn: '메일 주소와 비밀번호를 확인해 주세요.', ntFail: '보내지 못했습니다',
+    ntDone: '연결됐습니다 — 텔레그램에서 시험 메시지를 확인하세요.', ntDoneEm: '연결됐습니다 — 메일함에서 시험 메일을 확인하세요.',
     flowT: '플로우 — 드래그하면 화살표가 뽑혀나와 놓은 세션과 연결됩니다 (클릭 = 고르기 모드) · 화살표 클릭 후 Delete = 삭제',
     flowPickHint: '‘{t}’ 다음으로 이어질 세션들을 클릭하세요. 다시 누르면 연결이 풀립니다.',
     flowDone: '완료',
@@ -8608,6 +8626,71 @@ function qrColumn(title, accent, url, noteText) {
   }
   return col;
 }
+// 📨 새 접속 주소 알림 설정 창 (QR 창의 버튼으로 연다)
+function openNotifyDlg() {
+  let d = document.getElementById('notifyDlg');
+  if (!d) {
+    d = document.createElement('dialog'); d.id = 'notifyDlg'; d.style.cssText = 'width:min(640px,94vw);max-height:90vh;overflow:auto';
+    document.body.appendChild(d);
+    d.addEventListener('click', ev => { if (ev.target === d) d.close(); });
+  }
+  const tgSteps = [T.ntTg1 || 'In Telegram, search for @BotFather and open it.',
+    T.ntTg2 || 'Send /newbot, then give the bot any name and a username that ends in "bot".',
+    T.ntTg3 || 'BotFather replies with a long token (like 123456789:ABC…). Copy it into the box below.',
+    T.ntTg4 || 'Open the bot you just made and press Start (or send it any message) — this is how it learns where to send.',
+    T.ntTg5 || 'Press Connect. A test message arrives in Telegram when it works.'];
+  const emSteps = [T.ntEm1 || 'Gmail: open your Google Account → Security and turn on 2-Step Verification.',
+    T.ntEm2 || 'Search "App passwords" in your Google Account, name it PowerTerminal and create it.',
+    T.ntEm3 || 'Copy the 16-character password and enter it below with your Gmail address. (Naver and Daum mail work too — use the app/SMTP password of that service.)',
+    T.ntEm4 || 'Press Connect. A test mail arrives when it works.'];
+  const ol = a => '<ol style="margin:6px 0 10px;padding-left:20px;line-height:1.7">' + a.map(x => '<li>' + esc(x) + '</li>').join('') + '</ol>';
+  d.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h3 style="margin:0;flex:1">📨 ' + esc(T.ntTitle || 'Get the new address on Telegram or email') + '</h3>'
+    + '<button onclick="this.closest(\'dialog\').close()" style="padding:4px 10px">✕</button></div>'
+    + '<p style="font-size:13px;color:var(--muted);margin:0 0 10px">' + esc(T.ntIntro || 'The outside (LTE) address changes whenever PowerTerminal restarts or the tunnel drops. Set one of these up and the new address is sent only to you. Your bot token and password stay on this PC.') + '</p>'
+    + '<p style="font-size:12.5px;color:#fbbf24;margin:0 0 12px">⚠ ' + esc(T.ntWarn || 'The address works like a key to this PC. Use your own Telegram/mail only, and do not forward it.') + '</p>'
+    + '<div style="display:flex;gap:6px;margin-bottom:10px"><button class="small" data-nt="tg" style="padding:6px 12px">Telegram</button><button class="small" data-nt="em" style="padding:6px 12px">' + esc(T.ntEmail || 'Email') + '</button></div>'
+    + '<div data-pane="tg">' + ol(tgSteps)
+    + '<input id="ntTgTok" placeholder="123456789:ABC..." style="width:100%;margin-bottom:8px" autocomplete="off">'
+    + '<div style="display:flex;gap:8px;align-items:center"><button class="primary" id="ntTgGo">' + esc(T.ntConnect || 'Connect and send a test') + '</button><button class="small" id="ntTgOff" style="display:none">' + esc(T.ntOff || 'Turn off') + '</button><span id="ntTgMsg" style="font-size:12.5px"></span></div></div>'
+    + '<div data-pane="em" style="display:none">' + ol(emSteps)
+    + '<input id="ntEmUser" placeholder="you@gmail.com" style="width:100%;margin-bottom:6px" autocomplete="off">'
+    + '<input id="ntEmPass" type="password" placeholder="' + escA(T.ntEmPassPh || 'App password (16 characters)') + '" style="width:100%;margin-bottom:6px" autocomplete="new-password">'
+    + '<input id="ntEmTo" placeholder="' + escA(T.ntEmToPh || 'Send to (empty = same address)') + '" style="width:100%;margin-bottom:8px" autocomplete="off">'
+    + '<div style="display:flex;gap:8px;align-items:center"><button class="primary" id="ntEmGo">' + esc(T.ntConnect || 'Connect and send a test') + '</button><button class="small" id="ntEmOff" style="display:none">' + esc(T.ntOff || 'Turn off') + '</button><span id="ntEmMsg" style="font-size:12.5px"></span></div></div>';
+  const show = k => { d.querySelectorAll('[data-pane]').forEach(p => p.style.display = p.dataset.pane === k ? '' : 'none'); d.querySelectorAll('[data-nt]').forEach(b => b.classList.toggle('primary', b.dataset.nt === k)); };
+  d.querySelectorAll('[data-nt]').forEach(b => b.onclick = () => show(b.dataset.nt));
+  show('tg');
+  const msg = (id, ok, t) => { const m = document.getElementById(id); m.style.color = ok ? '#34d399' : '#f87171'; m.textContent = t; };
+  const errText = r => r && r.error === 'no_chat' ? (T.ntNoChat || 'Open your bot in Telegram, press Start, then try again.')
+    : r && r.error === 'bad_token' ? (T.ntBadTok || 'That token does not look right — copy it again from BotFather.')
+    : r && r.error === 'bad_input' ? (T.ntBadIn || 'Check the email address and password.')
+    : (T.ntFail || 'Could not send') + (r && r.detail ? ' — ' + r.detail : '');
+  const refresh = async () => {
+    const st = await api('GET', '/api/notify').catch(() => null);
+    const tgOn = !!(st && st.telegram && st.telegram.on), emOn = !!(st && st.email);
+    document.getElementById('ntTgOff').style.display = tgOn ? '' : 'none';
+    document.getElementById('ntEmOff').style.display = emOn ? '' : 'none';
+    if (tgOn) msg('ntTgMsg', true, (T.ntOn || 'On') + ' (chat ' + st.telegram.chat + ')');
+    if (emOn) msg('ntEmMsg', true, (T.ntOn || 'On') + ' → ' + (st.email.to || st.email.user));
+    if (emOn && !tgOn) show('em');
+  };
+  document.getElementById('ntTgGo').onclick = async () => {
+    msg('ntTgMsg', true, '…');
+    const r = await api('POST', '/api/notify/telegram', { token: document.getElementById('ntTgTok').value.trim() }, 20000).catch(() => null);
+    if (r && r.ok) { document.getElementById('ntTgTok').value = ''; msg('ntTgMsg', true, '✅ ' + (T.ntDone || 'Connected — check Telegram for the test message.')); refresh(); renderQR(); }
+    else msg('ntTgMsg', false, errText(r));
+  };
+  document.getElementById('ntEmGo').onclick = async () => {
+    msg('ntEmMsg', true, '…');
+    const r = await api('POST', '/api/notify/email', { user: document.getElementById('ntEmUser').value.trim(), pass: document.getElementById('ntEmPass').value, to: document.getElementById('ntEmTo').value.trim() }, 30000).catch(() => null);
+    if (r && r.ok) { document.getElementById('ntEmPass').value = ''; msg('ntEmMsg', true, '✅ ' + (T.ntDoneEm || 'Connected — check your inbox for the test mail.')); refresh(); renderQR(); }
+    else msg('ntEmMsg', false, errText(r));
+  };
+  document.getElementById('ntTgOff').onclick = async () => { await api('DELETE', '/api/notify/telegram'); msg('ntTgMsg', true, T.ntOffDone || 'Turned off'); refresh(); renderQR(); };
+  document.getElementById('ntEmOff').onclick = async () => { await api('DELETE', '/api/notify/email'); msg('ntEmMsg', true, T.ntOffDone || 'Turned off'); refresh(); renderQR(); };
+  refresh();
+  if (!d.open) d.showModal();
+}
 let _qrPoll;
 async function renderQR() {
   clearTimeout(_qrPoll);
@@ -8643,6 +8726,18 @@ async function renderQR() {
         + esc(T.pairStep2 || 'and enter this code:') + ' <b style="font-size:20px;letter-spacing:5px;user-select:all">' + esc(i.pairCode) + '</b>';
       pl.style.display = '';
     } else pl.style.display = 'none';
+  }
+  // 📨 외부(LTE) 주소는 PT 를 다시 켜거나 터널이 끊기면 바뀐다 — 바뀔 때마다 내 텔레그램·메일로 받는 설정
+  { let nl = document.getElementById('notifyLine');
+    if (!nl) { nl = document.createElement('div'); nl.id = 'notifyLine'; nl.style.cssText = 'margin-top:10px;padding:9px 12px;border:1px solid #4b5563;border-radius:10px;font-size:12.5px;line-height:1.6;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+      const pl = document.getElementById('pairLine'); (pl || cols2).parentNode.insertBefore(nl, (pl || cols2).nextSibling); }
+    const st = await api('GET', '/api/notify', null, 4000).catch(() => null);
+    const on = st && ((st.telegram && st.telegram.on) || st.email);
+    nl.innerHTML = '<span style="flex:1;min-width:220px">📨 <b>' + esc(T.ntTitle || 'Get the new address on Telegram or email') + '</b><br><span style="color:var(--muted)">'
+      + esc(on ? (T.ntOn || 'On') + ': ' + [st.telegram && st.telegram.on ? 'Telegram' : '', st.email ? (st.email.to || 'Email') : ''].filter(Boolean).join(' · ')
+               : (T.ntWhy || 'The outside (LTE) address changes whenever PowerTerminal restarts. Get the new one sent to you automatically.')) + '</span></span>'
+      + '<button class="primary" id="ntOpen" style="padding:7px 14px">' + esc(on ? (T.ntManage || 'Settings') : (T.ntSetup || 'Set up')) + '</button>';
+    document.getElementById('ntOpen').onclick = openNotifyDlg;
   }
   if (!i.tunnelUrl) _qrPoll = setTimeout(renderQR, 3000);   // 외부주소 '준비 중'이면 뜰 때까지 3초마다 자동 갱신
 }
