@@ -252,6 +252,19 @@
   .loadbar { height: 100%; width: 4%; border-radius: 4px; background: var(--accent); transition: width .3s ease; }
   .loadbar.ind { width: 35% !important; animation: loadind 1.1s ease-in-out infinite alternate; }
   @keyframes loadind { from { margin-left: 0; } to { margin-left: 65%; } }
+
+  /* 양옆 넘김 단추 위의 쪽 번호 */
+  .navno { min-height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; font: 700 15px var(--ui); color: var(--bar-text); line-height: 1.2; }
+  .navno small { font: 11px var(--ui); color: var(--muted); }
+  /* 공책 가장자리: 누르거나 안쪽으로 끌면 넘어간다 (쪽 여백 위라서 글·스크롤 막대를 가리지 않는다) */
+  .edge { position: absolute; top: 0; bottom: 0; width: calc(var(--padx) - 4px); z-index: 4; cursor: pointer; touch-action: none; display: none; }
+  .book.flip .edge { display: block; }
+  .edge.l { left: 0; border-radius: 6px 0 0 6px; } .edge.r { right: 0; border-radius: 0 6px 6px 0; }
+  .edge.off { display: none !important; }
+  .edge.l:hover, .edge.l.drag { background: linear-gradient(to right, color-mix(in srgb, var(--ink) 16%, transparent), transparent); }
+  .edge.r:hover, .edge.r.drag { background: linear-gradient(to left, color-mix(in srgb, var(--ink) 16%, transparent), transparent); }
+  .edge::after { content: '‹'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font: 22px var(--ui); color: var(--ink); opacity: 0; transition: opacity .12s; }
+  .edge.r::after { content: '›'; } .edge:hover::after, .edge.drag::after { opacity: .55; }
 </style>
 </head>
 <body>
@@ -261,19 +274,20 @@
   <div class="center">
     <div class="desk">
       <div class="topmid"><span class="ttl" id="ttl">PowerTerminal</span><span class="sub" id="sub"></span></div>
-      <div class="navcol"><button class="nav" id="prev" aria-label="previous page">‹</button><button class="nav end" id="first" aria-label="first page">⏮</button></div>
+      <div class="navcol"><span class="navno" id="nnl"></span><button class="nav" id="prev" aria-label="previous page">‹</button><button class="nav end" id="first" aria-label="first page">⏮</button></div>
       <div class="book" id="book">
         <div class="pager"><input id="pgin" inputmode="numeric" autocomplete="off" aria-label="page"><span id="pgof"></span></div>
         <nav class="marks" id="marks"></nav>
         <div class="vp" id="vp"><div class="clip"><div class="flow" id="flow"></div></div></div>
         <div class="gutter"></div>
         <div class="flipwrap" id="flipwrap"></div>
+        <div class="edge l" id="edgeL"></div><div class="edge r" id="edgeR"></div>
         <div class="meas" id="meas"></div>
         <span class="pno l" id="pnl"></span><span class="pno r" id="pnr"></span>
         <div class="load" id="load"><span id="loadtxt"></span><div class="loadtrack"><div class="loadbar" id="loadbar"></div></div></div>
         <div class="prog" id="prog"><div class="progbar" id="progbar"></div></div>
       </div>
-      <div class="navcol"><button class="nav" id="next" aria-label="next page">›</button><button class="nav end" id="last" aria-label="last page">⏭</button></div>
+      <div class="navcol"><span class="navno" id="nnr"></span><button class="nav" id="next" aria-label="next page">›</button><button class="nav end" id="last" aria-label="last page">⏭</button></div>
     </div>
     <form class="ask" id="ask">
       <textarea id="inp" rows="1"></textarea>
@@ -664,6 +678,9 @@ function flipUi() {
 }
 // 책 위의 쪽 번호와 책 아래 진행 막대 (크라모북과 같은 자리)
 function pagerUi(curNo, totalNo) {
+  const two = pf ? true : perView() === 2, no = (a) => a ? '<b>' + a + '</b><small>/ ' + totalNo + '</small>' : '';
+  $('nnl').innerHTML = no(curNo); $('nnr').innerHTML = no(two ? Math.min(totalNo, curNo + 1) : curNo);
+  $('edgeL').classList.toggle('off', page <= 0); $('edgeR').classList.toggle('off', page >= pages - 1);
   if (document.activeElement !== $('pgin')) $('pgin').value = curNo;
   $('pgof').textContent = '/ ' + totalNo;
   if (!$('prog').classList.contains('scrub')) $('progbar').style.width = (pages > 1 ? page / (pages - 1) * 100 : 100) + '%';
@@ -690,14 +707,28 @@ $('book').addEventListener('wheel', e => {
   for (let n = e.target; n && n !== $('book'); n = n.parentNode) if (n.scrollHeight > n.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(n).overflowY)) return;
   if (Date.now() - wheelAt < (pf ? 700 : 350) || Math.abs(e.deltaY) < 8) return; wheelAt = Date.now(); nav(e.deltaY > 0 ? 1 : -1);
 }, { passive: true });
+{ // 공책 가장자리: 누르면 넘어가고, 안쪽으로 끌어도(책장을 잡아 넘기듯) 넘어간다
+  for (const [id, d] of [['edgeL', -1], ['edgeR', 1]]) {
+    const el = $(id); let sx = null;
+    el.addEventListener('pointerdown', e => { if (e.button) return; sx = e.clientX; el.classList.add('drag'); try { el.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+    const end = e => { if (sx === null) return; const dx = e.clientX - sx; sx = null; el.classList.remove('drag');
+      if (e.type === 'pointercancel') return;
+      if (Math.abs(dx) < 8 || dx * d < -30) nav(d); };   // 제자리 누름, 또는 안쪽으로 끌기 (바깥으로 끌면 취소)
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  }
+  // 터치 화면: 공책 위를 옆으로 쓸어 넘기기 (옆으로 밀리는 표·코드·터미널·입력 칸 위에서는 제외)
+  let bx = 0, by = 0, bok = false;
+  $('flipwrap').addEventListener('touchstart', e => { bok = e.touches.length === 1 && !e.target.closest('pre, table, .termbox, textarea, .edge'); bx = e.touches[0].clientX; by = e.touches[0].clientY; }, { passive: true });
+  $('flipwrap').addEventListener('touchend', e => { if (!bok || !pf) return; const dx = e.changedTouches[0].clientX - bx, dy = e.changedTouches[0].clientY - by; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) nav(dx < 0 ? 1 : -1); }, { passive: true });
+}
 let tx = 0, ty = 0;
 vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
 vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(page + (dx < 0 ? 1 : -1)); }, { passive: true });
 { // 오른쪽 도구 줄: 맨 끝으로 · 글자 작게/크게 · 넘김 효과 · (원고 내보내기·터미널 화면은 기존 단추)
   const L = KO ? { end:'⏭ 맨 끝(최근)으로', dn:'가－ 글자 작게', up:'가＋ 글자 크게', flipOn:'📄 넘김 효과: 켜짐', flipOff:'📄 넘김 효과: 꺼짐', side:'책 모드',
-                   note:'← → 키 · 휠 · 양옆 단추로 넘깁니다. 아래 칸에 쓰면 이 세션에 요청이 갑니다.' }
+                   note:'← → 키 · 휠 · 양옆 단추, 또는 공책 가장자리를 누르거나 끌어서 넘깁니다. 아래 칸에 쓰면 이 세션에 요청이 갑니다.' }
                : { end:'⏭ Go to the end', dn:'A－ Smaller text', up:'A＋ Larger text', flipOn:'📄 Page flip: on', flipOff:'📄 Page flip: off', side:'Book mode',
-                   note:'Turn pages with ← →, the wheel or the side buttons. Type below to ask this session.' };
+                   note:'Turn pages with ← →, the wheel, the side buttons, or by clicking / dragging the page edge. Type below to ask this session.' };
   const FS = [12.5, 13.5, 14.5, 16, 17.5, 19];
   const setFs = v => { document.documentElement.style.setProperty('--fs', v + 'px'); LSset('pt_book_fs', String(v)); if (!pf) layout(true); };
   const curFs = () => parseFloat(LSget('pt_book_fs', '14.5')) || 14.5;
