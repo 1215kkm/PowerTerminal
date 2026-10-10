@@ -123,37 +123,96 @@
     .flow { columns:1; font-size:15px; } .gutter, .pno.l { display:none; }
     .bar .hideS { display:none; }
   }
+
+  /* ── 크라모북 화면 구성 (book.css 의 책장·넘김 단추·진행 막대·오른쪽 도구 줄을 본떴다) ── */
+  :root { --fs: 14.5px; --side: 208px; }
+  .flow, .pg { font-size: var(--fs); }
+  .stage { position: relative; }
+  .desk { flex:1 1 auto; min-height:0; display:flex; align-items:stretch; justify-content:center; gap:22px; padding:52px 14px 34px; position:relative; }
+  .desk .book { flex:1 1 auto; max-width:1160px; width:auto; }
+  .topmid { position:absolute; left:50%; top:8px; transform:translateX(-50%); display:flex; gap:10px; align-items:baseline; max-width:70%;
+            padding:5px 16px; border-radius:16px; background:rgba(255,255,255,.07); white-space:nowrap; overflow:hidden; }
+  .topmid .ttl { font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; }
+  .topmid .sub { color:var(--muted); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; }
+  .navcol { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  .nav { width:44px; height:64px; border-radius:10px; border:none; background:rgba(255,255,255,.06); color:#cfd2db; font-size:34px; line-height:1; }
+  .nav:hover { background:rgba(255,255,255,.14); } .nav:disabled { opacity:.25; cursor:default; }
+  .nav.end { height:36px; font-size:15px; }
+  .pager { position:absolute; right:8px; bottom:100%; margin-bottom:6px; display:flex; align-items:center; gap:4px; font:12px var(--ui); color:var(--muted); z-index:3; }
+  .pager input { width:46px; text-align:center; font:700 12px var(--ui); padding:3px 4px; border-radius:6px; border:1px solid transparent; background:rgba(255,255,255,.08); color:var(--bar-text); outline:none; }
+  .pager input:focus { border-color:var(--accent); }
+  .prog { position:absolute; left:0; right:0; bottom:-20px; height:6px; border-radius:3px; background:rgba(255,255,255,.09); cursor:pointer; touch-action:none; z-index:3; }
+  .prog::after { content:''; position:absolute; left:0; right:0; top:-9px; height:24px; }
+  .progbar { position:relative; height:100%; width:0; border-radius:3px; background:var(--accent); transition:width .3s ease; }
+  .progbar::after { content:''; position:absolute; right:-6px; top:50%; width:12px; height:12px; margin-top:-6px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+  .prog.scrub .progbar { transition:none; }
+  .marks { left:8px; right:120px; }
+  .ask { padding-top:14px; }
+  .side { flex:0 0 var(--side); display:flex; flex-direction:column; gap:7px; padding:12px 10px; background:#1f2126; border-left:1px solid #33363e; overflow-y:auto; }
+  .side-h { display:flex; align-items:center; gap:8px; margin:2px 2px 6px; } .side-h b { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sbtn { display:block; width:100%; text-align:left; font:13px var(--ui); padding:9px 12px; border-radius:7px; border:1px solid #3a3d46; background:#2a2d34; color:var(--bar-text); text-decoration:none; }
+  .sbtn:hover { border-color:var(--accent); } .sbtn.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; text-align:center; }
+  .side-note { margin-top:auto; font-size:11.5px; line-height:1.5; color:var(--muted); }
+  @media (min-width: 821px) {
+    /* 책장 — 책등을 세워 둔다. 고른 책은 더 높게 */
+    .shelf { flex:0 0 auto; display:flex; flex-direction:row; align-items:flex-end; gap:6px; padding:18px 12px 24px 14px; max-width:30vw; overflow-x:auto; overflow-y:hidden;
+             background:linear-gradient(to top, #3a2f25 0 10px, transparent 10px); border-right:1px solid #33363e; }
+    .shelf h3 { writing-mode:vertical-rl; margin:0 1px 0 6px; padding:8px 2px; font-size:11px; font-weight:600; color:#b9bdc9; max-height:40vh; align-self:flex-end; }
+    .shelf h3:first-child { margin-left:0; }
+    .shelf .spine { all:unset; box-sizing:border-box; flex:0 0 auto; width:38px; height:min(44vh, 340px); display:flex; align-items:center; gap:8px; padding:12px 0; cursor:pointer;
+             writing-mode:vertical-rl; color:#fff; font:700 13px/1.2 var(--ui); border-radius:4px 4px 2px 2px; overflow:hidden; white-space:nowrap;
+             box-shadow: inset -6px 0 10px rgba(0,0,0,.25), inset 3px 0 0 rgba(255,255,255,.15), 2px 0 4px rgba(0,0,0,.35);
+             transition: transform .15s, height .32s cubic-bezier(.2,.8,.2,1); margin:0; border-left:none; }
+    .shelf .spine:nth-of-type(3n+2) { height:min(40vh, 310px); } .shelf .spine:nth-of-type(3n) { height:min(48vh, 370px); }
+    .shelf .spine:hover { transform:translateY(-6px); }
+    .shelf .spine.cur, .shelf .spine.cur:nth-of-type(n) { height:min(58vh, 450px); outline:2px solid #fff; outline-offset:2px; transform:none; box-shadow: inset -6px 0 10px rgba(0,0,0,.25), 0 3px 12px rgba(0,0,0,.5); }
+    .shelf .spine i { width:8px; height:8px; flex:0 0 auto; }
+    .shelf .spine span { overflow:hidden; text-overflow:ellipsis; }
+  }
+  @media (max-width: 820px) {
+    .desk { padding:30px 6px 26px; gap:0; } .navcol, .topmid { display:none; }
+    .side { flex:0 0 auto; flex-direction:row; order:-1; overflow-x:auto; padding:6px 8px; gap:6px; border-left:none; border-bottom:1px solid #33363e; }
+    .side-h, .side-note { display:none; } .sbtn { width:auto; flex:0 0 auto; white-space:nowrap; padding:6px 10px; font-size:12px; }
+    .stage > .center { order:1; } .stage > .shelf { order:-2; }
+  }
 </style>
 </head>
 <body>
-<header class="bar">
-  <span style="font-size:18px">📖</span>
-  <span class="ttl" id="ttl">PowerTerminal</span>
-  <span class="sub" id="sub"></span>
-  <span class="sp"></span>
-  <button class="btn hideS" id="exp"></button>
-  <a class="btn" id="back" href="/"></a>
-</header>
 <div class="stage">
+  <!-- 책장: 세션 하나 = 세워 둔 책 한 권 (크라모북 책장과 같은 모양) -->
   <aside class="shelf" id="shelf" aria-label="sessions"></aside>
   <div class="center">
-    <div class="bookwrap">
+    <div class="desk">
+      <div class="topmid"><span class="ttl" id="ttl">PowerTerminal</span><span class="sub" id="sub"></span></div>
+      <div class="navcol"><button class="nav" id="prev" aria-label="previous page">‹</button><button class="nav end" id="first" aria-label="first page">⏮</button></div>
       <div class="book" id="book">
+        <div class="pager"><input id="pgin" inputmode="numeric" autocomplete="off" aria-label="page"><span id="pgof"></span></div>
         <nav class="marks" id="marks"></nav>
         <div class="vp" id="vp"><div class="clip"><div class="flow" id="flow"></div></div></div>
         <div class="gutter"></div>
         <div class="flipwrap" id="flipwrap"></div>
         <div class="meas" id="meas"></div>
         <span class="pno l" id="pnl"></span><span class="pno r" id="pnr"></span>
-        <button class="turnbtn prev" id="prev" aria-label="previous page">‹</button>
-        <button class="turnbtn next" id="next" aria-label="next page">›</button>
+        <div class="prog" id="prog"><div class="progbar" id="progbar"></div></div>
       </div>
+      <div class="navcol"><button class="nav" id="next" aria-label="next page">›</button><button class="nav end" id="last" aria-label="last page">⏭</button></div>
     </div>
     <form class="ask" id="ask">
       <textarea id="inp" rows="1"></textarea>
       <button class="send" id="send" type="submit"></button>
     </form>
   </div>
+  <!-- 오른쪽 도구 줄 -->
+  <aside class="side" id="side">
+    <div class="side-h"><span style="font-size:20px">📖</span><b id="sideTtl">Book</b></div>
+    <a class="sbtn primary" id="back" href="/"></a>
+    <button class="sbtn" id="toEnd"></button>
+    <button class="sbtn" id="fsDn"></button>
+    <button class="sbtn" id="fsUp"></button>
+    <button class="sbtn" id="flipTg"></button>
+    <button class="sbtn" id="exp"></button>
+    <div class="side-note" id="sideNote"></div>
+  </aside>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <!-- page flip: StPageFlip 2.0.7 (MIT, see /vendor/page-flip.LICENSE.txt) -->
@@ -225,7 +284,9 @@ let sessions = [], cur = null, turns = [], total = 0, start = 0, busy = false, p
 let ws = null, term = null, ptyCols = 120, ptyRows = 34;
 const flow = $('flow'), vp = $('vp');
 const openWork = new Set();                       // turns whose work log is unfolded
-const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
+const LSget = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+const LSset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0' && LSget('pt_book_flip', '1') !== '0';
 let pf = null, pfPages = [], dimKey = '', turnPages = new Map(), blankPg = null;
 const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
 liveBox.className = 'work live';
@@ -314,6 +375,7 @@ function layout(keep) {
   page = Math.max(0, Math.min(pages - 1, page));
   flow.style.transform = 'translateX(' + (-page * m.step) + 'px)';
   $('prev').disabled = page <= 0; $('next').disabled = page >= pages - 1;
+  pagerUi(page * m.n + 1, cols);
   $('pnl').textContent = m.n === 2 ? page * 2 + 1 : '';
   $('pnr').textContent = (m.n === 2 ? Math.min(cols, page * 2 + 2) : page + 1) + ' / ' + cols;
   marks();
@@ -437,7 +499,25 @@ function flipUi() {
   const k = pf.getCurrentPageIndex(), n = pf.getPageCount();
   page = Math.floor(k / 2); pages = Math.ceil(n / 2);
   $('prev').disabled = k <= 0; $('next').disabled = k >= n - 2;
+  pagerUi(k + 1, n);
   marks();
+}
+// 책 위의 쪽 번호와 책 아래 진행 막대 (크라모북과 같은 자리)
+function pagerUi(curNo, totalNo) {
+  if (document.activeElement !== $('pgin')) $('pgin').value = curNo;
+  $('pgof').textContent = '/ ' + totalNo;
+  if (!$('prog').classList.contains('scrub')) $('progbar').style.width = (pages > 1 ? page / (pages - 1) * 100 : 100) + '%';
+  $('first').disabled = page <= 0; $('last').disabled = page >= pages - 1;
+}
+$('first').onclick = () => go(0); $('last').onclick = () => go(pages - 1);
+$('pgin').addEventListener('keydown', e => { if (e.key !== 'Enter') return; const n = parseInt($('pgin').value, 10); if (n > 0) go(Math.floor((n - 1) / (pf ? 2 : perView())), true); $('pgin').blur(); e.preventDefault(); });
+{ // 진행 막대를 누르거나 끌어 쪽 옮기기
+  const pr = $('prog'); let on = false;
+  const at = e => { const r = pr.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); $('progbar').style.width = f * 100 + '%'; return Math.round(f * (pages - 1)); };
+  pr.addEventListener('pointerdown', e => { on = true; pr.classList.add('scrub'); pr.setPointerCapture(e.pointerId); at(e); });
+  pr.addEventListener('pointermove', e => { if (on) at(e); });
+  const end = e => { if (!on) return; on = false; const t = at(e); pr.classList.remove('scrub'); go(t, true); };
+  pr.addEventListener('pointerup', end); pr.addEventListener('pointercancel', end);
 }
 addEventListener('keydown', e => {
   if (e.target === $('inp') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ) return;
@@ -453,6 +533,23 @@ $('book').addEventListener('wheel', e => {
 let tx = 0, ty = 0;
 vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
 vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(page + (dx < 0 ? 1 : -1)); }, { passive: true });
+{ // 오른쪽 도구 줄: 맨 끝으로 · 글자 작게/크게 · 넘김 효과 · (원고 내보내기·터미널 화면은 기존 단추)
+  const L = KO ? { end:'⏭ 맨 끝(최근)으로', dn:'가－ 글자 작게', up:'가＋ 글자 크게', flipOn:'📄 넘김 효과: 켜짐', flipOff:'📄 넘김 효과: 꺼짐', side:'책 모드',
+                   note:'← → 키 · 휠 · 양옆 단추로 넘깁니다. 아래 칸에 쓰면 이 세션에 요청이 갑니다.' }
+               : { end:'⏭ Go to the end', dn:'A－ Smaller text', up:'A＋ Larger text', flipOn:'📄 Page flip: on', flipOff:'📄 Page flip: off', side:'Book mode',
+                   note:'Turn pages with ← →, the wheel or the side buttons. Type below to ask this session.' };
+  const FS = [12.5, 13.5, 14.5, 16, 17.5, 19];
+  const setFs = v => { document.documentElement.style.setProperty('--fs', v + 'px'); LSset('pt_book_fs', String(v)); turnPages.clear(); dimKey = ''; layout(true); };
+  const curFs = () => parseFloat(LSget('pt_book_fs', '14.5')) || 14.5;
+  document.documentElement.style.setProperty('--fs', curFs() + 'px');
+  $('sideTtl').textContent = L.side; $('sideNote').textContent = L.note; $('toEnd').textContent = L.end; $('fsDn').textContent = L.dn; $('fsUp').textContent = L.up;
+  const flipLabel = () => { $('flipTg').textContent = LSget('pt_book_flip', '1') !== '0' ? L.flipOn : L.flipOff; };
+  flipLabel();
+  $('toEnd').onclick = () => go(pages - 1);
+  $('fsDn').onclick = () => { const i = FS.findIndex(x => x >= curFs()); setFs(FS[Math.max(0, (i < 0 ? FS.length - 1 : i) - 1)]); };
+  $('fsUp').onclick = () => { const i = FS.findIndex(x => x > curFs()); setFs(FS[i < 0 ? FS.length - 1 : i]); };
+  $('flipTg').onclick = () => { LSset('pt_book_flip', LSget('pt_book_flip', '1') !== '0' ? '0' : '1'); flipLabel(); const wasLast = page >= pages - 1, p = page; layout(true); go(wasLast ? pages - 1 : Math.min(p, pages - 1), true); };
+}
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
 
 // ── live work window: the session's real terminal, view only (never sends a size, so it cannot shrink the real one)
@@ -492,7 +589,7 @@ function drawShelf() {
   for (const s of sessions) { const k = s.repo ? folder(s.repo) : folder(s.path); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(s); }
   let h = '';
   for (const [g, list] of groups) {
-    h += '<h3 title="' + esc(g) + '">' + esc(g) + '</h3>';
+    h += '<h3 title="' + esc(g) + '">' + esc(g) + '</h3>';   // 넓은 화면에서는 세로 이름표
     for (const s of list) h += '<button class="spine' + (s.busy ? ' busy' : '') + (cur && s.id === cur.id ? ' cur' : '') + '" data-id="' + s.id + '" style="background:' + hue(s.path) + '" title="' + esc(s.title + '\n' + s.path) + '"><i></i><span>' + esc(s.title || folder(s.path)) + '</span></button>';
   }
   $('shelf').innerHTML = h;
