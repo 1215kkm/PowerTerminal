@@ -2114,6 +2114,8 @@ const I18N = {
     mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
+    mindInsertT:'누르면 이 사이에 가지를 끼워 넣습니다 (상위 가지 추가)',
+    mindDropQ:'「{a}」를 「{p}」와 「{c}」 사이에 넣을까요?', mindDropMove:'이동', mindDropCopy:'복사',
     mindSt0:'생각중', mindSt1:'제작시작', mindSt2:'제작중', mindSt3:'마무리중', mindSt4:'곧 끝남', mindSt5:'완료',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
     mtLinkedT:'클릭하면 지도에서 이 가지 위치로', mtProgT:'클릭·드래그로 진행률 설정', mtProgLinkedT:'가지 진행률 (하위 가지 평균 — 지도에서 조절)', mtCollapse:'할일 목록 접기', mtExpand:'할일 목록 펼치기',
@@ -10149,14 +10151,28 @@ function mindRender() {
   const gL = document.getElementById('mindLines'), gN = document.getElementById('mindNodes');
   gL.innerHTML = ''; gN.innerHTML = ''; MIND.cache.clear(); MIND.parent.clear();
   const cssVar = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || '';
-  const build = (node, cx, cy, parentCenter) => {
-    let line = null;
+  const build = (node, cx, cy, parentCenter, parentNode) => {
+    let line = null, hit = null;
     if (parentCenter) {   // 선 먼저(노드 뒤) — parentCenter→childCenter
       line = document.createElementNS(SVGNS, 'line');
       line.setAttribute('x1', parentCenter.x); line.setAttribute('y1', parentCenter.y);
       line.setAttribute('x2', cx); line.setAttribute('y2', cy);
-      line.setAttribute('stroke', cssVar('--line') || '#374151'); line.setAttribute('stroke-width', 1.4);
+      const lineCol = cssVar('--line') || '#374151';
+      line.setAttribute('stroke', lineCol); line.setAttribute('stroke-width', 1.4); line.style.pointerEvents = 'none';
       gL.appendChild(line);
+      // ➕ 선을 누르면 그 사이에 가지를 끼워 넣는다(상위 가지 추가). 선이 가늘어서 보이지 않는 굵은 선으로 누를 자리를 넓힌다
+      if (parentNode) {
+        hit = document.createElementNS(SVGNS, 'line');
+        hit.setAttribute('x1', parentCenter.x); hit.setAttribute('y1', parentCenter.y); hit.setAttribute('x2', cx); hit.setAttribute('y2', cy);
+        hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', 14); hit.style.pointerEvents = 'stroke'; hit.style.cursor = 'copy';
+        const tip = document.createElementNS(SVGNS, 'title'); tip.textContent = T.mindInsertT || 'Click to insert a branch here'; hit.appendChild(tip);
+        hit.addEventListener('pointerenter', () => { line.setAttribute('stroke', '#a78bfa'); line.setAttribute('stroke-width', 3); });
+        hit.addEventListener('pointerleave', () => { line.setAttribute('stroke', lineCol); line.setAttribute('stroke-width', 1.4); });
+        let dn = null;   // 캔버스를 끌어 옮기다 놓은 것은 누른 것으로 치지 않는다
+        hit.addEventListener('pointerdown', ev => { dn = [ev.clientX, ev.clientY]; });
+        hit.addEventListener('click', ev => { if (!dn || Math.hypot(ev.clientX - dn[0], ev.clientY - dn[1]) > 5) return; ev.stopPropagation(); mindInsertBetween(parentNode, node); });
+        gL.appendChild(hit);
+      }
     }
     const w = mindWidth(node), h = MIND.NODE_H, isRoot = mindIsRoot(node), isSel = (MIND.sel === node.id) || MIND.marq.has(node.id);
     const sl = MIND.selLink && MIND.links.find(l => l.id === MIND.selLink);
@@ -10211,12 +10227,12 @@ function mindRender() {
       g.appendChild(memoIc);
     }
     gN.appendChild(g);
-    MIND.cache.set(node.id, { node, cx, cy, g, rect, text, line, w, barBg, barFill, pctT, memoIc });
+    MIND.cache.set(node.id, { node, cx, cy, g, rect, text, line, hit, w, barBg, barFill, pctT, memoIc });
     MIND.parent.set(node.id, parentCenter);   // 부모 중심(드래그 실시간 갱신에 사용) — 루트는 null
     mindWireNode(node, g, rect);
-    node.children.forEach(ch => build(ch, cx + ch.offX, cy + ch.offY, { x: cx, y: cy }));
+    node.children.forEach(ch => build(ch, cx + ch.offX, cy + ch.offY, { x: cx, y: cy }, node));
   };
-  MIND.roots.forEach(r => build(r, r.offX || 0, r.offY || 0, null));
+  MIND.roots.forEach(r => build(r, r.offX || 0, r.offY || 0, null, null));
   mindRenderArrows();
   mindRenderAdders();
   mindApplyTransform();
@@ -10495,6 +10511,26 @@ function mindAddChild(parent, d) {
   mindSave(); mindRender();
   mindStartEdit(child, true);   // ✏ 새 노드는 바로 이름 편집 (전체 선택 상태로)
 }
+// ➕ 부모와 자식 사이에 새 가지 끼워 넣기 — 자식(과 그 아래 전부)은 새 가지 밑으로 내려가고 화면 위치는 그대로 둔다.
+// 둘 사이가 너무 가까우면 새 가지가 들어갈 만큼만 자식 쪽을 밀어낸다.
+// mid 를 parent→child 선 위에 놓는다: 가지 폭을 봐서 서로 겹치지 않을 만큼 띄운다(가로로 뻗은 선일수록 폭만큼 더).
+function mindPlaceBetween(parent, mid, child) {
+  const vx = child.offX, vy = child.offY, len = Math.hypot(vx, vy) || 1, ux = vx / len, uy = vy / len;
+  const need = (a, b) => Math.abs(ux) * (mindWidth(a) / 2 + mindWidth(b) / 2) + Math.abs(uy) * MIND.NODE_H + 46;
+  const d1 = Math.max(len / 2, need(parent, mid)), d2 = Math.max(len - d1, need(mid, child));
+  mid.offX = ux * d1; mid.offY = uy * d1;
+  child.offX = ux * d2; child.offY = uy * d2;
+}
+function mindInsertBetween(parent, child) {
+  const i = parent.children.indexOf(child); if (i < 0) return;
+  mindMark();   // 되돌리기용
+  const mid = { id: mindUid(), title: T.mindNewNode || '새 가지', children: [child], offX: 0, offY: 0, placed: true };
+  mindPlaceBetween(parent, mid, child);
+  parent.children[i] = mid;
+  MIND.sel = mid.id; MIND.adderId = null;
+  mindSave(); mindRender();
+  mindStartEdit(mid, true);   // 바로 이름 쓰기
+}
 let mindDownInfo = null;
 function mindWireNode(node, g, rect) {
   g.addEventListener('pointerenter', () => { clearTimeout(MIND.adderTimer); MIND.adderId = node.id; mindRenderAdders(); });
@@ -10521,7 +10557,85 @@ document.addEventListener('pointermove', ev => {
   mindUpdateSubtree(mindDownInfo.node);   // 실시간: 이 노드 + 모든 자손·연결선 함께
   if (MIND.links.length) mindRenderArrows();   // 연결 화살표도 실시간 추적
   mindRenderAdders();   // 8방향 + 버튼도 드래그를 실시간으로 따라오게 (드롭 후 점프 방지)
+  mindDragHover(mindDownInfo, ev);   // 가지를 잡은 마우스가 다른 선에 닿았는지 — 닿은 선을 밝힌다
 });
+/* 🧲 가지를 끌어다 다른 선 위에 놓기 — 그 선 사이로 「이동 / 복사 / 취소」를 물어본다(CEO 2026-10-10).
+   기준은 가지를 잡은 마우스 위치. 끄는 가지 자신과 그 아래 가지에 딸린 선은 대상에서 뺀다(자기 밑으로 들어가면 고리가 된다). */
+function mindParentOf(node) {
+  let found = null;
+  const walk = n => { for (const ch of n.children || []) { if (ch === node) { found = n; return; } walk(ch); if (found) return; } };
+  for (const r of MIND.roots) { walk(r); if (found) break; }
+  return found;
+}
+function mindInSubtree(top, node) { if (top === node) return true; return (top.children || []).some(ch => mindInSubtree(ch, node)); }
+function mindEdgeAt(drag, ev) {
+  const canvas = document.getElementById('mindCanvas'); if (!canvas) return null;
+  const cr = canvas.getBoundingClientRect(), p = mindScreenToContent(ev.clientX - cr.left, ev.clientY - cr.top);
+  const lim = 11 / MIND.zoom; let best = null, bd = lim;
+  const walk = par => { for (const ch of par.children || []) {
+    if (ch !== drag && par !== drag && !mindInSubtree(drag, par)) {
+      const a = MIND.cache.get(par.id), b = MIND.cache.get(ch.id);
+      if (a && b) {
+        const vx = b.cx - a.cx, vy = b.cy - a.cy, l2 = vx * vx + vy * vy || 1, t = ((p.x - a.cx) * vx + (p.y - a.cy) * vy) / l2;
+        if (t > 0.12 && t < 0.88) { const d = Math.hypot(p.x - (a.cx + vx * t), p.y - (a.cy + vy * t)); if (d < bd) { bd = d; best = { parent: par, child: ch }; } }
+      }
+    }
+    if (ch !== drag) walk(ch);   // 끄는 가지 아래로는 내려가지 않는다
+  } };
+  MIND.roots.forEach(walk);
+  return best;
+}
+function mindDragHover(info, ev) {
+  if (!info) return;
+  const first = MIND.roots[0];
+  const e = info.node === first ? null : mindEdgeAt(info.node, ev);   // 첫 뿌리는 다른 가지 밑으로 못 들어간다
+  const key = e ? e.parent.id + '>' + e.child.id : '';
+  if (key === (info.dropKey || '')) return;
+  if (info.dropLine) { info.dropLine.setAttribute('stroke', info.dropStroke); info.dropLine.setAttribute('stroke-width', 1.4); }
+  info.dropKey = key; info.dropEdge = e; info.dropLine = null;
+  if (e) { const c = MIND.cache.get(e.child.id); if (c && c.line) { info.dropLine = c.line; info.dropStroke = c.line.getAttribute('stroke'); c.line.setAttribute('stroke', '#f59e0b'); c.line.setAttribute('stroke-width', 4); } }
+}
+function mindCloneTree(n) { const c = JSON.parse(JSON.stringify(n)); const re = x => { x.id = mindUid(); (x.children || []).forEach(re); }; re(c); return c; }
+// 놓았을 때 — 마우스 자리에 작은 창으로 묻는다
+function mindAskDrop(info, ev) {
+  const canvas = document.getElementById('mindCanvas'), cr = canvas.getBoundingClientRect();
+  const node = info.node, edge = info.dropEdge;
+  const back = () => { node.offX = info.baseX; node.offY = info.baseY; };   // 끌기 전 자리로
+  const pop = document.createElement('div');
+  pop.className = 'mind-droppop';
+  pop.style.cssText = 'position:absolute;z-index:30;left:' + Math.max(6, Math.min(cr.width - 250, ev.clientX - cr.left + 10)) + 'px;top:' + Math.max(6, Math.min(cr.height - 110, ev.clientY - cr.top + 10)) + 'px;'
+    + 'background:#111827;border:1px solid #4b5563;border-radius:12px;padding:10px 12px;box-shadow:0 12px 30px rgba(0,0,0,.5);font-size:13px;color:#e5e7eb;max-width:240px';
+  pop.innerHTML = '<div style="margin-bottom:8px;line-height:1.5">' + esc((T.mindDropQ || 'Put “{a}” between “{p}” and “{c}”?').replace('{a}', node.title).replace('{p}', edge.parent.title).replace('{c}', edge.child.title)) + '</div>'
+    + '<div style="display:flex;gap:6px"><button class="primary" data-k="move" style="padding:6px 12px">' + esc(T.mindDropMove || 'Move') + '</button>'
+    + '<button data-k="copy" style="padding:6px 12px">' + esc(T.mindDropCopy || 'Copy') + '</button>'
+    + '<button data-k="cancel" style="padding:6px 12px">' + esc(T.cancel || 'Cancel') + '</button></div>';
+  const done = k => {
+    pop.remove(); document.removeEventListener('keydown', onKey, true); document.removeEventListener('pointerdown', onOut, true);
+    const par = edge.parent, ch = edge.child, i = par.children.indexOf(ch);
+    if (k === 'cancel' || i < 0) { back(); mindRender(); return; }
+    mindHistPush(info.snap);   // 끌기 전 상태로 되돌릴 수 있게
+    let ins;
+    if (k === 'copy') { back(); ins = mindCloneTree(node); }
+    else {   // 이동 — 원래 자리에서 떼어 낸다
+      const old = mindParentOf(node);
+      if (old) old.children.splice(old.children.indexOf(node), 1); else MIND.roots.splice(MIND.roots.indexOf(node), 1);
+      ins = node;
+    }
+    const j = par.children.indexOf(ch);   // 떼어 내면서 순서가 바뀌었을 수 있다
+    ins.children = ins.children || []; ins.children.push(ch);
+    ins.placed = true; ins.offX = 0; ins.offY = 0;
+    mindPlaceBetween(par, ins, ch);
+    par.children[j] = ins;
+    MIND.sel = ins.id; MIND.adderId = null;
+    mindSave(); mindRender();
+  };
+  const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done('cancel'); } };
+  const onOut = e => { if (!pop.contains(e.target)) done('cancel'); };
+  pop.addEventListener('pointerdown', e => e.stopPropagation());
+  pop.querySelectorAll('button').forEach(b => b.onclick = () => done(b.dataset.k));
+  canvas.appendChild(pop);
+  setTimeout(() => { document.addEventListener('keydown', onKey, true); document.addEventListener('pointerdown', onOut, true); }, 0);
+}
 document.addEventListener('pointerup', ev => {
   if (!mindDownInfo || ev.pointerId !== mindDownInfo.pointerId) return;
   const info = mindDownInfo; mindDownInfo = null;
@@ -10557,6 +10671,8 @@ document.addEventListener('pointerup', ev => {
         mindRender();
       }
     }
+  } else if (info.dropEdge) {   // 다른 선 위에 놓음 → 이동 / 복사 / 취소를 묻는다
+    mindAskDrop(info, ev);
   } else {
     info.node.placed = true;
     if (!info.isRoot && info.node.offX === 0 && info.node.offY === 0) info.node.offX = 1;   // (0,0) 센티널 함정 회피(자식만)
@@ -10579,7 +10695,7 @@ function mindUpdateSubtree(node) {
     if (c.barFill) { c.barFill.setAttribute('x', gg.x); c.barFill.setAttribute('y', cy + h / 2 - 6); }
     if (c.pctT) { c.pctT.setAttribute('x', cx + w / 2 + 4); c.pctT.setAttribute('y', cy - h / 2 + 8); }
     if (c.memoIc) { c.memoIc.setAttribute('cx', cx + w / 2 - 3); c.memoIc.setAttribute('cy', cy - h / 2 + 2); }
-    if (c.line && parentCenter) { c.line.setAttribute('x1', parentCenter.x); c.line.setAttribute('y1', parentCenter.y); c.line.setAttribute('x2', cx); c.line.setAttribute('y2', cy); }
+    if (c.line && parentCenter) { for (const ln of [c.line, c.hit]) if (ln) { ln.setAttribute('x1', parentCenter.x); ln.setAttribute('y1', parentCenter.y); ln.setAttribute('x2', cx); ln.setAttribute('y2', cy); } }
     n.children.forEach(ch => walk(ch, { x: cx, y: cy }));
   };
   walk(node, pc);
