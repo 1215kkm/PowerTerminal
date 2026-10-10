@@ -6,6 +6,8 @@
 <title>PowerTerminal — Book</title>
 <link rel="icon" href="/icon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Jua&family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&display=swap">
 <style>
   /* 📖 Book mode — a session read as a book: one page = request → answer → work window.
      A separate page on purpose: the main screen is one big inline script and must not grow. */
@@ -187,6 +189,45 @@
     .side-h, .side-note { display:none; } .sbtn { width:auto; flex:0 0 auto; white-space:nowrap; padding:6px 10px; font-size:12px; }
     .stage > .center { order:1; } .stage > .shelf { order:-2; }
   }
+
+  /* ── 글자 크기: 쪽 안의 모든 글(제목·표·코드·요청·작업 과정)이 본문 크기를 따라 같이 커지고 작아진다 ── */
+  .flow, .pg { font-size: calc(var(--fs) * var(--fsk, 1)); line-height: var(--lh, 1.75); font-family: var(--body); color: var(--ink); }
+  .a h4 { font: 700 1.14em/1.4 var(--headf, var(--ui)); color: var(--head, var(--ink)); margin: 1em 0 .35em; }
+  .a h5 { font: 700 1em/1.4 var(--headf, var(--ui)); color: var(--head, var(--ink)); margin: .8em 0 .25em; }
+  .a table { font: .9em/1.5 var(--ui); } .a code { font-size: .86em; } .a pre { font-size: .84em; }
+  .q { font-size: .92em; } .q small { font-size: .82em; } .q .att { font-size: .88em; }
+  .whd { font-size: .88em; } .whd b { font-size: 1.08em; } .wlog { font-size: .88em; }
+  .toc h4 { font-size: 1.05em; } .tocit { font-size: .9em; } .tocit small { font-size: .92em; }
+  .cover h1 { font-size: 1.7em; font-family: var(--headf, var(--body)); color: var(--head, var(--ink)); } .cover p { font-size: .88em; }
+  .pending, .wlog .none { font-size: .92em; }
+  /* ── 노트 스타일 (크라모북의 책 스타일을 가져왔다): 종이·글자·제목 색, 글꼴, 상자 색을 변수로 바꾼다 ── */
+  :root { --card: color-mix(in srgb, var(--ink) 6%, var(--paper)); --rule: color-mix(in srgb, var(--ink) 16%, var(--paper)); --head: var(--ink); }
+  .vp, .pg { background: var(--paper); }
+  .pg.wk { background: color-mix(in srgb, var(--ink) 3.5%, var(--paper)); }
+  .q { background: color-mix(in srgb, var(--qc, var(--accent)) 10%, var(--paper)); border-left-color: var(--qc, var(--accent)); color: var(--ink); }
+  .q small { color: color-mix(in srgb, var(--ink) 60%, var(--paper)); } .q .att { background: color-mix(in srgb, var(--qc, var(--accent)) 20%, var(--paper)); }
+  .a code, .a pre, .a th { background: var(--card); } .a th, .a td { border-color: var(--rule); }
+  .a blockquote { background: var(--card); border-left-color: var(--rule); color: color-mix(in srgb, var(--ink) 80%, var(--paper)); }
+  .a hr { border-top-color: var(--rule); } .a a, .wlog .f { color: var(--link, #2f5be0); }
+  .whd { border-bottom-color: var(--rule); color: color-mix(in srgb, var(--ink) 70%, var(--paper)); } .whd b { color: var(--ink); }
+  .wlog { color: color-mix(in srgb, var(--ink) 78%, var(--paper)); } .wlog .n { background: var(--card); color: var(--ink); } .wlog .s { color: color-mix(in srgb, var(--ink) 62%, var(--paper)); }
+  .toc h4 { color: var(--head); } .tocit { color: var(--ink); border-bottom-color: var(--rule); } .tocit:hover { background: var(--card); }
+  .cover button { background: var(--card); border-color: var(--rule); color: var(--ink); }
+  .pg .pgin, .wlog { scrollbar-color: var(--rule) transparent; }
+  /* 속지 모양(look): 표 머리와 제목의 생김새 */
+  [data-look="minimal"] .a th { background: none; border: none; border-bottom: 1.5px solid var(--head); } [data-look="minimal"] .a td { border: none; border-bottom: 1px solid var(--rule); }
+  [data-look="editorial"] .a th { background: none; border: none; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--ink); } [data-look="editorial"] .a td { border: none; border-bottom: 1px solid var(--rule); }
+  [data-look="editorial"] .a h4 { font-weight: 400; font-size: 1.22em; }
+  [data-look="color"] .a th { background: var(--head); color: #fff; border-color: var(--head); }
+  [data-look="workbook"] .a h4 { border-bottom: 2px solid var(--head); padding-bottom: .15em; } [data-look="workbook"] .a th { background: var(--card); color: var(--head); }
+  [data-look="premium"] .a h4 { letter-spacing: .02em; border-left: 3px solid var(--head); padding-left: .5em; } [data-look="premium"] .a th { background: var(--card); border-color: var(--rule); }
+  /* 스타일 고르는 목록 (오른쪽 도구 줄) */
+  .themes { display: none; flex-direction: column; gap: 5px; padding: 2px 0 4px; }
+  .themes.on { display: flex; }
+  .thm { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border-radius: 6px; cursor: pointer; font-size: 13px; border: 2px solid transparent; }
+  .thm i { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; } .thm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thm.on { border-color: var(--accent); } .thm:hover { filter: brightness(1.06); }
+  @media (max-width: 820px) { .themes.on { flex-direction: row; } .thm { width: auto; flex: 0 0 auto; padding: 5px 8px; font-size: 12px; } }
 </style>
 </head>
 <body>
@@ -222,6 +263,8 @@
     <button class="sbtn" id="fsDn"></button>
     <button class="sbtn" id="fsUp"></button>
     <button class="sbtn" id="flipTg"></button>
+    <button class="sbtn" id="thmBtn"></button>
+    <div class="themes" id="themes"></div>
     <button class="sbtn" id="exp"></button>
     <div class="side-note" id="sideNote"></div>
   </aside>
@@ -619,6 +662,38 @@ vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - 
   $('fsDn').onclick = () => { const i = FS.findIndex(x => x >= curFs()); setFs(FS[Math.max(0, (i < 0 ? FS.length - 1 : i) - 1)]); };
   $('fsUp').onclick = () => { const i = FS.findIndex(x => x > curFs()); setFs(FS[i < 0 ? FS.length - 1 : i]); };
   $('flipTg').onclick = () => { LSset('pt_book_flip', flipAnim() ? '0' : '1'); flipLabel(); };
+}
+{ // 🎨 노트 스타일 — 크라모북의 책 스타일(THEMES)을 가져왔다. 고른 것은 이 브라우저에 기억한다.
+  const SERIF = "'Noto Serif KR', serif", SANS = "'Noto Sans KR', sans-serif";
+  const THEMES = [
+    { id: 't-basic', ko: '기본 (종이와 명조)', en: 'Classic paper', paper: '#fdfcf8', ink: '#1f2330', head: '#1f2330', body: SERIF, headFont: SANS, size: 15, line: 1.75 },
+    { id: 't-modern', ko: '모던 고딕', en: 'Modern sans', paper: '#ffffff', ink: '#111827', head: '#2563eb', body: SANS, headFont: SANS, size: 15, line: 1.8 },
+    { id: 't-note', ko: '손글씨 노트', en: 'Handwritten note', paper: '#fffbe6', ink: '#3b2f1e', head: '#c2410c', body: "'Gaegu', cursive", headFont: "'Nanum Pen Script', cursive", size: 18, line: 1.65 },
+    { id: 't-night', ko: '밤 (어두운 종이)', en: 'Night', paper: '#1e2028', ink: '#e6e6ea', head: '#8ab4ff', body: SANS, headFont: SANS, size: 15, line: 1.8, card: '#2a2d38', link: '#8ab4ff' },
+    { id: 't-kraft', ko: '크라프트지', en: 'Kraft', paper: '#e9dcc3', ink: '#3a2a18', head: '#7c2d12', body: "'Gowun Batang', serif", headFont: "'Do Hyeon', sans-serif", size: 15, line: 1.75, card: '#f3e9d5' },
+    { id: 't-mag', ko: '잡지', en: 'Magazine', paper: '#fafafa', ink: '#18181b', head: '#e11d48', body: "'Gowun Dodum', sans-serif", headFont: "'Do Hyeon', sans-serif", size: 15, line: 1.8 },
+    { id: 't-in-minimal', ko: '속지 01 미니멀', en: 'Insert 01 Minimal', look: 'minimal', paper: '#ffffff', ink: '#2a2f3a', head: '#2c5aa0', body: SANS, headFont: SERIF, size: 15, line: 1.8, card: '#f6f9fd' },
+    { id: 't-in-editorial', ko: '속지 02 에디토리얼', en: 'Insert 02 Editorial', look: 'editorial', paper: '#f8f1e4', ink: '#2b2622', head: '#9b2c1f', body: SERIF, headFont: SERIF, size: 15, line: 1.85, card: '#fffaf0' },
+    { id: 't-in-color', ko: '속지 03 컬러 가이드', en: 'Insert 03 Color guide', look: 'color', paper: '#ffffff', ink: '#2b3440', head: '#0d7a8a', body: SANS, headFont: SANS, size: 15, line: 1.75, card: '#eef8fa' },
+    { id: 't-in-workbook', ko: '속지 04 워크북', en: 'Insert 04 Workbook', look: 'workbook', paper: '#fbf8f1', ink: '#232a36', head: '#1f3a68', body: SANS, headFont: SERIF, size: 15, line: 1.8, card: '#eaf1f8' },
+    { id: 't-in-premium', ko: '속지 05 프리미엄', en: 'Insert 05 Premium', look: 'premium', paper: '#f6f1e6', ink: '#2d2a24', head: '#1f4035', body: SERIF, headFont: SERIF, size: 15, line: 1.85, card: '#e3e9dc' },
+    { id: 't-tale', ko: '동화책', en: 'Storybook', paper: '#fef6fb', ink: '#4a3550', head: '#db2777', body: "'Jua', sans-serif", headFont: "'Jua', sans-serif", size: 17, line: 1.8 }
+  ];
+  const box = $('themes'), root = document.documentElement;
+  const apply = id => {
+    const t = THEMES.find(x => x.id === id) || THEMES[0], st = root.style, set = (k, v) => { if (v) st.setProperty(k, v); else st.removeProperty(k); };
+    set('--paper', t.paper); set('--ink', t.ink); set('--head', t.head); set('--body', t.body); set('--headf', t.headFont); set('--card', t.card); set('--link', t.link);
+    set('--lh', String(t.line)); set('--fsk', String(t.size / 15)); set('--qc', t.id === 't-basic' ? '' : t.head);
+    if (t.look) root.dataset.look = t.look; else delete root.dataset.look;
+    LSset('pt_book_theme', t.id);
+    box.querySelectorAll('.thm').forEach(b => b.classList.toggle('on', b.dataset.id === t.id));
+    if (!pf) layout(true);
+  };
+  box.innerHTML = THEMES.map(t => '<button type="button" class="thm" data-id="' + t.id + '" style="background:' + t.paper + ';color:' + t.ink + ';font-family:' + t.body.replace(/"/g, '') + '"><i style="background:' + t.head + '"></i><span>' + esc(KO ? t.ko : t.en) + '</span></button>').join('');
+  box.onclick = e => { const b = e.target.closest('.thm'); if (b) apply(b.dataset.id); };
+  $('thmBtn').textContent = KO ? '🎨 노트 스타일' : '🎨 Note style';
+  $('thmBtn').onclick = () => box.classList.toggle('on');
+  apply(LSget('pt_book_theme', 't-basic'));
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
 
