@@ -301,6 +301,7 @@ const LSset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
 const flipAnim = () => LSget('pt_book_flip', '1') !== '0';   // off = pages change at once, same two-page layout
 const RATIO = 1.42;                                           // open book, width : height (the Cramobook spread)
+let backTo = -1;
 let pf = null, pfPages = [], dimKey = '', turnPages = new Map(), blankPg = null;
 const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
 liveBox.className = 'work live';
@@ -408,7 +409,7 @@ function layout(keep) {
 }
 const colOf = el => { const m = metrics(); return Math.round(el.offsetLeft / (m.colW + m.gap)); };
 function go(p, instant) {
-  if (pf) { const n = pf.getPageCount(), k = Math.max(0, Math.min(n - 2, p * 2)); if (instant || !flipAnim()) pf.turnToPage(k); else pf.flip(k); return flipUi(); }
+  if (pf) { const n = pf.getPageCount(), k = Math.max(0, Math.min(n - 2, p * 2)); if (instant || !flipAnim()) pf.turnToPage(k); else { sheets = Math.min(6, Math.max(1, Math.abs(k - pf.getCurrentPageIndex()) / 2)); pf.flip(k); } return flipUi(); }
   if (instant) flow.style.transition = 'none';
   page = Math.max(0, Math.min(pages - 1, p)); layout(true);
   if (instant) { void flow.offsetWidth; flow.style.transition = ''; }
@@ -439,6 +440,40 @@ $('book').addEventListener('click', e => {
   const i = +host.dataset.i; openWork.has(i) ? openWork.delete(i) : openWork.add(i);
   render();
 });
+
+// ── page-turn sound, made on the spot (no audio file): paper swish = filtered noise, then a low thud as the page lands
+let actx = null, sheets = 1;
+function unlockAudio() {
+  try {
+    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); const s = actx.createBufferSource(); s.buffer = actx.createBuffer(1, 1, actx.sampleRate); s.connect(actx.destination); s.start(0); }
+    if (actx.state !== 'running') actx.resume().catch(() => {});
+  } catch (e) {}
+}
+for (const ev of ['pointerdown', 'keydown', 'touchend']) addEventListener(ev, unlockAudio, { capture: true, passive: true });
+function flipSound(k, gap) {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state !== 'running') actx.resume().catch(() => {});
+    k = Math.max(1, Math.round(k || 1));
+    const sr = actx.sampleRate, one = k > 1 ? 0.14 : 0.17, dur = one + gap * (k - 1), n = Math.floor(sr * dur);
+    const buf = actx.createBuffer(1, n, sr), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) {
+      const sec = i / sr; let env = 0;
+      for (let j = 0; j < k; j++) { const t = (sec - j * gap) / one; if (t <= 0 || t >= 1) continue; env += Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1)), 1.6) * (1 - t * 0.45) * (k > 1 ? 0.62 : 1); }
+      d[i] = (Math.random() * 2 - 1) * Math.min(1.5, env) * (Math.random() < 0.02 ? 1.8 : 1);
+    }
+    const t0 = actx.currentTime, src = actx.createBufferSource(); src.buffer = buf;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.7;
+    bp.frequency.setValueAtTime(1500, t0); bp.frequency.exponentialRampToValueAtTime(4800, t0 + dur * 0.6); bp.frequency.exponentialRampToValueAtTime(2200, t0 + dur);
+    const hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 600;
+    const g = actx.createGain(); g.gain.value = 0.2;
+    src.connect(bp).connect(hp).connect(g).connect(actx.destination); src.start(t0);
+    const o = actx.createOscillator(), og = actx.createGain(); o.type = 'sine';
+    o.frequency.setValueAtTime(150, t0 + dur * 0.8); o.frequency.exponentialRampToValueAtTime(60, t0 + dur + 0.08);
+    og.gain.setValueAtTime(0.0001, t0 + dur * 0.8); og.gain.exponentialRampToValueAtTime(0.09, t0 + dur * 0.86); og.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.1);
+    o.connect(og).connect(actx.destination); o.start(t0 + dur * 0.8); o.stop(t0 + dur + 0.12);
+  } catch (e) {}
+}
 
 // ── thick-paper flip ────────────────────────────────────────────────────────
 function dropFlip() { if (pf) { try { liveBox.remove(); pf.destroy(); } catch (e) {} pf = null; } pfPages = []; turnPages.clear(); $('flipwrap').textContent = ''; $('meas').textContent = ''; }
@@ -485,7 +520,7 @@ function fillCover(c) {
 function buildFlip(keep) {
   const book = $('book'), d = { w: Math.floor(book.clientWidth / 2), h: book.clientHeight };
   if (d.w < 200 || d.h < 200) return;
-  const key = d.w + 'x' + d.h; if (key !== dimKey) { dropFlip(); dimKey = key; }
+  const key = d.w + 'x' + d.h; if (key !== dimKey) { backTo = pf ? pf.getCurrentPageIndex() : -1; dropFlip(); dimKey = key; }
   liveBox.querySelector('.termbox').style.height = Math.round(d.h * (liveBox.classList.contains('big') ? .7 : .42)) + 'px';
   const lastI = turns.length ? turns[turns.length - 1].i : -1;
   const pages = [], seen = new Set();
@@ -513,6 +548,7 @@ function buildFlip(keep) {
     const old = pfPages[curIdx], anchor = old && old.dataset.i;            // the turn being read
     pages.forEach((p, k) => { let n = p.querySelector('.pgno'); if (!n) { n = document.createElement('span'); n.className = 'pgno'; p.append(n); } n.textContent = k + 1; });
     let target = (!keep && wasLast) ? pages.length - 2 : curIdx;
+    if (!pf && backTo >= 0) target = backTo; backTo = -1;
     if (!(!keep && wasLast) && old) { const k = pages.includes(old) ? pages.indexOf(old) : anchor !== undefined ? pages.findIndex(p => p.dataset.i === anchor) : -1; if (k >= 0) target = k; }
     target = Math.max(0, Math.min(pages.length - 1, target)); target -= target % 2;
     if (!pf) {
@@ -522,6 +558,7 @@ function buildFlip(keep) {
         flippingTime: 650, useMouseEvents: false, startPage: target, autoSize: false });
       pf.loadFromHTML(pages);
       pf.on('flip', flipUi);
+      pf.on('changeState', e => { if (e.data === 'flipping' && flipAnim()) { flipSound(sheets, 0.06); sheets = 1; } });
     } else { pf.updateFromHtml(pages); if (pf.getCurrentPageIndex() !== target) pf.turnToPage(target); }
     pfPages = pages;
   }
@@ -572,7 +609,7 @@ vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - 
                : { end:'⏭ Go to the end', dn:'A－ Smaller text', up:'A＋ Larger text', flipOn:'📄 Page flip: on', flipOff:'📄 Page flip: off', side:'Book mode',
                    note:'Turn pages with ← →, the wheel or the side buttons. Type below to ask this session.' };
   const FS = [12.5, 13.5, 14.5, 16, 17.5, 19];
-  const setFs = v => { document.documentElement.style.setProperty('--fs', v + 'px'); LSset('pt_book_fs', String(v)); turnPages.clear(); dimKey = ''; layout(true); };
+  const setFs = v => { document.documentElement.style.setProperty('--fs', v + 'px'); LSset('pt_book_fs', String(v)); if (!pf) layout(true); };
   const curFs = () => parseFloat(LSget('pt_book_fs', '14.5')) || 14.5;
   document.documentElement.style.setProperty('--fs', curFs() + 'px');
   $('sideTtl').textContent = L.side; $('sideNote').textContent = L.note; $('toEnd').textContent = L.end; $('fsDn').textContent = L.dn; $('fsUp').textContent = L.up;
