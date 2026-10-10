@@ -154,21 +154,33 @@
   .sbtn:hover { border-color:var(--accent); } .sbtn.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; text-align:center; }
   .side-note { margin-top:auto; font-size:11.5px; line-height:1.5; color:var(--muted); }
   @media (min-width: 821px) {
-    /* 책장 — 책등을 세워 둔다. 고른 책은 더 높게 */
-    .shelf { flex:0 0 auto; display:flex; flex-direction:row; align-items:flex-end; gap:6px; padding:18px 12px 24px 14px; max-width:30vw; overflow-x:auto; overflow-y:hidden;
-             background:linear-gradient(to top, #3a2f25 0 10px, transparent 10px); border-right:1px solid #33363e; }
-    .shelf h3 { writing-mode:vertical-rl; margin:0 1px 0 6px; padding:8px 2px; font-size:11px; font-weight:600; color:#b9bdc9; max-height:40vh; align-self:flex-end; }
-    .shelf h3:first-child { margin-left:0; }
-    .shelf .spine { all:unset; box-sizing:border-box; flex:0 0 auto; width:38px; height:min(44vh, 340px); display:flex; align-items:center; gap:8px; padding:12px 0; cursor:pointer;
-             writing-mode:vertical-rl; color:#fff; font:700 13px/1.2 var(--ui); border-radius:4px 4px 2px 2px; overflow:hidden; white-space:nowrap;
-             box-shadow: inset -6px 0 10px rgba(0,0,0,.25), inset 3px 0 0 rgba(255,255,255,.15), 2px 0 4px rgba(0,0,0,.35);
-             transition: transform .15s, height .32s cubic-bezier(.2,.8,.2,1); margin:0; border-left:none; }
-    .shelf .spine:nth-of-type(3n+2) { height:min(40vh, 310px); } .shelf .spine:nth-of-type(3n) { height:min(48vh, 370px); }
-    .shelf .spine:hover { transform:translateY(-6px); }
-    .shelf .spine.cur, .shelf .spine.cur:nth-of-type(n) { height:min(58vh, 450px); outline:2px solid #fff; outline-offset:2px; transform:none; box-shadow: inset -6px 0 10px rgba(0,0,0,.25), 0 3px 12px rgba(0,0,0,.5); }
-    .shelf .spine i { width:8px; height:8px; flex:0 0 auto; }
-    .shelf .spine span { overflow:hidden; text-overflow:ellipsis; }
+    /* 책장 — 세션 하나 = 표지가 보이게 놓은 책 한 권, 세 권씩 한 줄 (크라모북 책장과 같은 모양) */
+    .shelf { flex:0 0 212px; display:grid; grid-template-columns:repeat(3, 1fr); gap:9px; align-content:start; padding:16px 10px; overflow-y:auto; overflow-x:hidden;
+             background:#24262c; border-right:1px solid #33363e; }
+    .shelf h3 { display:none; }
+    .shelf .spine { all:unset; box-sizing:border-box; position:relative; aspect-ratio:3 / 4; display:flex; align-items:center; justify-content:center; padding:7px 5px 7px 9px; cursor:pointer;
+             color:#fff; font:700 11.5px/1.3 var(--ui); text-align:center; border-radius:3px 6px 6px 3px; overflow:hidden; margin:0;
+             box-shadow: inset 5px 0 0 rgba(0,0,0,.22), inset 0 0 0 2px rgba(255,255,255,.16), 0 2px 5px rgba(0,0,0,.45); transition: transform .15s; }
+    .shelf .spine:hover { transform:translateY(-3px); }
+    .shelf .spine.cur { outline:2px solid #fff; outline-offset:2px; transform:none; }
+    .shelf .spine i { position:absolute; right:5px; top:5px; width:7px; height:7px; }
+    .shelf .spine span { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; white-space:normal; overflow-wrap:anywhere; text-overflow:clip; }
+    .desk { align-items:center; }
   }
+  /* 펼친 한 장 = 요청 하나. 왼쪽 = 작업 과정(스크롤), 오른쪽 = 요청과 답변 */
+  .pg .pgin { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#d6d0bf transparent; }
+  .pg.wk { background:#f7f4ea; }
+  .pg.wk .pgin { display:flex; flex-direction:column; overflow:hidden; font-family:var(--ui); }
+  .pg.wk .work { flex:0 0 auto; margin:0 0 10px; }
+  .whd { flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:0 2px 8px; margin-bottom:8px; border-bottom:1px solid #e3dfd2; font-size:12.5px; color:#5c5648; }
+  .whd b { color:var(--ink); font-size:13.5px; }
+  .wlog { flex:1 1 auto; min-height:0; overflow-y:auto; font-size:12.5px; line-height:1.65; color:#4b4638; scrollbar-width:thin; scrollbar-color:#d6d0bf transparent; }
+  .wlog div { padding:1px 2px; overflow-wrap:anywhere; }
+  .wlog .f { color:#2f5be0; } .wlog .n { color:#2b2f3a; background:#efebdf; border-radius:6px; padding:6px 9px; margin:6px 0; white-space:pre-wrap; }
+  .wlog .s { color:#6b6657; } .wlog .none { color:var(--muted); padding-top:20%; text-align:center; }
+  .toc { font-family:var(--ui); } .toc h4 { font:700 14px var(--ui); margin:0 0 10px; color:var(--ink); }
+  .tocit { all:unset; box-sizing:border-box; display:flex; gap:10px; width:100%; padding:6px 4px; border-bottom:1px dotted #d9d4c6; cursor:pointer; font-size:12.5px; color:var(--ink); }
+  .tocit:hover { background:#f3f0e7; } .tocit small { flex:0 0 auto; color:var(--muted); font-size:11.5px; } .tocit span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   @media (max-width: 820px) {
     .desk { padding:30px 6px 26px; gap:0; } .navcol, .topmid { display:none; }
     .side { flex:0 0 auto; flex-direction:row; order:-1; overflow-x:auto; padding:6px 8px; gap:6px; border-left:none; border-bottom:1px solid #33363e; }
@@ -286,7 +298,9 @@ const flow = $('flow'), vp = $('vp');
 const openWork = new Set();                       // turns whose work log is unfolded
 const LSget = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
 const LSset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
-const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0' && LSget('pt_book_flip', '1') !== '0';
+const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
+const flipAnim = () => LSget('pt_book_flip', '1') !== '0';   // off = pages change at once, same two-page layout
+const RATIO = 1.42;                                           // open book, width : height (the Cramobook spread)
 let pf = null, pfPages = [], dimKey = '', turnPages = new Map(), blankPg = null;
 const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
 liveBox.className = 'work live';
@@ -362,7 +376,19 @@ function metrics() {
   const colW = (w - gap * (n - 1)) / n;
   return { w, gap, n, colW, step: w + gap };
 }
+// the open book keeps one shape (RATIO) and is as large as the desk allows
+function sizeBook() {
+  const book = $('book');
+  if (innerWidth <= 820) { book.style.width = book.style.height = book.style.flex = book.style.maxWidth = ''; return; }
+  const desk = book.parentNode, cs = getComputedStyle(desk);
+  const navW = [...desk.querySelectorAll('.navcol')].reduce((a, n) => a + n.offsetWidth, 0) + 2 * (parseFloat(cs.columnGap) || 22);
+  const aw = desk.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - navW;
+  const ah = desk.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const w = Math.max(400, Math.floor(Math.min(aw, ah * RATIO) / 2) * 2);
+  book.style.flex = '0 0 auto'; book.style.maxWidth = 'none'; book.style.width = w + 'px'; book.style.height = Math.floor(w / RATIO) + 'px';
+}
 function layout(keep) {
+  sizeBook();
   const fl = flipMode();
   $('book').classList.toggle('flip', fl);
   if (fl) return buildFlip(keep);
@@ -382,7 +408,7 @@ function layout(keep) {
 }
 const colOf = el => { const m = metrics(); return Math.round(el.offsetLeft / (m.colW + m.gap)); };
 function go(p, instant) {
-  if (pf) { const n = pf.getPageCount(), k = Math.max(0, Math.min(n - 2, p * 2)); if (instant) pf.turnToPage(k); else pf.flip(k); return flipUi(); }
+  if (pf) { const n = pf.getPageCount(), k = Math.max(0, Math.min(n - 2, p * 2)); if (instant || !flipAnim()) pf.turnToPage(k); else pf.flip(k); return flipUi(); }
   if (instant) flow.style.transition = 'none';
   page = Math.max(0, Math.min(pages - 1, p)); layout(true);
   if (instant) { void flow.offsetWidth; flow.style.transition = ''; }
@@ -401,12 +427,13 @@ function marks() {
   $('marks').innerHTML = days.slice(-14).map(x => '<button class="mark' + (x.d === curDay ? ' cur' : '') + '" data-pg="' + x.pg + '">' + x.d + '</button>').join('');
   $('marks').querySelectorAll('.mark').forEach(b => b.onclick = () => go(+b.dataset.pg));
 }
-const nav = d => { if (pf) { d > 0 ? pf.flipNext() : pf.flipPrev(); } else go(page + d); };
+const nav = d => { if (pf && flipAnim()) { d > 0 ? pf.flipNext() : pf.flipPrev(); } else go(page + d, !!pf); };
 $('prev').onclick = () => nav(-1); $('next').onclick = () => nav(1);
 // clicks inside pages (pages are copies in flip mode, so handlers are delegated)
 $('book').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.classList.contains('more')) return loadEarlier();
+  if (b.classList.contains('tocit')) { const k = pfPages.findIndex(p => p.dataset.i === b.dataset.i); if (k >= 0) go(Math.floor(k / 2)); return; }
   const w = b.closest('.work'); if (!w || w === liveBox) return;
   const host = b.closest('[data-i]'); if (!host) return;
   const i = +host.dataset.i; openWork.has(i) ? openWork.delete(i) : openWork.add(i);
@@ -421,59 +448,65 @@ function newPg(d, i) {
   const inn = document.createElement('div'); inn.className = 'pgin'; p.append(inn); p._in = inn;
   $('meas').append(p); return p;
 }
-const over = p => p._in.scrollHeight > p._in.clientHeight + 1;
-const rowsOf = x => x.tagName === 'UL' || x.tagName === 'OL' ? x : x.firstElementChild && (x.firstElementChild.tagName === 'UL' || x.firstElementChild.tagName === 'OL') ? x.firstElementChild : x.querySelector && x.querySelector('tbody');
-// a list / table that does not fit: move its tail into a twin element for the next page
-function splitTail(b, p) {
-  const box = rowsOf(b); if (!box || box.children.length < 2) return null;
-  const rest = b.cloneNode(true), rbox = rowsOf(rest); rbox.textContent = '';
-  while (over(p) && box.children.length > 1) rbox.prepend(box.lastElementChild);
-  if (box.tagName === 'OL') rbox.start = (box.start || 1) + box.children.length;
-  return rest;
+// One spread = one request. Left page: the work (a scrolling log, plus the live terminal while it runs).
+// Right page: the request and the answer only. Pages are kept per request and refilled in place, so scroll positions survive updates.
+const W = KO ? { wk:'작업 과정', none:'도구를 쓰지 않고 바로 답했습니다.', toc:'차례', wait:'작업이 시작되면 여기에 과정이 흐릅니다.' }
+             : { wk:'Work', none:'Answered directly, no tools used.', toc:'Contents', wait:'The work shows up here once it starts.' };
+const tSig = (t, live, note) => [t.req.length, t.ans.length, t.tools, t.steps.length, (t.log || []).length, t.files.length, live, note].join('|');
+function logHtml(t) {
+  let h = '';
+  if (t.log && t.log.length) h += t.log.map(x => x.k === 'n' ? '<div class="n">' + esc(x.t) + '</div>' : '<div class="s">· ' + esc(x.t) + '</div>').join('');
+  else h += (t.notes || []).map(x => '<div class="n">' + esc(x) + '</div>').join('') + t.steps.map(x => '<div class="s">· ' + esc(x) + '</div>').join('');
+  return h + t.files.map(f => '<div class="f" title="' + esc(f) + '">✎ ' + esc(f.split(/[\/]/).slice(-2).join('/')) + '</div>').join('');   // edited files close the log
 }
-function paginate(blocks, d, i) {
-  const out = []; let p = newPg(d, i); out.push(p);
-  const fresh = () => { p = newPg(d, i); out.push(p); };
-  const place = b => {
-    p._in.append(b);
-    if (!over(p)) return;
-    const alone = p._in.children.length === 1;
-    const rest = splitTail(b, p);
-    if (rest && !over(p)) { fresh(); return place(rest); }
-    if (rest) { const box = rowsOf(b), rb = rowsOf(rest); while (rb.firstElementChild) box.append(rb.firstElementChild); }   // undo
-    if (!alone) { b.remove(); fresh(); return place(b); }
-    b.classList.add('tall'); b.style.maxHeight = p._in.clientHeight + 'px';   // last resort: scroll inside the page
-  };
-  blocks.forEach(place);
-  return out;
+function fillSpread(c, t, live, note) {
+  const L = c.pages[0]._in, R = c.pages[1]._in;
+  const top = R.scrollTop;
+  R.innerHTML = '<div class="q"><small>' + esc(T.req + ' · ' + fmtT(t.ts)) + '</small><span>' + reqHtml(t.req) + '</span></div><div class="a">' + md(t.ans) + '</div>'
+    + (live && !t.ans ? '<div class="pending">' + T.pending + '</div>' : '') + (note ? '<div class="pending">' + T.sending + '</div>' : '');
+  R.scrollTop = top;
+  const old = L.querySelector('.wlog'), stick = live || !old || old.scrollTop + old.clientHeight >= old.scrollHeight - 30, keepTop = old ? old.scrollTop : 0;
+  if (L.contains(liveBox)) liveBox.remove();
+  const sum = [fmtDur(t.end - t.ts), T.tools.replace('{n}', t.tools), t.files.length ? T.files.replace('{n}', t.files.length) : T.noedit].join(' · ');
+  const body = logHtml(t);
+  L.innerHTML = (live ? '' : '<div class="whd"><i class="dot"></i><b>' + W.wk + '</b><span>' + esc(t.tools ? sum : fmtDur(t.end - t.ts)) + '</span></div>')
+    + '<div class="wlog">' + (body || '<div class="none">' + (live ? W.wait : W.none) + '</div>') + '</div>';
+  if (live) L.prepend(liveBox);
+  const log = L.querySelector('.wlog'); log.scrollTop = live && stick ? log.scrollHeight : keepTop;
 }
-function turnBlocks(el, isLive) {
-  if (el.classList.contains('cover')) { const c = el.cloneNode(true); c.classList.remove('turn'); return [c]; }
-  const bl = [el.querySelector('.q').cloneNode(true)];
-  for (const ch of el.querySelector('.a').children) { const w = document.createElement('div'); w.className = 'a'; w.append(ch.cloneNode(true)); bl.push(w); }
-  if (isLive) { bl.push(liveBox); const pd = el.querySelector('.pending'); if (pd) bl.push(pd.cloneNode(true)); }
-  else { const w = el.querySelector('.wslot .work'); if (w) bl.push(w.cloneNode(true)); }
-  return bl;
+function fillCover(c) {
+  const src = flow.querySelector('.cover'), cv = src ? src.cloneNode(true) : document.createElement('div'); cv.classList.remove('turn');
+  c.pages[0]._in.textContent = ''; c.pages[0]._in.append(cv);
+  const R = c.pages[1]._in, top = R.scrollTop;
+  R.innerHTML = '<div class="toc"><h4>' + W.toc + '</h4>' + turns.map(t => { const one = t.req.replace(/\s+/g, ' ').trim();
+    return '<button type="button" class="tocit" data-i="' + t.i + '"><small>' + fmtT(t.ts) + '</small><span>' + esc(one.slice(0, 80)) + '</span></button>'; }).join('') + '</div>';
+  R.scrollTop = top;
 }
 function buildFlip(keep) {
   const book = $('book'), d = { w: Math.floor(book.clientWidth / 2), h: book.clientHeight };
   if (d.w < 200 || d.h < 200) return;
   const key = d.w + 'x' + d.h; if (key !== dimKey) { dropFlip(); dimKey = key; }
+  liveBox.querySelector('.termbox').style.height = Math.round(d.h * (liveBox.classList.contains('big') ? .7 : .42)) + 'px';
   const lastI = turns.length ? turns[turns.length - 1].i : -1;
   const pages = [], seen = new Set();
-  for (const el of flow.querySelectorAll('.turn')) {
-    const id = el.dataset.i === undefined ? 'cover' : +el.dataset.i, live = busy && id === lastI;
+  const spread = id => {
     let c = turnPages.get(id);
-    if (!c || c.sig !== el._sig) {
-      if (c && c.pages.some(p => p.contains(liveBox))) liveBox.remove();
-      c = { sig: el._sig, pages: paginate(turnBlocks(el, live), d, id === 'cover' ? undefined : id) }; turnPages.set(id, c);
+    if (!c) { const i = typeof id === 'number' ? id : undefined; c = { sig: null, pages: [newPg(d, i), newPg(d, i)] }; c.pages[0].classList.add('wk'); c.pages[1].classList.add('qa'); turnPages.set(id, c); }
+    seen.add(id); pages.push(...c.pages); return c;
+  };
+  if (!cur) { const c = spread('none'); c.pages[0].classList.remove('wk'); c.pages[1]._in.innerHTML = '<div class="empty">' + T.noSess + '</div>'; }
+  else {
+    const cv = flow.querySelector('.cover'), c0 = spread('cover'), s0 = (cv ? cv._sig : '') + '|' + turns.length + '|' + lastI;
+    c0.pages[0].classList.remove('wk');
+    if (c0.sig !== s0) { c0.sig = s0; fillCover(c0); }
+    const noteOn = !!(sentAt && Date.now() - sentAt < 90000 && total <= sentTotal);
+    for (const t of turns) {
+      const live = busy && t.i === lastI, note = noteOn && t.i === lastI, c = spread(t.i), sig = tSig(t, live, note);
+      if (c.sig !== sig || (live && !c.pages[0].contains(liveBox))) { c.sig = sig; fillSpread(c, t, live, note); }
     }
-    seen.add(id); pages.push(...c.pages);
+    if (cur._unsup) { const c = spread('live'); if (!c.pages[0].contains(liveBox)) { c.pages[0]._in.textContent = ''; c.pages[0]._in.append(liveBox); c.pages[1]._in.innerHTML = '<div class="empty">' + T.unsup + '</div>'; } }
   }
   for (const k of [...turnPages.keys()]) if (!seen.has(k)) turnPages.delete(k);
-  if (!pages.length) { const p = newPg(d); p._in.innerHTML = flow.innerHTML; pages.push(p); }
-  if (cur && cur._unsup) { const p = newPg(d); p._in.append(liveBox); pages.push(p); }
-  if (pages.length % 2) { if (!blankPg || blankPg.style.width !== d.w + 'px' || blankPg.style.height !== d.h + 'px') blankPg = newPg(d); pages.push(blankPg); }
   const same = pages.length === pfPages.length && pages.every((p, k) => p === pfPages[k]);
   if (!same) {
     const curIdx = pf ? pf.getCurrentPageIndex() : 0, wasLast = !pf || curIdx >= pfPages.length - 2;
@@ -548,7 +581,7 @@ vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - 
   $('toEnd').onclick = () => go(pages - 1);
   $('fsDn').onclick = () => { const i = FS.findIndex(x => x >= curFs()); setFs(FS[Math.max(0, (i < 0 ? FS.length - 1 : i) - 1)]); };
   $('fsUp').onclick = () => { const i = FS.findIndex(x => x > curFs()); setFs(FS[i < 0 ? FS.length - 1 : i]); };
-  $('flipTg').onclick = () => { LSset('pt_book_flip', LSget('pt_book_flip', '1') !== '0' ? '0' : '1'); flipLabel(); const wasLast = page >= pages - 1, p = page; layout(true); go(wasLast ? pages - 1 : Math.min(p, pages - 1), true); };
+  $('flipTg').onclick = () => { LSset('pt_book_flip', flipAnim() ? '0' : '1'); flipLabel(); };
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
 

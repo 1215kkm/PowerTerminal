@@ -2294,20 +2294,22 @@ function bookFeed(c, line) {
     }
     text = bookClean(text);
     if (!text || /^This session is being continued|^Caveat:|^\[Request interrupted/.test(text)) return;
-    c.cur = { ts, req: text.slice(0, 20000), ans: '', notes: [], steps: [], files: [], tools: 0, end: ts };
+    c.cur = { ts, req: text.slice(0, 20000), ans: '', notes: [], steps: [], log: [], files: [], tools: 0, end: ts };
     c.turns.push(c.cur);
   } else if (j.type === 'assistant' && m && c.cur && Array.isArray(m.content)) {
     const t = c.cur; if (ts) t.end = ts;
     for (const x of m.content) {
       if (x.type === 'text' && x.text && x.text.trim()) {
-        if (t.ans && t.notes.length < 60) t.notes.push(t.ans.slice(0, 300));   // 앞서 한 말은 「작업 과정」으로
-        t.ans = x.text.trim().slice(0, 60000);                                    // 마지막 글 = 답변
+        if (t.ans && t.notes.length < 60) { t.notes.push(t.ans.slice(0, 300)); if (t.log.length < 200) t.log.splice(Math.min(t.ansAt || 0, t.log.length), 0, { k: 'n', t: t.ans.slice(0, 600) }); }   // 앞서 한 말은 「작업 과정」으로
+        t.ans = x.text.trim().slice(0, 60000); t.ansAt = t.log.length;                                    // 마지막 글 = 답변
       } else if (x.type === 'tool_use') {
         t.tools++;
         const inp = x.input || {};
         const fp = inp.file_path || inp.notebook_path || '';
         if (fp && /^(Edit|Write|NotebookEdit|MultiEdit)$/.test(x.name) && !t.files.includes(fp) && t.files.length < 40) t.files.push(fp);
-        if (t.steps.length < 80) t.steps.push(String(x.name) + (inp.description ? ' — ' + String(inp.description).slice(0, 90) : fp ? ' — ' + path.basename(fp) : ''));
+        const stepTxt = String(x.name) + (inp.description ? ' — ' + String(inp.description).slice(0, 90) : fp ? ' — ' + path.basename(fp) : '');
+        if (t.steps.length < 80) t.steps.push(stepTxt);
+        if (t.log.length < 200) t.log.push({ k: 's', t: stepTxt });
       }
     }
   }
