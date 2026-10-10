@@ -2114,6 +2114,7 @@ const I18N = {
     mindAddBranchT:'선택한 가지 아래 새 가지 추가 (+ 키)',
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
+    mindSt0:'생각중', mindSt1:'제작시작', mindSt2:'제작중', mindSt3:'마무리중', mindSt4:'곧 끝남', mindSt5:'완료',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
     mtLinkedT:'클릭하면 지도에서 이 가지 위치로', mtProgT:'클릭·드래그로 진행률 설정', mtProgLinkedT:'가지 진행률 (하위 가지 평균 — 지도에서 조절)', mtCollapse:'할일 목록 접기', mtExpand:'할일 목록 펼치기',
     mindLinkBtn:'연결', mindLinkPick:'연결할 대상 노드를 클릭하세요 (Esc로 취소)', mindLinkNeedSel:'노드를 먼저 선택한 뒤 연결을 누르세요',
@@ -10192,10 +10193,12 @@ function mindRender() {
     barFill.setAttribute('width', Math.max(0, gg.w * eff / 100)); barFill.setAttribute('height', 3.5); barFill.setAttribute('rx', 1.75);
     barFill.setAttribute('fill', '#a3e635'); barFill.style.pointerEvents = 'none';
     const pctT = document.createElementNS(SVGNS, 'text');
-    pctT.setAttribute('x', cx + w / 2 + 4); pctT.setAttribute('y', cy + h / 2 - 4);
-    pctT.setAttribute('font-size', 8.5); pctT.setAttribute('fill', '#a3e635'); pctT.style.pointerEvents = 'none';
-    pctT.textContent = eff + '%';
+    // 가지 오른쪽 위 — "20% 생각중" (예전엔 %만 오른쪽 아래에 있었다)
+    pctT.setAttribute('x', cx + w / 2 + 4); pctT.setAttribute('y', cy - h / 2 + 8);
+    pctT.setAttribute('font-size', 8.5); pctT.setAttribute('font-weight', 700); pctT.setAttribute('fill', '#a3e635'); pctT.style.pointerEvents = 'none';
+    pctT.textContent = mindProgLabel(eff);
     g.appendChild(barBg); g.appendChild(barFill); g.appendChild(pctT);
+
     // 📝 가지 메모 표시 — 우상단 색 점(작성된 메모 색), 마우스 올리면 내용, 클릭하면 수정
     let memoIc = null;
     if (node.memo && node.memo.text) {
@@ -10226,6 +10229,13 @@ function mindUpdateAddBtn() {
   b.innerHTML = (hasSel ? '＋' : '🌱') + ' <span class="mlbl">' + esc(hasSel ? (T.mindAdd || 'Branch') : (T.mindAddRoot || 'Add root')) + '</span>';
   b.title = hasSel ? (T.mindAddBranchT || '') : (T.mindAddRootT || '');
 }
+// 🏷 진행률 → 단계 글자. (요청은 61~90 마무리중 · 80~99 곧 끝남으로 겹쳐 있어, 80부터는 「곧 끝남」으로 잡았다)
+function mindStage(p) {
+  return p >= 100 ? (T.mindSt5 || 'Done') : p >= 80 ? (T.mindSt4 || 'Almost done') : p >= 61 ? (T.mindSt3 || 'Finishing')
+       : p >= 41 ? (T.mindSt2 || 'In progress') : p >= 21 ? (T.mindSt1 || 'Starting') : (T.mindSt0 || 'Thinking');
+}
+// 가지 오른쪽 위에 붙는 글자: "20% 생각중" — 0~20 생각중 · 21~40 제작시작 · 41~60 제작중 · 61~79 마무리중 · 80~99 곧 끝남 · 100 완료
+const mindProgLabel = p => p + '% ' + mindStage(p);
 // 📊 유효 진행률 — 잎 가지는 자기 값(prog), 자식이 있으면 자식들의 평균(뿌리는 자동으로 결정됨)
 function mindEffProg(node) {
   if (node.children && node.children.length) {
@@ -10239,7 +10249,7 @@ function mindUpdateBars() {
   for (const [, c] of MIND.cache) {
     const eff = mindEffProg(c.node);
     if (c.barFill) c.barFill.setAttribute('width', Math.max(0, mindGaugeGeom(c.cx, c.w).w * eff / 100));
-    if (c.pctT) c.pctT.textContent = eff + '%';
+    if (c.pctT) c.pctT.textContent = mindProgLabel(eff);
   }
 }
 // 뿌리 색: 첫 뿌리 = 보라, 추가한 뿌리는 순서대로 다른 색 (구분용)
@@ -10567,7 +10577,7 @@ function mindUpdateSubtree(node) {
     const gg = mindGaugeGeom(cx, w);
     if (c.barBg) { c.barBg.setAttribute('x', gg.x); c.barBg.setAttribute('y', cy + h / 2 - 6); }
     if (c.barFill) { c.barFill.setAttribute('x', gg.x); c.barFill.setAttribute('y', cy + h / 2 - 6); }
-    if (c.pctT) { c.pctT.setAttribute('x', cx + w / 2 + 4); c.pctT.setAttribute('y', cy + h / 2 - 4); }
+    if (c.pctT) { c.pctT.setAttribute('x', cx + w / 2 + 4); c.pctT.setAttribute('y', cy - h / 2 + 8); }
     if (c.memoIc) { c.memoIc.setAttribute('cx', cx + w / 2 - 3); c.memoIc.setAttribute('cy', cy - h / 2 + 2); }
     if (c.line && parentCenter) { c.line.setAttribute('x1', parentCenter.x); c.line.setAttribute('y1', parentCenter.y); c.line.setAttribute('x2', cx); c.line.setAttribute('y2', cy); }
     n.children.forEach(ch => walk(ch, { x: cx, y: cy }));
