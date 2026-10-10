@@ -81,6 +81,9 @@
     .pane.hasflow .ph-top .btnFlow { display: inline-block !important; opacity: .38; }
     .pane.hasflow:hover .ph-top .btnFlow, .pane.hasflow:focus-within .ph-top .btnFlow { opacity: 1; }
   }
+  /* ◎ 플로우 연결 버튼은 숨긴다(잘 안 써서) — 이미 화살표가 걸린 창에서만 남긴다(화살표 시작점이라 없으면 선을 못 그린다).
+     다시 꺼내려면 이 한 줄만 지우면 된다. */
+  .pane:not(.hasflow) .ph-top .btnFlow { display: none !important; }
   /* 번호 밑 '완료' 초록 배지 */
   .numwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
   .donebadge { display: none; font-size: 9px; font-weight: 700; color: #06230f;
@@ -2124,7 +2127,7 @@ const I18N = {
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
     mindInsertT:'누르면 이 사이에 가지를 끼워 넣습니다 (상위 가지 추가)',
-    bareHint:'다시 두 번 터치하면 원래대로', reopenNone:'다시 열 닫은 세션이 없습니다',
+    bareHint:'다시 두 번 터치하면 원래대로', bookPaneT:'책 모드 — 이 세션을 책처럼 읽는 창을 따로 띄웁니다', reopenNone:'다시 열 닫은 세션이 없습니다',
     mindDropQ:'「{a}」를 「{p}」와 「{c}」 사이에 넣을까요?', mindDropMove:'이동', mindDropCopy:'복사',
     mindSt0:'생각중', mindSt1:'제작시작', mindSt2:'제작중', mindSt3:'마무리중', mindSt4:'곧 끝남', mindSt5:'완료',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
@@ -4862,7 +4865,8 @@ function buildPane(sess, idx) {
           ${FONT_SIZES.map(s => `<option value="${s}" ${s === savedFont() ? 'selected' : ''}>${s}</option>`).join('')}
           ${IS_TOUCH ? `<optgroup label="${escA(T.fontScopeGrp || '적용 범위')}"><option value="scope:term">${fontScope() === 'all' ? '　' : '✓'} ${esc(T.fontScopeTerm || '터미널만')}</option><option value="scope:all">${fontScope() === 'all' ? '✓' : '　'} ${esc(T.fontScopeAll || '터미널 + 화면 글자')}</option></optgroup>` : ""}
         </select>
-        <button class="small btnFlow hv" title="${escA(T.flowT || '')}">◎</button><!-- ✕ 바로 왼쪽 고정 -->
+        <button class="small btnFlow hv" title="${escA(T.flowT || '')}">◎</button><!-- 플로우 연결 — 잘 안 써서 CSS 로 숨김(사용자 요청 2026-10-10). 이미 연결이 걸린 창(.hasflow)에서만 보인다 -->
+        <button class="small btnBook hv" title="${escA(T.bookPaneT || 'Book mode — open this session as a book in its own window')}">📖</button>
         <button class="small btnClose" title="${T.closeT}" style="color:#f87171">✕</button>
         </span>
       </div>
@@ -5825,6 +5829,13 @@ function buildPane(sess, idx) {
   // 화살표는 늘 떠 있으므로, 세션을 보고 있을 땐 오히려 방해가 된다 — 그 창에 마우스를 올리면 10%로 흐려진다.
   el.addEventListener('mouseenter', () => document.body.classList.add('flowdim'));
   el.addEventListener('mouseleave', () => document.body.classList.remove('flowdim'));
+
+  // 📖 이 세션을 책 모드로 — 탭이 아니라 따로 뜨는 창으로 연다 (같은 세션을 또 누르면 그 창을 다시 쓴다)
+  el.querySelector('.btnBook').onclick = ev => {
+    ev.stopPropagation();
+    const w = Math.min(1500, screen.availWidth - 60), h = Math.min(940, screen.availHeight - 60);
+    window.open('/book.html?s=' + sess.id + (TOKEN ? '&token=' + TOKEN : ''), 'ptbook_' + sess.id, 'popup=yes,width=' + w + ',height=' + h);
+  };
 
   // ☰ 작업목록(tasks) 접기/펼치기 — 브라우저가 Ctrl+T를 가로채므로 버튼으로 \x14(=Ctrl+T) 전송
   el.querySelector('.btnTasks').onclick = ev => {
