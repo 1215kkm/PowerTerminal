@@ -2332,9 +2332,10 @@ async function bookTurns(sessPath) {
   if (f.size === c.offset) return c.turns;
   c.busy = new Promise(resolve => {
     let rest = Buffer.alloc(0), read = 0;
+    c.prog = { read: 0, total: f.size - c.offset };   // 책 모드의 「펴는 중」 진행 막대가 읽어 간다
     const rs = fs.createReadStream(f.p, { start: c.offset, end: f.size - 1, highWaterMark: 1 << 20 });
     rs.on('data', buf => {
-      read += buf.length;
+      read += buf.length; c.prog.read = read;
       let b = rest.length ? Buffer.concat([rest, buf]) : buf, from = 0, nl;
       while ((nl = b.indexOf(10, from)) >= 0) { bookFeed(c, b.toString('utf8', from, nl)); from = nl + 1; }
       rest = b.subarray(from);
@@ -2345,6 +2346,12 @@ async function bookTurns(sessPath) {
   await c.busy;
   return c.turns;
 }
+// 책을 펴는 동안 얼마나 읽었는지 — 대화 기록이 크면 처음 한 번은 몇 초 걸린다
+app.get('/api/sessions/:id/book-progress', (req, res) => {
+  const sess = sessions.find(x => x.id === req.params.id);
+  const f = sess && bookFile(sess.path), c = f && bookCache.get(f.p);
+  res.json({ busy: !!(c && c.busy), read: c && c.prog ? c.prog.read : 0, total: c && c.prog ? c.prog.total : 0 });
+});
 // ?last=30 — 맨 뒤 30개 · ?before=120 — 그 앞쪽 · ?from=150 — 150번부터(새로 생긴 것 받기)
 app.get('/api/sessions/:id/book', async (req, res) => {
   const sess = sessions.find(x => x.id === req.params.id);
