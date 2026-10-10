@@ -354,6 +354,15 @@
   #zoomClose { background: #3B5876; color: #fff; border: 0; border-radius: 9px;
                padding: 8px 16px; font-size: 14px; font-weight: 700; cursor: pointer; }
   #zoomModal .pane { flex: 1 1 auto; min-height: 0 !important; height: auto; width: 100%; margin: 0; }
+  /* 👆👆 터미널만 보기(터치 기기) — 터미널을 두 번 터치하면 머리줄·요청칸 없이 내용만 화면 가득. 다시 두 번 터치하면 원래대로 */
+  .pane.bare { position: fixed !important; inset: 0; z-index: 260; width: auto !important; height: auto !important;
+               min-height: 0 !important; margin: 0 !important; border: 0; border-radius: 0; box-shadow: none !important;
+               padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .pane.bare > .pane-head, .pane.bare > .quick, .pane.bare > .qThumbs, .pane.bare > .gitbar,
+  .pane.bare .termCancel { display: none !important; }
+  .bareHint { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 270; pointer-events: none;
+              background: rgba(0,0,0,.72); color: #fff; font-size: 13px; padding: 7px 14px; border-radius: 999px;
+              transition: opacity .4s; }
 
   /* 확대(포커스): 그 칸의 열만 넓어짐 (위치 유지) — 버튼 강조 */
   .pane.maxed .btnMax { background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; }
@@ -2115,6 +2124,7 @@ const I18N = {
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
     mindInsertT:'누르면 이 사이에 가지를 끼워 넣습니다 (상위 가지 추가)',
+    bareHint:'다시 두 번 터치하면 원래대로', reopenNone:'다시 열 닫은 세션이 없습니다',
     mindDropQ:'「{a}」를 「{p}」와 「{c}」 사이에 넣을까요?', mindDropMove:'이동', mindDropCopy:'복사',
     mindSt0:'생각중', mindSt1:'제작시작', mindSt2:'제작중', mindSt3:'마무리중', mindSt4:'곧 끝남', mindSt5:'완료',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
@@ -5208,6 +5218,25 @@ function buildPane(sess, idx) {
     };
     body.addEventListener('touchend', tselEnd, { capture: true });
     body.addEventListener('touchcancel', tselEnd, { capture: true });
+    /* 👆👆 두 번 터치 = 터미널만 보기 켜고 끄기. 머리줄·요청칸을 감추고 이 터미널만 화면 가득 채운다.
+       전체화면(⛶) 안에서도, 그냥 목록 화면에서도 똑같이 된다. 끌기(스크롤)·길게 누르기(선택)는 터치로 치지 않는다. */
+    const dt = { t0: 0, x0: 0, y0: 0, lastT: 0, lastX: 0, lastY: 0, moved: false };
+    body.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) { dt.moved = true; return; }
+      dt.t0 = performance.now(); dt.x0 = e.touches[0].clientX; dt.y0 = e.touches[0].clientY; dt.moved = false;
+    }, { passive: true });
+    body.addEventListener('touchmove', e => {
+      const t = e.touches[0]; if (t && Math.hypot(t.clientX - dt.x0, t.clientY - dt.y0) > 10) dt.moved = true;
+    }, { passive: true });
+    body.addEventListener('touchend', e => {
+      const now = performance.now();
+      if (dt.moved || now - dt.t0 > 300 || (e.target.closest && e.target.closest('button, input, textarea, select, .reqPanel, iframe'))) { dt.lastT = 0; return; }
+      if (dt.lastT && now - dt.lastT < 380 && Math.hypot(dt.x0 - dt.lastX, dt.y0 - dt.lastY) < 40) {
+        dt.lastT = 0;
+        if (e.cancelable) e.preventDefault();
+        toggleBare(el);
+      } else { dt.lastT = now; dt.lastX = dt.x0; dt.lastY = dt.y0; }
+    });
     body.addEventListener('contextmenu', e => e.preventDefault());   // 길게 누를 때 뜨는 브라우저 메뉴 막기
     // 마우스 휠/트랙패드로도 이 존에서 스크롤되게 (터치스크린+마우스 겸용 기기 대응) —
     // 스크롤백이 있으면 이 터미널을, 없으면 페이지를 스크롤
@@ -5870,6 +5899,8 @@ function buildPane(sess, idx) {
       confirm((T.flowCloseMates || '플로우로 이어진 세션들도 같이 닫을까요?') + '\n\n' +
               mates.map(i => (panes.get(i).sess.title || i)).join(', '));
     if (zoomedId === sess.id) closeZoom();   // 전체화면 중이면 먼저 원위치
+    rememberClosed(sess.id);                 // ↩ Ctrl+Shift+T 로 제자리에 다시 열 수 있게
+    if (alsoClose) mates.forEach(rememberClosed);
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 쓰다 만 글 임시저장도 정리
     // 🌿 트리(worktree) 세션이면 서버가 폴더 정리 결과를 몇 초 뒤 돌려준다 — 창은 기다리지 않고 닫고, 결과만 알림으로
     const delP = api('DELETE', '/api/sessions/' + sess.id);
@@ -6865,6 +6896,44 @@ function buildPane(sess, idx) {
   // 이 창이 붙기 전에 이미 끝나 있던 완료도 알아야 인계를 따라잡을 수 있다 (새로고침 중에 끝난 경우)
   if (sess.doneSince) el._doneSince = sess.doneSince;
 }
+
+/* ↩ 닫은 세션 다시 열기 — 크롬의 '닫은 탭 다시 열기'(Ctrl+Shift+T)와 같다. 마지막에 닫은 것부터, 있던 자리로.
+   같은 폴더로 세션을 다시 만들기 때문에 Claude·codex 는 그 폴더의 지난 대화를 이어받는다.
+   브라우저 탭에서는 크롬이 Ctrl+Shift+T 를 먼저 가져가므로(페이지가 못 받음) Alt+Shift+T 도 같이 받는다. */
+const CLOSED_KEY = 'pt_closed_stack';
+function closedStack() { try { const a = JSON.parse(localStorage.getItem(CLOSED_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function rememberClosed(id) {
+  const p = panes.get(id); if (!p || p.sess.autoClose) return;
+  const st = closedStack();
+  st.push({ path: p.sess.path, title: p.sess.title, agent: p.sess.agent, model: p.sess.model, cmd: p.sess.cmd || '', idx: [...grid.children].indexOf(p.el) });
+  try { localStorage.setItem(CLOSED_KEY, JSON.stringify(st.slice(-30))); } catch (e) {}
+}
+let _reopening = false;
+async function reopenClosed() {
+  if (_reopening) return; _reopening = true;
+  try {
+    const st = closedStack();
+    let rec = null;
+    while (st.length) {   // 그 폴더가 이미 열려 있으면(직접 다시 연 경우) 건너뛰고 그 앞에 닫은 것으로
+      const r = st.pop();
+      if (![...panes.values()].some(p => normPath(p.sess.path) === normPath(r.path))) { rec = r; break; }
+    }
+    try { localStorage.setItem(CLOSED_KEY, JSON.stringify(st)); } catch (e) {}
+    if (!rec) { flashToast(T.reopenNone || 'No closed session to reopen'); return; }
+    const s = await addSession(rec.path, rec.title, rec.agent, rec.cmd, true, { model: rec.model });
+    const p = s && panes.get(s.id); if (!p) return;
+    const ref = grid.children[rec.idx];
+    if (rec.idx >= 0 && ref && ref !== p.el) grid.insertBefore(p.el, ref);   // 있던 자리로
+    applyLayout(); renumber(); renderMinimap(); saveOrder();
+    try { p.el.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+  } finally { _reopening = false; }
+}
+addEventListener('keydown', ev => {
+  if (!ev.shiftKey || !(ev.ctrlKey || ev.metaKey || ev.altKey) || ev.code !== 'KeyT' || ev.repeat) return;
+  if (document.querySelector('dialog[open]')) return;
+  ev.preventDefault(); ev.stopPropagation();
+  reopenClosed();
+}, true);
 
 // 이 창에서만 패널 제거 (서버 세션 유지)
 function removePaneLocal(id) {
@@ -11671,7 +11740,22 @@ function openZoom(id) {
      화면 절반을 덮어버린다. 크게 보려고 누른 것과 정반대다. 입력할 땐 터미널을 한 번 탭하면 된다. */
   if (!isMobileNow()) { try { p.term.focus(); } catch (e) {} }
 }
+// 👆👆 터미널만 보기 — 이 세션창에서 터미널만 남기고 화면 가득. 다시 부르면 원래대로
+function toggleBare(el) {
+  const on = !el.classList.contains('bare');
+  document.querySelectorAll('.pane.bare').forEach(x => x.classList.remove('bare'));
+  if (on) {
+    el.classList.add('bare');
+    try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}   // 자판이 올라와 있으면 내린다
+    document.querySelectorAll('.bareHint').forEach(x => x.remove());
+    const h = document.createElement('div'); h.className = 'bareHint'; h.textContent = T.bareHint || 'Double-tap again to go back';
+    document.body.appendChild(h);
+    setTimeout(() => { h.style.opacity = '0'; }, 1600); setTimeout(() => h.remove(), 2100);
+  }
+  [60, 260, 700].forEach(t => setTimeout(refitAll, t));
+}
 function closeZoom() {
+  document.querySelectorAll('.pane.bare').forEach(x => x.classList.remove('bare'));
   const modal = document.getElementById('zoomModal');
   modal.classList.remove('on');
   const p = panes.get(zoomedId);
