@@ -563,7 +563,7 @@ function riffle(to) {
   const k = Math.min(Math.abs(to - from), 8, Math.max(1, Math.floor(24000 / Math.max(1, nodes))));
   if (!leafOk() || k < 2) return false;
   const layer = document.createElement('div'); layer.className = 'rifl';
-  const A = { transform: 'perspective(1400px) rotateY(0deg)', filter: 'brightness(1)' }, B = { transform: 'perspective(1400px) rotateY(-104deg)', filter: 'brightness(.72)' };
+  const A = { transform: 'perspective(5000px) rotateY(0deg) scale(1)', filter: 'brightness(1)' }, B = { transform: 'perspective(5000px) rotateY(-104deg) scale(.94)', filter: 'brightness(.72)' };   // far viewpoint + slight shrink: the lifted sheet stays page-sized
   if (!fwd) layer.append(snapOf(from));   // going back: the page being left stays underneath until it is covered
   for (let i = 0; i < k; i++) {
     const sn = snapOf(from + Math.round((fwd ? i : i + 1) * (to - from) / k)); sn.classList.add('leaf'); sn.style.zIndex = fwd ? k - i : i + 1;
@@ -583,7 +583,7 @@ function leafTurn(to, drag) {
   flow.style.transition = 'none'; page = to; layout(true); void flow.offsetWidth; flow.style.transition = '';
   const mov = fwd ? snap : vp; mov.classList.add('leaf');
   fwd ? vp.after(snap) : vp.before(snap);
-  const A = { transform: 'perspective(1400px) rotateY(0deg)', filter: 'brightness(1)' }, B = { transform: 'perspective(1400px) rotateY(-104deg)', filter: 'brightness(.72)' };
+  const A = { transform: 'perspective(5000px) rotateY(0deg) scale(1)', filter: 'brightness(1)' }, B = { transform: 'perspective(5000px) rotateY(-104deg) scale(.94)', filter: 'brightness(.72)' };   // far viewpoint + slight shrink: the lifted sheet stays page-sized
   const an = mov.animate(fwd ? [A, B] : [B, A], { duration: 300, easing: drag ? 'linear' : fwd ? 'ease-in' : 'ease-out' });
   const me = leaf = { snap, an };
   if (drag) { an.pause(); return true; }   // the finger moves it (leafDrag / leafDrop)
