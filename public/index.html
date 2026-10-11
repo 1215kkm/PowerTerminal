@@ -6775,12 +6775,13 @@ function buildPane(sess, idx) {
     // 켜 둔 동안(want)에는 브라우저가 인식을 끊어도 다시 잇는다. 아이폰 사파리는 한 문장만 듣고(또는 잠깐 조용하면) 스스로 끝내서
     // 마이크가 "켜졌다가 바로 꺼지는" 것처럼 보였다. 시작하자마자 계속 끊기면(3번) 이유를 알려 주고 멈춘다.
     let want = false, quick = 0, startedAt = 0, heard = false, lastErr = '';
+    const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const stopRec = () => { want = false; try { rec && rec.stop(); } catch (e) {} };
     const listen = () => {
       try { rec = new SR(); } catch (e) { flashToast(T.micNo || '이 브라우저는 음성 입력을 지원하지 않아요'); rec = null; want = false; micBtn.classList.remove('rec'); return; }
       rec.lang = (T.locale || 'en-US');
       rec.interimResults = true;
-      rec.continuous = true;
+      rec.continuous = !IOS;   // 아이폰 사파리는 이어 듣기(continuous)가 불안정하다 — 한 문장씩 듣고 아래에서 다시 잇는다
       baseText = qInput.value ? qInput.value.replace(/\s*$/, ' ') : '';
       startedAt = Date.now(); heard = false; lastErr = '';
       rec.onstart = () => { micBtn.classList.add('rec'); };
@@ -6803,8 +6804,11 @@ function buildPane(sess, idx) {
       rec.onend = () => {
         rec = null;
         if (want) {
-          if (!heard && Date.now() - startedAt < 1500) quick++; else quick = 0;
-          if (quick < 3) { setTimeout(() => { if (want && !rec) listen(); }, 250); return; }   // 다시 잇는다 (단추는 켜진 채)
+          // 말을 들은 뒤 끝난 것이면 계속 잇는다. 아무것도 못 듣고 끝난 것은 한 번만 다시 해 본다 —
+          // 계속 다시 켜면 켤 때마다 폰이 마이크를 새로 잡느라 화면이 버벅인다.
+          if (heard) quick = 0; else quick++;
+          if (quick < 2) { setTimeout(() => { if (want && !rec) listen(); }, 400); return; }   // 다시 잇는다 (단추는 켜진 채)
+          if (Date.now() - startedAt >= 1500) { want = false; micBtn.classList.remove('rec'); qInput.focus(); return; }   // 한동안 조용해서 끝난 것 — 조용히 끈다
           want = false; flashToast((T.micDrop || '음성 입력이 바로 끊깁니다') + (lastErr ? ' (' + lastErr + ')' : '') + ' — ' + (T.micDropHow || '아이폰은 설정 → 일반 → 키보드 → 받아쓰기 활성화가 켜져 있어야 하고, 홈 화면에 추가한 앱이 아닌 사파리에서 열어야 합니다'));
         }
         micBtn.classList.remove('rec'); qInput.focus();
