@@ -313,10 +313,28 @@
   .rdbar.on { display: flex; }
   .rdbar button { height: 28px; min-width: 84px; padding: 0 10px; border: 0; border-radius: 14px; font: 700 12.5px var(--ui); color: #fff; background: #3a3d46; cursor: pointer; white-space: nowrap; }
   body.full .rdbar { bottom: calc(2px + env(safe-area-inset-bottom)); }
+  .rdbar #rdVoice { min-width: 40px; padding: 0 8px; }
+  /* voice and speed list, opened from the bar */
+  .rdmenu { position: absolute; left: 50%; bottom: 38px; transform: translateX(-50%); z-index: 6; display: none; width: min(300px, calc(100% - 24px)); max-height: 60%; overflow-y: auto; padding: 8px; border-radius: 12px;
+            background: rgba(20,22,28,.97); color: #fff; font: 13px var(--ui); box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  .rdmenu.on { display: block; } body.full .rdmenu { bottom: calc(38px + env(safe-area-inset-bottom)); }
+  .rdmenu h5 { margin: 4px 4px 6px; font: 600 11.5px var(--ui); color: #9aa0ad; }
+  .rdmenu .row { display: flex; gap: 4px; margin-bottom: 8px; } .rdmenu .row button { flex: 1; }
+  .rdmenu button { display: block; width: 100%; text-align: left; min-height: 38px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: #fff; font: inherit; cursor: pointer; }
+  .rdmenu .row button { text-align: center; background: #2a2d34; }
+  .rdmenu button.on { background: var(--accent); font-weight: 700; }
+  .rdmenu p { margin: 6px 4px 2px; font-size: 11.5px; line-height: 1.5; color: #9aa0ad; }
   .rdbar #rdPause { background: var(--accent); }
   .rdtip { position: fixed; left: 50%; bottom: calc(46px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 71; padding: 7px 14px; border-radius: 16px; background: rgba(20,22,28,.9); color: #fff; font: 12.5px var(--ui);
            white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .rdtip.on { opacity: 1; }
+
+  /* live terminal: text size steps (가－ / 가＋). Larger than the box → it scrolls sideways */
+  .wh .tz { display: flex; align-items: center; gap: 2px; margin-left: auto; } .wh .tz + button { margin-left: 6px; }
+  .wh .tz button { margin: 0; min-width: 30px; height: 24px; text-align: center; border-radius: 6px; background: rgba(0,0,0,.06); color: var(--ink); font-size: 12px; }
+  .wh .tz button:disabled { opacity: .3; cursor: default; }
+  .wh .tz i { font-style: normal; min-width: 34px; text-align: center; font-size: 11px; color: #5c5648; }
+  .termbox.zoom { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
 </style>
 </head>
 <body>
@@ -443,8 +461,8 @@ let backTo = -1;
 let pf = null, pfPages = [], dimKey = '', turnPages = new Map(), blankPg = null;
 const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
 liveBox.className = 'work live';
-liveBox.innerHTML = '<div class="wh"><i class="dot"></i><b></b><span class="st"></span><button type="button"></button></div><div class="termbox"><div class="tin"></div></div>';
-liveBox.querySelector('button').onclick = () => { liveBox.classList.toggle('big'); turnPages.clear(); fitTerm(); layout(true); };
+liveBox.innerHTML = '<div class="wh"><i class="dot"></i><b></b><span class="st"></span><span class="tz"><button type="button" data-z="-1">가－</button><i></i><button type="button" data-z="1">가＋</button></span><button type="button" class="bigbtn"></button></div><div class="termbox"><div class="tin"></div></div>';
+liveBox.querySelector('.bigbtn').onclick = () => { liveBox.classList.toggle('big'); turnPages.clear(); fitTerm(); layout(true); };
 
 const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 60 ? Math.round(s / 60) + T.min : s + T.sec; };
@@ -502,7 +520,7 @@ function render(full) {
   if (sentAt && Date.now() - sentAt < 90000 && total <= sentTotal) { if (!note) { note = document.createElement('div'); note.className = 'pending sentnote'; note.textContent = T.sending; flow.append(note); } }
   else { if (note) note.remove(); sentAt = 0; }
   liveBox.querySelector('b').textContent = T.working;
-  liveBox.querySelector('button').textContent = liveBox.classList.contains('big') ? T.small : T.big;
+  liveBox.querySelector('.bigbtn').textContent = liveBox.classList.contains('big') ? T.small : T.big;
   const lt = turns[turns.length - 1];
   liveBox.querySelector('.st').textContent = lt && busy ? fmtDur(Date.now() - lt.ts) + ' · ' + T.tools.replace('{n}', lt.tools) : '';
   layout();
@@ -896,9 +914,9 @@ $('book').addEventListener('wheel', e => {
   addEventListener('resize', () => { if (innerWidth > 820) document.body.classList.remove('full'); });
 }
 { // 폰: 글을 길게 누르면 그 문단부터 소리 내어 읽는다 (브라우저의 읽어 주기). 읽는 문단에 색을 넣고, 쪽이 바뀌면 따라 넘긴다.
-  const R = KO ? { pause:'⏸ 일시정지', resume:'▶ 이어 읽기', stop:'⏹ 멈춤', none:'이 브라우저는 읽어 주기를 지원하지 않습니다', tip:'두 손가락으로 글을 터치하면 「듣기」 단추가 나옵니다', end:'끝까지 읽었습니다', go:'🔊 여기부터 듣기', mute:'목소리가 나오지 않습니다 — 폰의 미디어 음량과 음성 읽기(TTS) 설정을 확인하세요', err:'읽어 주기 오류: ' }
-               : { pause:'⏸ Pause', resume:'▶ Resume', stop:'⏹ Stop', none:'This browser cannot read aloud', tip:'Touch the text with two fingers for the Listen button', end:'Finished reading', go:'🔊 Listen from here', mute:'No voice came out — check the media volume and the text-to-speech settings', err:'Read-aloud error: ' };
-  const bar = document.createElement('div'); bar.className = 'rdbar'; bar.innerHTML = '<button type="button" id="rdPause"></button><button type="button" id="rdStop"></button>'; $('book').append(bar);
+  const R = KO ? { pause:'⏸ 일시정지', resume:'▶ 이어 읽기', stop:'⏹ 멈춤', none:'이 브라우저는 읽어 주기를 지원하지 않습니다', tip:'두 손가락으로 글을 터치하면 「듣기」 단추가 나옵니다', end:'끝까지 읽었습니다', go:'🔊 여기부터 듣기', voice:'목소리', speed:'속도', one:'이 폰에는 이 언어 목소리가 하나뿐입니다.', more:'목소리 추가: 아이폰 설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성 → 한국어에서 내려받으면 여기에 나옵니다.', sp:['느리게','보통','빠르게','더 빠르게'], mute:'목소리가 나오지 않습니다 — 폰의 미디어 음량과 음성 읽기(TTS) 설정을 확인하세요', err:'읽어 주기 오류: ' }
+               : { pause:'⏸ Pause', resume:'▶ Resume', stop:'⏹ Stop', none:'This browser cannot read aloud', tip:'Touch the text with two fingers for the Listen button', end:'Finished reading', go:'🔊 Listen from here', voice:'Voice', speed:'Speed', one:'This phone has only one voice for this language.', more:'More voices: download them in the phone settings (Accessibility → Spoken Content → Voices) and they appear here.', sp:['Slow','Normal','Fast','Faster'], mute:'No voice came out — check the media volume and the text-to-speech settings', err:'Read-aloud error: ' };
+  const bar = document.createElement('div'); bar.className = 'rdbar'; bar.innerHTML = '<button type="button" id="rdPause"></button><button type="button" id="rdStop"></button><button type="button" id="rdVoice">🗣</button>'; $('book').append(bar);
   const tip = document.createElement('div'); tip.className = 'rdtip'; document.body.append(tip); let tipT;
   const say = (t, ms) => { tip.textContent = t; tip.classList.add('on'); clearTimeout(tipT); tipT = setTimeout(() => tip.classList.remove('on'), ms || 1800); };
   const SEL = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dd, dt';
@@ -928,7 +946,8 @@ $('book').addEventListener('wheel', e => {
     mark(blk.el);
     if (!pf && !leaf) { const pg = Math.floor(colAt(blk.el) / perView()); if (pg !== page && pg >= 0 && pg < pages) go(pg); }   // follow the reading to the next page
     const u = new SpeechSynthesisUtterance(me.parts[me.k]), seq = ++me.seq;
-    u.lang = /[가-힣]/.test(blk.text) ? 'ko-KR' : (navigator.language || 'en-US'); u.rate = 1;
+    u.lang = /[가-힣]/.test(blk.text) ? 'ko-KR' : (navigator.language || 'en-US'); u.rate = parseFloat(LSget('pt_book_rate', '1')) || 1;
+    const v = pickVoice(u.lang); if (v) try { u.voice = v; } catch (e) {}
     const next = () => { if (rd !== me || me.seq !== seq || me.paused) return; me.k++; speak(); };
     u.onstart = () => { me.heard = true; clearTimeout(me.wd); };
     u.onend = () => { me.heard = true; clearTimeout(me.wd); next(); };
@@ -937,6 +956,21 @@ $('book').addEventListener('wheel', e => {
     me.u = u;   // keep a reference: some browsers drop the end event when the utterance is garbage-collected
     try { SS.speak(u); } catch (e) { stop(); }
   }
+  // voices the phone offers for a language; the chosen one is remembered per language
+  const voicesFor = lang => { let all = []; try { all = SS.getVoices() || []; } catch (e) {} const p = lang.slice(0, 2).toLowerCase(); return all.filter(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(p)); };
+  const pickVoice = lang => { const want = LSget('pt_book_voice_' + lang.slice(0, 2), ''); return want ? voicesFor(lang).find(v => v.voiceURI === want) || null : null; };
+  const menu = document.createElement('div'); menu.className = 'rdmenu'; $('book').append(menu);
+  const again = () => { const me = rd; if (!me || me.paused) return; me.seq++; try { SS.cancel(); } catch (e) {} setTimeout(() => { if (rd === me && !me.paused) speak(); }, 120); };   // say the current sentence again with the new setting
+  function drawMenu() {
+    const blk = rd && rd.blocks[rd.b], lang = blk && /[가-힣]/.test(blk.text) ? 'ko-KR' : (navigator.language || 'en-US'), vs = voicesFor(lang), cur = LSget('pt_book_voice_' + lang.slice(0, 2), ''), rate = parseFloat(LSget('pt_book_rate', '1')) || 1;
+    menu.innerHTML = '<h5>' + R.speed + '</h5><div class="row">' + [0.8, 1, 1.25, 1.5].map((r, i) => '<button type="button" data-rate="' + r + '" class="' + (r === rate ? 'on' : '') + '">' + R.sp[i] + '</button>').join('') + '</div><h5>' + R.voice + '</h5>'
+      + vs.map((v, i) => '<button type="button" data-v="' + i + '" class="' + (cur ? v.voiceURI === cur ? 'on' : '' : v.default ? 'on' : '') + '">' + esc(v.name) + '</button>').join('') + '<p>' + (vs.length < 2 ? R.one + ' ' : '') + R.more + '</p>';
+    menu._vs = vs; menu._lang = lang;
+  }
+  menu.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.rate) LSset('pt_book_rate', b.dataset.rate); else LSset('pt_book_voice_' + menu._lang.slice(0, 2), menu._vs[+b.dataset.v].voiceURI);
+    drawMenu(); again(); });
+  if (SS && SS.addEventListener) SS.addEventListener('voiceschanged', () => { if (menu.classList.contains('on')) drawMenu(); });
   function start(el) {
     if (!SS || !window.SpeechSynthesisUtterance) return say(R.none, 2600);
     const bl = blocks(); if (!bl.length) return;
@@ -950,11 +984,12 @@ $('book').addEventListener('wheel', e => {
     if (busy) setTimeout(() => { if (rd === me) speak(); }, 120); else speak();   // first use: speak inside the tap itself, phones allow it only then
     if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
   }
-  function stop() { if (!rd) return; clearTimeout(rd.wd); rd = null; try { SS.cancel(); } catch (e) {} mark(null); ui(); }
+  function stop() { if (!rd) return; clearTimeout(rd.wd); rd = null; menu.classList.remove('on'); try { SS.cancel(); } catch (e) {} mark(null); ui(); }
   // pause = stop speaking and remember the sentence; resume starts that sentence again (the browsers' own pause is unreliable on phones)
   function pause() { if (!rd) return; rd.paused = !rd.paused; rd.seq++; if (rd.paused) { try { SS.cancel(); } catch (e) {} } else speak(); ui(); }
   window.readAloud = { start, stop, pause, get on() { return !!rd; }, get paused() { return !!(rd && rd.paused); } };
-  bar.addEventListener('click', e => { if (e.target.id === 'rdPause') pause(); else if (e.target.id === 'rdStop') stop(); });
+  bar.addEventListener('click', e => { if (e.target.id === 'rdPause') pause(); else if (e.target.id === 'rdStop') stop(); else if (e.target.id === 'rdVoice') { if (menu.classList.toggle('on')) drawMenu(); } });
+  vp.addEventListener('touchstart', () => menu.classList.remove('on'), { passive: true });
   addEventListener('pagehide', stop);
   // two fingers on the text (a short touch, not a pinch) → the "listen" button appears just below; tapping it starts reading from that paragraph
   const gob = document.createElement('button'); gob.type = 'button'; gob.className = 'rdgo'; gob.textContent = R.go; document.body.append(gob);
@@ -1090,11 +1125,19 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
 
 // ── live work window: the session's real terminal, view only (never sends a size, so it cannot shrink the real one)
+// text size of the live terminal: 100% shows the full width of the real terminal (small on a phone), up to 300%
+const TZ = [1, 1.5, 2, 2.5, 3];
+const termZoom = () => { const v = parseFloat(LSget('pt_book_tz', '1')) || 1; return TZ.includes(v) ? v : 1; };
+function tzUi() { const z = termZoom(), el = liveBox.querySelector('.tz'); el.querySelector('i').textContent = Math.round(z * 100) + '%'; el.children[0].disabled = z <= TZ[0]; el.children[2].disabled = z >= TZ[TZ.length - 1]; }
+liveBox.querySelector('.tz').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return;
+  const i = Math.max(0, Math.min(TZ.length - 1, TZ.indexOf(termZoom()) + +b.dataset.z)); LSset('pt_book_tz', String(TZ[i])); tzUi(); fitTerm(); });
+tzUi();
 function fitTerm() {
   if (!term) return;
   const box = liveBox.querySelector('.termbox'), tin = liveBox.querySelector('.tin'), scr = tin.querySelector('.xterm-screen');
   if (!scr || !box.clientWidth || !scr.offsetWidth) return;
-  const k = Math.min(1, box.clientWidth / scr.offsetWidth);
+  const z = termZoom(), k = Math.min(1, box.clientWidth / scr.offsetWidth) * z;   // z = 1 fits the whole width; larger steps scroll sideways
+  box.classList.toggle('zoom', z > 1);
   // show the part being written: hide the empty rows below the cursor instead of the output above it
   const cellH = scr.offsetHeight / term.rows, below = Math.max(0, term.rows - term.buffer.active.cursorY - 2);
   const hidden = Math.min(below * cellH * k, Math.max(0, scr.offsetHeight * k - box.clientHeight));
