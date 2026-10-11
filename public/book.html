@@ -557,7 +557,7 @@ function snapOf(p) {   // a lifeless copy of the page area showing page p
   return snap;
 }
 // a fast swipe turns several pages: the sheets go one after another, a little apart (at most 8 are drawn), with the matching "frrrt" sound
-const flingPages = v => { const a = Math.abs(v); return a >= 3.4 ? 20 : a >= 2.4 ? 8 : a >= 1.5 ? 3 : 1; };
+const flingPages = v => { const a = Math.abs(v); return a >= 5 ? 20 : a >= 3.8 ? 8 : a >= 2.8 ? 3 : 1; };   // an ordinary flick (1–2.5 px/ms) is one page
 function riffle(to) {
   const from = page, fwd = to > from, nodes = flow.getElementsByTagName('*').length;
   const k = Math.min(Math.abs(to - from), 8, Math.max(1, Math.floor(24000 / Math.max(1, nodes))));
@@ -885,7 +885,7 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
     const dr = drag; drag = null;
     const c = e.changedTouches[0], dx = c.clientX - tx, dy = c.clientY - ty;
     if (dr) { const dt = Date.now() - dr.vt, v = dt > 120 ? (dx - dr.vx) / dt : dr.v || (dx - dr.vx) / Math.max(1, dt), fast = dx * -dr.d > 30 && v * -dr.d > 0.35; /* a flick in the turning direction */
-      const n = e.type === 'touchend' && fast ? flingPages(v) : 1, far = Math.max(0, Math.min(pages - 1, dr.from + dr.d * n));
+      const n = e.type === 'touchend' && fast && dr.p > 0.45 ? flingPages(v) : 1,   /* several pages need a long, very fast swipe */ far = Math.max(0, Math.min(pages - 1, dr.from + dr.d * n));
       if (n > 1 && Math.abs(far - dr.from) > 1) {   // a very fast swipe: several pages at once
         killLeaf(); flow.style.transition = 'none'; page = dr.from; layout(true); void flow.offsetWidth; flow.style.transition = '';
         if (!riffle(far)) go(far);
