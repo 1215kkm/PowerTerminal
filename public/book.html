@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>PowerTerminal — Book</title>
 <link rel="icon" href="/icon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
@@ -47,7 +47,7 @@
   /* pages: the text flows through CSS columns; turning a page slides the flow sideways */
   .vp { position:absolute; inset:0; background:var(--paper); border-radius:6px; overflow:hidden; padding:var(--pady) var(--padx) calc(var(--pady) + 12px); }
   .clip { width:100%; height:100%; overflow:hidden; }
-  .flow { height:100%; columns:2; column-gap:calc(var(--padx) * 2); column-fill:auto; color:var(--ink); font-family:var(--body); font-size:14.5px; line-height:1.75;
+  .flow { height:100%; columns:2; column-gap:calc(var(--padx) * 2); column-fill:auto; color:var(--ink); font-family:var(--body); font-size:15px; line-height:1.75;
           transition: transform .38s cubic-bezier(.3,.7,.2,1); will-change: transform; }
   .gutter { position:absolute; top:0; bottom:0; left:50%; width:60px; margin-left:-30px; pointer-events:none;
             background:linear-gradient(90deg, transparent, rgba(0,0,0,.10) 46%, rgba(0,0,0,.16) 50%, rgba(0,0,0,.10) 54%, transparent); }
@@ -101,7 +101,7 @@
   .book.flip .flipwrap { display:block; }
   .book.flip .vp, .book.flip .gutter { visibility:hidden; pointer-events:none; }
   .meas { position:absolute; left:0; top:0; width:0; height:0; overflow:hidden; visibility:hidden; pointer-events:none; }   /* zero box: measuring pages must not widen the document */
-  .pg { background:var(--paper); color:var(--ink); font-family:var(--body); font-size:14.5px; line-height:1.75; padding:var(--pady) var(--padx) calc(var(--pady) + 12px); overflow:hidden; box-sizing:border-box; }
+  .pg { background:var(--paper); color:var(--ink); font-family:var(--body); font-size:15px; line-height:1.75; padding:var(--pady) var(--padx) calc(var(--pady) + 12px); overflow:hidden; box-sizing:border-box; }
   .pg .pgin { height:100%; overflow:hidden; }
   .pg .pgin > .tall { overflow:auto; }
   .pg.--left { border-radius:6px 0 0 6px; box-shadow: inset -22px 0 26px -20px rgba(0,0,0,.30), inset 0 0 0 1px rgba(0,0,0,.05); }
@@ -127,7 +127,7 @@
   }
 
   /* ── 크라모북 화면 구성 (book.css 의 책장·넘김 단추·진행 막대·오른쪽 도구 줄을 본떴다) ── */
-  :root { --fs: 14.5px; --side: 208px; }
+  :root { --fs: 15px; --side: 208px; }
   .flow, .pg { font-size: var(--fs); }
   .stage { position: relative; }
   .desk { flex:1 1 auto; min-height:0; display:flex; align-items:stretch; justify-content:center; gap:22px; padding:52px 14px 34px; position:relative; }
@@ -278,6 +278,19 @@
   .fullhint { position: fixed; left: 50%; bottom: calc(46px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; padding: 7px 14px; border-radius: 16px;
               background: rgba(20,22,28,.86); color: #fff; font: 12.5px var(--ui); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .25s; }
   .fullhint.on { opacity: 1; }
+
+  /* two-state switches in the tool column: both states side by side, the active one is coloured */
+  .sw { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border-radius: 7px; border: 1px solid #3a3d46; background: #2a2d34; color: var(--bar-text); font: 13px var(--ui); white-space: nowrap; }
+  .sw > span { flex: 1 1 auto; }
+  .sw button { flex: 0 0 auto; min-width: 38px; padding: 6px 9px; border-radius: 5px; border: 0; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
+  .sw button.on { background: var(--accent); color: #fff; font-weight: 700; }
+  @media (max-width: 820px) { .sw { flex: 0 0 auto; font-size: 12px; padding: 2px 3px 2px 9px; } .sw > span { flex: 0 0 auto; margin-right: 4px; } .sw button { padding: 4px 8px; min-width: 32px; } }
+  /* phone: the page turns like a sheet of paper (a copy of the page swings on its left edge) */
+  .leaf { transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 0 18px rgba(0,0,0,.3); will-change: transform; }
+  .leafsnap { pointer-events: none; }
+
+  /* phone: typing a request must not zoom the page (the viewport is locked to 1x; the box itself uses 15px) */
+  @media (max-width: 820px) { .ask textarea, .pager input { font-size: 15px; } html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } }
 </style>
 </head>
 <body>
@@ -314,7 +327,8 @@
     <button class="sbtn" id="toEnd"></button>
     <button class="sbtn" id="fsDn"></button>
     <button class="sbtn" id="fsUp"></button>
-    <button class="sbtn" id="flipTg"></button>
+    <div class="sw" id="flipTg"><span></span><button type="button" data-v="1"></button><button type="button" data-v="0"></button></div>
+    <div class="sw" id="sndTg"><span></span><button type="button" data-v="1"></button><button type="button" data-v="0"></button></div>
     <button class="sbtn" id="thmBtn"></button>
     <div class="themes" id="themes"></div>
     <button class="sbtn" id="exp"></button>
@@ -395,6 +409,7 @@ const openWork = new Set();                       // turns whose work log is unf
 const LSget = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
 const LSset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
+const soundOn = () => LSget('pt_book_snd', '1') !== '0';   // page-turn sound
 const flipAnim = () => LSget('pt_book_flip', '1') !== '0';   // off = pages change at once, same two-page layout
 const RATIO = 1.42;                                           // open book, width : height (the Cramobook spread)
 let backTo = -1;
@@ -507,9 +522,34 @@ function layout(keep) {
 const colOf = el => { const m = metrics(); return Math.round(el.offsetLeft / (m.colW + m.gap)); };
 function go(p, instant) {
   if (pf) { const n = pf.getPageCount(), k = Math.max(0, Math.min(n - 2, p * 2)); if (instant || !flipAnim()) pf.turnToPage(k); else { sheets = Math.min(6, Math.max(1, Math.abs(k - pf.getCurrentPageIndex()) / 2)); pf.flip(k); } return flipUi(); }
+  killLeaf();
+  const to = Math.max(0, Math.min(pages - 1, p)), from = page;
+  if (!instant && to !== from) {
+    if (Math.abs(to - from) === 1 && leafTurn(to)) return;
+    flipSound(Math.min(4, Math.abs(to - from)), 0.06);
+  }
   if (instant) flow.style.transition = 'none';
-  page = Math.max(0, Math.min(pages - 1, p)); layout(true);
+  page = to; layout(true);
   if (instant) { void flow.offsetWidth; flow.style.transition = ''; }
+}
+// phone (one page at a time): a copy of the page being left swings away on its left edge and the next page is underneath;
+// going back, the previous page swings in over a copy of the current one. Skipped when the effect is off or the book is very long.
+let leaf = null;
+function killLeaf() { if (!leaf) return; const l = leaf; leaf = null; try { l.an.cancel(); } catch (e) {} l.snap.remove(); vp.classList.remove('leaf'); }
+function leafTurn(to) {
+  if (perView() !== 1 || !flipAnim() || !vp.animate || matchMedia('(prefers-reduced-motion: reduce)').matches || flow.getElementsByTagName('*').length > 9000) return false;
+  const fwd = to > page, snap = vp.cloneNode(true);
+  snap.removeAttribute('id'); snap.querySelectorAll('[id]').forEach(x => x.removeAttribute('id')); snap.classList.add('leafsnap'); snap.setAttribute('aria-hidden', 'true');
+  flow.style.transition = 'none'; page = to; layout(true); void flow.offsetWidth; flow.style.transition = '';
+  const mov = fwd ? snap : vp; mov.classList.add('leaf');
+  fwd ? vp.after(snap) : vp.before(snap);
+  const A = { transform: 'perspective(1400px) rotateY(0deg)', filter: 'brightness(1)' }, B = { transform: 'perspective(1400px) rotateY(-104deg)', filter: 'brightness(.72)' };
+  const an = mov.animate(fwd ? [A, B] : [B, A], { duration: 300, easing: fwd ? 'ease-in' : 'ease-out' });
+  const me = leaf = { snap, an };
+  an.onfinish = () => { if (leaf === me) killLeaf(); };
+  setTimeout(() => { if (leaf === me) killLeaf(); }, 700);   // a hidden tab stops animating: finish anyway
+  flipSound(1, 0.06);
+  return true;
 }
 function marks() {
   const days = []; let curDay = '';
@@ -554,6 +594,7 @@ function unlockAudio() {
 }
 for (const ev of ['pointerdown', 'keydown', 'touchend']) addEventListener(ev, unlockAudio, { capture: true, passive: true });
 function flipSound(k, gap) {
+  if (!soundOn()) return;
   try {
     if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state !== 'running') actx.resume().catch(() => {});
@@ -742,6 +783,7 @@ $('book').addEventListener('wheel', e => {
     return null; };
   const colAt = el => { const m = metrics(); return Math.round((el.getBoundingClientRect().left - flow.getBoundingClientRect().left) / (m.colW + m.gap)); };
   window.toggleFull = on => {
+    killLeaf();
     on = on === undefined ? !document.body.classList.contains('full') : on;
     if (on === document.body.classList.contains('full')) return;
     const w = where(), was = page;
@@ -769,21 +811,25 @@ let tx = 0, ty = 0;
 vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
 vp.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(page + (dx < 0 ? 1 : -1)); }, { passive: true });
 { // 오른쪽 도구 줄: 맨 끝으로 · 글자 작게/크게 · 넘김 효과 · (원고 내보내기·터미널 화면은 기존 단추)
-  const L = KO ? { end:'⏭ 맨 끝(최근)으로', dn:'가－ 글자 작게', up:'가＋ 글자 크게', flipOn:'📄 넘김 효과: 켜짐', flipOff:'📄 넘김 효과: 꺼짐', side:'책 모드',
+  const L = KO ? { end:'⏭ 맨 끝(최근)으로', dn:'가－ 글자 작게', up:'가＋ 글자 크게', flip:'📄 넘김 효과', snd:'🔊 넘김 소리', on:'켬', off:'끔', side:'책 모드',
                    note:'← → 키 · 휠 · 양옆 단추, 또는 공책 가장자리를 누르거나 끌어서 넘깁니다. 아래 칸에 쓰면 이 세션에 요청이 갑니다.' }
-               : { end:'⏭ Go to the end', dn:'A－ Smaller text', up:'A＋ Larger text', flipOn:'📄 Page flip: on', flipOff:'📄 Page flip: off', side:'Book mode',
+               : { end:'⏭ Go to the end', dn:'A－ Smaller text', up:'A＋ Larger text', flip:'📄 Page flip', snd:'🔊 Turn sound', on:'On', off:'Off', side:'Book mode',
                    note:'Turn pages with ← →, the wheel, the side buttons, or by clicking / dragging the page edge. Type below to ask this session.' };
-  const FS = [12.5, 13.5, 14.5, 16, 17.5, 19];
+  const FS = [12.5, 13.5, 15, 16, 17.5, 19];
   const setFs = v => { document.documentElement.style.setProperty('--fs', v + 'px'); LSset('pt_book_fs', String(v)); if (!pf) layout(true); };
-  const curFs = () => parseFloat(LSget('pt_book_fs', '14.5')) || 14.5;
+  const curFs = () => { const v = parseFloat(LSget('pt_book_fs', '15')) || 15; return v === 14.5 ? 15 : v; };   // 14.5 was the old default
   document.documentElement.style.setProperty('--fs', curFs() + 'px');
   $('sideTtl').textContent = L.side; $('sideNote').textContent = L.note; $('toEnd').textContent = L.end; $('fsDn').textContent = L.dn; $('fsUp').textContent = L.up;
-  const flipLabel = () => { $('flipTg').textContent = LSget('pt_book_flip', '1') !== '0' ? L.flipOn : L.flipOff; };
-  flipLabel();
+  const sw = (id, key, label, after) => {   // two cells side by side; the one in use is coloured
+    const el = $(id), bs = [...el.querySelectorAll('button')], show = () => bs.forEach(b => b.classList.toggle('on', b.dataset.v === (LSget(key, '1') !== '0' ? '1' : '0')));
+    el.firstElementChild.textContent = label; bs.forEach(b => { b.textContent = b.dataset.v === '1' ? L.on : L.off; b.onclick = () => { LSset(key, b.dataset.v); show(); if (after) after(b.dataset.v === '1'); }; });
+    show();
+  };
+  sw('flipTg', 'pt_book_flip', L.flip);
+  sw('sndTg', 'pt_book_snd', L.snd, on => { if (on) flipSound(1, 0.06); });   // turning it on plays the sound once
   $('toEnd').onclick = () => go(pages - 1);
   $('fsDn').onclick = () => { const i = FS.findIndex(x => x >= curFs()); setFs(FS[Math.max(0, (i < 0 ? FS.length - 1 : i) - 1)]); };
   $('fsUp').onclick = () => { const i = FS.findIndex(x => x > curFs()); setFs(FS[i < 0 ? FS.length - 1 : i]); };
-  $('flipTg').onclick = () => { LSset('pt_book_flip', flipAnim() ? '0' : '1'); flipLabel(); };
 }
 { // 🎨 노트 스타일 — 크라모북의 책 스타일(THEMES)을 가져왔다. 고른 것은 이 브라우저에 기억한다.
   const SERIF = "'Noto Serif KR', serif", SANS = "'Noto Sans KR', sans-serif";
