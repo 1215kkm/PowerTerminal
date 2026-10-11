@@ -335,6 +335,16 @@
   .wh .tz button:disabled { opacity: .3; cursor: default; }
   .wh .tz i { font-style: normal; min-width: 34px; text-align: center; font-size: 11px; color: #5c5648; }
   .termbox.zoom { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+
+  /* dark mode: the boxes that had fixed light colours */
+  :root.dark .wh { background: #1f222a; color: #a9adba; } :root.dark .wh b { color: var(--ink); } :root.dark .wh button { color: #8ab4ff; }
+  :root.dark .wh .tz button { background: rgba(255,255,255,.1); color: var(--ink); } :root.dark .wh .tz i { color: #a9adba; }
+  :root.dark .steps { background: #14161b; color: #b9bcc8; border-top-color: #2a2d36; } :root.dark .steps .f { color: #8ab4ff; } :root.dark .steps .n { color: #a9adba; }
+  :root.dark .work { border-color: #2a2d36; }
+  :root.dark .pg.wk { background: #0b0c0f; }
+  :root.dark .q { background: #17191f; } :root.dark .att { background: #23262f; color: var(--ink); }
+  :root.dark .pg, :root.dark .vp { box-shadow: inset 0 0 0 1px #2a2d36; }
+  :root.dark .gutter { opacity: .5; }
 </style>
 </head>
 <body>
@@ -369,6 +379,7 @@
   <aside class="side" id="side">
     <div class="side-h"><span style="font-size:20px">📖</span><b id="sideTtl">Book</b></div>
     <a class="sbtn primary" id="back" href="/"></a>
+    <div class="sw" id="darkTg"><span></span><button type="button" data-v="0"></button><button type="button" data-v="1"></button></div>
     <button class="sbtn" id="toEnd"></button>
     <button class="sbtn" id="fsDn"></button>
     <button class="sbtn" id="fsUp"></button>
@@ -1108,18 +1119,25 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
   ];
   const box = $('themes'), root = document.documentElement;
   const apply = id => {
-    const t = THEMES.find(x => x.id === id) || THEMES[0], st = root.style, set = (k, v) => { if (v) st.setProperty(k, v); else st.removeProperty(k); };
+    const t0 = THEMES.find(x => x.id === id) || THEMES[0], st = root.style, set = (k, v) => { if (v) st.setProperty(k, v); else st.removeProperty(k); };
+    // dark mode keeps the chosen style's fonts and spacing and swaps the colours: black paper on the charcoal desk, light ink
+    const dark = LSget('pt_book_dark', '0') === '1', t = dark ? Object.assign({}, t0, { paper: '#000000', ink: '#e4e5ea', head: '#9db8ff', card: '#17191f', link: '#8ab4ff' }) : t0;
+    root.classList.toggle('dark', dark);
     set('--paper', t.paper); set('--ink', t.ink); set('--head', t.head); set('--body', t.body); set('--headf', t.headFont); set('--card', t.card); set('--link', t.link);
     set('--lh', String(t.line)); set('--fsk', String(t.size / 15)); set('--qc', t.id === 't-basic' ? '' : t.head);
     if (t.look) root.dataset.look = t.look; else delete root.dataset.look;
     LSset('pt_book_theme', t.id);
     box.querySelectorAll('.thm').forEach(b => b.classList.toggle('on', b.dataset.id === t.id));
+    $('darkTg').querySelectorAll('button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === dark));
     if (!pf) layout(true);
   };
   box.innerHTML = THEMES.map(t => '<button type="button" class="thm" data-id="' + t.id + '" style="background:' + t.paper + ';color:' + t.ink + ';font-family:' + t.body.replace(/"/g, '') + '"><i style="background:' + t.head + '"></i><span>' + esc(KO ? t.ko : t.en) + '</span></button>').join('');
   box.onclick = e => { const b = e.target.closest('.thm'); if (b) apply(b.dataset.id); };
   $('thmBtn').textContent = KO ? '🎨 노트 스타일' : '🎨 Note style';
   $('thmBtn').onclick = () => box.classList.toggle('on');
+  { const d = $('darkTg'), b = d.querySelectorAll('button'); d.firstElementChild.textContent = KO ? '🌗 화면' : '🌗 Paper'; b[0].textContent = KO ? '밝게' : 'Light'; b[1].textContent = KO ? '어둡게' : 'Dark';
+    d.onclick = e => { const x = e.target.closest('button'); if (!x) return; LSset('pt_book_dark', x.dataset.v); apply(LSget('pt_book_theme', 't-basic')); }; }
+  addEventListener('storage', e => { if (e.key === 'pt_book_dark' || e.key === 'pt_book_theme') apply(LSget('pt_book_theme', 't-basic')); });   // other book windows follow
   apply(LSget('pt_book_theme', 't-basic'));
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
