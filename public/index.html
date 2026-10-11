@@ -6780,6 +6780,10 @@ function buildPane(sess, idx) {
     let want = false, quick = 0, startedAt = 0, heard = false, lastErr = '';
     const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const stopRec = () => { want = false; try { rec && rec.stop(); } catch (e) {} };
+    // 끝났을 때: PC 는 바로 고칠 수 있게 입력칸에 커서를 둔다. 폰은 커서를 옮기지 않는다 — 자판이 튀어나오고 입력줄이 옮겨지면서 화면이 움직인다.
+    const micDone = () => { if (!isMobileNow()) qInput.focus(); };
+    // 🎤 를 눌러도 입력칸의 커서(초점)가 빠지지 않게 — 쓰던 중에 누르면 자판·입력줄 위치가 그대로다
+    micBtn.addEventListener('mousedown', e => e.preventDefault());
     const listen = () => {
       try { rec = new SR(); } catch (e) { flashToast(T.micNo || '이 브라우저는 음성 입력을 지원하지 않아요'); rec = null; want = false; micBtn.classList.remove('rec'); return; }
       rec.lang = (T.locale || 'en-US');
@@ -6796,7 +6800,11 @@ function buildPane(sess, idx) {
         }
         heard = true; quick = 0;
         qInput.value = baseText + done + live;   // 말하는 대로 실시간 반영
-        autoGrow();
+        // 높이를 'auto' 로 줄였다 다시 늘리면(autoGrow) 그 순간 화면이 짧아져 스크롤이 튄다 — 말하는 동안은 늘리기만 한다
+        const sy = window.scrollY, h = Math.min(qInput.scrollHeight, window.innerHeight * 0.34);
+        if (h > qInput.offsetHeight + 1) qInput.style.height = h + 'px';
+        qInput.scrollTop = qInput.scrollHeight;   // 방금 말한 끝부분이 보이게 (칸 안에서만 움직인다)
+        if (window.scrollY !== sy) window.scrollTo(window.scrollX, sy);
         try { localStorage.setItem(draftKey, qInput.value); } catch (e2) {}
       };
       rec.onerror = e => {
@@ -6811,10 +6819,10 @@ function buildPane(sess, idx) {
           // 계속 다시 켜면 켤 때마다 폰이 마이크를 새로 잡느라 화면이 버벅인다.
           if (heard) quick = 0; else quick++;
           if (quick < 2) { setTimeout(() => { if (want && !rec) listen(); }, 400); return; }   // 다시 잇는다 (단추는 켜진 채)
-          if (Date.now() - startedAt >= 1500) { want = false; micBtn.classList.remove('rec'); qInput.focus(); return; }   // 한동안 조용해서 끝난 것 — 조용히 끈다
+          if (Date.now() - startedAt >= 1500) { want = false; micBtn.classList.remove('rec'); micDone(); return; }   // 한동안 조용해서 끝난 것 — 조용히 끈다
           want = false; flashToast((T.micDrop || '음성 입력이 바로 끊깁니다') + (lastErr ? ' (' + lastErr + ')' : '') + ' — ' + (T.micDropHow || '아이폰은 설정 → 일반 → 키보드 → 받아쓰기 활성화가 켜져 있어야 하고, 홈 화면에 추가한 앱이 아닌 사파리에서 열어야 합니다'));
         }
-        micBtn.classList.remove('rec'); qInput.focus();
+        micBtn.classList.remove('rec'); micDone();
       };
       try { rec.start(); } catch (e) { rec = null; want = false; micBtn.classList.remove('rec'); }
     };
