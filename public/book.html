@@ -872,6 +872,10 @@ $('book').addEventListener('wheel', e => {
     if (innerWidth > 820 || e.touches.length || e.target.closest('a, button, textarea, input')) return;
     const c = e.changedTouches[0], now = Date.now();
     if (now - t0 > 300 || Math.hypot(c.clientX - x0, c.clientY - y0) > 10) { lastT = 0; return; }   // 누르고 있었거나 민 것은 탭이 아니다
+    { // a tap on the far left / right edge of the page turns it (one page per tap)
+      const r = vp.getBoundingClientRect(), ew = Math.max(36, r.width * 0.12), d = c.clientX < r.left + ew ? -1 : c.clientX > r.right - ew ? 1 : 0;
+      if (d) { lastT = 0; e.preventDefault(); go(page + d); return; }
+    }
     if (now - lastT < 380 && Math.hypot(c.clientX - lastX, c.clientY - lastY) < 40) { lastT = 0; e.preventDefault(); toggleFull(); }
     else { lastT = now; lastX = c.clientX; lastY = c.clientY; }
   });
