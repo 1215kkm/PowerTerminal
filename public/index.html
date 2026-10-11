@@ -6728,18 +6728,17 @@ function buildPane(sess, idx) {
   if (micBtn && SR) {
     micBtn.style.display = '';
     let rec = null, baseText = '';
-    const stopRec = () => { try { rec && rec.stop(); } catch (e) {} };
-    micBtn.onclick = ev => {
-      ev.stopPropagation();
-      if (rec) { stopRec(); return; }
-      // ⚠ 마이크는 보안 컨텍스트에서만 열린다. 폰에서 같은 와이파이 주소(http://192.168.x.x)로 들어오면
-      //   브라우저가 막으므로, 왜 안 되는지와 어디로 들어와야 하는지를 알려준다.
-      if (!window.isSecureContext) { flashToast(T.micInsecure || '마이크는 보안 연결에서만 됩니다 — 외부 접속(QR) 주소로 들어오세요'); return; }
-      try { rec = new SR(); } catch (e) { flashToast(T.micNo || '이 브라우저는 음성 입력을 지원하지 않아요'); rec = null; return; }
+    // 켜 둔 동안(want)에는 브라우저가 인식을 끊어도 다시 잇는다. 아이폰 사파리는 한 문장만 듣고(또는 잠깐 조용하면) 스스로 끝내서
+    // 마이크가 "켜졌다가 바로 꺼지는" 것처럼 보였다. 시작하자마자 계속 끊기면(3번) 이유를 알려 주고 멈춘다.
+    let want = false, quick = 0, startedAt = 0, heard = false, lastErr = '';
+    const stopRec = () => { want = false; try { rec && rec.stop(); } catch (e) {} };
+    const listen = () => {
+      try { rec = new SR(); } catch (e) { flashToast(T.micNo || '이 브라우저는 음성 입력을 지원하지 않아요'); rec = null; want = false; micBtn.classList.remove('rec'); return; }
       rec.lang = (T.locale || 'en-US');
       rec.interimResults = true;
       rec.continuous = true;
       baseText = qInput.value ? qInput.value.replace(/\s*$/, ' ') : '';
+      startedAt = Date.now(); heard = false; lastErr = '';
       rec.onstart = () => { micBtn.classList.add('rec'); };
       rec.onresult = e => {
         let done = '', live = '';
@@ -6747,17 +6746,38 @@ function buildPane(sess, idx) {
           const t = e.results[i][0].transcript;
           if (e.results[i].isFinal) done += t; else live += t;
         }
+        heard = true; quick = 0;
         qInput.value = baseText + done + live;   // 말하는 대로 실시간 반영
         autoGrow();
         try { localStorage.setItem(draftKey, qInput.value); } catch (e2) {}
       };
       rec.onerror = e => {
-        const c = (e && e.error) || '';
-        if (c === 'not-allowed' || c === 'service-not-allowed') flashToast(T.micDenied || '마이크 권한이 막혀 있어요 — 브라우저 설정에서 허용해 주세요');
+        const c = (e && e.error) || ''; lastErr = c;
+        if (c === 'not-allowed' || c === 'service-not-allowed') { want = false; flashToast(T.micDenied || '마이크 권한이 막혀 있어요 — 브라우저 설정에서 허용해 주세요'); }
         else if (c !== 'aborted' && c !== 'no-speech') flashToast((T.micErr || '음성 입력 오류') + ' (' + c + ')');
       };
-      rec.onend = () => { micBtn.classList.remove('rec'); rec = null; qInput.focus(); };
-      try { rec.start(); } catch (e) { rec = null; micBtn.classList.remove('rec'); }
+      rec.onend = () => {
+        rec = null;
+        if (want) {
+          if (!heard && Date.now() - startedAt < 1500) quick++; else quick = 0;
+          if (quick < 3) { setTimeout(() => { if (want && !rec) listen(); }, 250); return; }   // 다시 잇는다 (단추는 켜진 채)
+          want = false; flashToast((T.micDrop || '음성 입력이 바로 끊깁니다') + (lastErr ? ' (' + lastErr + ')' : '') + ' — ' + (T.micDropHow || '아이폰은 설정 → 일반 → 키보드 → 받아쓰기 활성화가 켜져 있어야 하고, 홈 화면에 추가한 앱이 아닌 사파리에서 열어야 합니다'));
+        }
+        micBtn.classList.remove('rec'); qInput.focus();
+      };
+      try { rec.start(); } catch (e) { rec = null; want = false; micBtn.classList.remove('rec'); }
+    };
+    micBtn.onclick = ev => {
+      ev.stopPropagation();
+      if (want || rec) { stopRec(); return; }
+      // ⚠ 마이크는 보안 컨텍스트에서만 열린다. 폰에서 같은 와이파이 주소(http://192.168.x.x)로 들어오면
+      //   브라우저가 막으므로, 왜 안 되는지와 어디로 들어와야 하는지를 알려준다.
+      if (!window.isSecureContext) { flashToast(T.micInsecure || '마이크는 보안 연결에서만 됩니다 — 외부 접속(QR) 주소로 들어오세요'); return; }
+      // 소리 장치(완료 알림음 등)가 켜져 있으면 아이폰에서 음성 인식이 바로 끊기는 일이 있어 잠깐 재운다 (다음 알림음 때 스스로 다시 켜진다)
+      try { if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'running') audioCtx.suspend(); } catch (e) {}
+      try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+      want = true; quick = 0; micBtn.classList.add('rec');
+      listen();
     };
     el.addEventListener('ptclose', stopRec);
   }
