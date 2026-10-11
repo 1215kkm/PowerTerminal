@@ -288,16 +288,18 @@
   /* phone: the page turns like a sheet of paper (a copy of the page swings on its left edge) */
   .leaf { transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 0 18px rgba(0,0,0,.3); will-change: transform; }
   .leafsnap { pointer-events: none; }
+  .rifl { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 
   /* phone: typing a request must not zoom the page (the viewport is locked to 1x; the box itself uses 15px) */
   @media (max-width: 820px) { .ask textarea, .pager input { font-size: 15px; } html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } }
 
   /* phone: turn-sound switch in the empty bottom-left corner of the page (the tool row keeps the page-flip switch only) */
   .psnd { display: none; }
+  #sndTg.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
   @media (max-width: 820px) {
-    .psnd { display: flex; position: absolute; left: 8px; bottom: 3px; z-index: 4; gap: 2px; padding: 2px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
-    .psnd button { width: 34px; height: 24px; border: 0; border-radius: 12px; background: transparent; font-size: 13px; line-height: 1; padding: 0; opacity: .45; cursor: pointer; }
-    .psnd button.on { background: var(--accent); opacity: 1; }
+    .psnd { display: block; position: absolute; left: 8px; bottom: 3px; z-index: 4; width: 40px; height: 26px; border: 0; border-radius: 13px; padding: 0; font-size: 14px; line-height: 1; cursor: pointer;
+            background: color-mix(in srgb, var(--ink) 10%, transparent); }
+    .psnd.on { background: var(--accent); }
     body.full .psnd { bottom: calc(3px + env(safe-area-inset-bottom)); z-index: 61; position: fixed; }
     #sndTg { display: none; }
   }
@@ -319,7 +321,7 @@
         <div class="flipwrap" id="flipwrap"></div>
         <div class="edge l" id="edgeL"></div><div class="edge r" id="edgeR"></div>
         <div class="meas" id="meas"></div>
-        <div class="psnd" id="psnd"><button type="button" data-v="1" aria-label="sound on">🔊</button><button type="button" data-v="0" aria-label="sound off">🔇</button></div>
+        <button type="button" class="psnd" id="psnd"></button>
         <span class="pno l" id="pnl"></span><span class="pno r" id="pnr"></span>
         <div class="load" id="load"><span id="loadtxt"></span><div class="loadtrack"><div class="loadbar" id="loadbar"></div></div></div>
         <div class="prog" id="prog"><div class="progbar" id="progbar"></div></div>
@@ -339,7 +341,7 @@
     <button class="sbtn" id="fsDn"></button>
     <button class="sbtn" id="fsUp"></button>
     <div class="sw" id="flipTg"><span></span><button type="button" data-v="1"></button><button type="button" data-v="0"></button></div>
-    <div class="sw" id="sndTg"><span></span><button type="button" data-v="1"></button><button type="button" data-v="0"></button></div>
+    <button class="sbtn" id="sndTg"></button>
     <button class="sbtn" id="thmBtn"></button>
     <div class="themes" id="themes"></div>
     <button class="sbtn" id="exp"></button>
@@ -547,10 +549,37 @@ function go(p, instant) {
 // going back, the previous page swings in over a copy of the current one. Skipped when the effect is off or the book is very long.
 let leaf = null;
 function killLeaf() { if (!leaf) return; const l = leaf; leaf = null; try { l.an.cancel(); } catch (e) {} l.snap.remove(); vp.classList.remove('leaf'); }
-function leafTurn(to, drag) {
-  if (perView() !== 1 || !flipAnim() || !vp.animate || matchMedia('(prefers-reduced-motion: reduce)').matches || flow.getElementsByTagName('*').length > 9000) return false;
-  const fwd = to > page, snap = vp.cloneNode(true);
+const leafOk = () => perView() === 1 && flipAnim() && !!vp.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+function snapOf(p) {   // a lifeless copy of the page area showing page p
+  const snap = vp.cloneNode(true);
   snap.removeAttribute('id'); snap.querySelectorAll('[id]').forEach(x => x.removeAttribute('id')); snap.classList.add('leafsnap'); snap.setAttribute('aria-hidden', 'true');
+  const f = snap.querySelector('.flow'); f.style.transition = 'none'; f.style.transform = 'translateX(' + (-p * metrics().step) + 'px)';
+  return snap;
+}
+// a fast swipe turns several pages: the sheets go one after another, a little apart (at most 8 are drawn), with the matching "frrrt" sound
+const flingPages = v => { const a = Math.abs(v); return a >= 3.4 ? 20 : a >= 2.4 ? 8 : a >= 1.5 ? 3 : 1; };
+function riffle(to) {
+  const from = page, fwd = to > from, nodes = flow.getElementsByTagName('*').length;
+  const k = Math.min(Math.abs(to - from), 8, Math.max(1, Math.floor(24000 / Math.max(1, nodes))));
+  if (!leafOk() || k < 2) return false;
+  const layer = document.createElement('div'); layer.className = 'rifl';
+  const A = { transform: 'perspective(1400px) rotateY(0deg)', filter: 'brightness(1)' }, B = { transform: 'perspective(1400px) rotateY(-104deg)', filter: 'brightness(.72)' };
+  if (!fwd) layer.append(snapOf(from));   // going back: the page being left stays underneath until it is covered
+  for (let i = 0; i < k; i++) {
+    const sn = snapOf(from + Math.round((fwd ? i : i + 1) * (to - from) / k)); sn.classList.add('leaf'); sn.style.zIndex = fwd ? k - i : i + 1;
+    sn.animate(fwd ? [A, B] : [B, A], { duration: 300, delay: i * 60, fill: 'both', easing: fwd ? 'ease-in' : 'ease-out' });
+    layer.append(sn);
+  }
+  flow.style.transition = 'none'; page = to; layout(true); void flow.offsetWidth; flow.style.transition = '';
+  vp.after(layer);
+  const me = leaf = { snap: layer, an: { cancel() {} } };
+  setTimeout(() => { if (leaf === me) killLeaf(); }, (k - 1) * 60 + 320);
+  flipSound(k, 0.06);
+  return true;
+}
+function leafTurn(to, drag) {
+  if (!leafOk() || flow.getElementsByTagName('*').length > 9000) return false;
+  const fwd = to > page, snap = snapOf(page);
   flow.style.transition = 'none'; page = to; layout(true); void flow.offsetWidth; flow.style.transition = '';
   const mov = fwd ? snap : vp; mov.classList.add('leaf');
   fwd ? vp.after(snap) : vp.before(snap);
@@ -755,6 +784,7 @@ function flipUi() {
 }
 // 책 위의 쪽 번호와 책 아래 진행 막대 (크라모북과 같은 자리)
 function pagerUi(curNo, totalNo) {
+  savePosSoon();
   const two = pf ? true : perView() === 2, no = (a) => a ? '<b>' + a + '</b><small>/ ' + totalNo + '</small>' : '';
   $('nnl').innerHTML = no(curNo); $('nnr').innerHTML = no(two ? Math.min(totalNo, curNo + 1) : curNo);
   $('edgeL').classList.toggle('off', page <= 0); $('edgeR').classList.toggle('off', page >= pages - 1);
@@ -854,7 +884,14 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
   const end = e => {
     const dr = drag; drag = null;
     const c = e.changedTouches[0], dx = c.clientX - tx, dy = c.clientY - ty;
-    if (dr) { const dt = Date.now() - dr.vt, v = dt > 120 ? (dx - dr.vx) / dt : dr.v || (dx - dr.vx) / Math.max(1, dt), fast = dx * -dr.d > 30 && v * -dr.d > 0.35; /* a flick in the turning direction */ leafDrop(e.type === 'touchend' && (dr.p > 0.33 || fast), dr.from); return; }
+    if (dr) { const dt = Date.now() - dr.vt, v = dt > 120 ? (dx - dr.vx) / dt : dr.v || (dx - dr.vx) / Math.max(1, dt), fast = dx * -dr.d > 30 && v * -dr.d > 0.35; /* a flick in the turning direction */
+      const n = e.type === 'touchend' && fast ? flingPages(v) : 1, far = Math.max(0, Math.min(pages - 1, dr.from + dr.d * n));
+      if (n > 1 && Math.abs(far - dr.from) > 1) {   // a very fast swipe: several pages at once
+        killLeaf(); flow.style.transition = 'none'; page = dr.from; layout(true); void flow.offsetWidth; flow.style.transition = '';
+        if (!riffle(far)) go(far);
+        return;
+      }
+      leafDrop(e.type === 'touchend' && (dr.p > 0.33 || fast), dr.from); return; }
     if (dr === false && e.type === 'touchend' && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && !(e.target.closest('pre, table, .termbox') || {}).scrollLeft && !leaf) {
       const sc = e.target.closest('pre, table, .termbox'); if (!(sc && sc.scrollWidth > sc.clientWidth + 2)) go(page + (dx < 0 ? 1 : -1));
     }
@@ -880,8 +917,13 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
     shows.push(show); show();
   };
   sw('flipTg', 'pt_book_flip', L.flip);
-  sw('sndTg', 'pt_book_snd', L.snd, on => { if (on) flipSound(1, 0.06); });   // turning it on plays the sound once
-  sw('psnd', 'pt_book_snd', null, on => { if (on) flipSound(1, 0.06); });    // the same switch, on the page corner (phone)
+  { // turn sound: one button, press to switch. The icon and colour show the current state; turning it on plays the sound once
+    const name = L.snd.slice(L.snd.indexOf(' ') + 1), show = () => { const on = soundOn();
+      $('sndTg').textContent = (on ? '🔊 ' : '🔇 ') + name + ': ' + (on ? L.on : L.off); $('sndTg').classList.toggle('on', on);
+      $('psnd').textContent = on ? '🔊' : '🔇'; $('psnd').classList.toggle('on', on); $('psnd').title = name + ': ' + (on ? L.on : L.off); $('psnd').setAttribute('aria-pressed', on); };
+    for (const id of ['sndTg', 'psnd']) $(id).onclick = () => { LSset('pt_book_snd', soundOn() ? '0' : '1'); show(); if (soundOn()) flipSound(1, 0.06); };
+    show();
+  }
   $('toEnd').onclick = () => go(pages - 1);
   $('fsDn').onclick = () => { const i = FS.findIndex(x => x >= curFs()); setFs(FS[Math.max(0, (i < 0 ? FS.length - 1 : i) - 1)]); };
   $('fsUp').onclick = () => { const i = FS.findIndex(x => x > curFs()); setFs(FS[i < 0 ? FS.length - 1 : i]); };
@@ -996,6 +1038,32 @@ function loader(id) {
   })();
   return loadStop = () => { stop = true; clearTimeout(show); box.classList.remove('on'); };
 }
+// the place being read is kept per session (which request, and how many pages into it), so coming back from another session returns to it
+const posAll = () => { try { return JSON.parse(localStorage.getItem('pt_book_pos') || '{}') || {}; } catch (e) { return {}; } };
+function savePos() {
+  if (!cur || !cur._ready) return;
+  let v = null;
+  if (pf) { const k = pf.getCurrentPageIndex(), n = pf.getPageCount(), p = pfPages[k], q = pfPages[k + 1], i = p && p.dataset.i !== undefined ? p.dataset.i : q && q.dataset.i !== undefined ? q.dataset.i : null;
+    v = { i: i === null ? null : +i, off: 0, last: k >= n - 2 }; }
+  else { const n = perView(), col = page * n; let el = null, c = 0;
+    for (const t of flow.querySelectorAll('.turn[data-i]')) { const x = colOf(t); if (x > col) break; el = t; c = x; }
+    v = { i: el ? +el.dataset.i : null, off: el ? col - c : 0, last: page >= pages - 1 }; }
+  const all = posAll(); v.t = Date.now(); all[cur.id] = v;
+  const ks = Object.keys(all); if (ks.length > 80) ks.sort((a, b) => (all[a].t || 0) - (all[b].t || 0)).slice(0, ks.length - 80).forEach(k => delete all[k]);
+  try { localStorage.setItem('pt_book_pos', JSON.stringify(all)); } catch (e) {}
+}
+function savePosSoon() { clearTimeout(savePosSoon.t); savePosSoon.t = setTimeout(savePos, 300); }
+async function restorePos(id) {
+  const v = posAll()[id];
+  if (!v || v.last) return go(pages - 1, true);
+  if (v.i === null) return go(0, true);
+  for (let n = 0; n < 15 && cur && cur.id === id && start > v.i && start > 0; n++) await loadEarlier();   // the page may be further back than what was loaded
+  if (!cur || cur.id !== id) return;
+  if (pf) { const k = pfPages.findIndex(p => p.dataset.i === String(v.i)); if (k < 0) return go(pages - 1, true); pf.turnToPage(k - (k % 2)); return flipUi(); }
+  const el = flow.querySelector('.turn[data-i="' + v.i + '"]');
+  if (!el) return go(pages - 1, true);
+  go(Math.floor((colOf(el) + (v.off || 0)) / perView()), true);
+}
 async function openBook(id) {
   const s = sessions.find(x => x.id === id); if (!s) return;
   liveFrom = Infinity;
@@ -1009,7 +1077,8 @@ async function openBook(id) {
   if (!r || r.error || !cur || cur.id !== id) return;
   apply(r); cur._loaded = true;
   liveFrom = turns.length ? turns[turns.length - 1].i : 0;
-  render(true); go(pages - 1, true);
+  render(true); await restorePos(id);
+  if (cur && cur.id === id) cur._ready = true;
 }
 async function loadEarlier() {
   const id = cur.id, r = await api('GET', '/api/sessions/' + id + '/book?last=30&before=' + start);
@@ -1045,7 +1114,9 @@ askForm.addEventListener('submit', e => {
   ws.send(JSON.stringify({ type: 'in', data: text.replace(/\r?\n/g, '\x1b\r') }));
   setTimeout(() => { try { ws.send(JSON.stringify({ type: 'in', data: '\r' })); } catch (e2) {} }, 300);
   inp.value = ''; inp.style.height = '';
-  sentAt = Date.now(); sentTotal = total; render(); go(pages - 1);
+  sentAt = Date.now(); sentTotal = total; render();
+  const turns1 = pf ? pf.getCurrentPageIndex() < pf.getPageCount() - 2 : page < pages - 1;
+  go(pages - 1); if (!turns1) flipSound(1, 0.06);
   setTimeout(poll, 1500);
 });
 
