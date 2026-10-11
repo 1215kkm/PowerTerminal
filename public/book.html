@@ -345,6 +345,40 @@
   :root.dark .q { background: #17191f; } :root.dark .att { background: #23262f; color: var(--ink); }
   :root.dark .pg, :root.dark .vp { box-shadow: inset 0 0 0 1px #2a2d36; }
   :root.dark .gutter { opacity: .5; }
+
+  /* 🔍 search: slides down from the top. Left = list of matching requests, right = the picked one. */
+  .find { position: fixed; z-index: 80; left: 50%; top: 0; width: min(1040px, 94vw); height: min(82vh, 760px); display: flex; flex-direction: column; background: #1f2126; color: #e8e9ee; border: 1px solid #3a3d46; border-top: 0;
+          border-radius: 0 0 14px 14px; box-shadow: 0 18px 50px rgba(0,0,0,.55); font: 13.5px var(--ui); transform: translate(-50%, -105%); transition: transform .22s ease-out; visibility: hidden; }
+  .find.on { transform: translate(-50%, 0); visibility: visible; }
+  .findbar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #33363e; }
+  .findbar input { flex: 1 1 auto; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #3a3d46; background: #14161b; color: #fff; font: 15px var(--ui); outline: none; }
+  .findbar input:focus { border-color: var(--accent); }
+  .findn { flex: 0 0 auto; color: #9aa0ad; font-size: 12px; white-space: nowrap; }
+  .findx { flex: 0 0 auto; width: 42px; height: 42px; border: 0; border-radius: 10px; background: #2a2d34; color: #fff; font-size: 16px; cursor: pointer; }
+  .findbody { flex: 1 1 auto; min-height: 0; display: flex; }
+  .findlist { flex: 0 0 34%; min-width: 0; overflow-y: auto; border-right: 1px solid #33363e; padding: 6px; }
+  .findit { display: block; width: 100%; text-align: left; padding: 8px 9px; margin-bottom: 4px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .findit:hover { background: #2a2d34; } .findit.on { background: #2a2d34; border-color: var(--accent); }
+  .findit small { display: block; color: #9aa0ad; font-size: 11px; margin-bottom: 2px; }
+  .findit b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .findit span { display: block; margin-top: 2px; color: #b9bcc8; font-size: 12px; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+  .find mark { background: #ffd54a; color: #1a1a1a; border-radius: 2px; padding: 0 1px; }
+  .findview { flex: 1 1 auto; min-width: 0; overflow-y: auto; background: var(--paper); color: var(--ink); position: relative; }
+  .findmsg { padding: 30px 16px; text-align: center; color: var(--muted); font: 13.5px var(--ui); }
+  .findgo { position: sticky; top: 0; z-index: 1; padding: 8px 10px; background: var(--paper); border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+  .findgo button { width: 100%; height: 40px; border: 0; border-radius: 9px; background: var(--accent); color: #fff; font: 700 14px var(--ui); cursor: pointer; }
+  .findpaper { padding: 12px 14px 24px; font-family: var(--body); font-size: calc(var(--fs) * var(--fsk, 1)); line-height: var(--lh, 1.75); }
+  .findpaper pre { max-height: none; }
+  .turn.found { animation: foundflash 1.6s ease-out; border-radius: 6px; }
+  @keyframes foundflash { 0%, 40% { background: color-mix(in srgb, var(--accent) 26%, transparent); } 100% { background: transparent; } }
+  @media (max-width: 820px) {
+    .find { width: 100vw; height: 100%; border: 0; border-radius: 0; left: 0; transform: translateY(-105%); padding-top: env(safe-area-inset-top); }
+    .find.on { transform: none; }
+    .findn { display: none; }
+    .findlist { flex-basis: 40%; padding: 4px; } .findit { padding: 7px 6px; } .findit b { font-size: 12.5px; } .findit span { font-size: 11.5px; -webkit-line-clamp: 3; }
+    .findpaper { padding: 10px 10px 24px; }
+    #findBtn { order: -1; }
+  }
 </style>
 </head>
 <body>
@@ -864,6 +898,7 @@ $('pgin').addEventListener('keydown', e => { if (e.key !== 'Enter') return; cons
   pr.addEventListener('pointerup', end); pr.addEventListener('pointercancel', end);
 }
 addEventListener('keydown', e => {
+  if (document.body.classList.contains('finding')) return;   // the search panel is open: keys belong to it
   if (e.target === inp && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ) return;
   if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (e.target !== inp) { nav(-1); e.preventDefault(); } }
   else if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (e.target !== inp) { nav(1); e.preventDefault(); } }
@@ -1325,6 +1360,82 @@ $('exp').onclick = async () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 };
 
+{ // 🔍 search the whole session: a bar that slides down from the top (phone: swipe down on the page). Left = matching requests, right = the one picked.
+  const F = KO ? { ph:'이 세션에서 찾을 말', btn:'🔍 검색', close:'닫기', go:'이 쪽으로 가기', loading:'대화 전체를 읽는 중…', none:'찾는 말이 없습니다', type:'찾을 말을 입력하세요', count:'{n}개 요청에서 찾음', req:'요청', pick:'왼쪽 목록에서 고르면 여기에 내용이 나옵니다', fail:'대화를 읽지 못했습니다' }
+               : { ph:'Search this session', btn:'🔍 Search', close:'Close', go:'Go to this page', loading:'Reading the whole conversation…', none:'Nothing found', type:'Type what to look for', count:'found in {n} requests', req:'Request', pick:'Pick one on the left to read it here', fail:'Could not read the conversation' };
+  const box = document.createElement('div'); box.className = 'find'; box.setAttribute('role', 'dialog');
+  box.innerHTML = '<div class="findbar"><input id="findIn" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="findn" id="findN"></span><button type="button" class="findx" id="findX" aria-label="close">✕</button></div>'
+    + '<div class="findbody"><div class="findlist" id="findList"></div><div class="findview" id="findView"></div></div>';
+  document.body.append(box);
+  const fin = box.querySelector('#findIn'), list = box.querySelector('#findList'), view = box.querySelector('#findView'), cnt = box.querySelector('#findN');
+  fin.placeholder = F.ph; box.querySelector('#findX').title = F.close;
+  const sb = document.createElement('button'); sb.className = 'sbtn'; sb.id = 'findBtn'; sb.textContent = F.btn; $('toEnd').before(sb);
+  let cache = null, hits = [], sel = -1, seq = 0;
+  // every request of the session (the page itself only holds the latest ones)
+  async function all() {
+    if (!cur) return [];
+    if (cache && cache.id === cur.id && cache.total === total) return cache.all;
+    const id = cur.id; let out = [], before;
+    for (;;) { const r = await api('GET', '/api/sessions/' + id + '/book?last=200' + (before !== undefined ? '&before=' + before : '')); if (!r || !r.turns) { if (!out.length) throw new Error('read'); break; } if (!r.turns.length) break; out = r.turns.concat(out); before = r.start; if (r.start <= 0) break; }
+    cache = { id, total, all: out }; return out;
+  }
+  const hl = (text, q) => { const t = String(text), lo = t.toLowerCase(), ql = q.toLowerCase(); let i = 0, k, o = ''; while ((k = lo.indexOf(ql, i)) >= 0) { o += esc(t.slice(i, k)) + '<mark>' + esc(t.slice(k, k + q.length)) + '</mark>'; i = k + q.length; } return o + esc(t.slice(i)); };
+  const snip = (text, q) => { const t = String(text).replace(/\s+/g, ' '), k = t.toLowerCase().indexOf(q.toLowerCase()); if (k < 0) return ''; const a = Math.max(0, k - 18); return (a ? '…' : '') + t.slice(a, k + q.length + 46) + (k + q.length + 46 < t.length ? '…' : ''); };
+  function markIn(el, q) {   // colour the word inside rendered text
+    const ql = q.toLowerCase(), w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = []; let n;
+    while ((n = w.nextNode())) if (n.nodeValue.toLowerCase().includes(ql)) nodes.push(n);
+    for (const t of nodes) { const span = document.createElement('span'); span.innerHTML = hl(t.nodeValue, q); t.replaceWith(...span.childNodes); }
+  }
+  function show(k) {
+    sel = k; list.querySelectorAll('.findit').forEach((b, i) => b.classList.toggle('on', i === k));
+    const h = hits[k]; if (!h) { view.innerHTML = '<div class="findmsg">' + esc(hits.length ? F.pick : '') + '</div>'; return; }
+    view.innerHTML = '<div class="findgo"><button type="button" id="findGo">' + esc(F.go) + '</button></div><div class="findpaper"><div class="q"><small>' + esc(F.req + ' · ' + fmtT(h.t.ts)) + '</small><span>' + reqHtml(h.t.req) + '</span></div><div class="a">' + md(h.t.ans) + '</div></div>';
+    markIn(view.querySelector('.findpaper'), h.q);
+    const m = view.querySelector('mark'); view.scrollTop = 0; if (m) view.scrollTop = Math.max(0, m.getBoundingClientRect().top - view.getBoundingClientRect().top - 90);
+    view.querySelector('#findGo').onclick = () => jump(h.t.i);
+  }
+  async function run() {
+    const q = fin.value.trim(), me = ++seq;
+    if (!q) { hits = []; list.innerHTML = ''; cnt.textContent = ''; view.innerHTML = '<div class="findmsg">' + esc(F.type) + '</div>'; return; }
+    if (!cache || !cur || cache.id !== cur.id || cache.total !== total) { cnt.textContent = F.loading; }
+    let ts; try { ts = await all(); } catch (e) { if (me === seq) { cnt.textContent = ''; view.innerHTML = '<div class="findmsg">' + esc(F.fail) + '</div>'; } return; }
+    if (me !== seq) return;
+    const ql = q.toLowerCase();
+    hits = ts.filter(t => (t.req + '\n' + t.ans).toLowerCase().includes(ql)).reverse().slice(0, 200).map(t => ({ t, q }));   // newest first
+    cnt.textContent = hits.length ? F.count.replace('{n}', hits.length) : '';
+    list.innerHTML = hits.map((h, i) => { const inReq = h.t.req.toLowerCase().includes(ql), one = h.t.req.replace(/\s+/g, ' ').trim();
+      return '<button type="button" class="findit" data-k="' + i + '"><small>' + esc(fmtT(h.t.ts)) + '</small><b>' + (inReq ? hl(one.slice(0, 60), q) : esc(one.slice(0, 60))) + '</b><span>' + hl(snip(inReq && !h.t.ans.toLowerCase().includes(ql) ? h.t.req : h.t.ans, q) || snip(h.t.req, q), q) + '</span></button>'; }).join('');
+    if (!hits.length) { view.innerHTML = '<div class="findmsg">' + esc(F.none) + '</div>'; sel = -1; return; }
+    show(0);
+  }
+  // go to the page where that request starts (loading older pages first when needed)
+  async function jump(i) {
+    close(); const id = cur.id;
+    for (let n = 0; n < 40 && cur && cur.id === id && start > i && start > 0; n++) await loadEarlier();
+    if (!cur || cur.id !== id) return;
+    if (pf) { const k = pfPages.findIndex(p => p.dataset.i === String(i)); if (k >= 0) { pf.turnToPage(k - (k % 2)); flipUi(); } return; }
+    const el = flow.querySelector('.turn[data-i="' + i + '"]'); if (!el) return;
+    go(Math.floor(colOf(el) / perView()), true);
+    el.classList.add('found'); setTimeout(() => el.classList.remove('found'), 1600);
+  }
+  let rt;
+  fin.addEventListener('input', () => { clearTimeout(rt); rt = setTimeout(run, 220); });
+  fin.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') close(); else if (e.key === 'Enter') { e.preventDefault(); if (hits[sel]) jump(hits[sel].t.i); }
+    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && hits.length) { e.preventDefault(); show(Math.max(0, Math.min(hits.length - 1, sel + (e.key === 'ArrowDown' ? 1 : -1)))); const b = list.children[sel]; if (b) b.scrollIntoView({ block: 'nearest' }); } });
+  list.addEventListener('click', e => { const b = e.target.closest('.findit'); if (b) show(+b.dataset.k); });
+  function open() { if (box.classList.contains('on') || !cur) return; if (window.readAloud) readAloud.stop(); box.classList.add('on'); document.body.classList.add('finding'); if (!fin.value) run(); fin.focus(); fin.select(); }
+  function close() { box.classList.remove('on'); document.body.classList.remove('finding'); fin.blur(); }
+  window.bookFind = { open, close, run, get hits() { return hits.length; } };
+  box.querySelector('#findX').onclick = close; sb.onclick = open;
+  addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); open(); } else if (e.key === 'Escape' && box.classList.contains('on')) close(); }, true);
+  // phone: swipe down on the page → the bar comes down; swipe up on the bar → it goes away
+  let sy = 0, sx = 0, st = 0, sok = false;
+  vp.addEventListener('touchstart', e => { sok = e.touches.length === 1 && !e.target.closest('pre, .steps, .termbox, textarea, input, table'); sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+  vp.addEventListener('touchend', e => { if (!sok || e.touches.length || pf) return; const c = e.changedTouches[0], dy = c.clientY - sy, dx = c.clientX - sx; if (dy > 90 && dy > Math.abs(dx) * 2 && Date.now() - st < 700) open(); }, { passive: true });
+  const bar = box.querySelector('.findbar'); let by = 0;
+  bar.addEventListener('touchstart', e => { by = e.touches[0].clientY; }, { passive: true });
+  bar.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - by < -50) close(); }, { passive: true });
+}
 (async () => {
   await loadSessions();
   const want = QS.get('s') || (() => { try { return localStorage.getItem('pt_book_last'); } catch (e) { return null; } })();
