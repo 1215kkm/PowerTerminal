@@ -379,6 +379,9 @@
     .findpaper { padding: 10px 10px 24px; }
     #findBtn { order: -1; }
   }
+
+  #darkTg { text-align: center; font-size: 16px; line-height: 1.2; } #darkTg.on { border-color: var(--accent); }
+  @media (max-width: 820px) { #darkTg { min-width: 44px; font-size: 15px; } }
 </style>
 </head>
 <body>
@@ -413,7 +416,7 @@
   <aside class="side" id="side">
     <div class="side-h"><span style="font-size:20px">📖</span><b id="sideTtl">Book</b></div>
     <a class="sbtn primary" id="back" href="/"></a>
-    <div class="sw" id="darkTg"><span></span><button type="button" data-v="0"></button><button type="button" data-v="1"></button></div>
+    <button type="button" class="sbtn" id="darkTg"></button>
     <button class="sbtn" id="toEnd"></button>
     <button class="sbtn" id="fsDn"></button>
     <button class="sbtn" id="fsUp"></button>
@@ -1163,15 +1166,14 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
     if (t.look) root.dataset.look = t.look; else delete root.dataset.look;
     LSset('pt_book_theme', t.id);
     box.querySelectorAll('.thm').forEach(b => b.classList.toggle('on', b.dataset.id === t.id));
-    $('darkTg').querySelectorAll('button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === dark));
+    { const d = $('darkTg'); d.textContent = dark ? '🌙' : '☀️'; d.classList.toggle('on', dark); d.title = KO ? (dark ? '어둡게 보는 중 — 누르면 밝게' : '밝게 보는 중 — 누르면 어둡게') : (dark ? 'Dark — tap for light' : 'Light — tap for dark'); d.setAttribute('aria-pressed', dark); }   /* one button: the sun or the moon shows what is on now */
     if (!pf) layout(true);
   };
   box.innerHTML = THEMES.map(t => '<button type="button" class="thm" data-id="' + t.id + '" style="background:' + t.paper + ';color:' + t.ink + ';font-family:' + t.body.replace(/"/g, '') + '"><i style="background:' + t.head + '"></i><span>' + esc(KO ? t.ko : t.en) + '</span></button>').join('');
   box.onclick = e => { const b = e.target.closest('.thm'); if (b) apply(b.dataset.id); };
   $('thmBtn').textContent = KO ? '🎨 노트 스타일' : '🎨 Note style';
   $('thmBtn').onclick = () => box.classList.toggle('on');
-  { const d = $('darkTg'), b = d.querySelectorAll('button'); d.firstElementChild.textContent = KO ? '🌗 화면' : '🌗 Paper'; b[0].textContent = KO ? '밝게' : 'Light'; b[1].textContent = KO ? '어둡게' : 'Dark';
-    d.onclick = e => { const x = e.target.closest('button'); if (!x) return; LSset('pt_book_dark', x.dataset.v); apply(LSget('pt_book_theme', 't-basic')); }; }
+  $('darkTg').onclick = () => { LSset('pt_book_dark', LSget('pt_book_dark', '0') === '1' ? '0' : '1'); apply(LSget('pt_book_theme', 't-basic')); };
   addEventListener('storage', e => { if (e.key === 'pt_book_dark' || e.key === 'pt_book_theme') apply(LSget('pt_book_theme', 't-basic')); });   // other book windows follow
   apply(LSget('pt_book_theme', 't-basic'));
 }
