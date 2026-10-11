@@ -2041,7 +2041,7 @@ const I18N = {
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
-    advT: 'advisor — before Claude answers, a stronger model reviews the whole conversation. The model shown here is that reviewer. Changing it applies to newly opened sessions (this conversation switches after /clear or /compact).', advOff: 'off', advApply: 'applies to newly opened sessions', advWeak: 'That reviewer is weaker than this session model, so Claude will not turn it on', advFail: 'Couldn\'t save the setting',
+    advT: 'advisor — before Claude answers, a stronger model reviews the whole conversation. The model shown here is that reviewer. Changing it applies to newly opened sessions (this conversation switches after /clear or /compact).', advOff: 'off', advPick: 'Select advisor', advApply: 'applies to newly opened sessions', advWeak: 'That reviewer is weaker than this session model, so Claude will not turn it on', advFail: 'Couldn\'t save the setting',
     cancelLast:'Stop\ncurrent\nrequest', toBottomT:'Jump to the latest output', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
     bnNewVer:'🔄 New version v{v} is out — click to restart & update',
@@ -2144,7 +2144,7 @@ const I18N = {
     memoNoSess:'이 폴더의 세션이 열려 있어야 전송할 수 있어요.', memoSent:'터미널로 전송했어요',
     memoJumpT:'터미널에서 이 요청 위치로 이동', memoJumpNoSess:'이 폴더의 세션이 열려있지 않아요', memoJumpMiss:'터미널 기록에서 못 찾았어요 (기록이 밀려났거나 세션이 재시작됨)',
     cancelReqT:'진행 중인 요청만 멈춥니다 (ESC 전송) — 이미 끝난 작업을 되돌리지 않아요',
-    advT: 'advisor — 클로드가 답하기 전에 더 강한 모델이 대화 전체를 검토해 줍니다. 여기 적힌 모델이 그 검토자예요. 바꾸면 새로 여는 세션부터 적용됩니다 (지금 대화는 /clear·/compact 뒤부터).', advOff: '안 씀', advApply: '새로 여는 세션부터 적용돼요', advWeak: '지금 세션 모델보다 약한 검토자라 클로드가 켜지 않습니다', advFail: '설정을 저장하지 못했습니다',
+    advT: 'advisor — 클로드가 답하기 전에 더 강한 모델이 대화 전체를 검토해 줍니다. 여기 적힌 모델이 그 검토자예요. 바꾸면 새로 여는 세션부터 적용됩니다 (지금 대화는 /clear·/compact 뒤부터).', advOff: '안 씀', advPick: 'advisor 선택', advApply: '새로 여는 세션부터 적용돼요', advWeak: '지금 세션 모델보다 약한 검토자라 클로드가 켜지 않습니다', advFail: '설정을 저장하지 못했습니다',
     cancelLast:'진행\n요청\n중지', toBottomT:'최신 출력(맨아래)으로 이동', reqHistBtn:'요청내역', reqHistT:'이 터미널 옆에 요청내역 패널 표시/숨기기 — 항목을 클릭하면 그 위치로 이동',
     stRun:'진행중', stDone:'완료', stStop:'중단', stOff:'종료로 중단',
     bnNewVer:'🔄 새 버전 v{v} 나왔어요 — 클릭해서 업데이트 재실행하기',
@@ -4902,7 +4902,7 @@ function buildPane(sess, idx) {
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         ${aiBadge}
         ${modelSel}${effortSel}
-        ${isClaude ? `<span class="advWrap" style="display:none"><span class="advLbl" title="${escA(T.advT || '')}">advisor:</span><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
+        ${isClaude ? `<span class="advWrap" style="display:none"><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
         <!-- 👤 담당 — .claude/agents 가 있는 레포에서만 채워지고, 없으면 이 자리는 비어 있다 -->
         <select class="small memberSel" title="${escA(T.memberT || '')}" style="display:none"></select>
@@ -6302,11 +6302,14 @@ function buildPane(sess, idx) {
     const advSel = advWrap.querySelector('.advSel');
     const ADV_RANK = { sonnet: 1, opus: 2, fable: 3 };            // 검토자가 본 모델보다 약하면 클로드가 안 켠다
     const baseAlias = () => String(sess.model || '').replace(/\[.*$/, '').toLowerCase();
+    const offText = cur => { const o = advSel.querySelector('option[value=""]'); if (o) o.textContent = cur ? 'advisor: ' + (T.advOff || '안 씀') : (T.advPick || 'advisor'); };
     const fill = (cur, aliases) => {
       const list = (aliases && aliases.length ? aliases : ['fable', 'opus', 'sonnet']).slice();
       if (cur && list.indexOf(cur) < 0) list.push(cur);           // 별칭이 아니라 전체 ID 로 적어 둔 경우도 보이게
-      advSel.innerHTML = list.map(m => '<option value="' + escA(m) + '"' + (m === cur ? ' selected' : '') + '>' + esc(m) + '</option>').join('')
-        + '<option value=""' + (cur ? '' : ' selected') + '>' + esc(T.advOff || '안 씀') + '</option>';
+      // 제목을 따로 두지 않는다 — 고른 것이 없으면 칸 안에 "advisor 선택", 골랐으면 "advisor: 모델" 로 보인다
+      advSel.innerHTML = list.map(m => '<option value="' + escA(m) + '"' + (m === cur ? ' selected' : '') + '>advisor: ' + esc(m) + '</option>').join('')
+        + '<option value=""' + (cur ? '' : ' selected') + '></option>';
+      offText(cur);
       advSel.classList.toggle('off', !cur);
     };
     api('GET', '/api/advisor?path=' + encodeURIComponent(sess.path))
@@ -6317,7 +6320,7 @@ function buildPane(sess, idx) {
       api('POST', '/api/advisor', { path: sess.path, model: m })
         .then(j => {
           if (!j || !j.ok) throw Error('');
-          advSel.classList.toggle('off', !m);
+          advSel.classList.toggle('off', !m); offText(m);
           flashToast('advisor: ' + (m || (T.advOff || '안 씀')) + ' — ' + (T.advApply || '새로 여는 세션부터 적용돼요'));
           const b = ADV_RANK[baseAlias()];
           if (m && ADV_RANK[m] && b && ADV_RANK[m] < b) flashToast(T.advWeak || '');
