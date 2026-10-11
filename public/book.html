@@ -304,8 +304,9 @@
     #sndTg { display: none; }
   }
 
-  /* phone: press and hold a paragraph → read aloud from there. The bar (pause / stop) stays while it reads. */
-  @media (max-width: 820px) { .vp { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
+  /* phone: touch the text with two fingers → a "listen" button appears below; it reads aloud from there. The bar (pause / stop) stays while it reads. */
+  .rdgo { position: fixed; z-index: 73; display: none; height: 44px; padding: 0 18px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 700 15px var(--ui); white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.4); cursor: pointer; }
+  .rdgo.on { display: block; }
   .rdnow { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 4px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
   /* the bar sits in the blank strip at the bottom of the page, between the sound button and the page number (it covers neither text nor the request box) */
   .rdbar { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); z-index: 5; display: none; gap: 4px; padding: 2px; border-radius: 16px; background: rgba(20,22,28,.92); }
@@ -895,8 +896,8 @@ $('book').addEventListener('wheel', e => {
   addEventListener('resize', () => { if (innerWidth > 820) document.body.classList.remove('full'); });
 }
 { // 폰: 글을 길게 누르면 그 문단부터 소리 내어 읽는다 (브라우저의 읽어 주기). 읽는 문단에 색을 넣고, 쪽이 바뀌면 따라 넘긴다.
-  const R = KO ? { pause:'⏸ 일시정지', resume:'▶ 이어 읽기', stop:'⏹ 멈춤', none:'이 브라우저는 읽어 주기를 지원하지 않습니다', tip:'글을 길게 누르면 거기부터 읽어 줍니다', end:'끝까지 읽었습니다' }
-               : { pause:'⏸ Pause', resume:'▶ Resume', stop:'⏹ Stop', none:'This browser cannot read aloud', tip:'Press and hold a paragraph to read aloud from there', end:'Finished reading' };
+  const R = KO ? { pause:'⏸ 일시정지', resume:'▶ 이어 읽기', stop:'⏹ 멈춤', none:'이 브라우저는 읽어 주기를 지원하지 않습니다', tip:'두 손가락으로 글을 터치하면 「듣기」 단추가 나옵니다', end:'끝까지 읽었습니다', go:'🔊 여기부터 듣기', mute:'목소리가 나오지 않습니다 — 폰의 미디어 음량과 음성 읽기(TTS) 설정을 확인하세요', err:'읽어 주기 오류: ' }
+               : { pause:'⏸ Pause', resume:'▶ Resume', stop:'⏹ Stop', none:'This browser cannot read aloud', tip:'Touch the text with two fingers for the Listen button', end:'Finished reading', go:'🔊 Listen from here', mute:'No voice came out — check the media volume and the text-to-speech settings', err:'Read-aloud error: ' };
   const bar = document.createElement('div'); bar.className = 'rdbar'; bar.innerHTML = '<button type="button" id="rdPause"></button><button type="button" id="rdStop"></button>'; $('book').append(bar);
   const tip = document.createElement('div'); tip.className = 'rdtip'; document.body.append(tip); let tipT;
   const say = (t, ms) => { tip.textContent = t; tip.classList.add('on'); clearTimeout(tipT); tipT = setTimeout(() => tip.classList.remove('on'), ms || 1800); };
@@ -929,7 +930,10 @@ $('book').addEventListener('wheel', e => {
     const u = new SpeechSynthesisUtterance(me.parts[me.k]), seq = ++me.seq;
     u.lang = /[가-힣]/.test(blk.text) ? 'ko-KR' : (navigator.language || 'en-US'); u.rate = 1;
     const next = () => { if (rd !== me || me.seq !== seq || me.paused) return; me.k++; speak(); };
-    u.onend = next; u.onerror = ev => { if (ev.error !== 'interrupted' && ev.error !== 'canceled') next(); };
+    u.onstart = () => { me.heard = true; clearTimeout(me.wd); };
+    u.onend = () => { me.heard = true; clearTimeout(me.wd); next(); };
+    u.onerror = ev => { if (ev.error === 'interrupted' || ev.error === 'canceled' || rd !== me || me.seq !== seq) return; if (!me.heard) { stop(); return say(R.err + ev.error, 5000); } next(); };
+    if (!me.heard) { clearTimeout(me.wd); me.wd = setTimeout(() => { if (rd === me && !me.heard && !me.paused) say(R.mute, 6000); }, 4000); }   // nothing started within 4 s
     me.u = u;   // keep a reference: some browsers drop the end event when the utterance is garbage-collected
     try { SS.speak(u); } catch (e) { stop(); }
   }
@@ -939,27 +943,49 @@ $('book').addEventListener('wheel', e => {
     let b = bl.findIndex(x => x.el === el || x.el.contains(el) || el.contains(x.el));
     if (b < 0) b = bl.findIndex(x => el.compareDocumentPosition(x.el) & Node.DOCUMENT_POSITION_FOLLOWING);
     if (b < 0) return;
-    stop(); try { SS.cancel(); } catch (e) {}
-    rd = { blocks: bl, b, parts: null, k: 0, paused: false, seq: 0 }; ui(); speak();
+    const busy = !!rd || SS.speaking || SS.pending;
+    stop(); if (busy) try { SS.cancel(); } catch (e) {}   // (cancelling when nothing is queued makes some phones drop the next sentence)
+    const me = rd = { blocks: bl, b, parts: null, k: 0, paused: false, seq: 0 }; ui();
+    try { SS.resume(); } catch (e) {}
+    if (busy) setTimeout(() => { if (rd === me) speak(); }, 120); else speak();   // first use: speak inside the tap itself, phones allow it only then
     if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
   }
-  function stop() { if (!rd) return; rd = null; try { SS.cancel(); } catch (e) {} mark(null); ui(); }
+  function stop() { if (!rd) return; clearTimeout(rd.wd); rd = null; try { SS.cancel(); } catch (e) {} mark(null); ui(); }
   // pause = stop speaking and remember the sentence; resume starts that sentence again (the browsers' own pause is unreliable on phones)
   function pause() { if (!rd) return; rd.paused = !rd.paused; rd.seq++; if (rd.paused) { try { SS.cancel(); } catch (e) {} } else speak(); ui(); }
   window.readAloud = { start, stop, pause, get on() { return !!rd; }, get paused() { return !!(rd && rd.paused); } };
   bar.addEventListener('click', e => { if (e.target.id === 'rdPause') pause(); else if (e.target.id === 'rdStop') stop(); });
   addEventListener('pagehide', stop);
-  // press and hold (0.55 s without moving) on the text
-  let ht = 0, hx = 0, hy = 0, held = false;
-  const off = () => { clearTimeout(ht); ht = 0; };
-  vp.addEventListener('touchstart', e => { off(); held = false; if (e.touches.length !== 1 || innerWidth > 820 || pf) return;
-    const t = e.target; if (t.closest('a, button, textarea, input, pre, .wslot')) return;
-    hx = e.touches[0].clientX; hy = e.touches[0].clientY;
-    ht = setTimeout(() => { ht = 0; const el = document.elementFromPoint(hx, hy); if (el && flow.contains(el) && el !== flow) { held = true; start(el); } }, 550); }, { passive: true });
-  vp.addEventListener('touchmove', e => { if (ht && Math.hypot(e.touches[0].clientX - hx, e.touches[0].clientY - hy) > 10) off(); }, { passive: true });
-  vp.addEventListener('touchend', off, { passive: true }); vp.addEventListener('touchcancel', off, { passive: true });
-  vp.addEventListener('contextmenu', e => { if (innerWidth <= 820) e.preventDefault(); });
-  if (innerWidth <= 820 && LSget('pt_book_rdtip', '') !== '1') setTimeout(() => { say(R.tip, 4000); LSset('pt_book_rdtip', '1'); }, 2500);   // told once
+  // two fingers on the text (a short touch, not a pinch) → the "listen" button appears just below; tapping it starts reading from that paragraph
+  const gob = document.createElement('button'); gob.type = 'button'; gob.className = 'rdgo'; gob.textContent = R.go; document.body.append(gob);
+  let goEl = null, goT = 0, two = null;
+  const hideGo = () => { clearTimeout(goT); gob.classList.remove('on'); if (goEl && !rd) mark(null); goEl = null; };
+  gob.addEventListener('click', () => { const el = goEl; hideGo(); if (el) start(el); });
+  const blockAt = (x, y) => { const el = document.elementFromPoint(x, y); if (!el || el === flow || !flow.contains(el)) return null; const bl = blocks(); let i = bl.findIndex(q => q.el === el || q.el.contains(el) || el.contains(q.el));
+    if (i < 0) i = bl.findIndex(q => el.compareDocumentPosition(q.el) & Node.DOCUMENT_POSITION_FOLLOWING); return i < 0 ? null : bl[i].el; };
+  vp.addEventListener('touchstart', e => {
+    if (e.touches.length === 2 && innerWidth <= 820 && !pf) { const [p, q] = e.touches; two = { t: Date.now(), x: [p.clientX, q.clientX], y: [p.clientY, q.clientY], ok: true }; }
+    else if (e.touches.length !== 2) { if (two) two.ok = false; if (e.touches.length === 1 && gob.classList.contains('on')) hideGo(); }
+  }, { capture: true, passive: true });
+  vp.addEventListener('touchmove', e => {
+    if (!two) return; e.stopPropagation();   // while two fingers are down the page does not turn
+    if (e.touches.length === 2) for (let i = 0; i < 2; i++) if (Math.hypot(e.touches[i].clientX - two.x[i], e.touches[i].clientY - two.y[i]) > 18) two.ok = false;   // moving = pinching, not touching
+  }, { capture: true, passive: true });
+  const twoEnd = e => {
+    if (!two) return; e.stopPropagation();
+    if (e.touches.length) return;   // wait until both fingers are up
+    const t = two; two = null; if (e.cancelable) e.preventDefault();
+    if (!t.ok || e.type !== 'touchend' || Date.now() - t.t > 700) return;
+    const mx = (t.x[0] + t.x[1]) / 2, my = (t.y[0] + t.y[1]) / 2, el = blockAt(mx, my) || blockAt(t.x[0], t.y[0]) || blockAt(t.x[1], t.y[1]); if (!el) return;
+    if (!SS || !window.SpeechSynthesisUtterance) return say(R.none, 2600);
+    goEl = el; if (!rd) mark(el);
+    gob.classList.add('on'); const w = gob.offsetWidth, h = gob.offsetHeight;
+    gob.style.left = Math.max(8, Math.min(innerWidth - w - 8, mx - w / 2)) + 'px';
+    gob.style.top = Math.max(8, Math.min(innerHeight - h - 8, Math.max(t.y[0], t.y[1]) + 34)) + 'px';
+    clearTimeout(goT); goT = setTimeout(hideGo, 6000);
+  };
+  vp.addEventListener('touchend', twoEnd, { capture: true }); vp.addEventListener('touchcancel', twoEnd, { capture: true });
+  if (innerWidth <= 820 && LSget('pt_book_rdtip', '') !== '2') setTimeout(() => { say(R.tip, 4500); LSset('pt_book_rdtip', '2'); }, 2500);   // told once
 }
 let tx = 0, ty = 0;
 vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
