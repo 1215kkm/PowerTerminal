@@ -671,6 +671,23 @@ function flipSound(k, gap) {
   } catch (e) {}
 }
 
+// the send sound of the main screen (A5→E6, a quick rising "tick-lip"), made on the spot. Silent when the book's sound is off.
+function sendBlip() {
+  if (!soundOn()) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state !== 'running') actx.resume().catch(() => {});
+    const now = actx.currentTime;
+    [[880, 0], [1319, 0.055]].forEach(([f, t]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'triangle'; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+      const s0 = now + t;
+      g.gain.setValueAtTime(0, s0); g.gain.linearRampToValueAtTime(0.16, s0 + 0.008); g.gain.exponentialRampToValueAtTime(0.001, s0 + 0.13);
+      o.start(s0); o.stop(s0 + 0.15);
+    });
+  } catch (e) {}
+}
+
 // ── thick-paper flip ────────────────────────────────────────────────────────
 function dropFlip() { if (askForm.closest('.pg')) askForm.remove(); if (pf) { try { liveBox.remove(); pf.destroy(); } catch (e) {} pf = null; } pfPages = []; turnPages.clear(); $('flipwrap').textContent = ''; $('meas').textContent = ''; }
 function newPg(d, i) {
@@ -1115,8 +1132,7 @@ askForm.addEventListener('submit', e => {
   setTimeout(() => { try { ws.send(JSON.stringify({ type: 'in', data: '\r' })); } catch (e2) {} }, 300);
   inp.value = ''; inp.style.height = '';
   sentAt = Date.now(); sentTotal = total; render();
-  const turns1 = pf ? pf.getCurrentPageIndex() < pf.getPageCount() - 2 : page < pages - 1;
-  go(pages - 1); if (!turns1) flipSound(1, 0.06);
+  sendBlip(); go(pages - 1);
   setTimeout(poll, 1500);
 });
 
