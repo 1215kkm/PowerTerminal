@@ -2041,7 +2041,7 @@ const I18N = {
     memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
-    advT: 'advisor — before Claude answers, a stronger model reviews the whole conversation. The model shown here is that reviewer. Changing it applies to newly opened sessions (this conversation switches after /clear or /compact).', advOff: 'off', advPick: 'Select advisor', advApply: 'applies to newly opened sessions', advWeak: 'That reviewer is weaker than this session model, so Claude will not turn it on', advFail: 'Couldn\'t save the setting',
+    advT: 'advisor — before Claude answers, a stronger model reviews the whole conversation. The model shown here is that reviewer. Changing it applies to newly opened sessions (this conversation switches after /clear or /compact).', advOff: 'off', advPick: 'Select advisor', micIos: 'On iPhone, use the 🎤 dictation key on the keyboard', advApply: 'applies to newly opened sessions', advWeak: 'That reviewer is weaker than this session model, so Claude will not turn it on', advFail: 'Couldn\'t save the setting',
     cancelLast:'Stop\ncurrent\nrequest', toBottomT:'Jump to the latest output', reqHistBtn:'Requests', reqHistT:'Show/hide the request history panel next to this terminal — click an entry to jump to it',
     stRun:'in progress', stDone:'done', stStop:'stopped', stOff:'cut off by shutdown',
     bnNewVer:'🔄 New version v{v} is out — click to restart & update',
@@ -5992,7 +5992,7 @@ function buildPane(sess, idx) {
       who.title = t.trim();
       quick.classList.add('typing');
     };
-    qInput.addEventListener('focus', () => { showWho(); pinQuick(quick); mobInputDiag(sess, el, qInput); });   // 폰: 입력 시작 → 입력줄을 화면 하단 고정
+    qInput.addEventListener('focus', () => { showWho(); pinQuick(quick); });   // 폰: 입력 시작 → 입력줄을 화면 하단 고정
     qInput.addEventListener('blur', () => {
       quick.classList.remove('typing');
       // 전송버튼 탭 등으로 잠깐 포커스가 옮겨간 것뿐이면 고정 유지, 진짜 입력줄을 떠났을 때만 해제
@@ -6829,6 +6829,7 @@ function buildPane(sess, idx) {
     micBtn.onclick = ev => {
       ev.stopPropagation();
       if (want || rec) { stopRec(); return; }
+      if (IOS) { qInput.focus(); flashToast(T.micIos || '아이폰은 자판의 🎤(받아쓰기)를 눌러 말하세요'); return; }   // 사파리 음성 인식이 버벅이고 탭이 튕겨서 (2026-10-11)
       // ⚠ 마이크는 보안 컨텍스트에서만 열린다. 폰에서 같은 와이파이 주소(http://192.168.x.x)로 들어오면
       //   브라우저가 막으므로, 왜 안 되는지와 어디로 들어와야 하는지를 알려준다.
       if (!window.isSecureContext) { flashToast(T.micInsecure || '마이크는 보안 연결에서만 됩니다 — 외부 접속(QR) 주소로 들어오세요'); return; }
@@ -12847,13 +12848,16 @@ function positionPinnedQuick() {
      ⚠ 단, 키보드가 떠 있는 동안(=입력 중)과 방금 누른 직후에는 절대 풀지 않는다. 키보드가 올라오면 보이는 화면이
      절반으로 줄고 브라우저가 화면을 밀어, 세션창이 '벗어난 것처럼' 보인다 — 그때 포커스를 놓아 버려서 자판이 안 뜨고
      화면만 밑으로 밀리며 입력을 못 했다(2026-10-05). */
+  // 자판이 떠 있는지는 "보이는 높이가 줄었나"로만 본다. 아이폰은 자판이 뜨면 보이는 영역을 아래로 민다(offsetTop>0) —
+  // 그러면 위 gap 이 0 이 되어 '자판 없음'으로 잘못 보고, 쓰는 중에 커서를 빼 버리고 화면은 내려간 채로 남았다 (2026-10-11 폰 진단 기록).
+  const kbOpen = !!vv && vv.height < window.innerHeight - 120;
   const pane = _pinnedQuick.closest('.pane');
-  if (pane && gap < 60 && Date.now() - _pinnedAt > 1500) {
+  if (pane && !kbOpen && Date.now() - _pinnedAt > 1500) {
     const r = pane.getBoundingClientRect();
     if (r.bottom < 60 || r.top > window.innerHeight - 60) {
       const q = _pinnedQuick;
       try { const el = document.activeElement; if (el && q.contains(el)) el.blur(); } catch (e) {}
-      unpinQuick(q);
+      unpinQuick(q, true);   // 사용자가 직접 다른 곳으로 민 것 — 화면을 되돌리지 않는다
       return;
     }
   }
@@ -12905,7 +12909,8 @@ function mobInputDiag(sess, el, qInput) {
 let _pinnedAt = 0;   // 입력줄을 마지막으로 누른 때 — 키보드가 올라오는 동안은 '벗어남' 판정을 쉰다
 function pinQuick(quick) {
   if (!isMobileNow()) return;                        // 폰 레이아웃일 때만 (PC·태블릿 가로는 원래대로)
-  if (_pinnedQuick && _pinnedQuick !== quick) unpinQuick(_pinnedQuick);
+  if (_pinnedQuick && _pinnedQuick !== quick) unpinQuick(_pinnedQuick, true);
+  { const vv = window.visualViewport; if (_pinnedQuick !== quick && !(vv && vv.height < window.innerHeight - 120)) _pinY = window.scrollY; }   // 자판이 뜨기 전 화면 위치
   _pinnedQuick = quick;
   _pinnedAt = Date.now();
   quick.classList.add('kb-pin');
@@ -12913,7 +12918,14 @@ function pinQuick(quick) {
   setTimeout(positionPinnedQuick, 120);              // 키보드가 뜨는 데 시간이 걸려 몇 번 더 보정
   setTimeout(positionPinnedQuick, 320);
 }
-function unpinQuick(quick) {
+let _pinY = null;
+function unpinQuick(quick, keepScroll) {
+  // 자판이 뜨면서 브라우저가 밀어 내린 화면을, 입력이 끝나면 쓰기 전 자리로 되돌린다 (자판이 내려간 뒤에)
+  const y = _pinY; _pinY = null;
+  if (!keepScroll && y !== null && _pinnedQuick === quick) setTimeout(() => {
+    const vv = window.visualViewport;
+    if (!_pinnedQuick && !(vv && vv.height < window.innerHeight - 120) && Math.abs(window.scrollY - y) > 40) window.scrollTo(window.scrollX, y);
+  }, 350);
   quick.classList.remove('kb-pin');
   quick.style.removeProperty('--kb-gap');
   if (_pinnedQuick === quick) _pinnedQuick = null;
