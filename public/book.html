@@ -75,7 +75,7 @@
   .a pre code { background:none; padding:0; word-break:normal; }
   .a blockquote { margin:0 0 9px; padding:6px 12px; border-left:3px solid #cfc9b8; color:#4b5063; background:#f8f6ef; }
   .a hr { border:none; border-top:1px solid #e3dfd2; margin:12px 0; }
-  .a a { color:#2f5be0; word-break:break-all; }
+  .a a { color:#2f5be0; word-break:break-all; } .q a { color: var(--link, #2f5be0); word-break: break-all; } .a a, .q a { overflow-wrap: anywhere; text-decoration: underline; }
   .a .tw { overflow-x:auto; margin:0 0 10px; }
   .a table { border-collapse:collapse; font:12.5px/1.5 var(--ui); min-width:60%; }
   .a th, .a td { border:1px solid #ddd8c9; padding:4px 8px; text-align:left; vertical-align:top; }
@@ -418,9 +418,9 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '
 // ── small markdown renderer (headings, lists, tables, code, quotes, links) — enough for assistant answers
 function inline(s) {
   const keep = [];
-  s = esc(s).replace(/`([^`]+)`/g, (m, c) => { keep.push('<code>' + c + '</code>'); return '\u0001' + (keep.length - 1) + '\u0001'; });
+  s = esc(s).replace(/`([^`]+)`/g, (m, c) => { keep.push(/^https?:\/\/[^\s<]+$/.test(c) ? '<a href="' + c + '" target="_blank" rel="noopener"><code>' + c + '</code></a>' : '<code>' + c + '</code>'); /* an address written as code is still a link */ return '\u0001' + (keep.length - 1) + '\u0001'; });
   s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-       .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+       .replace(/(^|[^"'=\w>\/])(https?:\/\/[^\s<)*]+)/g, (m, p, u) => { const t = (u.match(/(?:[.,;:!?'\]]|&quot;|&#39;)+$/) || [''])[0]; if (t) u = u.slice(0, -t.length); return p + '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>' + t; })   // bare address anywhere (also inside **bold**), trailing punctuation left out
        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
   return s.replace(/\u0001(\d+)\u0001/g, (m, i) => keep[+i]);
 }
@@ -477,7 +477,7 @@ liveBox.querySelector('.bigbtn').onclick = () => { liveBox.classList.toggle('big
 
 const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 60 ? Math.round(s / 60) + T.min : s + T.sec; };
-const reqHtml = t => esc(t).replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '<span class="att">📎 ' + T.att + ' .' + ext.toLowerCase() + '</span>');
+const reqHtml = t => esc(t).replace(/(^|[\s(])(https?:\/\/[^\s<)*]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>').replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '<span class="att">📎 ' + T.att + ' .' + ext.toLowerCase() + '</span>');
 
 function turnEl(t) {
   const el = document.createElement('article'); el.className = 'turn'; el.dataset.i = t.i; el.dataset.day = fmtT(t.ts).slice(0, 5);
