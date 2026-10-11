@@ -9770,6 +9770,9 @@ setInterval(refreshBanner, 10 * 60 * 1000);
     openCodeMode(s);
   };
   hdrInsert(cb);
+  // 폰에서는 코드 편집 모드를 뺀다 — 4분할 화면이라 폰 폭에서는 쓸 수 없다 (화면을 넓히면 다시 나온다)
+  const cbShow = () => { cb.style.display = isMobileNow() ? 'none' : ''; };
+  cbShow(); addEventListener('resize', cbShow);
   // 📖 책 모드 — 세션창마다 있던 버튼을 여기 하나로. 마지막으로 만진 세션(없으면 맨 위 세션)을 새 탭에서 책으로 연다.
   const bb = document.createElement('button');
   bb.textContent = '📖';
