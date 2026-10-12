@@ -26,14 +26,19 @@ module.exports = function installGuide(app, ctx) {
   const labels = g => KO(g.title + (g.steps[0] || {}).text)
     ? { ok: '✓ 했어요', prev: '◀ 이전', close: '닫기', finished: '🎉 다 했어요!', notFound: '화면에서 찾지 못했어요 — 직접 찾아 주세요',
         inBrowser: 'PowerTerminal 브라우저 창에서 하세요', inTab: 'PowerTerminal 브라우저 창의 「{t}」 탭에서 하세요',
-        findWin: '「{t}」 창을 찾는 중…', findCtl: '「{t}」 을(를) 화면에서 찾는 중…' }
+        findWin: '「{t}」 창을 찾는 중…', findCtl: '「{t}」 을(를) 화면에서 찾는 중…',
+        inUser: '브라우저에서 하세요', findWeb: '브라우저에서 「{t}」 을(를) 찾는 중…', scroll: '「{t}」 이(가) 보이게 화면을 움직여 주세요',
+        front: '브라우저 창을 앞으로 띄워 주세요' }
     : { ok: '✓ Done', prev: '◀ Back', close: 'Close', finished: '🎉 All done!', notFound: 'Not found on screen — please look for it',
         inBrowser: 'Do this in the PowerTerminal browser window', inTab: 'Do this in the 「{t}」 tab of the PowerTerminal browser window',
-        findWin: 'Looking for the 「{t}」 window…', findCtl: 'Looking for 「{t}」 on screen…' };
+        findWin: 'Looking for the 「{t}」 window…', findCtl: 'Looking for 「{t}」 on screen…',
+        inUser: 'Do this in your browser', findWeb: 'Looking for 「{t}」 in the browser…', scroll: 'Scroll until 「{t}」 is visible',
+        front: 'Bring the browser window to the front' };
   const clean = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n || 300);
   function normStep(s) {
     const o = { text: clean(s.text, 400) };
     for (const k of ['url', 'selector', 'label', 'window', 'control', 'until']) if (s[k]) o[k] = clean(s[k], k === 'url' ? 1000 : 300);
+    if (s.browser === 'pt' || s.browser === 'user') o.browser = s.browser;
     const tgt = o.selector || o.label || o.control || (o.window && !o.until);
     o.done = ['click', 'type', 'url', 'window', 'manual'].includes(s.done) ? s.done : tgt ? 'click' : 'manual';
     if ((o.done === 'url' || o.done === 'window') && !o.until) o.done = tgt ? 'click' : 'manual';
@@ -102,7 +107,8 @@ module.exports = function installGuide(app, ctx) {
     const h = launchHelper();
     const web1 = steps.some(s => s.kind === 'web'), desk = steps.some(s => s.kind === 'desktop');
     res.json({ ok: true, msg: 'Guide shown with ' + steps.length + ' steps. ' +
-      (web1 ? 'Web steps are pointed at inside the PowerTerminal browser window. ' : '') +
+      (web1 ? (h.ok ? 'Web steps are pointed at in the user\'s own browser (or in the PowerTerminal browser window when the page is already open there). '
+                    : 'Web steps are pointed at inside the PowerTerminal browser window (install the helper to point inside the user\'s own browser). ') : '') +
       (desk ? (h.ok ? 'Desktop steps are pointed at by the helper app. ' : 'The helper app is not installed, so desktop steps only appear as a checklist in PowerTerminal — tell the user they can press "🧭 도우미 설치" at the top of PowerTerminal. ') : '') +
       'The user checks steps off by doing them; call guide_status to see progress. Tell the user in one line that the guide is on screen.' });
   });
@@ -123,7 +129,7 @@ module.exports = function installGuide(app, ctx) {
   });
 
   // ---------- 웹 단계: PT 브라우저 창의 탭에 표시 ----------
-  const web = { key: '', tabId: '', rect: null, found: false, vis: false, msg: '', opened: {}, conn: null, connTab: '' };
+  const web = { key: '', tabId: '', rect: null, found: false, vis: false, msg: '', opened: {}, conn: null, connTab: '', mode: '', modeOf: {} };
   function pageGuide(cfg) {
     const W = window, D = document;
     let g = W.__ptGuide;
@@ -270,10 +276,32 @@ module.exports = function installGuide(app, ctx) {
     const sess = getSessions().find(s => s.id === active) || {};
     const prof = browserMode(sess) === 'normal' ? sessProfile(sess) : browserProfile('');
     const key = g.gid + ':' + g.cur;
-    if (web.key !== key) { web.key = key; web.rect = null; web.found = false; web.front = false; }
-    let tabs;
+    if (web.key !== key) { web.key = key; web.rect = null; web.found = false; web.front = false; web.mode = ''; }
+    let tabs = null;
     try { tabs = (await (await fetch('http://127.0.0.1:' + prof.port + '/json/list', { signal: AbortSignal.timeout(1500) })).json()).filter(t => t.type === 'page' && t.webSocketDebuggerUrl); }
-    catch (e) { ensureBrowser(prof); web.msg = 'browser'; return; }
+    catch (e) {}
+    // 어느 브라우저에서 짚을까 — 도우미 앱이 켜져 있으면 사용자의 평소 브라우저(앱이 화면 읽기 기능으로 찾는다).
+    // 단, 그 페이지가 이미 PT 브라우저 창에 열려 있거나 AI 가 browser:'pt' 로 정했으면 PT 브라우저 창.
+    if (web.mode === 'user' && !helperAlive() && Date.now() - launchedAt > 8000) web.mode = '';       // 앱이 꺼졌다 → PT 브라우저로
+    if (!web.mode && !helperAlive() && !helperOff && installed() && Date.now() - launchedAt < 8000) return;   // 앱이 막 뜨는 중
+    if (!web.mode) {
+      const inPt = !!(tabs && st.url && tabs.some(t => sameUrl(t.url, st.url)));
+      const prevMode = web.modeOf[g.gid];
+      web.mode = st.browser === 'pt' || !helperAlive() ? 'pt'
+               : st.browser === 'user' ? 'user'
+               : st.url ? (inPt ? 'pt' : 'user')
+               : (prevMode || 'user');
+      web.modeOf[g.gid] = web.mode;
+    }
+    if (web.mode === 'user') {
+      if (web.conn && web.connKey !== 'off') hidePage();
+      if (st.url && /^https?:\/\//i.test(st.url) && !web.opened[key]) {
+        web.opened[key] = true;
+        if (IS_WIN) try { const c = spawn('rundll32.exe', ['url.dll,FileProtocolHandler', st.url], { detached: true, stdio: 'ignore', windowsHide: true }); c.on('error', () => {}); c.unref(); } catch (e) {}
+      }
+      return;
+    }
+    if (!tabs) { ensureBrowser(prof); web.msg = 'browser'; return; }
     if (st.done === 'url' && tabs.some(t => sameUrl(t.url, st.until))) { act(active, 'done', g.cur); return; }
     let tab = st.url ? tabs.find(t => sameUrl(t.url, st.url)) : null;
     if (!tab && !st.url) tab = tabs.find(t => t.id === web.tabId) || tabs.find(t => /^https?:/.test(t.url));
@@ -342,7 +370,8 @@ module.exports = function installGuide(app, ctx) {
     const sess = getSessions().find(s => s.id === active) || {};
     res.json({ on: true, sid: active, gid: g.gid, title: g.title, sess: sess.title || '', i: g.cur, n, text: st.text, kind: st.kind, done: st.done,
                window: st.window || '', control: st.control || '', until: st.until || '', L,
-               web: st.kind === 'web' ? { rect: web.key === g.gid + ':' + g.cur ? web.rect : null, front: web.vis, title: web.title || '' } : null });
+               web: st.kind === 'web' ? { rect: web.key === g.gid + ':' + g.cur ? web.rect : null, front: web.vis, title: web.title || '',
+                                          mode: web.key === g.gid + ':' + g.cur ? web.mode : '', label: st.label || '', url: st.url || '' } : null });
   });
   app.post('/api/guide/helper/act', (req, res) => {
     if (!isLocal(req.socket)) return res.status(403).end();

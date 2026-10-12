@@ -10,9 +10,12 @@ const STEP = {
   type: 'object',
   properties: {
     text: { type: 'string', description: 'What the user should do, one short sentence in the user\'s language (e.g. "로그인 버튼을 누르세요")' },
-    url: { type: 'string', description: 'Web step: full URL of the page this step happens on. PowerTerminal opens it in its browser window if no tab shows it yet.' },
-    selector: { type: 'string', description: 'Web step: CSS selector of the element to point at' },
-    label: { type: 'string', description: 'Web step: visible text of the element to point at (button / link / field label or placeholder) — used when there is no good selector' },
+    url: { type: 'string', description: 'Web step: full URL of the page this step happens on. PowerTerminal opens it once (in the user\'s own browser, or in its browser window) when the step starts.' },
+    label: { type: 'string', description: 'Web step: visible text of the element to point at (button / link text, or the field\'s label / placeholder). ALWAYS give it for web steps — ' +
+                                           'in the user\'s own browser the element is found by this text only.' },
+    selector: { type: 'string', description: 'Web step: CSS selector of the element (optional extra; only used in the PowerTerminal browser window)' },
+    browser: { type: 'string', enum: ['user', 'pt'], description: 'Web step: where the user does it. Default: the user\'s own browser, unless the page is already open in the PowerTerminal browser window. ' +
+                                                                  'Use pt only when the step needs the PowerTerminal browser window (e.g. an account logged in only there).' },
     window: { type: 'string', description: 'Desktop step: part of the title of the program window (e.g. "메모장", "Visual Studio Code")' },
     control: { type: 'string', description: 'Desktop step: name of the button / menu / field inside that window as screen readers see it (usually its visible text)' },
     done: { type: 'string', enum: ['click', 'type', 'url', 'window', 'manual'],
@@ -30,8 +33,8 @@ const TOOLS = [
     name: 'show_guide',
     description: 'Show the user an on-screen, step-by-step guide (PowerTerminal "도우미"). Use it when the user asks what to do / how to use ' +
       'something you built or set up, asks for a walkthrough, or says 도우미·안내·사용 순서·뭐 해야 돼. A pointer and a speech bubble move to each ' +
-      'step\'s target on the desktop or in the PowerTerminal browser window, and each step is checked off when the user does it, then the next one is shown. ' +
-      'Give concrete targets: for web steps url + selector (or label = the visible text), for desktop programs window + control. ' +
+      'step\'s target on the desktop or inside the user\'s browser, and each step is checked off when the user does it, then the next one is shown. ' +
+      'Give concrete targets: for web steps url + label (the visible text; selector optional), for desktop programs window + control. ' +
       'Steps the user does elsewhere (phone, paper) get no target and are checked with "Done". Keep 3–12 steps, one action each, in order. ' +
       'Do not perform the steps yourself — the user does them. Calling it again replaces this session\'s guide.',
     inputSchema: {

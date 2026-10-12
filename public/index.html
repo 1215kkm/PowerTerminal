@@ -2359,7 +2359,7 @@ const I18N_MORE = {
     helperOnT: "Helper is on — click to turn it off",
     helperOffT: "Helper is off — click to turn it on",
     helperInstalled: "Helper installed. Ask a session \"guide me with the helper\" and it will point at each step on screen.",
-    helperFail: "Install failed: ",
+    helperFail: "Install failed: ", helperOld: "Restart PowerTerminal once to install the helper (the server part is new).",
     guideShow: "▶ Show on screen",
     guideShowT: "Point at each step on the desktop and in the browser",
     guideShowing: "● On screen",
@@ -2489,7 +2489,7 @@ const I18N_MORE = {
     helperOnT: "도우미 켜짐 — 누르면 꺼요",
     helperOffT: "도우미 꺼짐 — 누르면 켜요",
     helperInstalled: "도우미를 설치했어요. 세션에 \"도우미로 안내해 줘\"라고 요청하면 화면에서 하나씩 짚어 줘요.",
-    helperFail: "설치 실패: ",
+    helperFail: "설치 실패: ", helperOld: "PT를 한 번 다시 시작하면 설치할 수 있어요 (서버 쪽이 새로 바뀌었어요)",
     guideShow: "▶ 화면에 띄우기",
     guideShowT: "바탕화면·브라우저에서 한 단계씩 짚어 줘요",
     guideShowing: "● 띄우는 중",
@@ -8220,7 +8220,10 @@ function guideActiveChanged(el, active) {
 let helperSt = null, helperBusy = false;
 async function helperState() {
   const b = document.getElementById('btnHelper'); if (!b) return;
-  const s = await api('GET', '/api/helper/state');
+  let s = await api('GET', '/api/helper/state');
+  // 화면만 새것이고 서버는 아직 옛것(PT 재시작 전) — 이 PC 의 윈도우에서 열었으면 버튼은 보이고, 누르면 재시작하라고 알린다
+  if (s && s.status === 404 && /Win/.test(navigator.platform || navigator.userAgent) && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname))
+    s = { win: true, local: true, installed: false, running: false, old: true };
   if (!s || s.error) return;
   helperSt = s;
   helperPaint();
@@ -8237,6 +8240,7 @@ function helperPaint() {
 }
 async function helperBtn() {
   if (helperBusy || !helperSt) return;
+  if (helperSt.old) { flashToast(T.helperOld || 'Restart PowerTerminal once to install the helper.'); return; }
   if (!helperSt.installed) {
     helperBusy = true; helperPaint();
     const r = await api('POST', '/api/helper/install', {}, 90000);

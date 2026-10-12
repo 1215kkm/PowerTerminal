@@ -1,6 +1,7 @@
 // PowerTerminal 🧭 도우미 앱 — 화면 맨 위에 포인터와 말풍선을 띄워 "다음에 할 일"을 짚어 준다.
 // PT 서버(/api/guide/helper)에서 지금 단계를 읽고, 바탕화면 단계는 창 이름·버튼 이름으로 대상을 찾아(UI Automation)
-// 사용자가 그곳을 누르면 체크한다. 웹 단계의 위치는 PT 가 브라우저에서 재 준다.
+// 사용자가 그곳을 누르면 체크한다. 웹 단계는 사용자의 평소 브라우저(크롬·엣지·웨일·파이어폭스…) 안 요소도 같은 방법으로 찾고,
+// PT 브라우저 창에서 하는 단계면 PT 가 페이지에서 잰 위치를 준다.
 // PT 의 [🧭 도우미 설치] 가 윈도우에 기본으로 있는 C# 컴파일러(.NET Framework 4)로 이 파일을 PtHelper.exe 로 만든다 — C# 5 문법만.
 using System;
 using System.Collections;
@@ -17,7 +18,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 
 static class Program {
-  public const string VER = "1";
+  public const string VER = "2";
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [STAThread]
   static void Main(string[] args) {
@@ -47,6 +48,10 @@ static class W32 {
   [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr o);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
   [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vk);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
+  [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint flags);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   public static readonly IntPtr TOPMOST = new IntPtr(-1);
 }
 
@@ -165,6 +170,8 @@ class Helper : ApplicationContext {
   Dictionary<string, object> st;           // 서버가 준 지금 단계
   Rectangle deskRect = Rectangle.Empty;    // UI Automation 으로 찾은 바탕화면 대상
   string deskKey = "", deskNote = "";
+  string typedFrom;                        // 입력 단계: 처음 찾았을 때 칸에 있던 글
+  IntPtr cachedWin = IntPtr.Zero;          // 찾은 웹 요소가 들어 있는 브라우저 창
   bool paused, quitting;
   DateTime lastOk = DateTime.Now;
   // 그리기 상태
@@ -309,10 +316,111 @@ class Helper : ApplicationContext {
             if (!wr.IsEmpty) r = new Rectangle(wr.X, wr.Y, wr.Width, Math.Min(wr.Height, P(36)));   // 창이면 제목줄을 짚는다
           } else if (win.Length > 0 && done != "window") note = S(D(d, "L"), "findWin").Replace("{t}", win);
           lock (lk) { deskRect = r; deskKey = key; deskNote = note; }
+        } else if (d != null && B(d, "on") && !B(d, "finished") && S(d, "kind") == "web" && S(D(d, "web"), "mode") == "user") {
+          // 사용자의 평소 브라우저 — 앞에 있는 브라우저 창부터, 페이지(Document) 안에서 글자가 맞는 요소를 찾는다
+          Dictionary<string, object> wb = D(d, "web"), L = D(d, "L");
+          string label = S(wb, "label"), done = S(d, "done"), until = S(d, "until").ToLowerInvariant();
+          List<AutomationElement> wins = BrowserWindows(me);
+          if (done == "url" && until.Length > 0 && wins.Count > 0 && AddressOf(wins[0]).Contains(until) && postedKey != key) { postedKey = key; Post("done", d); }
+          Rectangle r = Rectangle.Empty; string note = "";
+          if (label.Length > 0) {
+            if (cached == null || cachedFor != key) { cached = null; typedFrom = null; }
+            bool off = false;
+            if (cached != null) { try { r = ToRect(cached.Current.BoundingRectangle); off = cached.Current.IsOffscreen; } catch { cached = null; } }
+            if (cached == null || r.IsEmpty) {
+              cached = FindInBrowsers(wins, label, me, out cachedWin); cachedFor = key; r = Rectangle.Empty;
+              if (cached != null) try { r = ToRect(cached.Current.BoundingRectangle); off = cached.Current.IsOffscreen; } catch { r = Rectangle.Empty; }
+            }
+            if (cached != null && done == "type") {      // 입력칸 값이 바뀌면 끝
+              string v = ValueOf(cached);
+              if (typedFrom == null) typedFrom = v;
+              else if (v != null && v.Trim().Length > 0 && v != typedFrom && postedKey != key) { postedKey = key; Post("done", d); }
+            }
+            if (!r.IsEmpty && off) { r = Rectangle.Empty; note = S(L, "scroll").Replace("{t}", label); }
+            else if (!r.IsEmpty && !OnTop(r, cachedWin, me)) { r = Rectangle.Empty; note = S(L, "front"); }
+            else if (r.IsEmpty) note = wins.Count == 0 ? S(L, "inUser") : S(L, "findWeb").Replace("{t}", label);
+          } else note = S(L, "inUser");
+          lock (lk) { deskRect = r; deskKey = key; deskNote = note; }
         } else { cached = null; lock (lk) { deskRect = Rectangle.Empty; deskKey = key; deskNote = ""; } }
       } catch { }
       Thread.Sleep(600);
     }
+  }
+  // ---------- 사용자의 평소 브라우저 ----------
+  static readonly string[] BROWSERS = { "chrome", "msedge", "whale", "brave", "firefox", "opera", "vivaldi", "iexplore" };
+  static readonly Dictionary<int, string> procName = new Dictionary<int, string>();
+  // 브라우저 창들 — 지금 앞에 있는 창이 맨 앞. PT 화면을 띄운 창은 뺀다(PT 자기 단추를 짚지 않게).
+  static List<AutomationElement> BrowserWindows(int me) {
+    List<AutomationElement> list = new List<AutomationElement>();
+    IntPtr fg = W32.GetForegroundWindow();
+    foreach (AutomationElement e in AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition)) {
+      try {
+        AutomationElement.AutomationElementInformation c = e.Current;
+        if (c.ProcessId == me || c.IsOffscreen) continue;
+        if ((c.Name ?? "").IndexOf("PowerTerminal", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+        string pn;
+        if (!procName.TryGetValue(c.ProcessId, out pn)) {
+          try { pn = System.Diagnostics.Process.GetProcessById(c.ProcessId).ProcessName.ToLowerInvariant(); } catch { pn = ""; }
+          if (procName.Count > 500) procName.Clear();
+          procName[c.ProcessId] = pn;
+        }
+        if (Array.IndexOf(BROWSERS, pn) < 0) continue;
+        if (new IntPtr(c.NativeWindowHandle) == fg) list.Insert(0, e); else list.Add(e);
+      } catch { }
+    }
+    return list;
+  }
+  // 페이지 안(Document)에서만 찾는다 — 탭 제목·주소창과 헷갈리지 않게. 글자가 똑같은 것 먼저, 없으면 비슷한 것.
+  static AutomationElement FindInBrowsers(List<AutomationElement> wins, string label, int me, out IntPtr win) {
+    win = IntPtr.Zero;
+    Condition doc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document);
+    Condition exact = new PropertyCondition(AutomationElement.NameProperty, label.Trim(), PropertyConditionFlags.IgnoreCase);
+    List<AutomationElement> docs = new List<AutomationElement>(); List<IntPtr> hw = new List<IntPtr>();
+    foreach (AutomationElement w in wins) {
+      try {
+        AutomationElement dd = w.FindFirst(TreeScope.Descendants, doc);
+        docs.Add(dd ?? w); hw.Add(new IntPtr(w.Current.NativeWindowHandle));
+      } catch { }
+    }
+    for (int i = 0; i < docs.Count; i++) {
+      try {
+        AutomationElement first = null;      // 같은 글자면 누르거나 쓰는 요소(단추·링크·입력칸)를 먼저 — 라벨 글자보다
+        foreach (AutomationElement e in docs[i].FindAll(TreeScope.Descendants, exact)) {
+          if (e.Current.BoundingRectangle.IsEmpty) continue;
+          ControlType t = e.Current.ControlType;
+          if (t != ControlType.Text && t != ControlType.Group && t != ControlType.Custom && t != ControlType.Pane) { win = hw[i]; return e; }
+          if (first == null) first = e;
+        }
+        if (first != null) { win = hw[i]; return first; }
+      } catch { }
+    }
+    for (int i = 0; i < docs.Count; i++) {
+      AutomationElement e = FindControl(docs[i], label, me);
+      if (e != null) { win = hw[i]; return e; }
+    }
+    return null;
+  }
+  // 주소창 글자 — 이름에 주소·address·url·검색 이 들어간 첫 입력칸
+  static string AddressOf(AutomationElement w) {
+    try {
+      foreach (AutomationElement e in w.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit))) {
+        string n = (e.Current.Name ?? "").ToLowerInvariant();
+        if (n.Contains("주소") || n.Contains("address") || n.Contains("url") || n.Contains("검색") || n.Contains("search")) return (ValueOf(e) ?? "").ToLowerInvariant();
+      }
+    } catch { }
+    return "";
+  }
+  static string ValueOf(AutomationElement e) {
+    try { object p; if (e.TryGetCurrentPattern(ValuePattern.Pattern, out p)) return ((ValuePattern)p).Current.Value ?? ""; } catch { }
+    return null;
+  }
+  // 그 자리에 정말 브라우저 창이 보이는가(다른 창에 가려지지 않았나)
+  static bool OnTop(Rectangle r, IntPtr win, int me) {
+    if (win == IntPtr.Zero) return true;
+    IntPtr h = W32.GetAncestor(W32.WindowFromPoint(new W32.POINT(r.X + r.Width / 2, r.Y + r.Height / 2)), 2);
+    if (h == win) return true;
+    uint pid; W32.GetWindowThreadProcessId(h, out pid);
+    return pid == (uint)me;
   }
   static Rectangle ToRect(System.Windows.Rect r) {
     if (r.IsEmpty || double.IsInfinity(r.Width) || r.Width < 2 || r.Height < 2) return Rectangle.Empty;
@@ -378,8 +486,12 @@ class Helper : ApplicationContext {
     Dictionary<string, object> L = D(d, "L");
     Rectangle target = Rectangle.Empty; bool showRing = false; string note = "";
     if (!fin && kind == "desktop" && dk == key) { target = dr; showRing = !dr.IsEmpty; note = dr.IsEmpty ? dnote : ""; }
-    if (!fin && kind == "web") {
-      Dictionary<string, object> wb = D(d, "web");
+    Dictionary<string, object> wb0 = D(d, "web");
+    bool userWeb = kind == "web" && S(wb0, "mode") == "user";
+    if (!fin && userWeb && dk == key) { target = dr; showRing = !dr.IsEmpty; note = dr.IsEmpty ? dnote : ""; }
+    else if (!fin && userWeb) note = S(L, "inUser");
+    if (!fin && kind == "web" && S(wb0, "mode") == "pt") {
+      Dictionary<string, object> wb = wb0;
       Rectangle r = R(wb == null ? null : (wb.ContainsKey("rect") ? wb["rect"] : null));
       if (!r.IsEmpty && B(wb, "front")) target = r;       // 테두리는 페이지가 그린다
       else note = r.IsEmpty ? S(L, "inBrowser") : S(L, "inTab").Replace("{t}", S(wb, "title"));
@@ -426,7 +538,7 @@ class Helper : ApplicationContext {
     pulse++;
     // 바탕화면 대상 클릭 = 그 단계 끝
     bool down = (W32.GetAsyncKeyState(0x01) & 0x8000) != 0;
-    if (down && !wasDown && kind == "desktop" && !fin && !target.IsEmpty && S(d, "done") == "click") {
+    if (down && !wasDown && (kind == "desktop" || userWeb) && !fin && !target.IsEmpty && S(d, "done") == "click") {
       Rectangle hit = target; hit.Inflate(P(4), P(4));
       if (hit.Contains(m) && !bub.Bounds.Contains(m) && postedKey != key) { postedKey = key; Post("done", d); }
     }
