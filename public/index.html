@@ -2354,7 +2354,7 @@ const I18N_MORE = {
     flowSortSame: "Already in flow order.",
     helperInstall: "🧭 Install helper",
     helperInstalling: "⏳ Installing…",
-    helperOn: "🧭 Helper",
+    helperOn: "🧭 Helper ✓ On", helperOffL: "🧭 Helper · Off",
     helperInstallT: "On-screen helper — a pointer and a speech bubble walk you through the steps an AI gives you, on the desktop and in the browser, and check each one off as you do it. Installs on this PC in a few seconds. Then ask a session: \"guide me with the helper\".",
     helperOnT: "Helper is on — click to turn it off",
     helperOffT: "Helper is off — click to turn it on",
@@ -2484,7 +2484,7 @@ const I18N_MORE = {
     flowSortSame: "이미 흐름 순서예요.",
     helperInstall: "🧭 도우미 설치",
     helperInstalling: "⏳ 설치 중…",
-    helperOn: "🧭 도우미",
+    helperOn: "🧭 도우미 ✓ 켜짐", helperOffL: "🧭 도우미 · 꺼짐",
     helperInstallT: "말풍선 도우미 — AI 가 알려 준 할 일 순서를 바탕화면·브라우저에서 포인터와 말풍선으로 짚어 주고, 그대로 하면 체크해요. 이 PC 에 몇 초면 설치돼요. 그다음 세션에 \"도우미로 안내해 줘\"라고 요청하세요.",
     helperOnT: "도우미 켜짐 — 누르면 꺼요",
     helperOffT: "도우미 꺼짐 — 누르면 켜요",
@@ -8279,7 +8279,7 @@ function helperPaint() {
   if (!show) return;
   b.classList.toggle('inst', !s.installed); b.classList.toggle('on', !!(s.installed && s.running));
   b.disabled = helperBusy;
-  b.textContent = helperBusy ? (T.helperInstalling || '⏳ Installing…') : s.installed ? (T.helperOn || '🧭 Helper') : (T.helperInstall || '🧭 Install helper');
+  b.textContent = helperBusy ? (T.helperInstalling || '⏳ Installing…') : s.installed ? (s.running ? (T.helperOn || '🧭 Helper ✓ On') : (T.helperOffL || '🧭 Helper · Off')) : (T.helperInstall || '🧭 Install helper');
   b.title = !s.installed ? (T.helperInstallT || '') : s.running ? (T.helperOnT || 'Helper is on — click to turn it off') : (T.helperOffT || 'Helper is off — click to turn it on');
 }
 async function helperBtn() {
