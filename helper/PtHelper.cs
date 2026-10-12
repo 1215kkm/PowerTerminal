@@ -18,7 +18,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 
 static class Program {
-  public const string VER = "3";
+  public const string VER = "4";
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [STAThread]
   static void Main(string[] args) {
@@ -203,7 +203,7 @@ class Helper : ApplicationContext {
     bub.OnBtn = OnButton;
     DrawCursor();
     tray = new NotifyIcon();
-    tray.Icon = MakeIcon(); tray.Text = "PowerTerminal 도우미"; tray.Visible = true;
+    tray.Icon = MakeIcon(); tray.Text = "PowerTerminal Helper · 도우미"; tray.Visible = true;
     ContextMenu menu = new ContextMenu();
     MenuItem pause = new MenuItem("잠시 숨기기 / Hide");
     pause.Click += delegate { paused = !paused; pause.Checked = paused; };

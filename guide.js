@@ -22,18 +22,31 @@ module.exports = function installGuide(app, ctx) {
   let saveT = null;
   const save = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { fs.writeFileSync(FILE, JSON.stringify({ guides, active })); } catch (e) {} }, 300); };
 
-  const KO = s => /[가-힣]/.test(String(s || ''));
-  const labels = g => KO(g.title + (g.steps[0] || {}).text)
-    ? { ok: '✓ 했어요', prev: '◀ 이전', close: '닫기', finished: '🎉 다 했어요!', notFound: '화면에서 찾지 못했어요 — 직접 찾아 주세요',
+  // 말풍선 글의 언어 — 안내 글의 문자(한글·가나·한자·키릴·데바나가리)로 가리고, 라틴 문자면 PT 화면에서 마지막으로 고른 언어를 따른다
+  const LABELS = {
+    ko: { ok: '✓ 했어요', prev: '◀ 이전', close: '닫기', finished: '🎉 다 했어요!', notFound: '화면에서 찾지 못했어요 — 직접 찾아 주세요',
         inBrowser: 'PowerTerminal 브라우저 창에서 하세요', inTab: 'PowerTerminal 브라우저 창의 「{t}」 탭에서 하세요',
         findWin: '「{t}」 창을 찾는 중…', findCtl: '「{t}」 을(를) 화면에서 찾는 중…',
         inUser: '브라우저에서 하세요', findWeb: '브라우저에서 「{t}」 을(를) 찾는 중…', scroll: '「{t}」 이(가) 보이게 화면을 움직여 주세요',
-        front: '브라우저 창을 앞으로 띄워 주세요' }
-    : { ok: '✓ Done', prev: '◀ Back', close: 'Close', finished: '🎉 All done!', notFound: 'Not found on screen — please look for it',
+        front: '브라우저 창을 앞으로 띄워 주세요' },
+    en: { ok: '✓ Done', prev: '◀ Back', close: 'Close', finished: '🎉 All done!', notFound: 'Not found on screen — please look for it',
         inBrowser: 'Do this in the PowerTerminal browser window', inTab: 'Do this in the 「{t}」 tab of the PowerTerminal browser window',
         findWin: 'Looking for the 「{t}」 window…', findCtl: 'Looking for 「{t}」 on screen…',
         inUser: 'Do this in your browser', findWeb: 'Looking for 「{t}」 in the browser…', scroll: 'Scroll until 「{t}」 is visible',
-        front: 'Bring the browser window to the front' };
+        front: 'Bring the browser window to the front' },
+    ja: { ok: "✓ できました", prev: "◀ 戻る", close: "閉じる", finished: "🎉 全部できました！", notFound: "画面で見つかりません — ご自分で探してください", inBrowser: "PowerTerminal のブラウザウィンドウで行ってください", inTab: "PowerTerminal ブラウザウィンドウの「{t}」タブで行ってください", findWin: "「{t}」ウィンドウを探しています…", findCtl: "画面で「{t}」を探しています…", inUser: "ブラウザで行ってください", findWeb: "ブラウザで「{t}」を探しています…", scroll: "「{t}」が見えるまで画面を動かしてください", front: "ブラウザウィンドウを前面に出してください" },
+    zh: { ok: "✓ 做好了", prev: "◀ 上一步", close: "关闭", finished: "🎉 全部完成!", notFound: "在屏幕上没找到 — 请自己找一下", inBrowser: "请在 PowerTerminal 浏览器窗口中操作", inTab: "请在 PowerTerminal 浏览器窗口的「{t}」标签页中操作", findWin: "正在查找「{t}」窗口…", findCtl: "正在屏幕上查找「{t}」…", inUser: "请在浏览器中操作", findWeb: "正在浏览器中查找「{t}」…", scroll: "请滚动页面,直到看见「{t}」", front: "请把浏览器窗口切到最前面" },
+    es: { ok: "✓ Hecho", prev: "◀ Atrás", close: "Cerrar", finished: "🎉 ¡Todo hecho!", notFound: "No se encontró en pantalla — búscalo tú", inBrowser: "Hazlo en la ventana del navegador de PowerTerminal", inTab: "Hazlo en la pestaña «{t}» de la ventana del navegador de PowerTerminal", findWin: "Buscando la ventana «{t}»…", findCtl: "Buscando «{t}» en pantalla…", inUser: "Hazlo en tu navegador", findWeb: "Buscando «{t}» en el navegador…", scroll: "Desplázate hasta que se vea «{t}»", front: "Trae la ventana del navegador al frente" },
+    de: { ok: "✓ Erledigt", prev: "◀ Zurück", close: "Schließen", finished: "🎉 Alles erledigt!", notFound: "Auf dem Bildschirm nicht gefunden — bitte selbst suchen", inBrowser: "Mach das im PowerTerminal-Browserfenster", inTab: "Mach das im Tab „{t}“ des PowerTerminal-Browserfensters", findWin: "Suche das Fenster „{t}“…", findCtl: "Suche „{t}“ auf dem Bildschirm…", inUser: "Mach das in deinem Browser", findWeb: "Suche „{t}“ im Browser…", scroll: "Scrolle, bis „{t}“ sichtbar ist", front: "Hol das Browserfenster nach vorn" },
+    fr: { ok: "✓ Fait", prev: "◀ Retour", close: "Fermer", finished: "🎉 Tout est fait !", notFound: "Introuvable à l’écran — cherchez-le vous-même", inBrowser: "Faites-le dans la fenêtre du navigateur PowerTerminal", inTab: "Faites-le dans l’onglet « {t} » de la fenêtre du navigateur PowerTerminal", findWin: "Recherche de la fenêtre « {t} »…", findCtl: "Recherche de « {t} » à l’écran…", inUser: "Faites-le dans votre navigateur", findWeb: "Recherche de « {t} » dans le navigateur…", scroll: "Faites défiler jusqu’à voir « {t} »", front: "Mettez la fenêtre du navigateur au premier plan" },
+    pt: { ok: "✓ Feito", prev: "◀ Voltar", close: "Fechar", finished: "🎉 Tudo feito!", notFound: "Não encontrado na tela — procure você mesmo", inBrowser: "Faça isso na janela do navegador do PowerTerminal", inTab: "Faça isso na aba “{t}” da janela do navegador do PowerTerminal", findWin: "Procurando a janela “{t}”…", findCtl: "Procurando “{t}” na tela…", inUser: "Faça isso no seu navegador", findWeb: "Procurando “{t}” no navegador…", scroll: "Role até “{t}” aparecer", front: "Traga a janela do navegador para a frente" },
+    ru: { ok: "✓ Готово", prev: "◀ Назад", close: "Закрыть", finished: "🎉 Всё готово!", notFound: "На экране не найдено — найдите сами", inBrowser: "Сделайте это в окне браузера PowerTerminal", inTab: "Сделайте это на вкладке «{t}» в окне браузера PowerTerminal", findWin: "Ищу окно «{t}»…", findCtl: "Ищу «{t}» на экране…", inUser: "Сделайте это в своём браузере", findWeb: "Ищу «{t}» в браузере…", scroll: "Прокрутите, пока не появится «{t}»", front: "Выведите окно браузера на передний план" },
+    hi: { ok: "✓ हो गया", prev: "◀ पीछे", close: "बंद करें", finished: "🎉 सब हो गया!", notFound: "स्क्रीन पर नहीं मिला — कृपया खुद ढूँढें", inBrowser: "यह PowerTerminal की ब्राउज़र विंडो में करें", inTab: "यह PowerTerminal ब्राउज़र विंडो के \"{t}\" टैब में करें", findWin: "\"{t}\" विंडो ढूँढ रहा है…", findCtl: "स्क्रीन पर \"{t}\" ढूँढ रहा है…", inUser: "यह अपने ब्राउज़र में करें", findWeb: "ब्राउज़र में \"{t}\" ढूँढ रहा है…", scroll: "\"{t}\" दिखने तक स्क्रॉल करें", front: "ब्राउज़र विंडो को सामने लाएँ" }
+  };
+  let uiLang = 'en';
+  const langOf = t => /[가-힣]/.test(t) ? 'ko' : /[\u3040-\u30ff]/.test(t) ? 'ja' : /[\u4e00-\u9fff]/.test(t) ? 'zh' : /[\u0400-\u04ff]/.test(t) ? 'ru' : /[\u0900-\u097f]/.test(t) ? 'hi'
+    : /^(es|de|fr|pt)$/.test(uiLang) ? uiLang : 'en';
+  const labels = g => LABELS[langOf(String(g.title || '') + ' ' + g.steps.map(x => x.text || '').join(' '))] || LABELS.en;
   const clean = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n || 300);
   function normStep(s) {
     const o = { text: clean(s.text, 400) };
@@ -441,6 +454,7 @@ module.exports = function installGuide(app, ctx) {
     setTimeout(resolve, 600);
   });
   app.get('/api/helper/state', (req, res) => {
+    if (/^[a-z]{2}$/.test(String(req.query.lang || ''))) uiLang = String(req.query.lang);      // 화면에서 고른 언어 — 라틴 문자 안내의 말풍선 글에 쓴다
     const loc = isLocal(req.socket), hid = validHid(req.query.hid);
     if (loc) return res.json({ win: IS_WIN, local: true, installed: installed(), running: isAlive('local') && !helperOff });
     // 다른 PC — 그 PC 브라우저가 기억하는 도우미 번호(hid)로 본다
