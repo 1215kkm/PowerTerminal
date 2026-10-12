@@ -2323,6 +2323,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
+    obHelper: "🆕 On-screen helper", obHelperD: "Not sure what to do after an AI builds something? Press this — a pointer and a speech bubble walk you through each step on your screen and check it off as you do it.",
     qBg: "This conversation moved to Claude Code's background task list — what you send goes to \"new task\", not to the conversation.", qBgBtn: "↩ Back to the conversation", qBgT: "Sends ESC to leave the task list and return to the conversation. Your background tasks keep running.", qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
     brOffT: "🌐 Browser control is OFF — click to let this session's AI operate a Chrome window itself (normal or incognito; no API needed)",
@@ -2456,6 +2457,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
+    obHelper: "🆕 말풍선 도우미", obHelperD: "AI가 만든 걸 어떻게 써야 할지 모를 때 누르세요 — 포인터와 말풍선이 화면에서 할 일을 하나씩 짚어 주고, 그대로 하면 체크해요.",
     qBg: "이 대화가 백그라운드 작업 목록으로 넘어갔습니다 — 지금 보내면 대화가 아니라 \"새 작업\" 칸으로 들어갑니다.", qBgBtn: "↩ 대화로 돌아가기", qBgT: "ESC 를 보내 작업 목록에서 빠져나와 대화로 돌아갑니다. 돌고 있는 백그라운드 작업은 그대로 유지됩니다.", qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
     brOffT: "🌐 브라우저 조작 꺼짐 — 누르면 이 세션의 AI가 크롬 창을 직접 조작하게 합니다 (일반창/시크릿창 선택, API 없어도 됨)",
@@ -2612,6 +2614,7 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
+    obHelper: "🆕 画面ヘルパー", obHelperD: "AI が作ったものの使い方が分からないときに押してください — ポインターと吹き出しが画面上で手順を一つずつ示し、その通りにするとチェックが付きます。",
     helperInstall: "🧭 ヘルパーをインストール",
     helperInstalling: "⏳ インストール中…",
     helperOn: "🧭 ヘルパー ✓ オン",
@@ -2894,6 +2897,7 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
+    obHelper: "🆕 屏幕助手", obHelperD: "AI 做好了却不知道怎么用?点这里 — 指针和气泡会在屏幕上一步步指出要做什么,照着做就会打勾。",
     helperInstall: "🧭 安装助手",
     helperInstalling: "⏳ 安装中…",
     helperOn: "🧭 助手 ✓ 已开",
@@ -3176,6 +3180,7 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
+    obHelper: "🆕 Asistente en pantalla", obHelperD: "¿No sabes qué hacer después de que la IA crea algo? Pulsa aquí — un puntero y un globo te guían paso a paso en tu pantalla y marcan cada paso cuando lo haces.",
     helperInstall: "🧭 Instalar asistente",
     helperInstalling: "⏳ Instalando…",
     helperOn: "🧭 Asistente ✓ Activo",
@@ -3465,6 +3470,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
+    obHelper: "🆕 Bildschirm-Helfer", obHelperD: "Unsicher, was nach der Arbeit der KI zu tun ist? Klick hier — ein Zeiger und eine Sprechblase führen dich Schritt für Schritt über den Bildschirm und haken jeden Schritt ab.",
     helperInstall: "🧭 Helfer installieren",
     helperInstalling: "⏳ Wird installiert…",
     helperOn: "🧭 Helfer ✓ An",
@@ -3746,6 +3752,7 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
+    obHelper: "🆕 Assistant à l’écran", obHelperD: "Vous ne savez pas quoi faire après le travail de l’IA ? Cliquez ici — un pointeur et une bulle vous guident étape par étape à l’écran et cochent chaque étape accomplie.",
     helperInstall: "🧭 Installer l’assistant",
     helperInstalling: "⏳ Installation…",
     helperOn: "🧭 Assistant ✓ Activé",
@@ -4030,6 +4037,7 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
+    obHelper: "🆕 Assistente na tela", obHelperD: "Não sabe o que fazer depois que a IA cria algo? Clique aqui — um ponteiro e um balão guiam você passo a passo na tela e marcam cada passo feito.",
     helperInstall: "🧭 Instalar assistente",
     helperInstalling: "⏳ Instalando…",
     helperOn: "🧭 Assistente ✓ Ligado",
@@ -4314,6 +4322,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
+    obHelper: "🆕 Экранный помощник", obHelperD: "Не знаете, что делать после работы ИИ? Нажмите — указатель и подсказка проведут вас по шагам на экране и отметят каждый выполненный шаг.",
     helperInstall: "🧭 Установить помощника",
     helperInstalling: "⏳ Установка…",
     helperOn: "🧭 Помощник ✓ Вкл",
@@ -4597,6 +4606,7 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
+    obHelper: "🆕 स्क्रीन सहायक", obHelperD: "AI के कुछ बनाने के बाद क्या करना है, समझ नहीं आ रहा? यह दबाएँ — पॉइंटर और बबल स्क्रीन पर एक-एक कदम दिखाते हैं और करते ही निशान लगा देते हैं।",
     helperInstall: "🧭 सहायक इंस्टॉल करें",
     helperInstalling: "⏳ इंस्टॉल हो रहा है…",
     helperOn: "🧭 सहायक ✓ चालू",
@@ -10675,6 +10685,7 @@ const OB_NEW = [          // [i18n 키, 셀렉터, 말풍선을 위에 띄울지
   ['obVault', '.pane .brBtn'],
   ['obSched', 'button[onclick*="scheduler.html"]'],
   ['obGit', '.pane .gitbar', true],
+  ['obHelper', '#btnHelper'],
 ];
 function obNewSeen() { try { const a = JSON.parse(localStorage.getItem(OB_NEW_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function obNewMark(keys) {
