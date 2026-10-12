@@ -2359,7 +2359,8 @@ const I18N_MORE = {
     helperOnT: "Helper is on — click to turn it off",
     helperOffT: "Helper is off — click to turn it on",
     helperInstalled: "Helper installed. Ask a session \"guide me with the helper\" and it will point at each step on screen.",
-    helperFail: "Install failed: ", helperOld: "Restart PowerTerminal once to install the helper (the server part is new).",
+    helperFail: "Install failed: ", helperDl: "Downloaded PT-Helper-Setup.cmd — open it to install the helper on this PC (if Windows warns, choose \"More info → Run anyway\"). Only once per PC.",
+    helperRun: "Open \"PT Helper\" on this PC's desktop to turn the helper on",helperOld: "Restart PowerTerminal once to install the helper (the server part is new).",
     guideShow: "▶ Show on screen",
     guideShowT: "Point at each step on the desktop and in the browser",
     guideShowing: "● On screen",
@@ -2489,7 +2490,8 @@ const I18N_MORE = {
     helperOnT: "도우미 켜짐 — 누르면 꺼요",
     helperOffT: "도우미 꺼짐 — 누르면 켜요",
     helperInstalled: "도우미를 설치했어요. 세션에 \"도우미로 안내해 줘\"라고 요청하면 화면에서 하나씩 짚어 줘요.",
-    helperFail: "설치 실패: ", helperOld: "PT를 한 번 다시 시작하면 설치할 수 있어요 (서버 쪽이 새로 바뀌었어요)",
+    helperFail: "설치 실패: ", helperDl: "설치 파일(PT-Helper-Setup.cmd)을 받았어요. 열어서 실행하세요 — 윈도우가 막으면 「추가 정보 → 실행」. 이 컴퓨터에서 처음 한 번만 하면 돼요.",
+    helperRun: "이 컴퓨터 바탕화면의 「PT Helper」를 실행하면 도우미가 켜져요",helperOld: "PT를 한 번 다시 시작하면 설치할 수 있어요 (서버 쪽이 새로 바뀌었어요)",
     guideShow: "▶ 화면에 띄우기",
     guideShowT: "바탕화면·브라우저에서 한 단계씩 짚어 줘요",
     guideShowing: "● 띄우는 중",
@@ -8216,13 +8218,23 @@ function guideActiveChanged(el, active) {
   const sess = (panes.get(el.dataset.id) || {}).sess; if (!sess) return;
   guideRender(el, sess, card._g, active);
 }
-// 헤더의 [🧭 도우미 설치] / [🧭 도우미] — 이 PC 에서 연 PT 화면에만 보인다(앱은 서버 PC 바탕화면에 뜨므로)
+// 헤더의 [🧭 도우미 설치] / [🧭 도우미] — 윈도우 PC 에서 연 PT 화면에 보인다.
+// 서버 PC: 누르면 서버가 바로 설치. 주소로 접속한 다른 PC: 그 PC 용 설치 파일(.cmd)을 내려받아 실행한다.
 let helperSt = null, helperBusy = false;
+const helperWinClient = () => /Win/.test(navigator.platform || navigator.userAgent);
+function helperHid() {
+  let h = ''; try { h = localStorage.getItem('pt_helper_hid') || ''; } catch (e) {}
+  if (!/^[a-z0-9]{8,40}$/i.test(h)) {
+    h = Array.from(crypto.getRandomValues(new Uint8Array(10)), x => x.toString(16).padStart(2, '0')).join('');
+    try { localStorage.setItem('pt_helper_hid', h); } catch (e) {}
+  }
+  return h;
+}
 async function helperState() {
   const b = document.getElementById('btnHelper'); if (!b) return;
-  let s = await api('GET', '/api/helper/state');
-  // 화면만 새것이고 서버는 아직 옛것(PT 재시작 전) — 이 PC 의 윈도우에서 열었으면 버튼은 보이고, 누르면 재시작하라고 알린다
-  if (s && s.status === 404 && /Win/.test(navigator.platform || navigator.userAgent) && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname))
+  let s = await api('GET', '/api/helper/state?hid=' + helperHid());
+  // 화면만 새것이고 서버는 아직 옛것(PT 재시작 전) — 버튼은 보이고, 누르면 재시작하라고 알린다
+  if (s && s.status === 404 && helperWinClient())
     s = { win: true, local: true, installed: false, running: false, old: true };
   if (!s || s.error) return;
   helperSt = s;
@@ -8230,7 +8242,7 @@ async function helperState() {
 }
 function helperPaint() {
   const b = document.getElementById('btnHelper'), s = helperSt; if (!b || !s) return;
-  const show = s.win && s.local && !isMobileNow();
+  const show = helperWinClient() && (s.local ? s.win : true) && !isMobileNow();
   b.style.display = show ? '' : 'none';
   if (!show) return;
   b.classList.toggle('inst', !s.installed); b.classList.toggle('on', !!(s.installed && s.running));
@@ -8241,6 +8253,21 @@ function helperPaint() {
 async function helperBtn() {
   if (helperBusy || !helperSt) return;
   if (helperSt.old) { flashToast(T.helperOld || 'Restart PowerTerminal once to install the helper.'); return; }
+  if (helperSt.remote) {
+    if (!helperSt.installed) {
+      // 이 PC 용 설치 파일 — PT 주소와 접속 토큰이 들어 있어 이 PC 에서만 쓴다
+      const a = document.createElement('a');
+      a.href = '/api/helper/setup.cmd?hid=' + helperHid() + '&base=' + encodeURIComponent(location.origin) + '&token=' + TOKEN;
+      a.download = 'PT-Helper-Setup.cmd'; document.body.appendChild(a); a.click(); a.remove();
+      flashToast(T.helperDl || 'Downloaded PT-Helper-Setup.cmd — open it to install the helper on this PC.');
+      for (let k = 1; k <= 60; k++) setTimeout(helperState, k * 3000);      // 설치가 끝나 앱이 붙으면 버튼이 바뀐다
+      return;
+    }
+    const r = await api('POST', '/api/helper/toggle', { on: !helperSt.running, hid: helperHid() });
+    if (r && r.needRun) flashToast(T.helperRun || 'Open "PT Helper" on this PC\'s desktop to start the helper.');
+    await helperState();
+    return;
+  }
   if (!helperSt.installed) {
     helperBusy = true; helperPaint();
     const r = await api('POST', '/api/helper/install', {}, 90000);

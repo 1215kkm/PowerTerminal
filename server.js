@@ -1500,6 +1500,7 @@ setInterval(unstickScan, STUCK_SCAN_MS);
 const app = express();
 // 요청 하나하나에 마크를 찍는다 — 굳은 순간 처리 중이던 요청이 그대로 기록에 남는다
 app.use((req, res, next) => {
+  markTunnel(req);
   setMark('요청 ' + req.method + ' ' + req.path);
   res.on('finish', () => { if (curMark.startsWith('요청 ')) setMark('idle'); });
   next();
@@ -1507,7 +1508,13 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '30mb',      // 이미지 붙여넣기(base64) 수용
   verify: (req, res, buf) => { req.rawBody = buf; } }));   // 프록시 중계용 원본 보존
 
-function isLocal(sock) { return /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
+// 외부 주소(cloudflared 터널)로 온 요청도 이 PC(::1)에서 온 것처럼 보인다(실측) — 클라우드플레어가 붙이는 헤더로 가려
+// 그 연결을 "바깥"으로 표시한다. 안 그러면 주소만 알면 토큰 없이 들어온다.
+function markTunnel(req) {
+  const h = req.headers || {};
+  if (h['cf-ray'] || h['cf-connecting-ip'] || h['cdn-loop'] || h['cf-warp-tag-id']) req.socket.__ptTunnel = true;
+}
+function isLocal(sock) { return !sock.__ptTunnel && /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(sock.remoteAddress || ''); }
 
 /* 💓 생존 신호 — 이 PC에서만. 런처(start.bat)가 "포트는 잡혀 있는데 진짜 살아 있나" 를 몇 초 안에 확인한다.
    멈춘 서버는 포트를 계속 붙들고 있어서, 예전엔 런처가 '이미 실행 중' 이라며 브라우저만 열고 끝났다 —
@@ -1579,7 +1586,7 @@ app.use((req, res, next) => {
 
 // 🧭 도우미 — 단계 안내(guide.js). 토큰 검사 뒤라 원격(폰)에서도 카드로 체크할 수 있다.
 guideApi = require('./guide')(app, { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions: () => sessions, ptys,
-  browserMode, sessProfile, browserProfile, ensureBrowser, spawn });
+  browserMode, sessProfile, browserProfile, ensureBrowser, spawn, getToken: () => config.token });
 
 // HTML/JS는 캐시 금지 — 업데이트 후 옛 화면이 남지 않도록
 app.use((req, res, next) => {
@@ -4567,7 +4574,9 @@ const wss = new WebSocketServer({ server, path: '/term' });
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
-  if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token) { ws.close(); return; }
+  markTunnel(req);
+  const ck = (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
+  if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token && ck !== config.token) { ws.close(); return; }
   const id = url.searchParams.get('id');
   const sess = sessions.find(x => x.id === id);
   if (!sess) { ws.close(); return; }
