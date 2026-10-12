@@ -311,6 +311,38 @@
   html.light .flow-next button { background: #f3f4f6; }
   .flow-next button:hover { border-color: var(--pink); color: var(--pink); }
   .flow-next .fn-x { margin-left: auto; border: none; background: transparent; color: var(--muted); }
+  /* 🧭 도우미 — 헤더 버튼(설치 전엔 눈에 띄게)과 세션 칸의 체크리스트 카드 */
+  #btnHelper { white-space: nowrap; font-weight: 700; }
+  #btnHelper.inst { background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; border-color: transparent; font-weight: 800;
+                    animation: hlpGlow 2.2s ease-in-out infinite; }
+  @keyframes hlpGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(236,72,153,0); } 50% { box-shadow: 0 0 0 4px rgba(236,72,153,.28), 0 0 14px rgba(168,85,247,.55); } }
+  #btnHelper.on { border: 1.5px solid var(--pink); color: var(--pink); }
+  #btnHelper:disabled { opacity: .75; cursor: progress; animation: none; }
+  .guide-card { position: absolute; right: 10px; z-index: 21; width: min(330px, calc(100% - 20px)); overflow: hidden;
+                background: #111827; border: 1.5px solid var(--violet); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+                font-size: 13px; color: var(--fg); animation: gcIn .25s ease-out; }
+  @keyframes gcIn { from { opacity: 0; transform: translateY(-6px); } }
+  html.light .guide-card { background: #fff; }
+  .guide-card .gc-head { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 10px; cursor: pointer;
+                         background: linear-gradient(90deg, rgba(138,56,245,.18), rgba(236,72,153,.12)); }
+  .guide-card .gc-t { flex: 1 1 auto; min-width: 0; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .guide-card .gc-n { flex: 0 0 auto; font-size: 12px; color: var(--muted); font-weight: 700; }
+  .guide-card .gc-on { flex: 0 0 auto; padding: 4px 9px; font-size: 12px; font-weight: 700; border-radius: 999px; white-space: nowrap; cursor: pointer;
+                       border: 1px solid var(--line); background: #1f2937; color: var(--fg); }
+  html.light .guide-card .gc-on { background: #f3f4f6; }
+  .guide-card .gc-on.on { background: linear-gradient(90deg, var(--violet), var(--pink)); border-color: transparent; color: #fff; }
+  .guide-card .gc-x { flex: 0 0 auto; border: 0; background: transparent; color: var(--muted); font-size: 14px; cursor: pointer; padding: 2px 4px; }
+  .guide-card .gc-list { list-style: none; margin: 0; padding: 4px 0; max-height: min(40vh, 300px); overflow: auto; }
+  .guide-card .gc-list li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 10px; cursor: pointer; line-height: 1.45; border-left: 3px solid transparent; }
+  .guide-card .gc-list li:hover { background: rgba(138,56,245,.1); }
+  .guide-card .gc-list li.cur { border-left-color: var(--pink); background: rgba(236,72,153,.1); font-weight: 700; }
+  .guide-card .gc-list li.ok .gc-tx { color: var(--muted); text-decoration: line-through; }
+  .guide-card .gc-ck { flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border-radius: 6px; border: 1.5px solid var(--line); background: transparent;
+                       color: #fff; font-size: 13px; font-weight: 800; line-height: 1; cursor: pointer; }
+  .guide-card .gc-list li.ok .gc-ck { background: #10b981; border-color: #10b981; }
+  .guide-card .gc-fin { padding: 7px 10px 9px; font-weight: 800; color: #10b981; }
+  .guide-card.fold .gc-list, .guide-card.fold .gc-fin { display: none; }
+  @media (max-width: 820px) { .guide-card .gc-ck { width: 24px; height: 24px; } .guide-card .gc-on { padding: 6px 10px; } }
   /* 인계받은 세션 — 4초간 테두리가 반짝여 '여기로 넘어왔다'를 알린다 */
   .pane.flow-incoming { border-color: #22d3ee; animation: flowIn 1s ease-in-out 4; }
   @keyframes flowIn { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); } 50% { box-shadow: 0 0 0 4px rgba(34,211,238,.45); } }
@@ -1482,7 +1514,7 @@
   <!-- ④ 버튼들 — 항상 오른쪽 끝에 가로로 -->
   <span id="hdrBtns">
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
-  <button id="btnFlowSort" onclick="flowSortPanes()" data-i18n-title="flowSortT">⇅</button>
+  <button id="btnHelper" onclick="helperBtn()" style="display:none"></button>
   <button id="btnTheme" onclick="toggleTheme()" data-i18n-title="themeT">☀</button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
   <button id="btnMind" onclick="openMind()" data-i18n-title="mindBtn"><svg class="mindic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="7" x2="17" y2="6"></line><line x1="6" y1="7" x2="11" y2="17"></line><line x1="17" y1="6" x2="11" y2="17"></line><circle cx="6" cy="7" r="2.5" fill="currentColor" stroke="none"></circle><circle cx="17" cy="6" r="2.5" fill="currentColor" stroke="none"></circle><circle cx="11" cy="17" r="2.5" fill="currentColor" stroke="none"></circle></svg></button>
@@ -2320,6 +2352,23 @@ const I18N_MORE = {
     flowSortT: "Sort the panes by the flow — sessions from one repo together, in arrow order. Saved, so a restart keeps it.",
     flowSortDone: "Panes sorted by the flow.",
     flowSortSame: "Already in flow order.",
+    helperInstall: "🧭 Install helper",
+    helperInstalling: "⏳ Installing…",
+    helperOn: "🧭 Helper",
+    helperInstallT: "On-screen helper — a pointer and a speech bubble walk you through the steps an AI gives you, on the desktop and in the browser, and check each one off as you do it. Installs on this PC in a few seconds. Then ask a session: \"guide me with the helper\".",
+    helperOnT: "Helper is on — click to turn it off",
+    helperOffT: "Helper is off — click to turn it on",
+    helperInstalled: "Helper installed. Ask a session \"guide me with the helper\" and it will point at each step on screen.",
+    helperFail: "Install failed: ",
+    guideShow: "▶ Show on screen",
+    guideShowT: "Point at each step on the desktop and in the browser",
+    guideShowing: "● On screen",
+    guideShowingT: "Pointing on screen — click to stop",
+    guideClose: "Remove this guide",
+    guideDone: "🎉 All done",
+    guideFoldT: "Click to fold / unfold",
+    guideGotoT: "Click: point at this step",
+    guideCheckT: "Check / uncheck",
     lastDone: "last work", lastDoneT: "When this session last finished a request, kept across reloads.",
     flowQueued: "Handed to “{t}” — it is still working, so it goes out the moment it finishes.",
     fs_report: "Report",
@@ -2433,6 +2482,23 @@ const I18N_MORE = {
     flowSortT: "창을 흐름 순서로 정렬 — 같은 레포 세션끼리 모으고 화살표 순서대로. 저장돼서 다시 켜도 그대로예요.",
     flowSortDone: "흐름 순서로 정렬했어요.",
     flowSortSame: "이미 흐름 순서예요.",
+    helperInstall: "🧭 도우미 설치",
+    helperInstalling: "⏳ 설치 중…",
+    helperOn: "🧭 도우미",
+    helperInstallT: "말풍선 도우미 — AI 가 알려 준 할 일 순서를 바탕화면·브라우저에서 포인터와 말풍선으로 짚어 주고, 그대로 하면 체크해요. 이 PC 에 몇 초면 설치돼요. 그다음 세션에 \"도우미로 안내해 줘\"라고 요청하세요.",
+    helperOnT: "도우미 켜짐 — 누르면 꺼요",
+    helperOffT: "도우미 꺼짐 — 누르면 켜요",
+    helperInstalled: "도우미를 설치했어요. 세션에 \"도우미로 안내해 줘\"라고 요청하면 화면에서 하나씩 짚어 줘요.",
+    helperFail: "설치 실패: ",
+    guideShow: "▶ 화면에 띄우기",
+    guideShowT: "바탕화면·브라우저에서 한 단계씩 짚어 줘요",
+    guideShowing: "● 띄우는 중",
+    guideShowingT: "화면에서 짚어 주는 중 — 누르면 내려요",
+    guideClose: "안내 지우기",
+    guideDone: "🎉 다 했어요",
+    guideFoldT: "눌러서 접기 / 펴기",
+    guideGotoT: "누르면 이 단계를 짚어 줘요",
+    guideCheckT: "체크 / 체크 풀기",
     lastDone: "최근 작업", lastDoneT: "이 세션이 마지막으로 요청을 끝낸 날짜와 시각. 새로고침해도 남습니다.",
     flowQueued: "“{t}” 로 넘겼어요 — 지금 작업 중이라 끝나는 대로 들어갑니다.",
     fs_report: "보고",
@@ -5478,6 +5544,8 @@ function buildPane(sess, idx) {
         } else applyStatus(m.done, m.busy);
       }
       else if (m.type === 'exit') term.write('\r\n\x1b[31m' + T.exitMsg + '\x1b[0m\r\n');
+      else if (m.type === 'guide') guideRender(el, sess, m.g, m.active);          // 🧭 이 세션의 도우미 안내
+      else if (m.type === 'guideActive') guideActiveChanged(el, m.active);
     };
     // 접속 직후 한 번 + 레이아웃/주소창 확정 뒤 두 번 더 (모바일 반쪽 높이 방지)
     ws.onopen = () => {
@@ -8146,6 +8214,88 @@ function flowNotifySource(fromId, o) {
   src.el._flowNotified = true;
   src.sendText(txt, null, { log: false });   // 인계 알림 = 한 일이 아님
 }
+/* 🧭 도우미 — AI 가 pt_guide 도구로 넘긴 "사용자가 할 일" 순서. 세션 칸 오른쪽 위에 체크리스트 카드로 보이고,
+   [화면에 띄우기] 가 켜져 있으면 도우미 앱(바탕화면 포인터·말풍선)과 PT 브라우저 창이 한 단계씩 짚어 준다.
+   사용자가 그대로 하면 서버가 체크해 이 카드도 바로 바뀐다. 폰에서는 카드에서 손으로 체크한다. */
+function guideRender(el, sess, g, active) {
+  let card = el.querySelector('.guide-card');
+  if (!g) { if (card) card.remove(); return; }
+  if (!card) {
+    card = document.createElement('div'); card.className = 'guide-card'; el.appendChild(card);
+    card.addEventListener('click', ev => {
+      const b = ev.target.closest('button, li, .gc-head'); if (!b) return;
+      ev.stopPropagation();
+      const cg = card._g; if (!cg) return;
+      const send = (act, i) => api('POST', '/api/guide/act', { sid: sess.id, gid: cg.gid, act, i }).then(r => { if (r && r.ok) guideRender(el, sess, r.g, r.active); });
+      if (b.classList.contains('gc-on')) send(cg.active ? 'stop' : 'start');
+      else if (b.classList.contains('gc-x')) send('clear');
+      else if (b.classList.contains('gc-ck')) send('check', +b.closest('li').dataset.i);
+      else if (b.tagName === 'LI') send('goto', +b.dataset.i);
+      else if (b.classList.contains('gc-head')) {
+        const f = !card.classList.contains('fold'); card.classList.toggle('fold', f);
+        try { localStorage.setItem('pt_guide_fold', f ? cg.gid : ''); } catch (e) {}
+      }
+    });
+  }
+  g.active = active === sess.id;
+  card._g = g;
+  const n = g.steps.length, ok = g.checked.filter(Boolean).length;
+  let fold = false; try { fold = localStorage.getItem('pt_guide_fold') === g.gid; } catch (e) {}
+  card.classList.toggle('fold', fold);
+  card.innerHTML = `<div class="gc-head" title="${escA(T.guideFoldT || 'Click to fold / unfold')}">`
+    + `<span class="gc-t">🧭 ${esc(g.title)}</span><span class="gc-n">${ok}/${n}</span>`
+    + `<button class="gc-on${g.active ? ' on' : ''}" title="${escA(g.active ? (T.guideShowingT || 'Pointing on screen — click to stop') : (T.guideShowT || 'Point each step on the desktop and in the browser'))}">${esc(g.active ? (T.guideShowing || '● On screen') : (T.guideShow || '▶ Show on screen'))}</button>`
+    + `<button class="gc-x" title="${escA(T.guideClose || 'Remove this guide')}">✕</button></div>`
+    + `<ol class="gc-list">${g.steps.map((s, i) => `<li data-i="${i}" class="${g.checked[i] ? 'ok' : ''}${i === g.cur ? ' cur' : ''}" title="${escA(T.guideGotoT || 'Click: point at this step')}">`
+      + `<button class="gc-ck" title="${escA(T.guideCheckT || 'Check / uncheck')}">${g.checked[i] ? '✓' : ''}</button><span class="gc-tx">${esc(s.text)}</span></li>`).join('')}</ol>`
+    + (g.finished ? `<div class="gc-fin">${esc(T.guideDone || '🎉 All done')}</div>` : '');
+  /* 터미널 칸 위쪽에 맞춘다 — 제목줄 높이로 재면 그 아래 걸친 AI 표시(Shell·Claude)를 덮었다 */
+  const tm = el.querySelector('.term'), er = el.getBoundingClientRect();
+  card.style.top = Math.max(30, Math.round((tm ? tm.getBoundingClientRect().top - er.top : 40) + 26)) + 'px';
+  const cur = card.querySelector('li.cur');
+  if (cur && !fold) { const l = card.querySelector('.gc-list'); if (cur.offsetTop < l.scrollTop || cur.offsetTop > l.scrollTop + l.clientHeight - 30) l.scrollTop = cur.offsetTop - 30; }
+}
+function guideActiveChanged(el, active) {
+  const card = el.querySelector('.guide-card'); if (!card || !card._g) return;
+  const sess = (panes.get(el.dataset.id) || {}).sess; if (!sess) return;
+  guideRender(el, sess, card._g, active);
+}
+// 헤더의 [🧭 도우미 설치] / [🧭 도우미] — 이 PC 에서 연 PT 화면에만 보인다(앱은 서버 PC 바탕화면에 뜨므로)
+let helperSt = null, helperBusy = false;
+async function helperState() {
+  const b = document.getElementById('btnHelper'); if (!b) return;
+  const s = await api('GET', '/api/helper/state');
+  if (!s || s.error) return;
+  helperSt = s;
+  helperPaint();
+}
+function helperPaint() {
+  const b = document.getElementById('btnHelper'), s = helperSt; if (!b || !s) return;
+  const show = s.win && s.local && !isMobileNow();
+  b.style.display = show ? '' : 'none';
+  if (!show) return;
+  b.classList.toggle('inst', !s.installed); b.classList.toggle('on', !!(s.installed && s.running));
+  b.disabled = helperBusy;
+  b.textContent = helperBusy ? (T.helperInstalling || '⏳ Installing…') : s.installed ? (T.helperOn || '🧭 Helper') : (T.helperInstall || '🧭 Install helper');
+  b.title = !s.installed ? (T.helperInstallT || '') : s.running ? (T.helperOnT || 'Helper is on — click to turn it off') : (T.helperOffT || 'Helper is off — click to turn it on');
+}
+async function helperBtn() {
+  if (helperBusy || !helperSt) return;
+  if (!helperSt.installed) {
+    helperBusy = true; helperPaint();
+    const r = await api('POST', '/api/helper/install', {}, 90000);
+    helperBusy = false;
+    if (r && r.ok) flashToast(T.helperInstalled || 'Helper installed.');
+    else flashToast((T.helperFail || 'Install failed: ') + ((r && (r.msg || r.error)) || ''));
+  } else {
+    await api('POST', '/api/helper/toggle', { on: !helperSt.running });
+  }
+  await helperState();
+  setTimeout(helperState, 2500);
+}
+setTimeout(helperState, 800);
+setInterval(() => { if (!document.hidden) helperState(); }, 10000);
+addEventListener('resize', helperPaint);
 // 갈림길 — 세션 아래쪽에 뜨는 작은 선택줄. 고르기 전엔 아무 데도 안 넘어간다.
 function flowPickNext(paneEl, opts, go) {
   paneEl.querySelectorAll('.flow-next').forEach(n => n.remove());

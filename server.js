@@ -694,16 +694,38 @@ function browserRulesPrompt(mode, prof, withRules) {
     '사용자가 수시로 고치므로, 결제·전송·삭제·로그인·설정 변경처럼 되돌리기 어려운 동작 직전에는 원본을 다시 읽고 최신 내용을 따른다.',
     rules ? '\n' + rules : ''].join('\n');
 }
+/* 🧭 도우미 도구(pt_guide) — 브라우저를 켜지 않은 세션에도 모든 AI 에 꽂는다. "사용자가 할 일" 순서를 PT 에 넘기는 통로.
+   세션 id 를 환경변수로 넣어야 해서 세션마다 설정 파일 하나. 실제 일은 guide.js 가 한다. */
+const GUIDE_MCP_NAME = 'pt_guide';
+let guideApi = null;   // guide.js — 서버가 다 뜬 뒤 채워진다
+function guideMcpFile(sess) {
+  if (!guideApi) return '';
+  const f = path.join(DATA_DIR, 'guide-mcp-s-' + sess.id + '.json');
+  try { fs.writeFileSync(f, JSON.stringify({ mcpServers: { [GUIDE_MCP_NAME]: guideApi.mcp(sess.id) } }, null, 2)); } catch (e) { return ''; }
+  return f;
+}
+function guideCodexArgs(sess) {
+  if (!guideApi) return '';
+  const m = guideApi.mcp(sess.id), k = 'mcp_servers.' + GUIDE_MCP_NAME + '.';
+  const q = IS_WIN ? (s => "''" + s + "''") : (s => '"' + s + '"');
+  const w = s => " -c '" + s + "'";
+  return w(k + 'command=' + q(m.command)) + w(k + 'args=[' + m.args.map(q).join(',') + ']')
+       + Object.entries(m.env).map(([n, v]) => w(k + 'env.' + n + '=' + q(v))).join('') + w(k + 'default_tools_approval_mode=' + q('approve'));
+}
 function browserFlags(sess) {
   const mode = browserMode(sess);
-  if (!mode) return '';
+  const gf = (sess.agent || 'claude') === 'claude' ? guideMcpFile(sess) : '';
+  if (!mode) {
+    if (gf) return ' --mcp-config "' + gf + '" --allowedTools "mcp__' + GUIDE_MCP_NAME + '"';
+    return sess.agent === 'codex' ? guideCodexArgs(sess) : '';
+  }
   const prof = mode === 'normal' ? sessProfile(sess) : null;
   const tag = mode + (prof && prof.slug ? '-' + prof.slug : '');
   if ((sess.agent || 'claude') === 'claude') {
     const f = path.join(DATA_DIR, 'browser-rules-' + tag + '.prompt.md');
     try { fs.writeFileSync(f, browserRulesPrompt(mode, prof, true)); } catch (e) {}
-    const tools = 'mcp__' + BROWSER_MCP_NAME + (mode === 'normal' ? ',mcp__' + VAULT_MCP_NAME : '');
-    return ' --mcp-config "' + writeBrowserMcp(mode, prof, sess) + '" --allowedTools "' + tools + '" --append-system-prompt-file "' + f + '"';
+    const tools = 'mcp__' + BROWSER_MCP_NAME + (mode === 'normal' ? ',mcp__' + VAULT_MCP_NAME : '') + (gf ? ',mcp__' + GUIDE_MCP_NAME : '');
+    return ' --mcp-config "' + writeBrowserMcp(mode, prof, sess) + '"' + (gf ? ' "' + gf + '"' : '') + ' --allowedTools "' + tools + '" --append-system-prompt-file "' + f + '"';
   }
   if (sess.agent !== 'codex') return '';
   const m = browserMcp(mode, prof, sess);
@@ -731,7 +753,7 @@ function browserFlags(sess) {
     : '';
   return w(k + 'command=' + q(m.command)) + w(k + 'args=[' + m.args.map(q).join(',') + ']')
        + (m.env ? Object.entries(m.env).map(([n, v]) => w(k + 'env.' + n + '=' + q(v))).join('') : '')
-       + w(k + 'startup_timeout_sec=60') + w(k + 'default_tools_approval_mode=' + q('approve')) + vaultArgs + diArg;
+       + w(k + 'startup_timeout_sec=60') + w(k + 'default_tools_approval_mode=' + q('approve')) + vaultArgs + guideCodexArgs(sess) + diArg;
 }
 function findBrowserExe() {
   const pf = process.env.ProgramFiles || 'C:\\Program Files', pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
@@ -1627,6 +1649,10 @@ app.use((req, res, next) => {
   }
   res.status(401).send('<h2 style="font-family:sans-serif">Access token required. Open the URL shown in the server console (or scan the QR).</h2>');
 });
+
+// 🧭 도우미 — 단계 안내(guide.js). 토큰 검사 뒤라 원격(폰)에서도 카드로 체크할 수 있다.
+guideApi = require('./guide')(app, { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions: () => sessions, ptys,
+  browserMode, sessProfile, browserProfile, ensureBrowser, spawn });
 
 // HTML/JS는 캐시 금지 — 업데이트 후 옛 화면이 남지 않도록
 app.use((req, res, next) => {
@@ -4728,6 +4754,7 @@ wss.on('connection', (ws, req) => {
   // 접속 시 지금까지 화면 재생 + 상태
   ws.send(JSON.stringify({ type: 'out', data: p.buffer }));
   ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, since: p.doneSince || 0 }));
+  if (guideApi) guideApi.hello(ws, id);   // 🧭 이 세션의 도우미 안내(있으면)
 
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
