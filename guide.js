@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = function installGuide(app, ctx) {
-  const { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions, ptys, browserMode, sessProfile, browserProfile, ensureBrowser, spawn } = ctx;
+  const { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions, ptys, browserMode, sessProfile, browserProfile, ensureBrowser, spawn, getToken } = ctx;
   const FILE = path.join(DATA_DIR, 'guides.json');
   const HELPER_SRC = path.join(ROOT, 'helper', 'PtHelper.cs');
   const HELPER_DIR = path.join(DATA_DIR, 'helper');
@@ -286,19 +286,16 @@ module.exports = function installGuide(app, ctx) {
     if (!web.mode && !helperAlive() && !helperOff && installed() && Date.now() - launchedAt < 8000) return;   // 앱이 막 뜨는 중
     if (!web.mode) {
       const inPt = !!(tabs && st.url && tabs.some(t => sameUrl(t.url, st.url)));
-      const prevMode = web.modeOf[g.gid];
-      web.mode = st.browser === 'pt' || !helperAlive() ? 'pt'
+      const prevMode = web.modeOf[g.gid], p = primary();
+      web.mode = st.browser === 'pt' || !p ? 'pt'
+               : p !== 'local' ? 'user'                  // 다른 PC 에서 쓰는 중 — PT 브라우저 창은 거기서 안 보인다
                : st.browser === 'user' ? 'user'
                : st.url ? (inPt ? 'pt' : 'user')
                : (prevMode || 'user');
       web.modeOf[g.gid] = web.mode;
     }
-    if (web.mode === 'user') {
+    if (web.mode === 'user') {          // 페이지 열기·짚기는 그 PC 의 도우미 앱이 한다
       if (web.conn && web.connKey !== 'off') hidePage();
-      if (st.url && /^https?:\/\//i.test(st.url) && !web.opened[key]) {
-        web.opened[key] = true;
-        if (IS_WIN) try { const c = spawn('rundll32.exe', ['url.dll,FileProtocolHandler', st.url], { detached: true, stdio: 'ignore', windowsHide: true }); c.on('error', () => {}); c.unref(); } catch (e) {}
-      }
       return;
     }
     if (!tabs) { ensureBrowser(prof); web.msg = 'browser'; return; }
@@ -343,25 +340,51 @@ module.exports = function installGuide(app, ctx) {
   setInterval(webTick, 500).unref();
 
   // ---------- 도우미 앱 ----------
+  // 도우미는 여러 PC 에 있을 수 있다 — 서버 PC 의 것('local')과, PT 주소로 접속한 다른 PC 에 설치한 것(hid).
+  // 화면에는 지금 사람이 쓰는 PC(마우스·키보드를 가장 최근에 쓴 곳) 하나만 짚는다.
   let helperSeen = 0, helperPid = 0;
-  const helperAlive = () => Date.now() - helperSeen < 3000;
+  const live = {};                          // hid → { seen, idle }
+  const REMOTE_FILE = path.join(DATA_DIR, 'helpers.json');
+  let remotes = {};                         // 다른 PC 도우미: hid → { at, off }
+  try { remotes = JSON.parse(fs.readFileSync(REMOTE_FILE, 'utf8')) || {}; } catch (e) {}
+  const saveRemotes = () => { try { fs.writeFileSync(REMOTE_FILE, JSON.stringify(remotes)); } catch (e) {} };
+  const validHid = h => /^[a-z0-9]{8,40}$/i.test(String(h || '')) ? String(h) : '';
+  const isAlive = hid => !!live[hid] && Date.now() - live[hid].seen < 3000;
+  const isOff = hid => hid === 'local' ? helperOff : !!(remotes[hid] || {}).off;
+  function primary() {
+    let best = '', bi = Infinity;
+    for (const hid of Object.keys(live)) {
+      if (!isAlive(hid) || isOff(hid)) continue;
+      const idle = (live[hid].idle || 0) + (Date.now() - live[hid].seen);
+      if (idle < bi) { bi = idle; best = hid; }
+    }
+    return best;
+  }
+  const helperAlive = () => !!primary();
   const HELPER_VER = (() => { try { return (fs.readFileSync(HELPER_SRC, 'utf8').match(/const string VER = "([^"]+)"/) || [])[1] || ''; } catch (e) { return ''; } })();
   const installed = () => { try { return fs.existsSync(HELPER_EXE); } catch (e) { return false; } };
   let launchedAt = 0;
   function launchHelper() {
     if (!IS_WIN) return { ok: false, msg: 'Windows only' };
     if (!installed()) return { ok: false, msg: 'not installed' };
-    if (helperAlive() || Date.now() - launchedAt < 8000) return { ok: true };
+    if (isAlive('local') || Date.now() - launchedAt < 8000) return { ok: true };
     launchedAt = Date.now();
     try { const c = spawn(HELPER_EXE, [String(PORT)], { detached: true, stdio: 'ignore', windowsHide: false }); c.on('error', () => {}); c.unref(); } catch (e) { return { ok: false, msg: String(e.message) }; }
     return { ok: true };
   }
+  // 토큰 검사 뒤라 다른 PC 의 도우미(토큰 헤더)도 들어온다. 서버 PC 의 도우미는 hid 없이 이 PC 에서만.
   app.get('/api/guide/helper', (req, res) => {
-    if (!isLocal(req.socket)) return res.status(403).end();
-    helperSeen = Date.now(); helperPid = Number(req.query.pid) || helperPid;
+    const rid = validHid(req.query.hid);
+    if (!rid && !isLocal(req.socket)) return res.status(403).end();
+    if (rid && !remotes[rid]) return res.json({ quit: true, why: 'unknown' });        // 설치 파일을 받은 적 없는 번호
+    const hid = rid || 'local';
+    live[hid] = { seen: Date.now(), idle: Math.max(0, Number(req.query.idle) || 0) };
+    if (!rid) { helperSeen = Date.now(); helperPid = Number(req.query.pid) || helperPid; }
+    else if (!remotes[rid].seen) { remotes[rid].seen = Date.now(); saveRemotes(); }
     res.setHeader('Cache-Control', 'no-store');
-    if (req.query.v && HELPER_VER && req.query.v !== HELPER_VER && installed() && !rebuilding) return res.json({ quit: true, why: 'update' });
-    if (helperOff) return res.json({ on: false, paused: true });
+    if (req.query.v && HELPER_VER && req.query.v !== HELPER_VER && (rid || (installed() && !rebuilding))) return res.json({ quit: true, why: 'update', update: !!rid });
+    if (isOff(hid)) return res.json({ on: false, paused: true });
+    if (primary() !== hid) return res.json({ on: false, standby: true });            // 다른 PC 에서 쓰는 중
     const g = guides[active];
     if (!g) return res.json({ on: false });
     const L = labels(g), n = g.steps.length;
@@ -371,11 +394,13 @@ module.exports = function installGuide(app, ctx) {
     res.json({ on: true, sid: active, gid: g.gid, title: g.title, sess: sess.title || '', i: g.cur, n, text: st.text, kind: st.kind, done: st.done,
                window: st.window || '', control: st.control || '', until: st.until || '', L,
                web: st.kind === 'web' ? { rect: web.key === g.gid + ':' + g.cur ? web.rect : null, front: web.vis, title: web.title || '',
-                                          mode: web.key === g.gid + ':' + g.cur ? web.mode : '', label: st.label || '', url: st.url || '' } : null });
+                                          mode: web.key === g.gid + ':' + g.cur ? web.mode : '', label: st.label || '', url: st.url || '',
+                                          open: web.key === g.gid + ':' + g.cur && web.mode === 'user' && /^https?:\/\//i.test(st.url || '') ? st.url : '' } : null });
   });
   app.post('/api/guide/helper/act', (req, res) => {
-    if (!isLocal(req.socket)) return res.status(403).end();
     const b = req.body || {};
+    const rid = validHid(b.hid);
+    if (rid ? !remotes[rid] : !isLocal(req.socket)) return res.status(403).end();
     const sid = String(b.sid || active);
     if (b.gid && guides[sid] && guides[sid].gid !== b.gid) return res.json({ ok: false });
     res.json({ ok: act(sid, String(b.act || ''), typeof b.i === 'number' ? b.i : undefined) });
@@ -415,7 +440,58 @@ module.exports = function installGuide(app, ctx) {
     try { process.kill(helperPid); } catch (e) {}
     setTimeout(resolve, 600);
   });
-  app.get('/api/helper/state', (req, res) => res.json({ win: IS_WIN, installed: installed(), running: helperAlive() && !helperOff, local: isLocal(req.socket) }));
+  app.get('/api/helper/state', (req, res) => {
+    const loc = isLocal(req.socket), hid = validHid(req.query.hid);
+    if (loc) return res.json({ win: IS_WIN, local: true, installed: installed(), running: isAlive('local') && !helperOff });
+    // 다른 PC — 그 PC 브라우저가 기억하는 도우미 번호(hid)로 본다
+    res.json({ win: IS_WIN, local: false, remote: true, installed: !!(hid && remotes[hid]) && (!!remotes[hid].seen || isAlive(hid)),
+               running: !!hid && isAlive(hid) && !isOff(hid), standby: !!hid && isAlive(hid) && !isOff(hid) && primary() !== hid });
+  });
+  // 다른 PC 용 설치 파일 — 그 PC 에서 실행하면 윈도우 기본 C# 컴파일러로 도우미를 만들고 바탕화면에 「PT Helper」 바로가기를 둔다.
+  // PT 주소·토큰이 들어 있으니 그 PC 에만 둔다(토큰 검사 뒤에서만 받을 수 있다).
+  app.get('/api/helper/setup.cmd', (req, res) => {
+    const hid = validHid(req.query.hid);
+    const base = String(req.query.base || '').replace(/\/+$/, '');
+    if (!hid || !/^https?:\/\/[A-Za-z0-9.\-:\[\]]+$/.test(base)) return res.status(400).send('bad request');
+    const token = getToken();
+    if (!/^[A-Za-z0-9_\-]+$/.test(token)) return res.status(500).send('token');
+    remotes[hid] = Object.assign(remotes[hid] || {}, { at: Date.now(), off: false }); saveRemotes();
+    const refs = ['System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows.Forms.dll', 'System.Web.Extensions.dll']
+      .map(r => '/r:' + r).concat(['UIAutomationClient.dll', 'UIAutomationTypes.dll', 'WindowsBase.dll'].map(r => '/r:"%FW%\\WPF\\' + r + '"')).join(' ');
+    const cmd = [
+      '@echo off', 'setlocal',
+      'rem PowerTerminal helper - builds the on-screen helper on this PC with the C# compiler that ships with Windows, then starts it.',
+      'set "BASE=' + base + '"', 'set "HID=' + hid + '"', 'set "TOKEN=' + token + '"',
+      'set "D=%LOCALAPPDATA%\\PowerTerminalHelper"',
+      'if not exist "%D%" mkdir "%D%"',
+      'if /i not "%~f0"=="%D%\\run.cmd" copy /y "%~f0" "%D%\\run.cmd" >nul',
+      'echo PowerTerminal helper: downloading...',
+      'curl -fsS -H "X-PT-Token: %TOKEN%" "%BASE%/api/helper/src" -o "%D%\\PtHelper.cs"',
+      'if errorlevel 1 goto fail',
+      'set "FW=%WINDIR%\\Microsoft.NET\\Framework64\\v4.0.30319"',
+      'if not exist "%FW%\\csc.exe" set "FW=%WINDIR%\\Microsoft.NET\\Framework\\v4.0.30319"',
+      'if not exist "%FW%\\csc.exe" goto nocsc',
+      'taskkill /f /im PtHelper.exe >nul 2>&1',
+      'ping -n 2 127.0.0.1 >nul',
+      'echo PowerTerminal helper: building...',
+      '"%FW%\\csc.exe" /nologo /optimize+ /target:winexe /codepage:65001 /out:"%D%\\PtHelper.exe" ' + refs + ' "%D%\\PtHelper.cs" > "%D%\\build.log"',
+      'if errorlevel 1 goto fail',
+      'powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(\'Desktop\')+\'\\PT Helper.lnk\'); $s.TargetPath=\'%D%\\run.cmd\'; $s.WindowStyle=7; $s.Save()" >nul 2>&1',
+      'start "" "%D%\\PtHelper.exe" "%BASE%" "%HID%" "%TOKEN%"',
+      'echo PowerTerminal helper is running. Next time, open "PT Helper" on the desktop.',
+      'exit /b 0',
+      ':nocsc', 'echo The .NET Framework 4 C# compiler was not found on this PC.', 'pause', 'exit /b 1',
+      ':fail', 'echo Could not set up the helper. Is PowerTerminal running and reachable at %BASE% ?', 'type "%D%\\build.log" 2>nul', 'pause', 'exit /b 1', ''
+    ].join('\r\n');
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="PT-Helper-Setup.cmd"');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(cmd);
+  });
+  app.get('/api/helper/src', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('text/plain; charset=utf-8').send(fs.readFileSync(HELPER_SRC, 'utf8'));
+  });
   app.post('/api/helper/install', async (req, res) => {
     if (!isLocal(req.socket)) return res.json({ ok: false, msg: 'Install from the PC that runs PowerTerminal.' });
     if (!IS_WIN) return res.json({ ok: false, msg: 'The helper app is Windows only for now.' });
@@ -433,8 +509,13 @@ module.exports = function installGuide(app, ctx) {
   });
   // 켜고 끄기 — 끄면 앱이 숨고(가벼운 대기), 켜면 다시 짚는다. 앱이 꺼져 있으면 띄운다.
   app.post('/api/helper/toggle', (req, res) => {
-    if (!isLocal(req.socket)) return res.json({ ok: false });
     const on = !!(req.body || {}).on;
+    if (!isLocal(req.socket)) {               // 다른 PC — 그 PC 의 도우미만 켜고 끈다. 꺼져 있던 앱은 그 PC 에서 다시 실행해야 한다.
+      const hid = validHid((req.body || {}).hid);
+      if (!hid || !remotes[hid]) return res.json({ ok: false });
+      remotes[hid].off = !on; saveRemotes();
+      return res.json({ ok: true, running: on && isAlive(hid), needRun: on && !isAlive(hid) });
+    }
     helperOff = !on;
     if (on) { launchedAt = 0; launchHelper(); }
     res.json({ ok: true, running: on });

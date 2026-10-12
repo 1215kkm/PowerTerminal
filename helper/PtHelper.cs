@@ -18,7 +18,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 
 static class Program {
-  public const string VER = "2";
+  public const string VER = "3";
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [STAThread]
   static void Main(string[] args) {
@@ -26,11 +26,15 @@ static class Program {
     bool fresh;
     Mutex mx = new Mutex(true, "PowerTerminalGuideHelper", out fresh);
     if (!fresh) return;                       // 이미 떠 있다
-    int port = 7777;
-    if (args.Length > 0) int.TryParse(args[0], out port);
+    // 서버 PC: PtHelper.exe <포트>   다른 PC: PtHelper.exe <PT 주소> <도우미 번호> <토큰>  (설치 파일 run.cmd 가 넘긴다)
+    string baseUrl = "http://127.0.0.1:7777", hid = "", token = "";
+    if (args.Length > 0 && args[0].StartsWith("http", StringComparison.OrdinalIgnoreCase)) {
+      baseUrl = args[0].TrimEnd('/'); hid = args.Length > 1 ? args[1] : ""; token = args.Length > 2 ? args[2] : "";
+    } else if (args.Length > 0) { int port; if (int.TryParse(args[0], out port)) baseUrl = "http://127.0.0.1:" + port; }
+    try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; } catch { }   // https 외부 주소는 TLS 1.2 가 필요하다
     Application.EnableVisualStyles();
     Application.SetCompatibleTextRenderingDefault(false);
-    Application.Run(new Helper(port));
+    Application.Run(new Helper(baseUrl, hid, token));
     GC.KeepAlive(mx);
   }
 }
@@ -52,6 +56,14 @@ static class W32 {
   [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
   [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint flags);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [StructLayout(LayoutKind.Sequential)] public struct LASTINPUT { public uint cbSize, dwTime; }
+  [DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LASTINPUT li);
+  // 이 PC 에서 마지막으로 마우스·키보드를 쓴 뒤 지난 시간(ms) — 여러 PC 에 도우미가 있으면 지금 쓰는 PC 가 짚는다
+  public static long IdleMs() {
+    LASTINPUT li = new LASTINPUT(); li.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUT));
+    if (!GetLastInputInfo(ref li)) return 0;
+    return Math.Max(0, (long)(uint)Environment.TickCount - li.dwTime);
+  }
   public static readonly IntPtr TOPMOST = new IntPtr(-1);
 }
 
@@ -159,7 +171,8 @@ class Bubble : Form {
 }
 
 class Helper : ApplicationContext {
-  readonly int port;
+  readonly string baseUrl, hid, token;     // hid 가 있으면 다른 PC 에 설치된 도우미(주소로 PT 에 붙는다)
+  readonly HashSet<string> openedKeys = new HashSet<string>();
   readonly float k;
   readonly LayerForm cur, ring;
   readonly Bubble bub;
@@ -183,8 +196,8 @@ class Helper : ApplicationContext {
   Point bubAnchor = Point.Empty;
   Bitmap curBmp;                           // 포인터 그림 — 창을 보일 때마다 다시 얹는다(숨겼다 보이면 지워짐)
 
-  public Helper(int p) {
-    port = p;
+  public Helper(string b, string h, string t) {
+    baseUrl = b; hid = h; token = t;
     using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) k = g.DpiX / 96f;
     cur = new LayerForm(); ring = new LayerForm(); bub = new Bubble(k);
     bub.OnBtn = OnButton;
@@ -195,7 +208,7 @@ class Helper : ApplicationContext {
     MenuItem pause = new MenuItem("잠시 숨기기 / Hide");
     pause.Click += delegate { paused = !paused; pause.Checked = paused; };
     menu.MenuItems.Add(pause);
-    menu.MenuItems.Add(new MenuItem("PowerTerminal 열기 / Open", delegate { try { System.Diagnostics.Process.Start("http://localhost:" + port + "/"); } catch { } }));
+    menu.MenuItems.Add(new MenuItem("PowerTerminal 열기 / Open", delegate { try { System.Diagnostics.Process.Start(baseUrl + "/"); } catch { } }));
     menu.MenuItems.Add(new MenuItem("끝내기 / Quit", delegate { Quit(); }));
     tray.ContextMenu = menu;
     new Thread(PollLoop) { IsBackground = true }.Start();
@@ -258,17 +271,36 @@ class Helper : ApplicationContext {
     int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
     while (!quitting) {
       try {
-        using (WebClient wc = new WebClient()) {
-          wc.Encoding = Encoding.UTF8;
-          string s = wc.DownloadString("http://127.0.0.1:" + port + "/api/guide/helper?v=" + Program.VER + "&pid=" + pid);
+        using (WebClient wc = Client()) {
+          string s = wc.DownloadString(baseUrl + "/api/guide/helper?v=" + Program.VER + "&pid=" + pid + "&idle=" + W32.IdleMs() +
+                                       (hid.Length > 0 ? "&hid=" + Uri.EscapeDataString(hid) : ""));
           Dictionary<string, object> d = json.Deserialize<Dictionary<string, object>>(s);
           lock (lk) st = d;
           lastOk = DateTime.Now;
-          if (B(d, "quit")) { Invoke0(Quit); return; }
+          if (B(d, "quit")) {
+            // 다른 PC 의 도우미: 새 버전이면 run.cmd 가 소스를 다시 받아 새로 만든 뒤 띄운다
+            if (hid.Length > 0 && B(d, "update")) {
+              string run = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "run.cmd");
+              if (System.IO.File.Exists(run)) try {
+                System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c \"" + run + "\"");
+                psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden; psi.CreateNoWindow = true; psi.UseShellExecute = false;
+                System.Diagnostics.Process.Start(psi);
+              } catch { }
+            }
+            Invoke0(Quit); return;
+          }
+          // 웹 단계 페이지는 이 PC 의 기본 브라우저로 한 번 연다
+          Dictionary<string, object> wb = D(d, "web");
+          string open = S(wb, "open"), k = S(d, "gid") + ":" + S(d, "i");
+          if (open.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !openedKeys.Contains(k)) {
+            openedKeys.Add(k);
+            try { System.Diagnostics.Process.Start(open); } catch { }
+          }
         }
       } catch {
         lock (lk) st = null;
-        if ((DateTime.Now - lastOk).TotalSeconds > 90) { Invoke0(Quit); return; }   // PT 가 꺼졌다
+        // PT 가 꺼졌다 — 다른 PC 는 인터넷이 잠깐 끊길 수 있으니 더 오래 기다린다
+        if ((DateTime.Now - lastOk).TotalSeconds > (hid.Length > 0 ? 900 : 90)) { Invoke0(Quit); return; }
       }
       Thread.Sleep(350);
     }
@@ -276,10 +308,15 @@ class Helper : ApplicationContext {
   void Invoke0(Action a) { try { if (bub.IsHandleCreated) bub.BeginInvoke(a); else a(); } catch { } }
   void Post(string act, Dictionary<string, object> d) {
     if (d == null) return;
-    string body = json.Serialize(new Dictionary<string, object> { { "sid", S(d, "sid") }, { "gid", S(d, "gid") }, { "act", act }, { "i", I(d, "i") } });
+    string body = json.Serialize(new Dictionary<string, object> { { "sid", S(d, "sid") }, { "gid", S(d, "gid") }, { "act", act }, { "i", I(d, "i") }, { "hid", hid } });
     ThreadPool.QueueUserWorkItem(delegate {
-      try { using (WebClient wc = new WebClient()) { wc.Encoding = Encoding.UTF8; wc.Headers[HttpRequestHeader.ContentType] = "application/json"; wc.UploadString("http://127.0.0.1:" + port + "/api/guide/helper/act", body); } } catch { }
+      try { using (WebClient wc = Client()) { wc.Headers[HttpRequestHeader.ContentType] = "application/json"; wc.UploadString(baseUrl + "/api/guide/helper/act", body); } } catch { }
     });
+  }
+  WebClient Client() {
+    WebClient wc = new WebClient(); wc.Encoding = Encoding.UTF8;
+    if (token.Length > 0) wc.Headers["X-PT-Token"] = token;
+    return wc;
   }
   static string S(Dictionary<string, object> d, string key) { object v; return d != null && d.TryGetValue(key, out v) && v != null ? Convert.ToString(v) : ""; }
   static int I(Dictionary<string, object> d, string key) { object v; try { return d != null && d.TryGetValue(key, out v) && v != null ? Convert.ToInt32(v) : -1; } catch { return -1; } }
