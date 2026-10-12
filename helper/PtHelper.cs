@@ -18,7 +18,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 
 static class Program {
-  public const string VER = "4";
+  public const string VER = "5";
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [STAThread]
   static void Main(string[] args) {
@@ -194,6 +194,12 @@ class Helper : ApplicationContext {
   bool wasDown;
   int pulse;
   Point bubAnchor = Point.Empty;
+  // 부드럽게 움직이기 — 틱 간격이 들쭉날쭉해도(15~31ms) 같은 빠르기로 가도록 지난 시간으로 계산한다
+  readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+  long lastTickMs; float dtMs = 16f;
+  PointF bubPos = new PointF(float.NaN, float.NaN);
+  bool chasing; Point lastMouse; float stillMs;
+  float Ease(float tau) { return 1f - (float)Math.Exp(-dtMs / tau); }
   Bitmap curBmp;                           // 포인터 그림 — 창을 보일 때마다 다시 얹는다(숨겼다 보이면 지워짐)
 
   public Helper(string b, string h, string t) {
@@ -213,7 +219,7 @@ class Helper : ApplicationContext {
     tray.ContextMenu = menu;
     new Thread(PollLoop) { IsBackground = true }.Start();
     new Thread(UiaLoop) { IsBackground = true }.Start();
-    ui = new System.Windows.Forms.Timer(); ui.Interval = 16; ui.Tick += delegate { Tick(); }; ui.Start();
+    ui = new System.Windows.Forms.Timer(); ui.Interval = 10; ui.Tick += delegate { Tick(); }; ui.Start();
   }
   int P(float v) { return (int)Math.Round(v * k); }
   void Quit() {
@@ -542,10 +548,14 @@ class Helper : ApplicationContext {
     if (key != shownKey) { shownKey = key; wasDown = true; }
     // 대상이 있으면 포인터가 그리로 미끄러져 가고, 없으면 말풍선이 마우스를 따라다닌다
     Point m = Cursor.Position;
+    long nowMs = clock.ElapsedMilliseconds;
+    dtMs = Math.Max(1f, Math.Min(100f, nowMs - lastTickMs)); lastTickMs = nowMs;
     if (!target.IsEmpty) {
+      chasing = false;
       PointF to = new PointF(target.X + Math.Min(target.Width / 2f, P(40)), target.Y + Math.Min(target.Height / 2f, P(18)));
       if (float.IsNaN(curPos.X)) curPos = new PointF(m.X, m.Y);
-      curPos = new PointF(curPos.X + (to.X - curPos.X) * 0.14f, curPos.Y + (to.Y - curPos.Y) * 0.14f);
+      float ca = Ease(105f);
+      curPos = new PointF(curPos.X + (to.X - curPos.X) * ca, curPos.Y + (to.Y - curPos.Y) * ca);
       if (!cur.Visible) cur.Show();
       cur.SetBits(curBmp, (int)curPos.X - P(4), (int)curPos.Y - P(3));   // 매번 얹는다 — 한 번만 얹으면 보이자마자 지워졌다(실측)
       Rectangle wa = Screen.FromPoint(Point.Round(to)).WorkingArea;
@@ -558,12 +568,20 @@ class Helper : ApplicationContext {
       curPos = new PointF(float.NaN, float.NaN);
       if (cur.Visible) cur.Hide();
       Rectangle near = bub.Bounds; near.Inflate(P(60), P(60));
-      if (!bub.Visible || !near.Contains(m)) {      // 말풍선 쪽으로 다가가면 멈춰서 누를 수 있게
+      // 마우스가 멀어지면 따라가기 시작해 미끄러지듯 붙고, 마우스가 멈추거나 말풍선 위로 오면 서서 누를 수 있게 한다
+      // (전에는 60px 벗어날 때마다 한 번씩 순간이동해서 끊겨 보였다)
+      Rectangle over = bub.Bounds; over.Inflate(P(6), P(6));
+      if (!bub.Visible || !near.Contains(m)) chasing = true;
+      else if (over.Contains(m)) chasing = false;
+      stillMs = m == lastMouse ? stillMs + dtMs : 0f; lastMouse = m;
+      if (chasing) {
         Rectangle wa = Screen.FromPoint(m).WorkingArea;
         int bx = m.X + P(22), by = m.Y + P(26);
         if (bx + bub.Width > wa.Right - P(8)) bx = m.X - bub.Width - P(16);
         if (by + bub.Height > wa.Bottom - P(8)) by = m.Y - bub.Height - P(16);
-        PlaceBubble(new Point(Math.Max(wa.X, bx), Math.Max(wa.Y, by)), false);
+        Point dest = new Point(Math.Max(wa.X, bx), Math.Max(wa.Y, by));
+        PlaceBubble(dest, true);
+        if (bub.Location == dest && stillMs > 150f) chasing = false;
       }
     }
     if (showRing) {
@@ -582,16 +600,21 @@ class Helper : ApplicationContext {
     wasDown = down;
   }
   void PlaceBubble(Point p, bool smooth) {
-    if (!bub.Visible) { bub.Location = p; bubAnchor = p; bub.Show(); return; }
+    if (!bub.Visible) { bub.Location = p; bubAnchor = p; bubPos = p; bub.Show(); return; }
     if (smooth) {
-      int x = bub.Left + (int)Math.Round((p.X - bub.Left) * 0.18), y = bub.Top + (int)Math.Round((p.Y - bub.Top) * 0.18);
-      if (Math.Abs(p.X - x) < 2) x = p.X; if (Math.Abs(p.Y - y) < 2) y = p.Y;
-      if (x != bub.Left || y != bub.Top) bub.Location = new Point(x, y);
-    } else if (bub.Location != p) bub.Location = p;
+      // 소수점 자리까지 들고 간다 — 정수로만 움직이면 마지막 몇 픽셀에서 덜컥거린다
+      if (float.IsNaN(bubPos.X)) bubPos = bub.Location;
+      float a = Ease(70f);
+      bubPos = new PointF(bubPos.X + (p.X - bubPos.X) * a, bubPos.Y + (p.Y - bubPos.Y) * a);
+      if (Math.Abs(p.X - bubPos.X) < 0.5f && Math.Abs(p.Y - bubPos.Y) < 0.5f) bubPos = p;
+      Point q = Point.Round(bubPos);
+      if (q != bub.Location) bub.Location = q;
+    } else { bubPos = p; if (bub.Location != p) bub.Location = p; }
   }
   void HideAll() {
     if (cur.Visible) cur.Hide(); if (ring.Visible) ring.Hide(); if (bub.Visible) bub.Hide();
     curPos = new PointF(float.NaN, float.NaN); ringRect = Rectangle.Empty; bubSig = "";
+    bubPos = new PointF(float.NaN, float.NaN); chasing = false;
   }
   void OnButton(int idx) {
     Dictionary<string, object> d; lock (lk) d = st;

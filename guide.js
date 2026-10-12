@@ -404,11 +404,18 @@ module.exports = function installGuide(app, ctx) {
     if (g.cur >= n) return res.json({ on: true, sid: active, gid: g.gid, title: g.title, i: n, n, finished: true, text: L.finished, L });
     const st = g.steps[g.cur];
     const sess = getSessions().find(s => s.id === active) || {};
+    // 다른 PC 의 도우미 — 이 PC 의 주소(localhost:포트)는 거기서 안 열린다. 그 PC 가 PT 에 들어온 주소로 바꿔 준다:
+    // PT 자신의 포트면 그 주소 그대로, 다른 포트(개발 서버)면 PT 가 대신 받아 넘기는 /lp/<포트>/ 로.
+    const LOCAL_URL = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(?=[\/?#]|$)/i;
+    const outBase = (String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || 'http') + '://' + req.headers.host;
+    const outUrl = u => { const m = rid && LOCAL_URL.exec(u || ''); if (!m) return u || ''; const port = m[2] ? m[2].slice(1) : '80', rest = u.slice(m[0].length);
+      return outBase + (port === String(ctx.PORT) ? '' : '/lp/' + port) + (rest[0] === '/' ? rest : '/' + rest); };
+    const outUntil = u => { const m = rid && LOCAL_URL.exec(u || ''); return m ? (u.slice(m[0].length) || '/') : (u || ''); };
     res.json({ on: true, sid: active, gid: g.gid, title: g.title, sess: sess.title || '', i: g.cur, n, text: st.text, kind: st.kind, done: st.done,
-               window: st.window || '', control: st.control || '', until: st.until || '', L,
+               window: st.window || '', control: st.control || '', until: outUntil(st.until), L,
                web: st.kind === 'web' ? { rect: web.key === g.gid + ':' + g.cur ? web.rect : null, front: web.vis, title: web.title || '',
-                                          mode: web.key === g.gid + ':' + g.cur ? web.mode : '', label: st.label || '', url: st.url || '',
-                                          open: web.key === g.gid + ':' + g.cur && web.mode === 'user' && /^https?:\/\//i.test(st.url || '') ? st.url : '' } : null });
+                                          mode: web.key === g.gid + ':' + g.cur ? web.mode : '', label: st.label || '', url: outUrl(st.url),
+                                          open: web.key === g.gid + ':' + g.cur && web.mode === 'user' && /^https?:\/\//i.test(st.url || '') ? outUrl(st.url) : '' } : null });
   });
   app.post('/api/guide/helper/act', (req, res) => {
     const b = req.body || {};
