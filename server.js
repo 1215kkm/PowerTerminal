@@ -4710,8 +4710,24 @@ app.use('/proxy/:id', (req, res) => {
   if (!target) return res.redirect('/preview/' + encodeURIComponent(req.params.id) + '/');   // 개발서버 미설정이면 폴더 미리보기로
   // HTML 진입 시 쿠키를 심음 — 페이지가 /assets/.. 같은 절대경로로 부르는 리소스를 아래 폴백이 이어받게
   if ((req.headers.accept || '').includes('text/html'))
-    res.setHeader('Set-Cookie', 'pt_proxy=' + s.id + '; Path=/');   // 세션 쿠키 (브라우저 닫으면 소멸)
+    res.setHeader('Set-Cookie', ['pt_proxy=' + s.id + '; Path=/', 'pt_lp=; Path=/; Max-Age=0']);   // 세션 쿠키 (브라우저 닫으면 소멸)
   proxyPass(target, req, res, s.id);
+});
+// /lp/<포트>/... → 이 PC 의 그 포트(http://127.0.0.1:<포트>)로 넘긴다. 🧭 도우미가 다른 PC 에서 'localhost:포트' 단계를 열 때 쓴다
+// (다른 PC 의 브라우저에서 localhost 는 그 PC 자신이라 안 열린다). 토큰 검사 뒤라 PT 에 들어올 수 있는 사람만 쓴다.
+const lpTarget = p => { const n = Number(p); return Number.isInteger(n) && n > 0 && n < 65536 && n !== Number(PORT) ? new URL('http://127.0.0.1:' + n) : null; };
+app.use('/lp/:port', (req, res) => {
+  const target = lpTarget(req.params.port);
+  if (!target) return res.status(404).end();
+  if ((req.headers.accept || '').includes('text/html'))      // 페이지가 /assets/.. 처럼 절대경로로 부르는 것도 아래 폴백이 이어받게
+    res.setHeader('Set-Cookie', ['pt_lp=' + target.port + '; Path=/', 'pt_proxy=; Path=/; Max-Age=0']);
+  proxyPass(target, req, res);
+});
+app.use((req, res, next) => {
+  const p = (req.headers.cookie || '').split('pt_lp=')[1]?.split(';')[0];
+  const target = p && lpTarget(p);
+  if (!target) return next();
+  proxyPass(target, req, res);
 });
 // 절대경로 리소스 폴백 — PT 자체 라우트에 안 걸린 요청 중 pt_proxy 쿠키가 있으면 개발서버로 전달
 app.use((req, res, next) => {
