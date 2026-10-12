@@ -318,6 +318,31 @@
   @keyframes hlpGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(236,72,153,0); } 50% { box-shadow: 0 0 0 4px rgba(236,72,153,.28), 0 0 14px rgba(168,85,247,.55); } }
   #btnHelper.on { border: 1.5px solid var(--pink); color: var(--pink); }
   #btnHelper:disabled { opacity: .75; cursor: progress; animation: none; }
+  /* 🧭 버튼을 누르면 뜨는 작은 창 — 어느 세션에 물을지 + [알려줘] + 표시 켜짐/꺼짐 */
+  #helperPop { position: fixed; z-index: 240; width: min(360px, calc(100vw - 16px)); padding: 12px 14px 12px;
+               background: #111827; border: 1.5px solid var(--violet); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.55);
+               font-size: 13px; color: var(--fg); animation: gcIn .22s ease-out; }
+  html.light #helperPop { background: #fff; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
+  #helperPop .hp-x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: none; background: transparent;
+                     color: var(--muted); font-size: 15px; cursor: pointer; border-radius: 6px; }
+  #helperPop .hp-x:hover { color: var(--pink); }
+  #helperPop .hp-q { font-weight: 800; font-size: 14px; line-height: 1.45; padding-right: 24px; word-break: keep-all; overflow-wrap: anywhere; }
+  #helperPop .hp-q b { color: var(--pink); }
+  #helperPop .hp-d { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 4px; word-break: keep-all; }
+  #helperPop select { width: 100%; margin-top: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
+                      background: #1f2937; color: var(--fg); font-size: 13px; }
+  html.light #helperPop select { background: #f3f4f6; }
+  #helperPop .hp-go { display: block; width: 100%; margin-top: 10px; padding: 9px 12px; border: none; border-radius: 9px; cursor: pointer;
+                      background: linear-gradient(90deg, var(--violet), var(--pink)); color: #fff; font-weight: 800; font-size: 14px; }
+  #helperPop .hp-go:disabled { opacity: .5; cursor: default; }
+  #helperPop .hp-sw { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+                      color: var(--muted); font-size: 12px; }
+  #helperPop .hp-sw span { margin-right: auto; }
+  #helperPop .hp-sw button { padding: 4px 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--line);
+                             background: transparent; color: var(--muted); }
+  #helperPop .hp-sw button:first-of-type { border-radius: 8px 0 0 8px; }
+  #helperPop .hp-sw button:last-of-type { border-radius: 0 8px 8px 0; margin-left: -9px; }
+  #helperPop .hp-sw button.sel { background: var(--pink); border-color: var(--pink); color: #fff; }
   .guide-card { position: absolute; right: 10px; z-index: 21; width: min(330px, calc(100% - 20px)); overflow: hidden;
                 background: #111827; border: 1.5px solid var(--violet); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
                 font-size: 13px; color: var(--fg); animation: gcIn .25s ease-out; }
@@ -2356,8 +2381,14 @@ const I18N_MORE = {
     helperInstalling: "⏳ Installing…",
     helperOn: "🧭 Helper ✓ On", helperOffL: "🧭 Helper · Off",
     helperInstallT: "On-screen helper — a pointer and a speech bubble walk you through the steps an AI gives you, on the desktop and in the browser, and check each one off as you do it. Installs on this PC in a few seconds. Then ask a session: \"guide me with the helper\".",
-    helperOnT: "Helper is on — click to turn it off",
-    helperOffT: "Helper is off — click to turn it on",
+    helperOnT: "Helper is on — click to ask a session for your steps",
+    helperOffT: "Helper is off — click to turn it on or ask a session for your steps",
+    helperAskQ: "Guide you through \"{s}\" with the helper?",
+    helperAskD: "It points at each thing you need to do to try what was just built, one step at a time.",
+    helperAskGo: "🧭 Guide me", helperAskNone: "Open a session first.",
+    helperAskSent: "Asked \"{s}\". The helper will point at the first step shortly.",
+    helperAskP: "Show me what I need to do, and in what order, to try what you just built — walk me through it on screen with the helper (show_guide of pt_guide).",
+    helperSwL: "Point on screen", helperSwOn: "On", helperSwOff: "Off", helperClose: "Close",
     helperInstalled: "Helper installed. Ask a session \"guide me with the helper\" and it will point at each step on screen.",
     helperFail: "Install failed: ", helperDl: "Downloaded PT-Helper-Setup.cmd — open it to install the helper on this PC (if Windows warns, choose \"More info → Run anyway\"). Only once per PC.",
     helperRun: "Open \"PT Helper\" on this PC's desktop to turn the helper on",helperOld: "Restart PowerTerminal once to install the helper (the server part is new).",
@@ -2487,8 +2518,14 @@ const I18N_MORE = {
     helperInstalling: "⏳ 설치 중…",
     helperOn: "🧭 도우미 ✓ 켜짐", helperOffL: "🧭 도우미 · 꺼짐",
     helperInstallT: "말풍선 도우미 — AI 가 알려 준 할 일 순서를 바탕화면·브라우저에서 포인터와 말풍선으로 짚어 주고, 그대로 하면 체크해요. 이 PC 에 몇 초면 설치돼요. 그다음 세션에 \"도우미로 안내해 줘\"라고 요청하세요.",
-    helperOnT: "도우미 켜짐 — 누르면 꺼요",
-    helperOffT: "도우미 꺼짐 — 누르면 켜요",
+    helperOnT: "도우미 켜짐 — 누르면 세션에 할 일 순서를 물어볼 수 있어요",
+    helperOffT: "도우미 꺼짐 — 누르면 켜거나 세션에 할 일 순서를 물어볼 수 있어요",
+    helperAskQ: "「{s}」 세션의 요청을 도우미로 알려드릴까요?",
+    helperAskD: "방금 한 작업을 써 보려면 무엇을 해야 하는지, 화면에서 하나씩 짚어 줘요.",
+    helperAskGo: "🧭 알려줘", helperAskNone: "먼저 세션을 하나 여세요.",
+    helperAskSent: "「{s}」 세션에 요청했어요. 곧 도우미가 첫 단계를 짚어 줘요.",
+    helperAskP: "방금 한 요청(작업)을 내가 직접 써 보려면 무엇을 어떤 순서로 해야 하는지, 도우미(pt_guide 의 show_guide)로 화면에서 하나씩 짚어 줘.",
+    helperSwL: "화면에 짚어 주기", helperSwOn: "켜짐", helperSwOff: "꺼짐", helperClose: "닫기",
     helperInstalled: "도우미를 설치했어요. 세션에 \"도우미로 안내해 줘\"라고 요청하면 화면에서 하나씩 짚어 줘요.",
     helperFail: "설치 실패: ", helperDl: "설치 파일(PT-Helper-Setup.cmd)을 받았어요. 열어서 실행하세요 — 윈도우가 막으면 「추가 정보 → 실행」. 이 컴퓨터에서 처음 한 번만 하면 돼요.",
     helperRun: "이 컴퓨터 바탕화면의 「PT Helper」를 실행하면 도우미가 켜져요",helperOld: "PT를 한 번 다시 시작하면 설치할 수 있어요 (서버 쪽이 새로 바뀌었어요)",
@@ -8307,9 +8344,7 @@ async function helperBtn() {
       for (let k = 1; k <= 60; k++) setTimeout(helperState, k * 3000);      // 설치가 끝나 앱이 붙으면 버튼이 바뀐다
       return;
     }
-    const r = await api('POST', '/api/helper/toggle', { on: !helperSt.running, hid: helperHid() });
-    if (r && r.needRun) flashToast(T.helperRun || 'Open "PT Helper" on this PC\'s desktop to start the helper.');
-    await helperState();
+    helperPop();
     return;
   }
   if (!helperSt.installed) {
@@ -8318,12 +8353,55 @@ async function helperBtn() {
     helperBusy = false;
     if (r && r.ok) flashToast(T.helperInstalled || 'Helper installed.');
     else flashToast((T.helperFail || 'Install failed: ') + ((r && (r.msg || r.error)) || ''));
-  } else {
-    await api('POST', '/api/helper/toggle', { on: !helperSt.running });
-  }
+  } else { helperPop(); return; }
   await helperState();
   setTimeout(helperState, 2500);
 }
+// 화면에 짚어 주기 켜기/끄기 — 다른 PC 는 그 PC 의 앱이 꺼져 있으면 바탕화면에서 켜라고 알린다
+async function helperSet(on) {
+  if (!helperSt || !!helperSt.running === !!on) return;
+  const r = await api('POST', '/api/helper/toggle', helperSt.remote ? { on, hid: helperHid() } : { on });
+  if (r && r.needRun) flashToast(T.helperRun || 'Open "PT Helper" on this PC\'s desktop to start the helper.');
+  await helperState();
+  setTimeout(helperState, 2500);
+}
+// 설치된 뒤 버튼을 누르면 뜨는 작은 창 — "「세션」 세션의 요청을 도우미로 알려드릴까요?" [알려줘] + 켜짐/꺼짐
+let helperPopSid = null;
+function helperPopClose() { const p = document.getElementById('helperPop'); if (p) p.remove(); }
+function helperPop() {
+  if (document.getElementById('helperPop')) { helperPopClose(); return; }      // 버튼을 다시 누르면 닫힌다
+  const b = document.getElementById('btnHelper'), list = [...panes.values()].map(p => p.sess);
+  const cur = codeTargetSess();
+  helperPopSid = cur ? cur.id : null;
+  const p = document.createElement('div'); p.id = 'helperPop';
+  const name = s => s.title || s.name || (s.path || '').split(/[\\/]/).pop() || s.id;
+  const draw = () => {
+    const s = list.find(x => x.id === helperPopSid), on = !!(helperSt && helperSt.running);
+    const q = s ? esc(T.helperAskQ || 'Guide you through "{s}" with the helper?').replace('{s}', '<b>' + esc(name(s)) + '</b>') : esc(T.helperAskNone || 'Open a session first.');
+    p.innerHTML = `<button class="hp-x" title="${esc(T.helperClose || 'Close')}">✕</button>
+      <div class="hp-q">${q}</div>${s ? `<div class="hp-d">${esc(T.helperAskD || '')}</div>` : ''}
+      ${list.length > 1 ? `<select>${list.map(x => `<option value="${esc(x.id)}"${x.id === helperPopSid ? ' selected' : ''}>${esc(name(x))}</option>`).join('')}</select>` : ''}
+      <button class="hp-go"${s ? '' : ' disabled'}>${esc(T.helperAskGo || '🧭 Guide me')}</button>
+      <div class="hp-sw"><span>${esc(T.helperSwL || 'Point on screen')}</span><button data-on="1" class="${on ? 'sel' : ''}">${esc(T.helperSwOn || 'On')}</button><button data-on="0" class="${on ? '' : 'sel'}">${esc(T.helperSwOff || 'Off')}</button></div>`;
+    p.querySelector('.hp-x').onclick = helperPopClose;
+    const sel = p.querySelector('select'); if (sel) sel.onchange = () => { helperPopSid = sel.value; draw(); };
+    p.querySelectorAll('.hp-sw button').forEach(x => x.onclick = async () => { await helperSet(x.dataset.on === '1'); if (p.isConnected) draw(); });
+    p.querySelector('.hp-go').onclick = async ev => {
+      const pane = panes.get(helperPopSid); if (!pane || !pane.sendText) return;
+      ev.currentTarget.disabled = true;                                           // 두 번 눌러도 한 번만
+      if (helperSt && !helperSt.running) await helperSet(true);
+      pane.sendText(T.helperAskP || 'Walk me through what I need to do with the helper (show_guide of pt_guide).');
+      flashToast((T.helperAskSent || 'Asked "{s}".').replace('{s}', name(pane.sess)));
+      helperPopClose();
+      try { pane.el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+    };
+  };
+  document.body.appendChild(p); draw();
+  const r = b.getBoundingClientRect(), w = p.offsetWidth;
+  p.style.top = Math.round(r.bottom + 6) + 'px';
+  p.style.left = Math.round(Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))) + 'px';
+}
+addEventListener('keydown', e => { if (e.key === 'Escape') helperPopClose(); });
 setTimeout(helperState, 800);
 setInterval(() => { if (!document.hidden) helperState(); }, 10000);
 addEventListener('resize', helperPaint);
