@@ -1177,9 +1177,12 @@ function worktreePrep(sess) {
 function agentCommand(sess, fresh, resume) {
   return worktreePrep(sess) + agentCommandRaw(sess, fresh, resume);
 }
+// 🖥 일반 크롬 — Claude Code 의 「Claude in Chrome」(사용자가 평소 쓰는 크롬 + Claude 확장 프로그램)을 이 세션에서 쓸지.
+// true = --chrome, false = --no-chrome, 정하지 않았으면 아무것도 안 붙여 Claude 자체 설정을 따른다.
+const chromeFlag = sess => sess.chrome === true ? ' --chrome' : sess.chrome === false ? ' --no-chrome' : '';
 function agentCommandRaw(sess, fresh, resume) {
   const cm = modelFor('claude', sess.model);
-  const model = (cm !== 'default' ? ' --model ' + cm : '') + claudeTuiFlag() + browserFlags(sess);
+  const model = (cm !== 'default' ? ' --model ' + cm : '') + claudeTuiFlag() + chromeFlag(sess) + browserFlags(sess);
   /* GPT(codex) 도 모델을 고를 수 있다. codex 는 최상위 옵션으로 `--model <id>` 를 받고,
      `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다.
      codex 도 Claude 처럼 기본이 대체화면(alt-screen) 모드다 — 매 응답마다 화면을 통째로 다시 그려서
@@ -3089,7 +3092,9 @@ app.patch('/api/sessions/:id', (req, res) => {
   }
   // 🌐 브라우저 조작 — false | 'normal'(일반창) | 'incognito'(시크릿창). MCP 도구는 AI 가 뜰 때만
   // 붙일 수 있어서 재시작한다(대화는 이어짐)
-  if (req.body.browser !== undefined || typeof req.body.browserProfile === 'string') {
+  if (req.body.browser !== undefined || typeof req.body.browserProfile === 'string' || req.body.chrome !== undefined) {
+    // 🖥 일반 크롬(Claude in Chrome) — true / false / null(정하지 않음). 이것도 AI 가 뜰 때만 정해져서 재시작한다
+    if (req.body.chrome === true || req.body.chrome === false) s.chrome = req.body.chrome; else if (req.body.chrome === null) delete s.chrome;
     const b = req.body.browser;
     if (b !== undefined) s.browser = (b === true || b === 'normal') ? 'normal' : b === 'incognito' ? 'incognito' : false;
     // 👤 계정별 창 — 빈 값이면 기본 창
