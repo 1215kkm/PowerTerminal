@@ -200,6 +200,10 @@
   .pane-head .brBtn { flex: 0 0 auto; opacity: .45; }
   .pane-head .brBtn.on { opacity: 1; background: #0e7490; border-color: #22d3ee; color: #fff; }
   .pane-head .brBtn.incog { opacity: 1; background: #4c1d95; border-color: #a78bfa; color: #fff; }
+  /* 🖥 일반 크롬(내 크롬) 쓰기 — 정하지 않음: 흐리게 / 켜짐: 청록 / 꺼짐: 줄 그음 */
+  .pane-head .crBtn { flex: 0 0 auto; opacity: .45; font-size: 10.5px; font-weight: 700; }
+  .pane-head .crBtn.on { opacity: 1; background: #0e7490; border-color: #22d3ee; color: #fff; }
+  .pane-head .crBtn.off { opacity: .6; text-decoration: line-through; }
   .pane-head .st { font-size: 11px; flex: 0 0 auto; }
   /* 🟠 작업 중 표시 — 웹의 ✳ 스피너처럼 PT 자체로 '살아있음'을 보여줌 (busy일 때만, 경과초 표시).
      Claude 터미널 애니메이션이 인라인 모드에선 정적이라, 이걸로 '멈춘 느낌'을 없앤다. */
@@ -2323,6 +2327,9 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
+    crOnT: "Your everyday Chrome: on — this AI can use the sites you are signed in to. Click to change", crOffT: "Your everyday Chrome: off for this session. Click to change", crAutoT: "Your everyday Chrome: not set (follows Claude's own setting). Click to choose",
+    crAsk: "Let the AI of this session (\"{t}\") use your everyday Chrome?\n\nIt works in the Chrome you normally use, with the sites you are already signed in to. Needs the \"Claude\" extension in Chrome, and works in Claude sessions only.\n⚠ It cannot pull out passwords saved in Chrome — it only continues on sites that are already signed in.\nSeparate from 🌐 (the PowerTerminal-only browser). Changing this restarts the AI (the conversation continues).",
+    crOn: "Use my Chrome", crOff: "Do not use it", crAuto: "Not set (Claude's own setting)",
     obHelper: "🆕 On-screen helper", obHelperD: "Not sure what to do after an AI builds something? Press this — a pointer and a speech bubble walk you through each step on your screen and check it off as you do it.",
     qBg: "This conversation moved to Claude Code's background task list — what you send goes to \"new task\", not to the conversation.", qBgBtn: "↩ Back to the conversation", qBgT: "Sends ESC to leave the task list and return to the conversation. Your background tasks keep running.", qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
@@ -2457,6 +2464,9 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
+    crOnT: "일반 크롬 쓰기: 켜짐 — 이 AI가 평소 크롬에 로그인해 둔 사이트를 쓸 수 있어요. 누르면 바꿔요", crOffT: "일반 크롬 쓰기: 꺼짐. 누르면 바꿔요", crAutoT: "일반 크롬 쓰기: 정하지 않음 (Claude 자체 설정을 따름). 누르면 정해요",
+    crAsk: "이 세션(「{t}」)의 AI가 평소 쓰는 일반 크롬도 쓰게 할까요?\n\n평소 쓰는 크롬에서, 이미 로그인해 둔 사이트 그대로 일합니다. 크롬에 「Claude」 확장 프로그램이 있어야 하고 Claude 세션에서만 됩니다.\n⚠ 크롬에 저장해 둔 비밀번호를 AI가 꺼내 쓰지는 못합니다 — 이미 로그인된 사이트만 이어서 씁니다.\n🌐(PT 전용 브라우저)와는 따로 정합니다. 바꾸면 AI를 다시 시작합니다(대화는 이어짐).",
+    crOn: "일반 크롬 쓰기", crOff: "쓰지 않기", crAuto: "정하지 않음 (Claude 설정대로)",
     obHelper: "🆕 말풍선 도우미", obHelperD: "AI가 만든 걸 어떻게 써야 할지 모를 때 누르세요 — 포인터와 말풍선이 화면에서 할 일을 하나씩 짚어 주고, 그대로 하면 체크해요.",
     qBg: "이 대화가 백그라운드 작업 목록으로 넘어갔습니다 — 지금 보내면 대화가 아니라 \"새 작업\" 칸으로 들어갑니다.", qBgBtn: "↩ 대화로 돌아가기", qBgT: "ESC 를 보내 작업 목록에서 빠져나와 대화로 돌아갑니다. 돌고 있는 백그라운드 작업은 그대로 유지됩니다.", qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
@@ -2614,6 +2624,9 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
+    crOnT: "普段の Chrome: オン — この AI はログイン済みのサイトを使えます。クリックで変更", crOffT: "普段の Chrome: オフ。クリックで変更", crAutoT: "普段の Chrome: 未設定(Claude 自身の設定に従う)。クリックで選択",
+    crAsk: "このセッション(「{t}」)の AI に普段の Chrome も使わせますか？\n\n普段使っている Chrome で、ログイン済みのサイトのまま作業します。Chrome に「Claude」拡張機能が必要で、Claude セッションのみ対応です。\n⚠ Chrome に保存したパスワードを AI が取り出すことはできません — ログイン済みのサイトを続けて使うだけです。\n🌐(PowerTerminal 専用ブラウザ)とは別に設定します。変更すると AI を再起動します(会話は続きます)。",
+    crOn: "普段の Chrome を使う", crOff: "使わない", crAuto: "未設定(Claude の設定のまま)",
     obHelper: "🆕 画面ヘルパー", obHelperD: "AI が作ったものの使い方が分からないときに押してください — ポインターと吹き出しが画面上で手順を一つずつ示し、その通りにするとチェックが付きます。",
     helperInstall: "🧭 ヘルパーをインストール",
     helperInstalling: "⏳ インストール中…",
@@ -2897,6 +2910,9 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
+    crOnT: "日常 Chrome:已开 — 此 AI 可使用你已登录的网站。点击更改", crOffT: "日常 Chrome:已关。点击更改", crAutoT: "日常 Chrome:未设置(跟随 Claude 自身设置)。点击选择",
+    crAsk: "让此会话(「{t}」)的 AI 也使用你日常的 Chrome 吗?\n\n它在你平时使用的 Chrome 中工作,沿用已登录的网站。需要 Chrome 中安装“Claude”扩展,且仅限 Claude 会话。\n⚠ AI 无法取出 Chrome 保存的密码 — 只能继续使用已登录的网站。\n与 🌐(PowerTerminal 专用浏览器)分开设置。更改后会重启 AI(对话继续)。",
+    crOn: "使用我的 Chrome", crOff: "不使用", crAuto: "未设置(按 Claude 设置)",
     obHelper: "🆕 屏幕助手", obHelperD: "AI 做好了却不知道怎么用?点这里 — 指针和气泡会在屏幕上一步步指出要做什么,照着做就会打勾。",
     helperInstall: "🧭 安装助手",
     helperInstalling: "⏳ 安装中…",
@@ -3180,6 +3196,9 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
+    crOnT: "Tu Chrome habitual: activado — esta IA puede usar los sitios donde ya iniciaste sesión. Clic para cambiar", crOffT: "Tu Chrome habitual: desactivado. Clic para cambiar", crAutoT: "Tu Chrome habitual: sin definir (sigue el ajuste de Claude). Clic para elegir",
+    crAsk: "¿Dejar que la IA de esta sesión («{t}») use tu Chrome habitual?\n\nTrabaja en el Chrome que usas normalmente, con los sitios donde ya iniciaste sesión. Necesita la extensión «Claude» en Chrome y solo funciona en sesiones de Claude.\n⚠ No puede sacar las contraseñas guardadas en Chrome — solo continúa en sitios con sesión ya iniciada.\nSe define aparte de 🌐 (el navegador exclusivo de PowerTerminal). Al cambiarlo se reinicia la IA (la conversación continúa).",
+    crOn: "Usar mi Chrome", crOff: "No usarlo", crAuto: "Sin definir (ajuste de Claude)",
     obHelper: "🆕 Asistente en pantalla", obHelperD: "¿No sabes qué hacer después de que la IA crea algo? Pulsa aquí — un puntero y un globo te guían paso a paso en tu pantalla y marcan cada paso cuando lo haces.",
     helperInstall: "🧭 Instalar asistente",
     helperInstalling: "⏳ Instalando…",
@@ -3470,6 +3489,9 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
+    crOnT: "Dein normales Chrome: an — diese KI kann Seiten nutzen, bei denen du angemeldet bist. Klicken zum Ändern", crOffT: "Dein normales Chrome: aus. Klicken zum Ändern", crAutoT: "Dein normales Chrome: nicht festgelegt (folgt Claudes eigener Einstellung). Klicken zum Wählen",
+    crAsk: "Soll die KI dieser Sitzung („{t}“) auch dein normales Chrome nutzen?\n\nSie arbeitet in dem Chrome, das du sonst benutzt, mit den Seiten, bei denen du schon angemeldet bist. Benötigt die „Claude“-Erweiterung in Chrome und funktioniert nur in Claude-Sitzungen.\n⚠ In Chrome gespeicherte Passwörter kann sie nicht herausholen — sie macht nur auf bereits angemeldeten Seiten weiter.\nGetrennt von 🌐 (dem PowerTerminal-eigenen Browser). Eine Änderung startet die KI neu (das Gespräch geht weiter).",
+    crOn: "Mein Chrome nutzen", crOff: "Nicht nutzen", crAuto: "Nicht festgelegt (Claudes Einstellung)",
     obHelper: "🆕 Bildschirm-Helfer", obHelperD: "Unsicher, was nach der Arbeit der KI zu tun ist? Klick hier — ein Zeiger und eine Sprechblase führen dich Schritt für Schritt über den Bildschirm und haken jeden Schritt ab.",
     helperInstall: "🧭 Helfer installieren",
     helperInstalling: "⏳ Wird installiert…",
@@ -3752,6 +3774,9 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
+    crOnT: "Votre Chrome habituel : activé — cette IA peut utiliser les sites où vous êtes connecté. Cliquez pour changer", crOffT: "Votre Chrome habituel : désactivé. Cliquez pour changer", crAutoT: "Votre Chrome habituel : non défini (suit le réglage de Claude). Cliquez pour choisir",
+    crAsk: "Laisser l’IA de cette session (« {t} ») utiliser votre Chrome habituel ?\n\nElle travaille dans le Chrome que vous utilisez d’ordinaire, avec les sites où vous êtes déjà connecté. Nécessite l’extension « Claude » dans Chrome et ne fonctionne que dans les sessions Claude.\n⚠ Elle ne peut pas récupérer les mots de passe enregistrés dans Chrome — elle continue seulement sur les sites déjà connectés.\nRéglage distinct de 🌐 (le navigateur propre à PowerTerminal). Le changement redémarre l’IA (la conversation continue).",
+    crOn: "Utiliser mon Chrome", crOff: "Ne pas l’utiliser", crAuto: "Non défini (réglage de Claude)",
     obHelper: "🆕 Assistant à l’écran", obHelperD: "Vous ne savez pas quoi faire après le travail de l’IA ? Cliquez ici — un pointeur et une bulle vous guident étape par étape à l’écran et cochent chaque étape accomplie.",
     helperInstall: "🧭 Installer l’assistant",
     helperInstalling: "⏳ Installation…",
@@ -4037,6 +4062,9 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
+    crOnT: "Seu Chrome do dia a dia: ligado — esta IA pode usar os sites em que você já entrou. Clique para mudar", crOffT: "Seu Chrome do dia a dia: desligado. Clique para mudar", crAutoT: "Seu Chrome do dia a dia: não definido (segue a configuração do Claude). Clique para escolher",
+    crAsk: "Deixar a IA desta sessão (“{t}”) usar seu Chrome do dia a dia?\n\nEla trabalha no Chrome que você usa normalmente, com os sites em que você já entrou. Precisa da extensão “Claude” no Chrome e só funciona em sessões do Claude.\n⚠ Ela não consegue pegar as senhas salvas no Chrome — só continua em sites já conectados.\nDefinido separadamente de 🌐 (o navegador exclusivo do PowerTerminal). Mudar isso reinicia a IA (a conversa continua).",
+    crOn: "Usar meu Chrome", crOff: "Não usar", crAuto: "Não definido (configuração do Claude)",
     obHelper: "🆕 Assistente na tela", obHelperD: "Não sabe o que fazer depois que a IA cria algo? Clique aqui — um ponteiro e um balão guiam você passo a passo na tela e marcam cada passo feito.",
     helperInstall: "🧭 Instalar assistente",
     helperInstalling: "⏳ Instalando…",
@@ -4322,6 +4350,9 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
+    crOnT: "Ваш обычный Chrome: вкл — этот ИИ может работать на сайтах, где вы уже вошли. Нажмите, чтобы изменить", crOffT: "Ваш обычный Chrome: выкл. Нажмите, чтобы изменить", crAutoT: "Ваш обычный Chrome: не задано (как в настройках Claude). Нажмите, чтобы выбрать",
+    crAsk: "Разрешить ИИ этой сессии («{t}») пользоваться вашим обычным Chrome?\n\nОн работает в Chrome, которым вы пользуетесь каждый день, на сайтах, где вы уже вошли. Нужно расширение «Claude» в Chrome; только для сессий Claude.\n⚠ Достать пароли, сохранённые в Chrome, он не может — только продолжает на сайтах, где вход уже выполнен.\nНастраивается отдельно от 🌐 (собственного браузера PowerTerminal). После изменения ИИ перезапускается (разговор продолжается).",
+    crOn: "Использовать мой Chrome", crOff: "Не использовать", crAuto: "Не задано (настройка Claude)",
     obHelper: "🆕 Экранный помощник", obHelperD: "Не знаете, что делать после работы ИИ? Нажмите — указатель и подсказка проведут вас по шагам на экране и отметят каждый выполненный шаг.",
     helperInstall: "🧭 Установить помощника",
     helperInstalling: "⏳ Установка…",
@@ -4606,6 +4637,9 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
+    crOnT: "आपका रोज़ का Chrome: चालू — यह AI उन साइटों का उपयोग कर सकता है जिनमें आप साइन इन हैं। बदलने के लिए क्लिक करें", crOffT: "आपका रोज़ का Chrome: बंद। बदलने के लिए क्लिक करें", crAutoT: "आपका रोज़ का Chrome: तय नहीं (Claude की अपनी सेटिंग के अनुसार)। चुनने के लिए क्लिक करें",
+    crAsk: "क्या इस सेशन (\"{t}\") का AI आपका रोज़ का Chrome भी इस्तेमाल करे?\n\nयह उसी Chrome में काम करता है जो आप रोज़ इस्तेमाल करते हैं, उन साइटों के साथ जिनमें आप पहले से साइन इन हैं। Chrome में \"Claude\" एक्सटेंशन चाहिए और यह केवल Claude सेशन में चलता है।\n⚠ यह Chrome में सहेजे पासवर्ड नहीं निकाल सकता — केवल पहले से साइन इन साइटों पर काम जारी रखता है।\n🌐 (PowerTerminal के अपने ब्राउज़र) से अलग तय होता है। बदलने पर AI दोबारा शुरू होता है (बातचीत जारी रहती है)।",
+    crOn: "मेरा Chrome इस्तेमाल करें", crOff: "इस्तेमाल न करें", crAuto: "तय नहीं (Claude की सेटिंग)",
     obHelper: "🆕 स्क्रीन सहायक", obHelperD: "AI के कुछ बनाने के बाद क्या करना है, समझ नहीं आ रहा? यह दबाएँ — पॉइंटर और बबल स्क्रीन पर एक-एक कदम दिखाते हैं और करते ही निशान लगा देते हैं।",
     helperInstall: "🧭 सहायक इंस्टॉल करें",
     helperInstalling: "⏳ इंस्टॉल हो रहा है…",
@@ -5240,8 +5274,7 @@ function buildPane(sess, idx) {
         ${modelSel}
         ${isClaude ? `<span class="advWrap" style="display:none"><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
-        <!-- 👤 담당 — .claude/agents 가 있는 레포에서만 채워지고, 없으면 이 자리는 비어 있다 -->
-        <select class="small memberSel" title="${escA(T.memberT || '')}" style="display:none"></select>
+        ${isClaude ? `<button class="small crBtn">Chrome</button>` : ''}
       </div>
     </div>
     <div class="pane-body">
@@ -6121,6 +6154,29 @@ function buildPane(sess, idx) {
       sess.browserProfile = profile;
       paintBr();
       await api('PATCH', '/api/sessions/' + sess.id, { browser: pick || false, browserProfile: profile });
+    };
+  }
+
+  // 🖥 일반 크롬 — 평소 쓰는 크롬(로그인해 둔 사이트)을 이 세션의 AI 가 쓰게 할지. Claude Code 의 --chrome / --no-chrome.
+  // 🌐(PT 전용 브라우저)와 따로 정한다. 바꾸면 서버가 AI 를 다시 시작한다(대화는 이어짐).
+  const crBtn = el.querySelector('.crBtn');
+  if (crBtn) {
+    const crVal = () => sess.chrome === true ? 'on' : sess.chrome === false ? 'off' : 'auto';
+    const paintCr = () => {
+      const c = crVal();
+      crBtn.classList.toggle('on', c === 'on'); crBtn.classList.toggle('off', c === 'off');
+      crBtn.title = c === 'on' ? (T.crOnT || 'Your everyday Chrome: on') : c === 'off' ? (T.crOffT || 'Your everyday Chrome: off') : (T.crAutoT || 'Your everyday Chrome: not set');
+    };
+    paintCr();
+    crBtn.onclick = async ev => {
+      ev.stopPropagation();
+      const cur = crVal();
+      const pick = await paneChoice(el, (T.crAsk || '').replace('{t}', sess.title || ''),
+        [['on', '✅ ' + (T.crOn || 'Use it')], ['off', '🚫 ' + (T.crOff || 'Do not use it')], ['auto', T.crAuto || 'Not set']], cur);
+      if (pick === null || pick === cur) return;
+      if (pick === 'on') sess.chrome = true; else if (pick === 'off') sess.chrome = false; else delete sess.chrome;
+      paintCr();
+      await api('PATCH', '/api/sessions/' + sess.id, { chrome: pick === 'on' ? true : pick === 'off' ? false : null });
     };
   }
 
