@@ -1040,6 +1040,9 @@
   .pane-confirm .vt-imp.open { display: block; }
   .pane-confirm .vt-imp .vi-how { color: var(--muted); line-height: 1.5; }
   .pane-confirm .vt-imp .vi-btns, .pane-confirm .vt-imp .vi-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+  .pane-confirm .vt-imp .vi-who { display: none; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+  .pane-confirm .vt-imp .vi-who.open { display: flex; }
+  .pane-confirm .vt-imp .vi-who span { flex-basis: 100%; }
   .pane-confirm .vt-imp .vi-bar { display: none; }
   .pane-confirm .vt-imp.has .vi-bar { display: flex; }
   .pane-confirm .vt-imp .vi-sum { font-weight: 700; }
@@ -2337,7 +2340,7 @@ function langFromBrowser() {   // 브라우저 선호 언어 목록에서 지원
    앞으로 문구를 추가할 때도 en/ko 만 고치지 말고 여기 10개 언어를 같이 채운다. */
 const I18N_MORE = {
   en: {
-    vaultImp: "Import from Chrome", vaultImpHow: "① Open Chrome's password page → \"Export passwords\" → download the file.  ② Choose that file here.", vaultImpOpen: "Open Chrome's password page", vaultImpPick: "Choose the downloaded file", vaultImpAll: "Import all ({n})", vaultImpOne: "Import", vaultImpDone: "✓ Imported", vaultImpDup: "Already here", vaultImpSum: "{n} found · {m} new", vaultImpBad: "This is not a password file exported from Chrome", vaultImpWarn: "⚠ The downloaded file holds your passwords in plain text. Delete it after importing.", vaultImpFilter: "Search", vaultImpBusy: "Importing {a}/{b}", vaultImpOpenFail: "Paste chrome://password-manager/settings into Chrome's address bar (copied)", vaultImpResult: "Imported {n}", vaultImpOpened: "Chrome's password page opened — look at Chrome",
+    vaultImpWho: "Chrome has several users. Whose passwords do you want?", vaultImp: "Import from Chrome", vaultImpHow: "① Open Chrome's password page → \"Export passwords\" → download the file.  ② Choose that file here.", vaultImpOpen: "Open Chrome's password page", vaultImpPick: "Choose the downloaded file", vaultImpAll: "Import all ({n})", vaultImpOne: "Import", vaultImpDone: "✓ Imported", vaultImpDup: "Already here", vaultImpSum: "{n} found · {m} new", vaultImpBad: "This is not a password file exported from Chrome", vaultImpWarn: "⚠ The downloaded file holds your passwords in plain text. Delete it after importing.", vaultImpFilter: "Search", vaultImpBusy: "Importing {a}/{b}", vaultImpOpenFail: "Paste chrome://password-manager/settings into Chrome's address bar (copied)", vaultImpResult: "Imported {n}", vaultImpOpened: "Chrome's password page opened — look at Chrome",
     obHelper: "🆕 On-screen helper", obHelperD: "Not sure what to do after an AI builds something? Press this — a pointer and a speech bubble walk you through each step on your screen and check it off as you do it.",
     qBg: "This conversation moved to Claude Code's background task list — what you send goes to \"new task\", not to the conversation.", qBgBtn: "↩ Back to the conversation", qBgT: "Sends ESC to leave the task list and return to the conversation. Your background tasks keep running.", qResume: "▶ Reconnect the AI — continue where you left off", qResumeT: "The AI has exited and only the shell is left, so nothing you type reaches it. This restarts it with the conversation carried over (--continue).", qResumeIng: "Reconnecting…",
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
@@ -2472,7 +2475,7 @@ const I18N_MORE = {
     cmTreeRoot: 'top folder', cmEmptyDir: '(empty folder)'
   },
   ko: {
-    vaultImp: "크롬에서 가져오기", vaultImpHow: "① 크롬 비밀번호 화면을 열어 「비밀번호 내보내기」로 파일을 받으세요.  ② 받은 파일을 여기서 고르세요.", vaultImpOpen: "크롬 비밀번호 화면 열기", vaultImpPick: "받은 파일 고르기", vaultImpAll: "모두 가져오기 ({n})", vaultImpOne: "가져오기", vaultImpDone: "✓ 가져옴", vaultImpDup: "이미 있음", vaultImpSum: "{n}개 찾음 · 새로 가져올 것 {m}개", vaultImpBad: "크롬에서 내보낸 비밀번호 파일이 아니에요", vaultImpWarn: "⚠ 받은 파일에는 비밀번호가 그대로 적혀 있어요. 다 가져온 뒤 그 파일을 지우세요.", vaultImpFilter: "찾기", vaultImpBusy: "가져오는 중 {a}/{b}", vaultImpOpenFail: "크롬 주소창에 chrome://password-manager/settings 를 붙여 넣으세요 (복사했어요)", vaultImpResult: "{n}개 가져왔어요", vaultImpOpened: "크롬 비밀번호 화면을 열었어요 — 크롬 창을 보세요",
+    vaultImpWho: "크롬 사용자가 여럿이에요. 누구의 비밀번호를 가져올까요?", vaultImp: "크롬에서 가져오기", vaultImpHow: "① 크롬 비밀번호 화면을 열어 「비밀번호 내보내기」로 파일을 받으세요.  ② 받은 파일을 여기서 고르세요.", vaultImpOpen: "크롬 비밀번호 화면 열기", vaultImpPick: "받은 파일 고르기", vaultImpAll: "모두 가져오기 ({n})", vaultImpOne: "가져오기", vaultImpDone: "✓ 가져옴", vaultImpDup: "이미 있음", vaultImpSum: "{n}개 찾음 · 새로 가져올 것 {m}개", vaultImpBad: "크롬에서 내보낸 비밀번호 파일이 아니에요", vaultImpWarn: "⚠ 받은 파일에는 비밀번호가 그대로 적혀 있어요. 다 가져온 뒤 그 파일을 지우세요.", vaultImpFilter: "찾기", vaultImpBusy: "가져오는 중 {a}/{b}", vaultImpOpenFail: "크롬 주소창에 chrome://password-manager/settings 를 붙여 넣으세요 (복사했어요)", vaultImpResult: "{n}개 가져왔어요", vaultImpOpened: "크롬 비밀번호 화면을 열었어요 — 크롬 창을 보세요",
     obHelper: "🆕 말풍선 도우미", obHelperD: "AI가 만든 걸 어떻게 써야 할지 모를 때 누르세요 — 포인터와 말풍선이 화면에서 할 일을 하나씩 짚어 주고, 그대로 하면 체크해요.",
     qBg: "이 대화가 백그라운드 작업 목록으로 넘어갔습니다 — 지금 보내면 대화가 아니라 \"새 작업\" 칸으로 들어갑니다.", qBgBtn: "↩ 대화로 돌아가기", qBgT: "ESC 를 보내 작업 목록에서 빠져나와 대화로 돌아갑니다. 돌고 있는 백그라운드 작업은 그대로 유지됩니다.", qResume: "▶ AI 다시 연결 — 하던 대화 이어서", qResumeT: "AI 가 빠져나가 셸만 남은 상태예요. 이대로는 무엇을 입력해도 AI 에게 가지 않습니다. 누르면 대화를 그대로 이어서(--continue) 다시 띄웁니다.", qResumeIng: "다시 연결하는 중…",
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
@@ -2630,7 +2633,7 @@ const I18N_MORE = {
     cmTreeRoot: '최상위 폴더', cmEmptyDir: '(빈 폴더)'
   },
   ja: {
-    vaultImp: "Chrome から取り込む", vaultImpHow: "① Chrome のパスワード画面を開き「パスワードをエクスポート」でファイルを保存。 ② そのファイルをここで選択。", vaultImpOpen: "Chrome のパスワード画面を開く", vaultImpPick: "保存したファイルを選ぶ", vaultImpAll: "すべて取り込む ({n})", vaultImpOne: "取り込む", vaultImpDone: "✓ 取り込み済み", vaultImpDup: "登録済み", vaultImpSum: "{n} 件 · 新規 {m} 件", vaultImpBad: "Chrome からエクスポートしたパスワードファイルではありません", vaultImpWarn: "⚠ 保存したファイルにはパスワードがそのまま書かれています。取り込み後に削除してください。", vaultImpFilter: "検索", vaultImpBusy: "取り込み中 {a}/{b}", vaultImpOpenFail: "Chrome のアドレスバーに chrome://password-manager/settings を貼り付けてください(コピー済み)", vaultImpResult: "{n} 件取り込みました", vaultImpOpened: "Chrome のパスワード画面を開きました — Chrome を見てください",
+    vaultImpWho: "Chrome にユーザーが複数います。どのユーザーのパスワードですか？", vaultImp: "Chrome から取り込む", vaultImpHow: "① Chrome のパスワード画面を開き「パスワードをエクスポート」でファイルを保存。 ② そのファイルをここで選択。", vaultImpOpen: "Chrome のパスワード画面を開く", vaultImpPick: "保存したファイルを選ぶ", vaultImpAll: "すべて取り込む ({n})", vaultImpOne: "取り込む", vaultImpDone: "✓ 取り込み済み", vaultImpDup: "登録済み", vaultImpSum: "{n} 件 · 新規 {m} 件", vaultImpBad: "Chrome からエクスポートしたパスワードファイルではありません", vaultImpWarn: "⚠ 保存したファイルにはパスワードがそのまま書かれています。取り込み後に削除してください。", vaultImpFilter: "検索", vaultImpBusy: "取り込み中 {a}/{b}", vaultImpOpenFail: "Chrome のアドレスバーに chrome://password-manager/settings を貼り付けてください(コピー済み)", vaultImpResult: "{n} 件取り込みました", vaultImpOpened: "Chrome のパスワード画面を開きました — Chrome を見てください",
     obHelper: "🆕 画面ヘルパー", obHelperD: "AI が作ったものの使い方が分からないときに押してください — ポインターと吹き出しが画面上で手順を一つずつ示し、その通りにするとチェックが付きます。",
     helperInstall: "🧭 ヘルパーをインストール",
     helperInstalling: "⏳ インストール中…",
@@ -2914,7 +2917,7 @@ const I18N_MORE = {
     qrGateOk: '理解しました — QRを表示'
   },
   zh: {
-    vaultImp: "从 Chrome 导入", vaultImpHow: "① 打开 Chrome 密码页面 →“导出密码”→ 下载文件。 ② 在这里选择该文件。", vaultImpOpen: "打开 Chrome 密码页面", vaultImpPick: "选择下载的文件", vaultImpAll: "全部导入 ({n})", vaultImpOne: "导入", vaultImpDone: "✓ 已导入", vaultImpDup: "已存在", vaultImpSum: "找到 {n} 个 · 新增 {m} 个", vaultImpBad: "这不是从 Chrome 导出的密码文件", vaultImpWarn: "⚠ 下载的文件里密码是明文。导入后请删除该文件。", vaultImpFilter: "搜索", vaultImpBusy: "正在导入 {a}/{b}", vaultImpOpenFail: "请把 chrome://password-manager/settings 粘贴到 Chrome 地址栏(已复制)", vaultImpResult: "已导入 {n} 个", vaultImpOpened: "已打开 Chrome 密码页面 — 请查看 Chrome",
+    vaultImpWho: "Chrome 有多个用户。要导入谁的密码?", vaultImp: "从 Chrome 导入", vaultImpHow: "① 打开 Chrome 密码页面 →“导出密码”→ 下载文件。 ② 在这里选择该文件。", vaultImpOpen: "打开 Chrome 密码页面", vaultImpPick: "选择下载的文件", vaultImpAll: "全部导入 ({n})", vaultImpOne: "导入", vaultImpDone: "✓ 已导入", vaultImpDup: "已存在", vaultImpSum: "找到 {n} 个 · 新增 {m} 个", vaultImpBad: "这不是从 Chrome 导出的密码文件", vaultImpWarn: "⚠ 下载的文件里密码是明文。导入后请删除该文件。", vaultImpFilter: "搜索", vaultImpBusy: "正在导入 {a}/{b}", vaultImpOpenFail: "请把 chrome://password-manager/settings 粘贴到 Chrome 地址栏(已复制)", vaultImpResult: "已导入 {n} 个", vaultImpOpened: "已打开 Chrome 密码页面 — 请查看 Chrome",
     obHelper: "🆕 屏幕助手", obHelperD: "AI 做好了却不知道怎么用?点这里 — 指针和气泡会在屏幕上一步步指出要做什么,照着做就会打勾。",
     helperInstall: "🧭 安装助手",
     helperInstalling: "⏳ 安装中…",
@@ -3198,7 +3201,7 @@ const I18N_MORE = {
     qrGateOk: '我明白了 — 显示二维码'
   },
   es: {
-    vaultImp: "Importar de Chrome", vaultImpHow: "① Abre la página de contraseñas de Chrome → «Exportar contraseñas» → descarga el archivo.  ② Elige ese archivo aquí.", vaultImpOpen: "Abrir contraseñas de Chrome", vaultImpPick: "Elegir el archivo descargado", vaultImpAll: "Importar todo ({n})", vaultImpOne: "Importar", vaultImpDone: "✓ Importado", vaultImpDup: "Ya está", vaultImpSum: "{n} encontradas · {m} nuevas", vaultImpBad: "No es un archivo de contraseñas exportado de Chrome", vaultImpWarn: "⚠ El archivo descargado contiene tus contraseñas en texto plano. Bórralo después de importar.", vaultImpFilter: "Buscar", vaultImpBusy: "Importando {a}/{b}", vaultImpOpenFail: "Pega chrome://password-manager/settings en la barra de direcciones de Chrome (copiado)", vaultImpResult: "{n} importadas", vaultImpOpened: "Se abrió la página de contraseñas de Chrome — mira Chrome",
+    vaultImpWho: "Chrome tiene varios usuarios. ¿De quién son las contraseñas?", vaultImp: "Importar de Chrome", vaultImpHow: "① Abre la página de contraseñas de Chrome → «Exportar contraseñas» → descarga el archivo.  ② Elige ese archivo aquí.", vaultImpOpen: "Abrir contraseñas de Chrome", vaultImpPick: "Elegir el archivo descargado", vaultImpAll: "Importar todo ({n})", vaultImpOne: "Importar", vaultImpDone: "✓ Importado", vaultImpDup: "Ya está", vaultImpSum: "{n} encontradas · {m} nuevas", vaultImpBad: "No es un archivo de contraseñas exportado de Chrome", vaultImpWarn: "⚠ El archivo descargado contiene tus contraseñas en texto plano. Bórralo después de importar.", vaultImpFilter: "Buscar", vaultImpBusy: "Importando {a}/{b}", vaultImpOpenFail: "Pega chrome://password-manager/settings en la barra de direcciones de Chrome (copiado)", vaultImpResult: "{n} importadas", vaultImpOpened: "Se abrió la página de contraseñas de Chrome — mira Chrome",
     obHelper: "🆕 Asistente en pantalla", obHelperD: "¿No sabes qué hacer después de que la IA crea algo? Pulsa aquí — un puntero y un globo te guían paso a paso en tu pantalla y marcan cada paso cuando lo haces.",
     helperInstall: "🧭 Instalar asistente",
     helperInstalling: "⏳ Instalando…",
@@ -3489,7 +3492,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendido — mostrar el QR'
   },
   de: {
-    vaultImp: "Aus Chrome importieren", vaultImpHow: "① Chromes Passwortseite öffnen → „Passwörter exportieren“ → Datei herunterladen.  ② Diese Datei hier auswählen.", vaultImpOpen: "Chromes Passwortseite öffnen", vaultImpPick: "Heruntergeladene Datei wählen", vaultImpAll: "Alle importieren ({n})", vaultImpOne: "Importieren", vaultImpDone: "✓ Importiert", vaultImpDup: "Schon vorhanden", vaultImpSum: "{n} gefunden · {m} neu", vaultImpBad: "Das ist keine aus Chrome exportierte Passwortdatei", vaultImpWarn: "⚠ Die heruntergeladene Datei enthält deine Passwörter im Klartext. Lösch sie nach dem Import.", vaultImpFilter: "Suchen", vaultImpBusy: "Importiere {a}/{b}", vaultImpOpenFail: "Füge chrome://password-manager/settings in Chromes Adressleiste ein (kopiert)", vaultImpResult: "{n} importiert", vaultImpOpened: "Chromes Passwortseite geöffnet — sieh in Chrome nach",
+    vaultImpWho: "Chrome hat mehrere Nutzer. Wessen Passwörter?", vaultImp: "Aus Chrome importieren", vaultImpHow: "① Chromes Passwortseite öffnen → „Passwörter exportieren“ → Datei herunterladen.  ② Diese Datei hier auswählen.", vaultImpOpen: "Chromes Passwortseite öffnen", vaultImpPick: "Heruntergeladene Datei wählen", vaultImpAll: "Alle importieren ({n})", vaultImpOne: "Importieren", vaultImpDone: "✓ Importiert", vaultImpDup: "Schon vorhanden", vaultImpSum: "{n} gefunden · {m} neu", vaultImpBad: "Das ist keine aus Chrome exportierte Passwortdatei", vaultImpWarn: "⚠ Die heruntergeladene Datei enthält deine Passwörter im Klartext. Lösch sie nach dem Import.", vaultImpFilter: "Suchen", vaultImpBusy: "Importiere {a}/{b}", vaultImpOpenFail: "Füge chrome://password-manager/settings in Chromes Adressleiste ein (kopiert)", vaultImpResult: "{n} importiert", vaultImpOpened: "Chromes Passwortseite geöffnet — sieh in Chrome nach",
     obHelper: "🆕 Bildschirm-Helfer", obHelperD: "Unsicher, was nach der Arbeit der KI zu tun ist? Klick hier — ein Zeiger und eine Sprechblase führen dich Schritt für Schritt über den Bildschirm und haken jeden Schritt ab.",
     helperInstall: "🧭 Helfer installieren",
     helperInstalling: "⏳ Wird installiert…",
@@ -3772,7 +3775,7 @@ const I18N_MORE = {
     qrGateOk: 'Verstanden — QR anzeigen'
   },
   fr: {
-    vaultImp: "Importer depuis Chrome", vaultImpHow: "① Ouvrez la page des mots de passe de Chrome → « Exporter les mots de passe » → téléchargez le fichier.  ② Choisissez ce fichier ici.", vaultImpOpen: "Ouvrir les mots de passe de Chrome", vaultImpPick: "Choisir le fichier téléchargé", vaultImpAll: "Tout importer ({n})", vaultImpOne: "Importer", vaultImpDone: "✓ Importé", vaultImpDup: "Déjà présent", vaultImpSum: "{n} trouvés · {m} nouveaux", vaultImpBad: "Ce n’est pas un fichier de mots de passe exporté de Chrome", vaultImpWarn: "⚠ Le fichier téléchargé contient vos mots de passe en clair. Supprimez-le après l’import.", vaultImpFilter: "Rechercher", vaultImpBusy: "Import {a}/{b}", vaultImpOpenFail: "Collez chrome://password-manager/settings dans la barre d’adresse de Chrome (copié)", vaultImpResult: "{n} importés", vaultImpOpened: "Page des mots de passe de Chrome ouverte — regardez Chrome",
+    vaultImpWho: "Chrome a plusieurs utilisateurs. Les mots de passe de qui ?", vaultImp: "Importer depuis Chrome", vaultImpHow: "① Ouvrez la page des mots de passe de Chrome → « Exporter les mots de passe » → téléchargez le fichier.  ② Choisissez ce fichier ici.", vaultImpOpen: "Ouvrir les mots de passe de Chrome", vaultImpPick: "Choisir le fichier téléchargé", vaultImpAll: "Tout importer ({n})", vaultImpOne: "Importer", vaultImpDone: "✓ Importé", vaultImpDup: "Déjà présent", vaultImpSum: "{n} trouvés · {m} nouveaux", vaultImpBad: "Ce n’est pas un fichier de mots de passe exporté de Chrome", vaultImpWarn: "⚠ Le fichier téléchargé contient vos mots de passe en clair. Supprimez-le après l’import.", vaultImpFilter: "Rechercher", vaultImpBusy: "Import {a}/{b}", vaultImpOpenFail: "Collez chrome://password-manager/settings dans la barre d’adresse de Chrome (copié)", vaultImpResult: "{n} importés", vaultImpOpened: "Page des mots de passe de Chrome ouverte — regardez Chrome",
     obHelper: "🆕 Assistant à l’écran", obHelperD: "Vous ne savez pas quoi faire après le travail de l’IA ? Cliquez ici — un pointeur et une bulle vous guident étape par étape à l’écran et cochent chaque étape accomplie.",
     helperInstall: "🧭 Installer l’assistant",
     helperInstalling: "⏳ Installation…",
@@ -4058,7 +4061,7 @@ const I18N_MORE = {
     qrGateOk: 'J’ai compris — afficher le QR'
   },
   pt: {
-    vaultImp: "Importar do Chrome", vaultImpHow: "① Abra a página de senhas do Chrome → “Exportar senhas” → baixe o arquivo.  ② Escolha esse arquivo aqui.", vaultImpOpen: "Abrir senhas do Chrome", vaultImpPick: "Escolher o arquivo baixado", vaultImpAll: "Importar tudo ({n})", vaultImpOne: "Importar", vaultImpDone: "✓ Importado", vaultImpDup: "Já existe", vaultImpSum: "{n} encontradas · {m} novas", vaultImpBad: "Este não é um arquivo de senhas exportado do Chrome", vaultImpWarn: "⚠ O arquivo baixado contém suas senhas em texto puro. Apague-o depois de importar.", vaultImpFilter: "Buscar", vaultImpBusy: "Importando {a}/{b}", vaultImpOpenFail: "Cole chrome://password-manager/settings na barra de endereços do Chrome (copiado)", vaultImpResult: "{n} importadas", vaultImpOpened: "Página de senhas do Chrome aberta — veja o Chrome",
+    vaultImpWho: "O Chrome tem vários usuários. As senhas de quem?", vaultImp: "Importar do Chrome", vaultImpHow: "① Abra a página de senhas do Chrome → “Exportar senhas” → baixe o arquivo.  ② Escolha esse arquivo aqui.", vaultImpOpen: "Abrir senhas do Chrome", vaultImpPick: "Escolher o arquivo baixado", vaultImpAll: "Importar tudo ({n})", vaultImpOne: "Importar", vaultImpDone: "✓ Importado", vaultImpDup: "Já existe", vaultImpSum: "{n} encontradas · {m} novas", vaultImpBad: "Este não é um arquivo de senhas exportado do Chrome", vaultImpWarn: "⚠ O arquivo baixado contém suas senhas em texto puro. Apague-o depois de importar.", vaultImpFilter: "Buscar", vaultImpBusy: "Importando {a}/{b}", vaultImpOpenFail: "Cole chrome://password-manager/settings na barra de endereços do Chrome (copiado)", vaultImpResult: "{n} importadas", vaultImpOpened: "Página de senhas do Chrome aberta — veja o Chrome",
     obHelper: "🆕 Assistente na tela", obHelperD: "Não sabe o que fazer depois que a IA cria algo? Clique aqui — um ponteiro e um balão guiam você passo a passo na tela e marcam cada passo feito.",
     helperInstall: "🧭 Instalar assistente",
     helperInstalling: "⏳ Instalando…",
@@ -4344,7 +4347,7 @@ const I18N_MORE = {
     qrGateOk: 'Entendi — mostrar o QR'
   },
   ru: {
-    vaultImp: "Импорт из Chrome", vaultImpHow: "① Откройте страницу паролей Chrome → «Экспорт паролей» → скачайте файл.  ② Выберите этот файл здесь.", vaultImpOpen: "Открыть пароли Chrome", vaultImpPick: "Выбрать скачанный файл", vaultImpAll: "Импортировать все ({n})", vaultImpOne: "Импорт", vaultImpDone: "✓ Импортировано", vaultImpDup: "Уже есть", vaultImpSum: "Найдено {n} · новых {m}", vaultImpBad: "Это не файл паролей, экспортированный из Chrome", vaultImpWarn: "⚠ В скачанном файле пароли записаны открытым текстом. Удалите его после импорта.", vaultImpFilter: "Поиск", vaultImpBusy: "Импорт {a}/{b}", vaultImpOpenFail: "Вставьте chrome://password-manager/settings в адресную строку Chrome (скопировано)", vaultImpResult: "Импортировано: {n}", vaultImpOpened: "Страница паролей Chrome открыта — посмотрите в Chrome",
+    vaultImpWho: "В Chrome несколько пользователей. Чьи пароли нужны?", vaultImp: "Импорт из Chrome", vaultImpHow: "① Откройте страницу паролей Chrome → «Экспорт паролей» → скачайте файл.  ② Выберите этот файл здесь.", vaultImpOpen: "Открыть пароли Chrome", vaultImpPick: "Выбрать скачанный файл", vaultImpAll: "Импортировать все ({n})", vaultImpOne: "Импорт", vaultImpDone: "✓ Импортировано", vaultImpDup: "Уже есть", vaultImpSum: "Найдено {n} · новых {m}", vaultImpBad: "Это не файл паролей, экспортированный из Chrome", vaultImpWarn: "⚠ В скачанном файле пароли записаны открытым текстом. Удалите его после импорта.", vaultImpFilter: "Поиск", vaultImpBusy: "Импорт {a}/{b}", vaultImpOpenFail: "Вставьте chrome://password-manager/settings в адресную строку Chrome (скопировано)", vaultImpResult: "Импортировано: {n}", vaultImpOpened: "Страница паролей Chrome открыта — посмотрите в Chrome",
     obHelper: "🆕 Экранный помощник", obHelperD: "Не знаете, что делать после работы ИИ? Нажмите — указатель и подсказка проведут вас по шагам на экране и отметят каждый выполненный шаг.",
     helperInstall: "🧭 Установить помощника",
     helperInstalling: "⏳ Установка…",
@@ -4629,7 +4632,7 @@ const I18N_MORE = {
     qrGateOk: 'Понятно — показать QR'
   },
   hi: {
-    vaultImp: "Chrome से लाएँ", vaultImpHow: "① Chrome का पासवर्ड पेज खोलें → \"पासवर्ड एक्सपोर्ट करें\" → फ़ाइल डाउनलोड करें।  ② वही फ़ाइल यहाँ चुनें।", vaultImpOpen: "Chrome का पासवर्ड पेज खोलें", vaultImpPick: "डाउनलोड की गई फ़ाइल चुनें", vaultImpAll: "सब लाएँ ({n})", vaultImpOne: "लाएँ", vaultImpDone: "✓ आ गया", vaultImpDup: "पहले से है", vaultImpSum: "{n} मिले · {m} नए", vaultImpBad: "यह Chrome से एक्सपोर्ट की गई पासवर्ड फ़ाइल नहीं है", vaultImpWarn: "⚠ डाउनलोड की गई फ़ाइल में पासवर्ड सादे अक्षरों में हैं। लाने के बाद उसे हटा दें।", vaultImpFilter: "खोजें", vaultImpBusy: "ला रहे हैं {a}/{b}", vaultImpOpenFail: "Chrome के एड्रेस बार में chrome://password-manager/settings चिपकाएँ (कॉपी हो गया)", vaultImpResult: "{n} आ गए", vaultImpOpened: "Chrome का पासवर्ड पेज खुल गया — Chrome देखें",
+    vaultImpWho: "Chrome में कई उपयोगकर्ता हैं। किसके पासवर्ड चाहिए?", vaultImp: "Chrome से लाएँ", vaultImpHow: "① Chrome का पासवर्ड पेज खोलें → \"पासवर्ड एक्सपोर्ट करें\" → फ़ाइल डाउनलोड करें।  ② वही फ़ाइल यहाँ चुनें।", vaultImpOpen: "Chrome का पासवर्ड पेज खोलें", vaultImpPick: "डाउनलोड की गई फ़ाइल चुनें", vaultImpAll: "सब लाएँ ({n})", vaultImpOne: "लाएँ", vaultImpDone: "✓ आ गया", vaultImpDup: "पहले से है", vaultImpSum: "{n} मिले · {m} नए", vaultImpBad: "यह Chrome से एक्सपोर्ट की गई पासवर्ड फ़ाइल नहीं है", vaultImpWarn: "⚠ डाउनलोड की गई फ़ाइल में पासवर्ड सादे अक्षरों में हैं। लाने के बाद उसे हटा दें।", vaultImpFilter: "खोजें", vaultImpBusy: "ला रहे हैं {a}/{b}", vaultImpOpenFail: "Chrome के एड्रेस बार में chrome://password-manager/settings चिपकाएँ (कॉपी हो गया)", vaultImpResult: "{n} आ गए", vaultImpOpened: "Chrome का पासवर्ड पेज खुल गया — Chrome देखें",
     obHelper: "🆕 स्क्रीन सहायक", obHelperD: "AI के कुछ बनाने के बाद क्या करना है, समझ नहीं आ रहा? यह दबाएँ — पॉइंटर और बबल स्क्रीन पर एक-एक कदम दिखाते हैं और करते ही निशान लगा देते हैं।",
     helperInstall: "🧭 सहायक इंस्टॉल करें",
     helperInstalling: "⏳ इंस्टॉल हो रहा है…",
@@ -13776,7 +13779,7 @@ async function openVault(paneEl) {
     '<input class="vt-user" maxlength="200" autocomplete="off"><input class="vt-pw" type="password" maxlength="500" autocomplete="new-password">' +
     '<button class="pc-yes vt-add"></button></div>' +
     '<div class="vt-imp"><div class="vi-how"></div><div class="vi-btns"><button class="pc-no vi-open"></button><button class="pc-yes vi-pick"></button>' +
-    '<input type="file" class="vi-file" accept=".csv,text/csv" style="display:none"></div>' +
+    '<input type="file" class="vi-file" accept=".csv,text/csv" style="display:none"></div><div class="vi-who"></div>' +
     '<div class="vi-bar"><span class="vi-sum"></span><input class="vi-find"><button class="pc-yes vi-all"></button></div>' +
     '<div class="vi-list"></div><div class="vi-warn"></div></div>' +
     '<div class="vt-log"></div><div class="pc-btns"></div></div>';
@@ -13939,11 +13942,28 @@ async function openVault(paneEl) {
   $('.vi-find').placeholder = T.vaultImpFilter || 'Search';
   ['keydown', 'keypress', 'keyup', 'paste'].forEach(t => $('.vi-find').addEventListener(t, e => e.stopPropagation()));
   $('.vi-find').oninput = paintImp;
-  $('.vi-open').onclick = async ev => {
-    ev.stopPropagation();
-    const res = await api('POST', '/api/vault/open-chrome');
+  const openChrome = async profile => {
+    const res = await api('POST', '/api/vault/open-chrome', profile ? { profile } : {});
     if (res && res.ok) flashToast(T.vaultImpOpened || 'Opened in Chrome');
     else { try { navigator.clipboard.writeText('chrome://password-manager/settings').catch(() => {}); } catch (e) {} flashToast(T.vaultImpOpenFail || 'chrome://password-manager/settings'); }
+  };
+  // 크롬 사용자가 여럿이면 누구 것인지 먼저 고른다(같은 버튼을 다시 누르면 고르는 줄이 접힌다)
+  $('.vi-open').onclick = async ev => {
+    ev.stopPropagation();
+    const who = $('.vi-who');
+    if (who.classList.contains('open')) { who.classList.remove('open'); return; }
+    const pr = await api('GET', '/api/vault/chrome-profiles');
+    const list = (pr && pr.profiles) || [];
+    if (list.length < 2) return openChrome(list[0] && list[0].dir);
+    who.innerHTML = '';
+    const q = document.createElement('span'); q.className = 'vi-how'; q.textContent = T.vaultImpWho || 'Which Chrome user?';
+    who.appendChild(q);
+    list.forEach(p => {
+      const b = document.createElement('button'); b.className = 'pc-no'; b.textContent = p.name; b.title = p.mail || p.name;
+      b.onclick = e => { e.stopPropagation(); who.classList.remove('open'); openChrome(p.dir); };
+      who.appendChild(b);
+    });
+    who.classList.add('open');
   };
   $('.vi-pick').onclick = ev => { ev.stopPropagation(); $('.vi-file').value = ''; $('.vi-file').click(); };
   $('.vi-file').onclick = ev => ev.stopPropagation();
