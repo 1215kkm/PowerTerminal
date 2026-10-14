@@ -1175,12 +1175,9 @@ function worktreePrep(sess) {
 function agentCommand(sess, fresh, resume) {
   return worktreePrep(sess) + agentCommandRaw(sess, fresh, resume);
 }
-// 🖥 일반 크롬 — Claude Code 의 「Claude in Chrome」(사용자가 평소 쓰는 크롬 + Claude 확장 프로그램)을 이 세션에서 쓸지.
-// true = --chrome, false = --no-chrome, 정하지 않았으면 아무것도 안 붙여 Claude 자체 설정을 따른다.
-const chromeFlag = sess => sess.chrome === true ? ' --chrome' : sess.chrome === false ? ' --no-chrome' : '';
 function agentCommandRaw(sess, fresh, resume) {
   const cm = modelFor('claude', sess.model);
-  const model = (cm !== 'default' ? ' --model ' + cm : '') + claudeTuiFlag() + chromeFlag(sess) + browserFlags(sess);
+  const model = (cm !== 'default' ? ' --model ' + cm : '') + claudeTuiFlag() + browserFlags(sess);
   /* GPT(codex) 도 모델을 고를 수 있다. codex 는 최상위 옵션으로 `--model <id>` 를 받고,
      `codex resume` 서브커맨드도 같은 옵션을 받는다(확인함). 안 주면 ~/.codex/config.toml 값을 쓴다.
      codex 도 Claude 처럼 기본이 대체화면(alt-screen) 모드다 — 매 응답마다 화면을 통째로 다시 그려서
@@ -2483,6 +2480,42 @@ app.delete('/api/vault/:id', (req, res) => {
   try { vaultSave(vaultLoad().filter(e => e.id !== req.params.id)); } catch (err) { return res.status(500).json({ error: String(err && err.message) }); }
   res.json(vaultView());
 });
+// 🔑 크롬에서 가져오기 — 크롬의 「비밀번호 내보내기」로 받은 파일을 화면이 읽어 넘긴다(크롬 저장소를 직접 뜯지 않는다).
+// 같은 사이트·같은 아이디가 이미 있으면 건너뛴다. 이름은 사이트 주소로 짓고, 겹치면 아이디를 붙인다.
+app.post('/api/vault/import', (req, res) => {
+  if (!vaultLocal(req, res)) return;
+  const items = Array.isArray((req.body || {}).items) ? req.body.items.slice(0, 200) : [];
+  const list = vaultLoad(), results = [];
+  const taken = n => list.some(e => e.name.toLowerCase() === n.toLowerCase());
+  try {
+    for (const it of items) {
+      const domain = vaultDomain(it && it.url), username = String((it && it.username) || '').trim().slice(0, 200);
+      const password = it && typeof it.password === 'string' ? it.password : '';
+      if (!domain || !username || !password || password.length > 500) { results.push('bad'); continue; }
+      if (list.some(e => e.username === username && vaultDomains(e).includes(domain))) { results.push('dup'); continue; }
+      const long = (domain.slice(0, 22) + ' ' + username).slice(0, 36);
+      let name = domain.slice(0, 40);
+      if (taken(name)) name = long;
+      for (let k = 2; taken(name) && k < 100; k++) name = long + ' ' + k;
+      if (taken(name)) { results.push('bad'); continue; }
+      list.push({ id: crypto.randomBytes(6).toString('hex'), name, domain, hosts: [], username, updatedAt: Date.now(), secret: vaultSeal(password) });
+      results.push('ok');
+    }
+    if (results.includes('ok')) vaultSave(list);
+  } catch (err) { return res.status(500).json({ error: String(err && err.message) }); }
+  res.json(Object.assign(vaultView(), { results }));
+});
+// 크롬의 비밀번호 설정 화면을 연다(「비밀번호 내보내기」가 있는 곳). 웹 화면은 chrome:// 주소를 못 열어 서버가 대신 띄운다.
+app.post('/api/vault/open-chrome', (req, res) => {
+  if (!vaultLocal(req, res)) return;
+  const exe = findBrowserExe();
+  if (!/chrome/i.test(path.basename(exe || ''))) return res.json({ ok: false });
+  try {
+    const c = spawn(exe, ['chrome://password-manager/settings'], { detached: true, stdio: 'ignore' });
+    c.on('error', () => {}); c.unref();
+  } catch (e) { return res.json({ ok: false }); }
+  res.json({ ok: true });
+});
 // AI 도구(vault-mcp.js)가 부르는 두 개. 사용자 지정 헤더를 요구한다 — AI 가 조작하는 크롬 속 웹페이지가
 // localhost 인 PT 를 몰래 부르려 해도, 다른 사이트가 붙인 사용자 헤더는 사전 확인(CORS)에서 막힌다.
 function vaultTool(req, res) {
@@ -2937,9 +2970,7 @@ app.patch('/api/sessions/:id', (req, res) => {
   }
   // 🌐 브라우저 조작 — false | 'normal'(일반창) | 'incognito'(시크릿창). MCP 도구는 AI 가 뜰 때만
   // 붙일 수 있어서 재시작한다(대화는 이어짐)
-  if (req.body.browser !== undefined || typeof req.body.browserProfile === 'string' || req.body.chrome !== undefined) {
-    // 🖥 일반 크롬(Claude in Chrome) — true / false / null(정하지 않음). 이것도 AI 가 뜰 때만 정해져서 재시작한다
-    if (req.body.chrome === true || req.body.chrome === false) s.chrome = req.body.chrome; else if (req.body.chrome === null) delete s.chrome;
+  if (req.body.browser !== undefined || typeof req.body.browserProfile === 'string') {
     const b = req.body.browser;
     if (b !== undefined) s.browser = (b === true || b === 'normal') ? 'normal' : b === 'incognito' ? 'incognito' : false;
     // 👤 계정별 창 — 빈 값이면 기본 창
