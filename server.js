@@ -2660,12 +2660,29 @@ app.post('/api/vault/import', (req, res) => {
   res.json(Object.assign(vaultView(), { results }));
 });
 // 크롬의 비밀번호 설정 화면을 연다(「비밀번호 내보내기」가 있는 곳). 웹 화면은 chrome:// 주소를 못 열어 서버가 대신 띄운다.
+// 크롬 사용자(프로필)가 여럿이면 크롬이 "사용자 고르는 창"을 먼저 띄우고 넘겨준 주소는 버린다(2026-10-14 실사용: 고르자마자 창이 꺼짐).
+// 그래서 사용자를 PT 화면에서 고르게 하고 --profile-directory 로 그 사용자의 창에 바로 연다.
+function chromeProfiles() {
+  try {
+    const base = IS_WIN ? path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'User Data')
+      : process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome') : path.join(os.homedir(), '.config', 'google-chrome');
+    const p = (JSON.parse(fs.readFileSync(path.join(base, 'Local State'), 'utf8')).profile) || {};
+    const last = String(p.last_used || '');
+    return Object.entries(p.info_cache || {}).filter(([dir]) => /^[A-Za-z0-9 _-]{1,40}$/.test(dir))
+      .map(([dir, v]) => ({ dir, name: String((v && v.name) || dir).slice(0, 40), mail: String((v && v.user_name) || '').slice(0, 80), last: dir === last }))
+      .sort((x, y) => (y.last - x.last) || x.name.localeCompare(y.name));
+  } catch (e) { return []; }
+}
+app.get('/api/vault/chrome-profiles', (req, res) => { if (vaultLocal(req, res)) res.json({ profiles: chromeProfiles() }); });
 app.post('/api/vault/open-chrome', (req, res) => {
   if (!vaultLocal(req, res)) return;
   const exe = findBrowserExe();
   if (!/chrome/i.test(path.basename(exe || ''))) return res.json({ ok: false });
+  const want = String((req.body || {}).profile || '');
+  const prof = chromeProfiles().find(p => p.dir === want);
+  if (want && !prof) return res.json({ ok: false });
   try {
-    const c = spawn(exe, ['chrome://password-manager/settings'], { detached: true, stdio: 'ignore' });
+    const c = spawn(exe, (prof ? ['--profile-directory=' + prof.dir] : []).concat('chrome://password-manager/settings'), { detached: true, stdio: 'ignore' });
     c.on('error', () => {}); c.unref();
   } catch (e) { return res.json({ ok: false }); }
   res.json({ ok: true });

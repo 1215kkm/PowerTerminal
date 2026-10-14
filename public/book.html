@@ -1332,8 +1332,36 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { lo
 const inp = $('inp');
 inp.addEventListener('input', () => { inp.style.height = ''; inp.style.height = Math.min(askForm.closest('.pg') ? 120 : 160, inp.scrollHeight + 2) + 'px'; });
 inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); askForm.requestSubmit(); } });
+// 그림 붙여넣기 — 본 화면 요청창처럼 세션 폴더(.pt-images)에 올리고, 그 파일 경로를 글에 넣는다(AI 가 경로로 그림을 읽는다)
+let upN = 0, upPh = '';
+inp.addEventListener('paste', e => {
+  const imgs = [...((e.clipboardData && e.clipboardData.items) || [])].filter(it => it.type && it.type.startsWith('image/')).map(it => it.getAsFile()).filter(Boolean);
+  if (!imgs.length || !cur) return;
+  e.preventDefault();
+  const id = cur.id, IMG = KO ? { up: '그림 올리는 중…', fail: '그림을 올리지 못했어요' } : { up: 'Uploading image…', fail: 'Could not upload the image' };
+  (async () => {
+    for (const file of imgs) {
+      if (!upN++) upPh = inp.placeholder;
+      inp.placeholder = '⏳ ' + IMG.up; $('send').disabled = true;
+      let r = null;
+      try {
+        const b64 = await new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(file); });
+        r = await api('POST', '/api/sessions/' + id + '/upload-image', { data: b64, name: file.name || 'paste.png' });
+      } catch (e2) {}
+      if (!--upN) { inp.placeholder = upPh; $('send').disabled = false; }
+      if (r && r.path) {
+        if (!cur || cur.id !== id) continue;                 // 올리는 사이 다른 세션으로 넘어갔으면 넣지 않는다
+        const a = inp.selectionStart, b = inp.selectionEnd, v = inp.value, add = (a && !/\s$/.test(v.slice(0, a)) ? ' ' : '') + '"' + r.path + '" ';
+        inp.value = v.slice(0, a) + add + v.slice(b);
+        inp.selectionStart = inp.selectionEnd = a + add.length;
+        inp.dispatchEvent(new Event('input'));
+      } else if (!upN) { inp.placeholder = '⚠ ' + IMG.fail; setTimeout(() => { if (!upN) inp.placeholder = upPh; }, 4000); }
+    }
+  })();
+});
 askForm.addEventListener('submit', e => {
   e.preventDefault();
+  if (upN) return;                                           // 그림을 올리는 중에는 보내지 않는다
   const text = inp.value.trim();
   if (!text || !cur || !ws || ws.readyState !== 1) return;
   api('POST', '/api/memos/req', { path: cur.path, text, sid: cur.id });
