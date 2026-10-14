@@ -35,6 +35,10 @@ const TOOLS = [
       'something you built or set up, asks for a walkthrough, or says 도우미·안내·사용 순서·뭐 해야 돼. A pointer and a speech bubble move to each ' +
       'step\'s target on the desktop or inside the user\'s browser, and each step is checked off when the user does it, then the next one is shown. ' +
       'Give concrete targets: for web steps url + label (the visible text; selector optional), for desktop programs window + control. ' +
+      'The pointer appears ONLY if that exact text is visible on the user\'s screen at the moment the step starts, so: copy the text exactly as the screen shows it (do not paraphrase or translate); ' +
+      'if something must be clicked or chosen first to reveal the target (a menu, a tab, a radio option, a dialog), make that its own earlier step; ' +
+      'do not assume a page, dialog or login you opened yourself is open on the user\'s screen — start from a url and what is visible right after it loads. ' +
+      'If the user says nothing is pointed at, call guide_status: it marks the steps whose target was not on the screen. ' +
       'Steps the user does elsewhere (phone, paper) get no target and are checked with "Done". Keep 3–12 steps, one action each, in order. ' +
       'Do not perform the steps yourself — the user does them. Calling it again replaces this session\'s guide.',
     inputSchema: {
