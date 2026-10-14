@@ -152,7 +152,7 @@ function normalize(b, prev) {
   return r;
 }
 
-function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeSession, defaultBaseDir = '',
+function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeSession, reopenSession = () => { throw Error('reopen'); }, defaultBaseDir = '',
                           enterDelay = () => 100, now = Date.now }) {
   const file = path.join(dataDir, 'routines.json');
   const db = { routines: [], runs: [], maxConcurrent: 1 };
@@ -163,12 +163,13 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
       db.routines = Array.isArray(j.routines) ? j.routines : [];
       db.runs = Array.isArray(j.runs) ? j.runs : [];
       db.maxConcurrent = Number.isInteger(j.maxConcurrent) ? j.maxConcurrent : 1;
-      // 서버가 꺼질 때 돌던 회차는 이어 붙이지 않는다 — 세션이 이미 사라져 어디까지 했는지 확실히 알 수 없다.
-      // 다만 사용량 한도가 풀리길 기다리는 중이면 세션이 없는 것이 정상이고 다시 띄우면 그만이라 그대로 이어 간다
-      // (한도 대기는 몇 시간이라 그 사이 PT 를 껐다 켜는 일이 잦다 — 2026-09-16 GPT 한도 4시간 대기).
+      // 서버가 꺼질 때 돌던 회차는 멈추지 않고 이어 간다 — 업데이트로 PT 를 다시 켤 때마다 회차가 꺼졌다(2026-10-14 12:20, 7분 만에 멈춤).
+      // 그 단계 세션을 다시 띄워(대화 그대로) "중단됐다가 다시 켜졌으니 폴더를 확인하고 이어서 끝내라" 고 보낸다. 세션이 없으면 새 세션으로.
+      // 사용량 한도 대기(세션을 닫아 둔 상태)는 원래대로 시각이 되면 새로 띄운다.
       for (const run of db.runs) if (run.status === 'running') {
         const a = run.attempts[run.attempts.length - 1];
-        if (a && a.status === 'limit' && a.relaunch && !a.sessionId) continue;
+        if (!a || (a.status === 'limit' && a.relaunch && !a.sessionId)) continue;
+        if (['starting', 'sending', 'sent', 'limit'].includes(a.status)) { a.restarted = true; continue; }
         run.status = 'stopped'; run.endedAt = Date.now();
         run.note = 'PowerTerminal 이 다시 켜져 이 회차는 멈췄습니다 — 작업 폴더를 확인하고 필요하면 "지금 한 번" 으로 다시 돌리세요';
       }
@@ -334,6 +335,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (a.sessionId) { try { closeSession(a.sessionId); } catch (e) {} }
     a.sessionId = null; a.relaunch = true; a.resumeAt = at; a.seen = null;
     a.resumeNote = a.status === 'sent';   // 작업 도중이었으면 다시 띄울 때 '이어서' 라고 알린다
+    a.resumeWhy = 'limit';
     a.status = 'limit';
     note(run, (a.step + 1) + '단계: ' + why + ' — ' + new Date(at).toLocaleString('ko-KR') + ' 에 새 세션으로 다시 시작합니다');
     save();
@@ -385,7 +387,7 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     const vars = { '주제': run.topic, '날짜': localDate(run.startedAt), '회차': run.n, '루틴 이름': r.name, '작업 폴더': run.folder,
                    '이전 단계가 한 일': run.lastReport || '(첫 단계라 앞 단계 보고가 없습니다)' };
     let body = expand(step.prompt, vars);
-    if (a.resumeNote) body = '[이어서] 이 단계는 사용량 한도로 중단됐다가 다시 시작됐습니다. 작업 폴더에 이미 남아 있는 결과를 먼저 확인하고, 중복 없이 이어서 끝내세요.\n\n' + body;
+    if (a.resumeNote) body = '[이어서] 이 단계는 ' + (a.resumeWhy === 'restart' ? 'PowerTerminal 이 다시 켜지면서' : '사용량 한도로') + ' 중단됐다가 다시 시작됐습니다. 작업 폴더에 이미 남아 있는 결과를 먼저 확인하고, 중복 없이 이어서 끝내세요.\n\n' + body;
     if (a.fixFrom != null) {
       body = '[되돌아온 작업] ' + (a.fixFrom + 1) + '단계 「' + (r.steps[a.fixFrom] || {}).name + '」 가 기준에 못 미친다고 돌려보냈습니다. 아래 지적을 반영해 이 단계를 다시 하세요.\n'
            + (a.fixReport || '(지적 내용 파일이 비어 있습니다 — ' + reportRel(a.fixFrom) + ' 를 확인하세요)') + '\n\n--- 원래 지시문 ---\n' + body;
@@ -442,6 +444,24 @@ function createRoutines({ dataDir, sessions, ptys, signal, createSession, closeS
     if (!step) { finish(run, 'failed', '루틴 단계가 바뀌어 이 회차를 이어갈 수 없습니다'); return; }
     const t = now();
     const fail = msg => { a.status = 'failed'; a.endedAt = t; finish(run, 'failed', (a.step + 1) + '단계 「' + step.name + '」: ' + msg); };
+
+    // PT 가 다시 켜진 뒤 첫 점검 — 그 단계 세션을 다시 띄우고(대화 그대로) 입력 준비가 되면 '이어서' 지시문을 다시 보낸다
+    if (a.restarted) {
+      a.restarted = false;
+      const midway = a.status !== 'starting';          // 지시문을 이미 보냈던 단계 — 하던 일을 이어서 하라고 알린다
+      let same = false;
+      if (a.sessionId) { try { reopenSession(a.sessionId); same = true; } catch (e) { a.sessionId = null; } }
+      if (a.status === 'limit' && t < (a.resumeAt || 0)) {   // 사용량 한도가 아직 안 풀렸다 — 시각까지 그대로 기다린다
+        if (!same) { a.relaunch = true; a.resumeNote = true; a.resumeWhy = 'limit'; }
+        save();
+        return;
+      }
+      a.status = 'starting'; a.startedAt = t; a.seen = null; a.waitNote = ''; a.relaunch = false;
+      a.resumeNote = midway; a.resumeWhy = 'restart';
+      note(run, (a.step + 1) + '단계: PowerTerminal 이 다시 켜져 ' + (same ? '같은 세션(대화 그대로)' : '새 세션') + '으로 이어서 진행합니다');
+      save();
+      return;
+    }
 
     if (a.status === 'starting') {
       if (!a.sessionId) {

@@ -1702,6 +1702,15 @@ function routineCreateSession({ title, path: dir, agent, model, effort, browser,
   if (p.dead) throw Error('터미널을 시작하지 못했습니다');
   return sess;
 }
+// PT 가 다시 켜진 뒤 도던 회차의 단계 세션을 다시 띄운다 — 화면이 안 붙어도 뜨게. 대화는 --continue 로 이어지고,
+// '이어서 하라' 문구는 루틴이 회차 코드와 함께 따로 보내므로 서버의 자동 이어하기 문구(resumeOnStart)는 끈다(두 번 시키지 않게).
+function routineReopenSession(id) {
+  const sess = sessions.find(x => x.id === id);
+  if (!sess) throw Error('세션이 없습니다');
+  sess.resumeOnStart = false;
+  const p = getPty(sess);
+  if (!p || p.dead) throw Error('터미널을 시작하지 못했습니다');
+}
 function routineCloseSession(id) {
   const p = ptys.get(id);
   killDev(id);
@@ -1717,7 +1726,7 @@ function routineCloseSession(id) {
 }
 const routines = require('./routines').createRoutines({
   dataDir: DATA_DIR, sessions: () => sessions, ptys, signal: id => scheduler.signal(id),
-  createSession: routineCreateSession, closeSession: routineCloseSession,
+  createSession: routineCreateSession, closeSession: routineCloseSession, reopenSession: routineReopenSession,
   defaultBaseDir: path.join(os.homedir(), 'pt-routines'),
   enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : claudeEnterDelay(written.length); } });
 routines.install(app);
