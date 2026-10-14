@@ -18,7 +18,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 
 static class Program {
-  public const string VER = "5";
+  public const string VER = "6";
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [STAThread]
   static void Main(string[] args) {
@@ -337,6 +337,7 @@ class Helper : ApplicationContext {
   void UiaLoop() {
     AutomationElement cached = null; string cachedFor = "";
     int me = System.Diagnostics.Process.GetCurrentProcess().Id;
+    string missKey = "", missPosted = ""; DateTime missAt = DateTime.Now;
     while (!quitting) {
       Dictionary<string, object> d; lock (lk) d = st;
       string key = d == null ? "" : S(d, "gid") + ":" + S(d, "i");
@@ -354,6 +355,7 @@ class Helper : ApplicationContext {
             }
             Dictionary<string, object> L = D(d, "L");
             if (r.IsEmpty) note = (w == null && win.Length > 0) ? S(L, "findWin").Replace("{t}", win) : S(L, "findCtl").Replace("{t}", ctl);
+            note = Missing(r.IsEmpty, key, ctl, note, d, L, ref missKey, ref missAt, ref missPosted);
           } else if (w != null) {
             Rectangle wr = Rectangle.Empty; try { wr = ToRect(w.Current.BoundingRectangle); } catch { }
             if (!wr.IsEmpty) r = new Rectangle(wr.X, wr.Y, wr.Width, Math.Min(wr.Height, P(36)));   // 창이면 제목줄을 짚는다
@@ -381,13 +383,27 @@ class Helper : ApplicationContext {
             }
             if (!r.IsEmpty && off) { r = Rectangle.Empty; note = S(L, "scroll").Replace("{t}", label); }
             else if (!r.IsEmpty && !OnTop(r, cachedWin, me)) { r = Rectangle.Empty; note = S(L, "front"); }
-            else if (r.IsEmpty) note = wins.Count == 0 ? S(L, "inUser") : S(L, "findWeb").Replace("{t}", label);
+            else if (r.IsEmpty) {
+              note = wins.Count == 0 ? S(L, "inUser") : S(L, "findWeb").Replace("{t}", label);
+              if (wins.Count > 0) note = Missing(true, key, label, note, d, L, ref missKey, ref missAt, ref missPosted);
+            } else missKey = "";
           } else note = S(L, "inUser");
           lock (lk) { deskRect = r; deskKey = key; deskNote = note; }
         } else { cached = null; lock (lk) { deskRect = Rectangle.Empty; deskKey = key; deskNote = ""; } }
       } catch { }
       Thread.Sleep(600);
     }
+  }
+  // 짚을 것을 한동안(7초) 못 찾으면 "찾는 중…"만 계속 두지 않는다 — 지금 화면에 없다고 말해 주고(사용자가 마냥 기다리지 않게),
+  // PT 에도 한 번 알려 AI 가 guide_status 에서 "이 단계 대상이 화면에 없었다"를 보게 한다.
+  string Missing(bool empty, string key, string what, string note, Dictionary<string, object> d, Dictionary<string, object> L,
+                 ref string missKey, ref DateTime missAt, ref string missPosted) {
+    if (!empty) { missKey = ""; return note; }
+    if (missKey != key) { missKey = key; missAt = DateTime.Now; return note; }
+    if ((DateTime.Now - missAt).TotalSeconds < 7) return note;
+    if (missPosted != key) { missPosted = key; Post("miss", d); }
+    string m = S(L, "miss");
+    return m.Length > 0 ? m.Replace("{t}", what) : note;
   }
   // ---------- 사용자의 평소 브라우저 ----------
   static readonly string[] BROWSERS = { "chrome", "msedge", "whale", "brave", "firefox", "opera", "vivaldi", "iexplore" };
