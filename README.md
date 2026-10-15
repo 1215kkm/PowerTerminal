@@ -67,58 +67,144 @@ To use it on your phone, click the **QR** button, read the warning, and scan the
 
 ## Features
 
-### Sessions
-- **Multi-session grid** — several projects at once, side by side (1 full / 2 half / 3+ in one row, wraps to 2 rows when narrow). ⛶ expands one pane in place; 5+ sessions can spill into a second browser window (nice with dual monitors)
-- **Any AI per session** — Claude Code, Codex, plain PowerShell, or a custom command; switch a session's AI or model from its header
-- **Status borders** — sky-blue while a session is working, thick green when it's done (stays green until you send the next request)
-- **🔊 Done alerts you hear** — flip on the speaker button and each finished session is announced out loud: a *ding-dong* chime, then "session two done" (built-in browser speech, no install)
-- **☀ / 🌙 Light & dark mode** — the whole UI *including the terminals*, with a readable light ANSI palette
+Every feature below has a screenshot and a one-minute video (▶). All 17 videos are also on the site: **[pominal.com → Video guide](https://pominal.com/#videos)**.
 
-### Requests
-- **Your requests stand out** — everything you send gets a violet highlight in the terminal, so you can scroll back and instantly spot what *you* asked between walls of output
-- **📜 Request history** — every request is logged automatically with a zero-token status stamp (⏳ running · ✅ done · ⛔ stopped · 🔌 cut off). Toggle the panel next to any terminal and click an entry to jump to that spot in the scrollback
-- **⛔ Cancel button** — one tap stops the request in progress (sends ESC), on PC and phone
-- **Paste or drop anything** — images and long text collapse into small chips like `[Image #1]` / `[Text #1 · 597 chars]` and are delivered on send; drag & drop images works too
-- **Select = copy** — drag-select terminal text and it's copied automatically; incoming output pauses while you select, so the highlight doesn't get wiped mid-drag
+| # | Feature | # | Feature |
+|---|---|---|---|
+| 1 | [Sessions side by side](#1-sessions-side-by-side) | 8 | [A real browser for the AI](#8-a-real-browser-for-the-ai) |
+| 2 | [Add a session · new project in one go](#2-add-a-session--new-project-in-one-go) | 9 | [Login vault](#9-login-vault) |
+| 3 | [Use it on your phone](#3-use-it-on-your-phone) | 10 | [On-screen helper](#10-on-screen-helper) |
+| 4 | [Faster requests](#4-faster-requests) | 11 | [Code editor](#11-code-editor) |
+| 5 | [Memo pad & Q&A log](#5-memo-pad--qa-log) | 12 | [Upload to GitHub](#12-upload-to-github) |
+| 6 | [Note mode](#6-note-mode) | 13 | [Mind map & schedule](#13-mind-map--schedule) |
+| 7 | [Auto-run](#7-auto-run) | 14 | [Status, alerts & usage](#14-status-alerts--usage) |
 
-- **🎤 Voice input** — speak and it turns into text in the request box; check it, then send
-- **💬 Frequent words** — the buttons above the input (`Go on`, `Done?` …) send in one click; add your own with ＋
+### 1. Sessions side by side
 
-### Let the AI work for you
-- **🌐 A real browser for the AI** — one click and the session's AI opens Chrome itself to read pages, click, type and check results. *Normal* keeps sign-ins for next time, *incognito* is wiped when it closes; each tab title carries the session name
-- **🔑 Login vault** — save a login once; the AI only says its name and PowerTerminal types the password, and only on the saved address — the AI never sees it. Import your Chrome passwords (all at once or one by one) from Chrome's own export file
-- **🧭 On-screen helper** — not sure how to use what the AI just built? Press the helper button → *Show me*: a pointer and speech bubble walk you through each click, on the desktop or in your own browser, and move on as you do it
-- **⏱ Auto-run** — send a request to a session at a set time, on an interval, or the moment your usage limit resets
-- **📖 Note mode** — read a long conversation page by page like a book; it remembers your page, and you can search, resize the text, export it, paste images and ask right from the page
+One AI per project, all on one screen. 1 session fills the screen, 2 split it, 3+ sit in one row and wrap to two rows when narrow; ⛶ expands one pane in place, and 5+ sessions can spill into a second window (nice with two monitors).
 
-### Memo pad
-- **📝 Per-project memo pad** — free-form notes keyed to the folder, stored on your PC (`~/.powerterminal`), same notes on phone and PC
-- **Send a memo to the terminal** — 📤 sends the note as a request; when the work finishes it moves itself to the *Completed* column
-- **Full request log inside** — the memo pad shows everything you've asked in that project, with ↑ jump-to-terminal on each entry
+- **Any AI per session** — Claude Code, Codex, plain PowerShell or your own command; switch the model from the session header
+- **Status borders** — sky-blue while working, thick green when done (stays green until your next request)
+- **☀ / 🌙 light & dark** — the whole screen *including the terminals*
 
-### Phone & tablet
-- **Phone = same screen** — sessions live on your PC; check and control them from anywhere via QR (same Wi-Fi) or a private Cloudflare tunnel (LTE, anywhere)
-- **Touch-first** — drag the center of any terminal to scroll its history; big bouncy send button with haptics; the header folds away as you scroll so the terminal gets the room
-- **👁 Live preview** — see the page you're building in a new tab; if the folder has no `index.html`, you get a clickable file listing instead
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/01-sessions.jpg" alt="Four Claude Code sessions side by side" width="820"></p>
 
-### Workflow
-- **Usage bars** — your Claude plan usage (session / weekly) with time left until reset, same numbers as the official app
-- **New Project** — folder + git + private GitHub repo + Claude, in one click *(needs [GitHub CLI](https://cli.github.com), `gh auth login`)*
+▶ [Video: Sessions side by side](https://pominal.com/video/player.html?l=en&v=grid#share-en) · [Install and open your first session](https://pominal.com/video/player.html?l=en&v=start#share-en)
+
+### 2. Add a session · new project in one go
+
+**＋ Session** reopens a recent folder in one click, browses to any folder, or clones from GitHub. **New (folder+GitHub)** creates the folder, runs `git init`, makes a private GitHub repo and starts the AI — one name, one button *(needs [GitHub CLI](https://cli.github.com), `gh auth login`)*.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/02-add-session.jpg" alt="Add Session dialog" width="49%"> <img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/02-new-project.jpg" alt="New project: folder, git and GitHub repo in one go" width="49%"></p>
+
+▶ [Video: New project in one go](https://pominal.com/video/player.html?l=en&v=newproj#share-en)
+
+### 3. Use it on your phone
+
+Sessions keep running on your PC; the phone is just another window into them. Scan the QR on the same Wi-Fi, or anywhere over a private Cloudflare link. The phone gets its own layout: session tabs on top, one session at a time, big buttons, drag the terminal to scroll back.
+
+> ⚠️ Anyone with that QR or link can run commands on your PC — PowerTerminal asks you to confirm before it shows it. Share it only with people you trust.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/03-phone-qr.jpg" alt="QR with the security warning" width="62%"> <img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/03-phone.jpg" alt="PowerTerminal on a phone" width="22%"></p>
+
+▶ [Video: Continue on your phone](https://pominal.com/video/player.html?l=en&v=phone#share-en) · [Using it on a phone](https://pominal.com/video/player.html?l=en&v=m-start#share-en)
+
+### 4. Faster requests
+
+- **💬 One-click words** — `Continue`, `Done?`, `Did it`, `You do it`, `1` `2` `3` … send in one tap; add your own with ＋
+- **Paste or drop anything** — images and long text become small chips (`[Image #1]`, `[Text #1 · 597 chars]`) and go out with the request
+- **🎤 Voice input** — speak, check the text, send
+- **📜 Requests** — everything you sent, with a status stamp (⏳ running · ✅ done · ⛔ stopped); click one to jump to that spot in the terminal. Your own requests are highlighted in the terminal, so you can find them between walls of output
+- **⛔ Cancel** — one tap stops the request in progress
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/04-requests.jpg" alt="Request box and the request history panel" width="340"></p>
+
+▶ [Video: Faster requests](https://pominal.com/video/player.html?l=en&v=input#share-en) · [Photo and voice requests on a phone](https://pominal.com/video/player.html?l=en&v=m-input#share-en)
+
+### 5. Memo pad & Q&A log
+
+A memo pad per project folder, the same on PC and phone (stored on your PC in `~/.powerterminal`).
+
+- **New memos** — jot ideas; **Send** turns a memo into a request, and it moves itself to *Done* when the work finishes
+- **Questions & answers** — start a request with "Question…" and the AI's answer is saved here
+- **Requests you sent** — the full, searchable log for the project; export to Excel
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/05-memo.jpg" alt="Memo pad with notes, Q&A and the request log" width="820"></p>
+
+▶ [Video: Memo pad & Q&A log](https://pominal.com/video/player.html?l=en&v=memo#share-en)
+
+### 6. Note mode
+
+Read a long conversation page by page, like a book: each request with the AI's answer, the work it did and the files it changed. It remembers your page, and you can search, change the text size, export the whole thing, paste images and ask the session right from the page. On a phone, swipe down to search and touch the text with two fingers to have it read aloud.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/06-note-mode.jpg" alt="Note mode on a PC" width="66%"> <img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/06-note-mode-phone.jpg" alt="Note mode on a phone" width="22%"></p>
+
+▶ [Video: Note mode](https://pominal.com/video/player.html?l=en&v=book#share-en) · [Note mode on a phone](https://pominal.com/video/player.html?l=en&v=m-book#share-en)
+
+### 7. Auto-run
+
+Send a request to a session **at a set time**, **on an interval**, or **the moment your usage limit resets** — so long jobs carry on while you sleep. It waits while the session is busy, and watching costs no AI usage. Open it from **⏱ Auto-run** in the header.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/07-auto-run.jpg" alt="Auto-run page" width="820"></p>
+
+▶ [Video: Auto-run](https://pominal.com/video/player.html?l=en&v=auto#share-en)
+
+### 8. A real browser for the AI
+
+Press 🌐 on a session and its AI gets its own Chrome: it reads pages, clicks, types and checks the result itself. *Normal window* keeps sign-ins for next time; *Incognito window* is wiped when it closes. Each tab title carries the session's name, and you can write rules the AI must follow (e.g. "ask before paying or sending").
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/08-ai-browser.jpg" alt="Choosing the AI browser for a session" width="820"></p>
+
+▶ [Video: Let the AI use a browser](https://pominal.com/video/player.html?l=en&v=browser#share-en)
+
+### 9. Login vault
+
+Save a login once. When the AI reaches a login page it only says the login's *name*; PowerTerminal checks the page is really on the saved address and types the username and password itself — the AI never sees the password, and a fake login page gets nothing. Passwords are encrypted on your PC. **⬇ Import from Chrome** brings in your Chrome passwords (all at once or one by one) from Chrome's own export file.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/09-login-vault.jpg" alt="Login vault" width="820"></p>
+
+▶ [Video: Login vault](https://pominal.com/video/player.html?l=en&v=vault#share-en)
+
+### 10. On-screen helper
+
+Not sure how to use what the AI just built? Ask the session to *guide you with the helper*: a pointer and a speech bubble walk you through each step — in your own browser or on the desktop — and move on as you do it. **Stuck?** Type in the bubble ("I can't see a green box") and press Enter: it goes to that session together with the step you're on, so the AI can look again and fix the guide. Windows; install it with **🧭 Install helper** in the header (also works on another PC that opens your PowerTerminal).
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/10-helper.png" alt="Helper bubble with the ask box" width="323"></p>
+
+▶ [Video: On-screen helper](https://pominal.com/video/player.html?l=en&v=helper#share-en)
+
+### 11. Code editor
+
+Open a project as a small IDE: the session on the left, the file tree on the right, the editor in the middle. Search across files, preview the page, open it in a new window, and save — while the AI keeps working next to you.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/11-code-editor.jpg" alt="Code editor with the session beside it" width="820"></p>
+
+▶ [Video: Code editor](https://pominal.com/video/player.html?l=en&v=code#share-en)
+
+### 12. Upload to GitHub
+
+The line under each terminal shows the branch and how many files changed. Right-click it → **Upload to GitHub (pull request)**: PowerTerminal commits, pushes and opens the pull request, with a progress bar. It stops if a secret file (keys, `.env`, cookies) is about to go up.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/12-github.jpg" alt="Upload to GitHub menu" width="820"></p>
+
+▶ [Video: Upload to GitHub](https://pominal.com/video/player.html?l=en&v=git#share-en)
+
+### 13. Mind map & schedule
+
+Plan on a mind map: drag to move, add branches in eight directions, connect nodes, copy and paste. The to-do list sits on the left, and the **Schedule** tab is a calendar you can subscribe to from Google Calendar or your phone.
+
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/13-mind-map.jpg" alt="Mind map with a to-do list" width="820"></p>
+
+▶ [Video: Mind map](https://pominal.com/video/player.html?l=en&v=mind#share-en)
+
+### 14. Status, alerts & usage
+
+- **Usage bars** — your Claude plan usage (session / weekly) with time left until reset, the same numbers as the official app
+- **🔊 Done alerts** — turn on the speaker and each finished session is announced: a chime, then "session two done"
+- **Memory meter** — how much RAM is left, under the logo
 - **10 languages** — English, 한국어, 日本語, 中文, Español, Deutsch, Français, Português, Русский, हिन्दी
 
-## Screenshots
-
-**Add a session** — reopen a previous folder from the grid, browse, or start a new project.
-
-<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/add.jpg" alt="Add a session" width="820"></p>
-
-**Open it on your phone** — scan the QR, over Wi-Fi or anywhere via the external link.
-
-<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/qr.jpg" alt="QR access" width="820"></p>
-
-**On your phone** — the same workspace in one column; tap a session tab to jump to it.
-
-<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/mobile.jpg" alt="On your phone" width="300"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/14-header.png" alt="Header with usage bars and buttons" width="820"></p>
 
 ## Choosing an AI model (the dropdown in each session)
 

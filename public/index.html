@@ -2300,6 +2300,20 @@ const QRGATE = {
   hi: { qrGateWarn:'यह QR या पता पाने वाला इस कंप्यूटर पर कमांड चला सकता है।', qrGateResp:'केवल भरोसेमंद लोगों से साझा करें। लीक होने पर ज़िम्मेदारी आपकी है।', qrGateRevoke:'लीक हो जाए तो: PowerTerminal बंद करें — बाहरी एक्सेस तुरंत रुक जाता है और पता हट जाता है (अगली बार नया, पुराना लिंक बेकार)।', qrGateOk:'समझ गया — QR दिखाएँ' }
 };
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
+// 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
+const HDR2 = {
+  en: { cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free' },
+  ko: { cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음' },
+  ja: { cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
+  zh: { cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
+  es: { cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
+  de: { cmPickFile:'Wähle rechts im Dateibaum eine Datei →', schedBtn:'⏱ Auto-Start', schedT:'Anfragen zu einer Zeit, wiederholt oder beim Zurücksetzen des Limits senden', ramLeft:'frei' },
+  fr: { cmPickFile:'Choisissez un fichier dans l’arborescence à droite →', schedBtn:'⏱ Exécution auto', schedT:'Envoyer des demandes à heure fixe, en boucle ou à la réinitialisation de la limite', ramLeft:'libre' },
+  pt: { cmPickFile:'Escolha um arquivo na árvore à direita →', schedBtn:'⏱ Execução auto', schedT:'Enviar pedidos num horário, em repetição ou quando o limite reinicia', ramLeft:'livre' },
+  ru: { cmPickFile:'Выберите файл в дереве справа →', schedBtn:'⏱ Автозапуск', schedT:'Отправлять запросы по времени, по кругу или при сбросе лимита', ramLeft:'свободно' },
+  hi: { cmPickFile:'दाईं ओर फ़ाइल ट्री से फ़ाइल चुनें →', schedBtn:'⏱ स्वतः चलाएँ', schedT:'तय समय, दोहराव या सीमा रीसेट होने पर अनुरोध भेजें', ramLeft:'खाली' }
+};
+Object.keys(HDR2).forEach(l => { if (I18N[l]) Object.assign(I18N[l], HDR2[l]); });
 // 언어 자동 판별 — ① 사용자가 고른 값 ② *접속한 나라*(타임존) ③ 브라우저 언어 ④ 영어.
 // ②를 ③보다 먼저 보는 이유: 폰·브라우저가 영어로 맞춰져 있어도 한국에서 열면 한국어로 떠야 하기 때문 (CEO 지정).
 //   ⚠ 나라와 원하는 언어가 다른 사람(해외 거주·유학)은 헤더 언어 셀렉터로 한 번만 바꾸면 계속 유지됨(localStorage).
@@ -12523,7 +12537,7 @@ function cmCloseTab(rel) {
   if (cmTabs.length) { const next = cmTabs[Math.min(i, cmTabs.length - 1)]; cmShowTab(next.path); }
   else {   // 마지막 탭까지 닫음 — 빈 화면으로
     if (cmView) { cmView.destroy(); cmView = null; }
-    document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">오른쪽 파일 트리에서 파일을 고르세요 →</div>';
+    document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">' + esc(T.cmPickFile || '오른쪽 파일 트리에서 파일을 고르세요 →') + '</div>';
     document.getElementById('cmFile').textContent = '';
     cmSetDirty(false);
     cmRenderTabs();
@@ -13265,7 +13279,7 @@ async function cmSwitch(s) {
   document.getElementById('cmGrepStat').textContent = '';
   document.getElementById('cmTitle').textContent = '📝 ' + (s.title || '');
   document.getElementById('cmFile').textContent = '';
-  document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">오른쪽 파일 트리에서 파일을 고르세요 →</div>';
+  document.getElementById('cmEditor').innerHTML = '<div class="cm-empty">' + esc(T.cmPickFile || '오른쪽 파일 트리에서 파일을 고르세요 →') + '</div>';
   if (cmView) { cmView.destroy(); cmView = null; }
   await cmRenderSessions();
   if (cmPreviewOn) cmSetPreview(true);   // 미리보기 모드면 새 세션 것으로 다시 띄움
