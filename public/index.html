@@ -38,6 +38,22 @@
   #ramBar.warm .rb-fill { background: #f59e0b; } #ramBar.hot .rb-fill { background: #ef4444; }
   #ramBar.hot .rb-txt { color: #ef4444; font-weight: 700; }
   html.light #ramBar .rb-track { background: #d1d5db; }
+  #ramBar .rb-lbl { font-weight: 700; color: var(--muted); }
+  #ramBar { cursor: help; }
+  /* 메모리 막대에 마우스를 올리면 바로 — 어디서 쓰고 있는지(PT 세션별 · 이 PC 의 다른 프로그램) */
+  #ramTip { position: fixed; z-index: 9999; display: none; min-width: 250px; max-width: 340px; padding: 10px 12px; border-radius: 10px;
+            background: #111827; color: #e5e7eb; border: 1px solid #374151; box-shadow: 0 10px 28px rgba(0,0,0,.45);
+            font-size: 12px; line-height: 1.45; pointer-events: none; }
+  #ramTip.on { display: block; }
+  #ramTip .rt-h { font-weight: 800; font-size: 12.5px; margin-bottom: 2px; }
+  #ramTip .rt-sub { color: #9ca3af; font-size: 11px; margin-bottom: 6px; }
+  #ramTip .rt-g { color: #c4b5fd; font-weight: 700; font-size: 11px; margin: 7px 0 3px; }
+  #ramTip .rt-r { display: flex; gap: 10px; justify-content: space-between; padding: 1px 0; }
+  #ramTip .rt-r span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ramTip .rt-r b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #ramTip .rt-r.hot b { color: #f87171; } #ramTip .rt-r.warm b { color: #fbbf24; }
+  html.light #ramTip { background: #fff; color: #1f2937; border-color: #d1d5db; box-shadow: 0 10px 28px rgba(0,0,0,.15); }
+  html.light #ramTip .rt-g { color: #7c3aed; }
   button { border: 0; border-radius: 8px; background: #374151; color: var(--fg);
            padding: 8px 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
   button.primary { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
@@ -1541,7 +1557,7 @@
 <body>
 <header>
   <span id="winNo" title=""></span>
-  <span class="logo-wrap"><h1>🚀 PowerTerminal</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span><span id="ramBar" style="display:none"><span class="rb-track"><span class="rb-fill"></span></span><span class="rb-txt"></span></span></span>
+  <span class="logo-wrap"><h1>🚀 PowerTerminal</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span><span id="ramBar" style="display:none"><span class="rb-lbl" data-i18n="ramLbl">메모리</span><span class="rb-track"><span class="rb-fill"></span></span><span class="rb-txt"></span></span></span>
   <a id="banner" target="_blank" rel="noopener"
      style="display:none;font-size:12px;font-weight:700;color:#fff;text-decoration:none;
             padding:5px 12px;border-radius:99px;white-space:nowrap;overflow:hidden;
@@ -2302,16 +2318,16 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free' },
-  ko: { cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음' },
-  ja: { cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
-  zh: { cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
-  es: { cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
-  de: { cmPickFile:'Wähle rechts im Dateibaum eine Datei →', schedBtn:'⏱ Auto-Start', schedT:'Anfragen zu einer Zeit, wiederholt oder beim Zurücksetzen des Limits senden', ramLeft:'frei' },
-  fr: { cmPickFile:'Choisissez un fichier dans l’arborescence à droite →', schedBtn:'⏱ Exécution auto', schedT:'Envoyer des demandes à heure fixe, en boucle ou à la réinitialisation de la limite', ramLeft:'libre' },
-  pt: { cmPickFile:'Escolha um arquivo na árvore à direita →', schedBtn:'⏱ Execução auto', schedT:'Enviar pedidos num horário, em repetição ou quando o limite reinicia', ramLeft:'livre' },
-  ru: { cmPickFile:'Выберите файл в дереве справа →', schedBtn:'⏱ Автозапуск', schedT:'Отправлять запросы по времени, по кругу или при сбросе лимита', ramLeft:'свободно' },
-  hi: { cmPickFile:'दाईं ओर फ़ाइल ट्री से फ़ाइल चुनें →', schedBtn:'⏱ स्वतः चलाएँ', schedT:'तय समय, दोहराव या सीमा रीसेट होने पर अनुरोध भेजें', ramLeft:'खाली' }
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음' },
+  ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
+  zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
+  es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
+  de: { ramLbl:"Speicher", ramVirtT:"inkl. virtuellem Speicher", ramPhysT:"Physischer RAM", ramPtT:"PowerTerminal-Sitzungen", ramTopT:"Größte Programme auf diesem PC", cmPickFile:'Wähle rechts im Dateibaum eine Datei →', schedBtn:'⏱ Auto-Start', schedT:'Anfragen zu einer Zeit, wiederholt oder beim Zurücksetzen des Limits senden', ramLeft:'frei' },
+  fr: { ramLbl:"Mémoire", ramVirtT:"mémoire virtuelle incluse", ramPhysT:"RAM physique", ramPtT:"Sessions PowerTerminal", ramTopT:"Programmes les plus gourmands sur ce PC", cmPickFile:'Choisissez un fichier dans l’arborescence à droite →', schedBtn:'⏱ Exécution auto', schedT:'Envoyer des demandes à heure fixe, en boucle ou à la réinitialisation de la limite', ramLeft:'libre' },
+  pt: { ramLbl:"Memória", ramVirtT:"incl. memória virtual", ramPhysT:"RAM física", ramPtT:"Sessões do PowerTerminal", ramTopT:"Programas que mais usam neste PC", cmPickFile:'Escolha um arquivo na árvore à direita →', schedBtn:'⏱ Execução auto', schedT:'Enviar pedidos num horário, em repetição ou quando o limite reinicia', ramLeft:'livre' },
+  ru: { ramLbl:"Память", ramVirtT:"с виртуальной памятью", ramPhysT:"Физическая RAM", ramPtT:"Сессии PowerTerminal", ramTopT:"Больше всего памяти на этом ПК", cmPickFile:'Выберите файл в дереве справа →', schedBtn:'⏱ Автозапуск', schedT:'Отправлять запросы по времени, по кругу или при сбросе лимита', ramLeft:'свободно' },
+  hi: { ramLbl:"मेमोरी", ramVirtT:"वर्चुअल मेमोरी सहित", ramPhysT:"भौतिक RAM", ramPtT:"PowerTerminal सत्र", ramTopT:"इस PC पर सबसे ज़्यादा मेमोरी वाले प्रोग्राम", cmPickFile:'दाईं ओर फ़ाइल ट्री से फ़ाइल चुनें →', schedBtn:'⏱ स्वतः चलाएँ', schedT:'तय समय, दोहराव या सीमा रीसेट होने पर अनुरोध भेजें', ramLeft:'खाली' }
 };
 Object.keys(HDR2).forEach(l => { if (I18N[l]) Object.assign(I18N[l], HDR2[l]); });
 // 언어 자동 판별 — ① 사용자가 고른 값 ② *접속한 나라*(타임존) ③ 브라우저 언어 ④ 영어.
@@ -7749,6 +7765,23 @@ setInterval(() => { if (!document.hidden) flowRefreshAll(true); }, 10000);
 /* 🧠 세션별 메모리(RAM) — 세션 + 딸린 프로세스 전부의 실제 사용량. 컴퓨터가 버벅일 때 범인 찾기용.
    1.5GB 넘으면 주황, 3GB 넘으면 빨강. 화면이 안 보일 땐 묻지 않는다. */
 const fmtMem = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + 'GB' : Math.round(b / 1048576) + 'MB';
+let ramTipHtml = '';
+// 메모리 막대 말풍선 — 마우스를 올리면 바로(브라우저 기본 말풍선은 1초쯤 늦게 뜬다), 폰에서는 눌러서 열고 닫는다
+(() => {
+  const rb = document.getElementById('ramBar'); if (!rb) return;
+  const tip = document.createElement('div'); tip.id = 'ramTip'; document.body.appendChild(tip);
+  const show = () => {
+    show.want = true;
+    if (!ramTipHtml) { if (!show.wait) { show.wait = 1; refreshMem().then(() => { show.wait = 0; if (show.want && ramTipHtml) show(); }); } return; }
+    tip.innerHTML = ramTipHtml; tip.classList.add('on');
+    const r = rb.getBoundingClientRect(), w = tip.offsetWidth;
+    tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px'; tip.style.top = (r.bottom + 6) + 'px';
+  };
+  const hide = () => { show.want = false; tip.classList.remove('on'); };
+  rb.addEventListener('mouseenter', show); rb.addEventListener('mouseleave', hide);
+  rb.addEventListener('click', ev => { ev.stopPropagation(); tip.classList.contains('on') ? hide() : show(); });
+  document.addEventListener('click', hide);
+})();
 async function refreshMem() {
   if (document.hidden) return;
   let r; try { r = await api('GET', '/api/sessions-mem'); } catch (e) { return; }
@@ -7773,9 +7806,21 @@ async function refreshMem() {
       rb.querySelector('.rb-fill').style.width = pct + '%';
       rb.querySelector('.rb-txt').textContent = pct + '% · ' + fmtMem(free) + ' ' + (T.ramLeft || '남음');
       rb.classList.toggle('hot', pct >= 85); rb.classList.toggle('warm', pct >= 70 && pct < 85);
-      rb.title = (useV ? (T.ramVirtT || '메모리(가상 메모리 포함)') + ': ' + fmtMem(r.virtTotal - r.virtFree) + ' / ' + fmtMem(r.virtTotal) + '\n' : '')
-        + (T.ramPhysT || '실제 RAM') + ': ' + fmtMem(r.totalMem - r.freeMem) + ' / ' + fmtMem(r.totalMem)
-        + (r.server ? '\n' + (T.ramPtT || 'PT 세션 전체') + ': ' + fmtMem(r.server) : '');
+      rb.removeAttribute('title');
+      const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      const cls = b => b >= 3 * 1073741824 ? ' hot' : b >= 1.5 * 1073741824 ? ' warm' : '';
+      const row = (name, b, extra) => '<div class="rt-r' + cls(b) + '"><span>' + e(name) + (extra ? ' <small style="opacity:.6">' + e(extra) + '</small>' : '') + '</span><b>' + fmtMem(b) + '</b></div>';
+      const ses = [];
+      for (const [id, p] of panes) { const m = r.sessions[id]; if (m) ses.push([p.sess.title || p.sess.path, m.bytes]); }
+      ses.sort((a, b) => b[1] - a[1]);
+      ramTipHtml = '<div class="rt-h">' + e((T.ramLbl || '메모리') + ' ' + pct + '% · ' + fmtMem(free) + ' ' + (T.ramLeft || '남음')) + '</div>'
+        + '<div class="rt-sub">' + (useV ? e(T.ramVirtT || '가상 메모리 포함') + ' ' + fmtMem(r.virtTotal - r.virtFree) + ' / ' + fmtMem(r.virtTotal) + '<br>' : '')
+        + e(T.ramPhysT || '실제 RAM') + ' ' + fmtMem(r.totalMem - r.freeMem) + ' / ' + fmtMem(r.totalMem) + '</div>'
+        + '<div class="rt-g">' + e(T.ramPtT || 'PowerTerminal 세션') + (r.server ? ' · ' + fmtMem(r.server) : '') + '</div>'
+        + (ses.length ? ses.map(x => row(x[0], x[1])).join('') : '<div class="rt-r"><span>—</span></div>')
+        + (r.top && r.top.length ? '<div class="rt-g">' + e(T.ramTopT || '이 PC에서 많이 쓰는 프로그램') + '</div>'
+          + r.top.map(t => row(t.name, t.bytes, t.n > 1 ? '×' + t.n : '')).join('') : '');
+      const tip = document.getElementById('ramTip'); if (tip && tip.classList.contains('on')) tip.innerHTML = ramTipHtml;
     } }
   for (const [id, p] of panes) {
     const el = p.el.querySelector('.memv'); if (!el) continue;
