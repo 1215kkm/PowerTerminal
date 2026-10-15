@@ -96,6 +96,17 @@
        화살표가 이 버튼에서 출발하기 때문에, 숨어 있으면 시작점을 잴 수 없다(폭 0). 평소엔 흐리게. */
     .pane.hasflow .ph-top .btnFlow { display: inline-block !important; opacity: .38; }
     .pane.hasflow:hover .ph-top .btnFlow, .pane.hasflow:focus-within .ph-top .btnFlow { opacity: 1; }
+    /* 마우스를 올리거나 세션을 고른 동안(버튼이 보일 때) — 머리줄이 커지더라도 다 보이게 (2026-10-15 CEO):
+       ① 버튼 묶음은 제목 위에 떠서 덮지 않고, 제목 아래 제 줄로 내려온다(제목이 늘 보인다).
+       ② 세션이 많아 칸이 좁으면 AI·모델·검토·🌐 줄이 오른쪽으로 잘려 🌐 이 안 보였다 → 넘치면 아랫줄로 접는다.
+       요청창 위에 마우스가 있을 땐 위 규칙대로 버튼을 숨기므로 예전 모양(✕·⛶ 만 떠 있음)으로 돌아간다. */
+    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools {
+      position: static; flex: 1 0 100%; max-width: none; margin-left: 0; justify-content: flex-end; flex-wrap: wrap;
+      overflow: visible; padding: 2px 0 0; background: none; border-color: transparent; box-shadow: none; }
+    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools .btnClose { position: static; box-shadow: none; }
+    .pane:is(:hover, :focus-within) .ph-bottom { flex-wrap: wrap; row-gap: 4px; justify-content: flex-end; }
+    /* 늘어나는 빈칸(끌기 자리)이 줄 가운데 끼면 접힌 모양이 들쭉날쭉했다 — 접는 동안엔 폭 0, 모두 오른쪽 정렬 그대로 */
+    .pane:is(:hover, :focus-within) .ph-bottom > .dragsp { flex: 0 0 0; min-width: 0; order: -1; }
   }
   /* ◎ 플로우 연결 버튼은 숨긴다(잘 안 써서) — 이미 화살표가 걸린 창에서만 남긴다(화살표 시작점이라 없으면 선을 못 그린다).
      다시 꺼내려면 이 한 줄만 지우면 된다. */
