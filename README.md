@@ -12,7 +12,7 @@ Open multiple Claude Code sessions side by side, watch them work, and send reque
 
 <p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/grid.jpg" alt="Multiple Claude Code sessions side by side" width="820"></p>
 
-▶ **[Video guide](https://pominal.com/#videos)** — nine one-minute videos (English and Korean): install, sessions side by side, phone, faster requests, note mode, auto-run, the AI browser, the login vault and the on-screen helper.
+▶ **[Video guide](https://pominal.com/#videos)** — 17 one-minute videos in English and Korean, each also as a vertical short: install, sessions side by side, phone, new project, faster requests, memo pad, note mode, auto-run, code editor, GitHub upload, mind map, the AI browser, the login vault, the on-screen helper, and three for mobile.
 
 ## Why PowerTerminal?
 
