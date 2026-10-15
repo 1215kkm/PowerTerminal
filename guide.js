@@ -43,6 +43,20 @@ module.exports = function installGuide(app, ctx) {
     ru: { ok: "✓ Готово", prev: "◀ Назад", close: "Закрыть", finished: "🎉 Всё готово!", notFound: "На экране не найдено — найдите сами", inBrowser: "Сделайте это в окне браузера PowerTerminal", inTab: "Сделайте это на вкладке «{t}» в окне браузера PowerTerminal", findWin: "Ищу окно «{t}»…", findCtl: "Ищу «{t}» на экране…", inUser: "Сделайте это в своём браузере", findWeb: "Ищу «{t}» в браузере…", scroll: "Прокрутите, пока не появится «{t}»", front: "Выведите окно браузера на передний план", miss: "«{t}» нет на этом экране. Найдите сами и нажмите [✓ Готово] или скажите ИИ, что этого нет" },
     hi: { ok: "✓ हो गया", prev: "◀ पीछे", close: "बंद करें", finished: "🎉 सब हो गया!", notFound: "स्क्रीन पर नहीं मिला — कृपया खुद ढूँढें", inBrowser: "यह PowerTerminal की ब्राउज़र विंडो में करें", inTab: "यह PowerTerminal ब्राउज़र विंडो के \"{t}\" टैब में करें", findWin: "\"{t}\" विंडो ढूँढ रहा है…", findCtl: "स्क्रीन पर \"{t}\" ढूँढ रहा है…", inUser: "यह अपने ब्राउज़र में करें", findWeb: "ब्राउज़र में \"{t}\" ढूँढ रहा है…", scroll: "\"{t}\" दिखने तक स्क्रॉल करें", front: "ब्राउज़र विंडो को सामने लाएँ", miss: "\"{t}\" इस स्क्रीन पर नहीं दिख रहा। खुद ढूँढकर करें और [✓ हो गया] दबाएँ, या AI को बताएँ कि यह नहीं दिख रहा" }
   };
+  // 말풍선 요청칸 — [빈칸 안내, 보낸 뒤, 못 보냈을 때]
+  const ASK = {
+    ko: ['막히면 AI에게 말하기 (Enter)', '「{s}」 세션에 보냈어요', '보내지 못했어요 — 세션이 꺼져 있어요'],
+    en: ['Stuck? Tell the AI (Enter)', 'Sent to 「{s}」', 'Could not send — the session is off'],
+    ja: ['困ったら AI に伝える (Enter)', '「{s}」に送りました', '送れませんでした — セッションが止まっています'],
+    zh: ['卡住了? 告诉 AI (Enter)', '已发送到「{s}」', '发送失败 — 会话已关闭'],
+    es: ['¿Atascado? Díselo a la IA (Enter)', 'Enviado a «{s}»', 'No se pudo enviar — la sesión está apagada'],
+    de: ['Hängst du? Sag es der KI (Enter)', 'An „{s}“ gesendet', 'Senden fehlgeschlagen — die Sitzung ist aus'],
+    fr: ['Bloqué ? Dites-le à l’IA (Entrée)', 'Envoyé à « {s} »', 'Envoi impossible — la session est arrêtée'],
+    pt: ['Travou? Diga à IA (Enter)', 'Enviado para “{s}”', 'Não foi possível enviar — a sessão está desligada'],
+    ru: ['Застряли? Скажите ИИ (Enter)', 'Отправлено в «{s}»', 'Не отправлено — сессия выключена'],
+    hi: ['अटक गए? AI को बताएँ (Enter)', '"{s}" को भेजा', 'नहीं भेज सका — सत्र बंद है']
+  };
+  for (const k of Object.keys(LABELS)) { const a = ASK[k] || ASK.en; LABELS[k].ask = a[0]; LABELS[k].sent = a[1]; LABELS[k].sendFail = a[2]; }
   let uiLang = 'en';
   const langOf = t => /[가-힣]/.test(t) ? 'ko' : /[\u3040-\u30ff]/.test(t) ? 'ja' : /[\u4e00-\u9fff]/.test(t) ? 'zh' : /[\u0400-\u04ff]/.test(t) ? 'ru' : /[\u0900-\u097f]/.test(t) ? 'hi'
     : /^(es|de|fr|pt)$/.test(uiLang) ? uiLang : 'en';
@@ -426,6 +440,20 @@ module.exports = function installGuide(app, ctx) {
                web: st.kind === 'web' ? { rect: web.key === g.gid + ':' + g.cur ? web.rect : null, front: web.vis, title: web.title || '',
                                           mode: web.key === g.gid + ':' + g.cur ? web.mode : '', label: st.label || '', url: outUrl(st.url),
                                           open: web.key === g.gid + ':' + g.cur && web.mode === 'user' && /^https?:\/\//i.test(st.url || '') ? outUrl(st.url) : '' } : null });
+  });
+  // 말풍선 요청칸 — 사용자가 쓴 말을 그 안내를 띄운 세션에 보낸다. AI 가 어느 단계 얘기인지 알게 지금 단계를 앞에 붙인다.
+  app.post('/api/guide/helper/say', (req, res) => {
+    const b = req.body || {};
+    const rid = validHid(b.hid);
+    if (rid ? !remotes[rid] : !isLocal(req.socket)) return res.status(403).end();
+    const sid = String(b.sid || active), text = String(b.text || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+    if (!text) return res.json({ ok: false });
+    const sess = getSessions().find(s => s.id === sid), p = sess && ptys.get(sid);
+    if (!sess || !p || p.dead || !ctx.sendPrompt) return res.json({ ok: false, why: 'off' });
+    const g = guides[sid], n = g ? g.steps.length : 0;
+    const where = !g ? '' : g.cur >= n ? '[🧭 ' + g.title + ' — finished] '
+      : '[🧭 ' + g.title + ' · step ' + (g.cur + 1) + '/' + n + ': "' + g.steps[g.cur].text + '"] ';
+    res.json({ ok: ctx.sendPrompt(sess, p, where + text), session: sess.title || '' });
   });
   app.post('/api/guide/helper/act', (req, res) => {
     const b = req.body || {};

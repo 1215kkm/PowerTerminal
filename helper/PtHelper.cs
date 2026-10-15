@@ -18,7 +18,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 
 static class Program {
-  public const string VER = "6";
+  public const string VER = "7";
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
   [STAThread]
   static void Main(string[] args) {
@@ -56,6 +56,10 @@ static class W32 {
   [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
   [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint flags);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int i);
+  [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int i, int v);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, string l);
   [StructLayout(LayoutKind.Sequential)] public struct LASTINPUT { public uint cbSize, dwTime; }
   [DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LASTINPUT li);
   // 이 PC 에서 마지막으로 마우스·키보드를 쓴 뒤 지난 시간(ms) — 여러 PC 에 도우미가 있으면 지금 쓰는 PC 가 짚는다
@@ -90,21 +94,53 @@ class LayerForm : Form {
   public void MoveTo(int x, int y) { W32.SetWindowPos(Handle, W32.TOPMOST, x, y, 0, 0, 0x1 | 0x10); }
 }
 
-// 말풍선 — 단계 글과 [했어요][이전][닫기]. 눌러야 하니 마우스를 받는다(포커스는 뺏지 않음).
+// 말풍선 — 단계 글, AI 에게 말하는 요청칸, [했어요][이전][닫기]. 눌러야 하니 마우스를 받는다(포커스는 뺏지 않음 —
+// 요청칸을 누를 때만 잠깐 포커스를 받아 글을 쓸 수 있게 하고, 다른 곳을 누르면 돌려준다).
 class Bubble : Form {
-  public string Head = "", Text1 = "", Note = "";
+  public string Head = "", Text1 = "", Note = "", Flash = "", Cue = "";
+  public bool FlashBad;
   public string[] Btn = new string[0];
   public Action<int> OnBtn;
+  public Action<string> OnSay;
   readonly float k;
-  readonly Font fHead, fText, fNote, fBtn;
+  readonly Font fHead, fText, fNote, fBtn, fBox;
+  readonly TextBox box;
   Rectangle[] btnR = new Rectangle[0];
-  int hover = -1;
+  Rectangle boxR = Rectangle.Empty;
+  int hover = -1, flashY;
+  string cueSet = null;
+  bool grabbed;
+  public bool Typing { get { return grabbed || box.Text.Length > 0; } }
   public Bubble(float scale) {
     k = scale;
     FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; TopMost = true;
     BackColor = Color.FromArgb(31, 22, 48); DoubleBuffered = true;
     fHead = new Font("Malgun Gothic", 8.5f, FontStyle.Bold); fText = new Font("Malgun Gothic", 10.5f, FontStyle.Bold);
-    fNote = new Font("Malgun Gothic", 8.5f); fBtn = new Font("Malgun Gothic", 9f, FontStyle.Bold);
+    fNote = new Font("Malgun Gothic", 8.5f); fBtn = new Font("Malgun Gothic", 9f, FontStyle.Bold); fBox = new Font("Malgun Gothic", 9.5f);
+    box = new TextBox(); box.BorderStyle = BorderStyle.None; box.Font = fBox; box.MaxLength = 2000;
+    box.BackColor = Color.FromArgb(48, 36, 70); box.ForeColor = Color.White;
+    box.MouseDown += delegate { Grab(); };
+    box.KeyDown += (s, e) => {
+      if (e.KeyCode == Keys.Enter) {
+        e.SuppressKeyPress = true;
+        // 한글 조합 중인 마지막 글자가 들어간 뒤에 읽는다
+        BeginInvoke(new Action(delegate { string t = box.Text.Trim(); if (t.Length > 0 && OnSay != null) { box.Text = ""; OnSay(t); } }));
+      } else if (e.KeyCode == Keys.Escape) { e.SuppressKeyPress = true; box.Text = ""; Release(); }
+    };
+    box.GotFocus += delegate { Invalidate(); }; box.LostFocus += delegate { Invalidate(); };
+    Controls.Add(box);
+    Deactivate += delegate { Release(); };
+  }
+  // 요청칸을 누르면 이 창이 키보드를 받는다(평소엔 NOACTIVATE 라 글을 칠 수 없다)
+  void Grab() {
+    int ex = W32.GetWindowLong(Handle, -20);
+    if ((ex & 0x8000000) != 0) W32.SetWindowLong(Handle, -20, ex & ~0x8000000);
+    grabbed = true; W32.SetForegroundWindow(Handle); Activate(); box.Focus(); Invalidate();
+  }
+  void Release() {
+    int ex = W32.GetWindowLong(Handle, -20);
+    if ((ex & 0x8000000) == 0) W32.SetWindowLong(Handle, -20, ex | 0x8000000);
+    if (grabbed) { grabbed = false; Invalidate(); }
   }
   protected override CreateParams CreateParams { get { CreateParams cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x8000000 | 0x8; return cp; } }
   protected override bool ShowWithoutActivation { get { return true; } }
@@ -121,14 +157,23 @@ class Bubble : Form {
       int w = TextRenderer.MeasureText(Btn[i], fBtn).Width + P(18);
       btnR[i] = new Rectangle(bx, 0, w, bh); bx += w + P(6); bw = bx - P(6);
     }
-    int w0 = Math.Max(Math.Max(hs.Width, ts.Width), Math.Max(ns.Width, bw - pad)) + pad * 2;
-    int y = pad + hs.Height + P(3) + ts.Height + (ns.Height > 0 ? P(4) + ns.Height : 0) + (Btn.Length > 0 ? P(10) : 0);
+    int w0 = Math.Max(P(270), Math.Max(Math.Max(hs.Width, ts.Width), Math.Max(ns.Width, bw - pad))) + pad * 2;
+    int y = pad + hs.Height + P(3) + ts.Height + (ns.Height > 0 ? P(4) + ns.Height : 0);
+    // 요청칸 — 막혔을 때 그 자리에서 AI 에게 말한다
+    y += P(9); boxR = new Rectangle(pad, y, w0 - pad * 2, P(30)); y += boxR.Height;
+    int bh0 = box.PreferredHeight;
+    box.Bounds = new Rectangle(boxR.X + P(9), boxR.Y + (boxR.Height - bh0) / 2, boxR.Width - P(18), bh0);
+    if (cueSet != Cue) { cueSet = Cue; W32.SendMessage(box.Handle, 0x1501, new IntPtr(1), Cue); }
+    if (Flash.Length > 0) { y += P(4); flashY = y; y += TextRenderer.MeasureText(Flash, fNote, new Size(w0 - pad * 2, 999), wrap).Height; }
+    y += Btn.Length > 0 ? P(10) : 0;
     for (int i = 0; i < btnR.Length; i++) btnR[i].Y = y;
     // [닫기] 는 오른쪽 끝으로
     if (btnR.Length > 1) { Rectangle r = btnR[btnR.Length - 1]; r.X = w0 - pad - r.Width; btnR[btnR.Length - 1] = r; }
     int h0 = y + (Btn.Length > 0 ? bh : 0) + pad;
     Size = new Size(w0, h0);
+    Region old = Region;
     using (GraphicsPath gp = Round(new Rectangle(0, 0, w0, h0), P(12))) Region = new Region(gp);
+    if (old != null) old.Dispose();
     Invalidate();
   }
   static GraphicsPath Round(Rectangle r, int rad) {
@@ -148,6 +193,13 @@ class Bubble : Form {
     TextRenderer.DrawText(g, Text1, fText, new Rectangle(pad, y, maxW, ts.Height), Color.White, wrap);
     y += ts.Height;
     if (Note.Length > 0) { y += P(4); TextRenderer.DrawText(g, Note, fNote, new Rectangle(pad, y, maxW, 999), Color.FromArgb(252, 165, 165), wrap); }
+    if (!boxR.IsEmpty) {
+      using (GraphicsPath gp = Round(boxR, P(7))) {
+        using (SolidBrush sb = new SolidBrush(box.BackColor)) g.FillPath(sb, gp);
+        using (Pen bp = new Pen(grabbed ? Color.FromArgb(168, 85, 247) : Color.FromArgb(88, 72, 120), Math.Max(1, P(1.2f)))) g.DrawPath(bp, gp);
+      }
+    }
+    if (Flash.Length > 0) TextRenderer.DrawText(g, Flash, fNote, new Rectangle(pad, flashY, maxW, 999), FlashBad ? Color.FromArgb(252, 165, 165) : Color.FromArgb(134, 239, 172), wrap);
     for (int i = 0; i < btnR.Length; i++) {
       Rectangle r = btnR[i];
       bool main = i == 0 && Btn.Length > 1, last = i == btnR.Length - 1 && Btn.Length > 1;
@@ -206,7 +258,7 @@ class Helper : ApplicationContext {
     baseUrl = b; hid = h; token = t;
     using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) k = g.DpiX / 96f;
     cur = new LayerForm(); ring = new LayerForm(); bub = new Bubble(k);
-    bub.OnBtn = OnButton;
+    bub.OnBtn = OnButton; bub.OnSay = Say;
     DrawCursor();
     tray = new NotifyIcon();
     tray.Icon = MakeIcon(); tray.Text = "PowerTerminal Helper · 도우미"; tray.Visible = true;
@@ -559,8 +611,9 @@ class Helper : ApplicationContext {
     int n = I(d, "n"), i = I(d, "i");
     string head = "🧭 " + S(d, "title") + (fin ? "" : "  ·  " + (i + 1) + " / " + n);
     string[] btns = fin ? new string[] { S(L, "close") } : (i > 0 ? new string[] { S(L, "ok"), S(L, "prev"), S(L, "close") } : new string[] { S(L, "ok"), S(L, "close") });
-    string sig = head + "|" + S(d, "text") + "|" + note + "|" + string.Join(",", btns);
-    if (sig != bubSig) { bubSig = sig; bub.Head = head; bub.Text1 = S(d, "text"); bub.Note = note; bub.Btn = btns; bub.Layout2(); }
+    string fl = DateTime.Now < flashUntil ? flash : "";
+    string sig = head + "|" + S(d, "text") + "|" + note + "|" + string.Join(",", btns) + "|" + fl + "|" + S(L, "ask");
+    if (sig != bubSig) { bubSig = sig; bub.Head = head; bub.Text1 = S(d, "text"); bub.Note = note; bub.Btn = btns; bub.Flash = fl; bub.FlashBad = flashBad; bub.Cue = S(L, "ask"); bub.Layout2(); }
     if (key != shownKey) { shownKey = key; wasDown = true; }
     // 대상이 있으면 포인터가 그리로 미끄러져 가고, 없으면 말풍선이 마우스를 따라다닌다
     Point m = Cursor.Position;
@@ -587,7 +640,8 @@ class Helper : ApplicationContext {
       // 마우스가 멀어지면 따라가기 시작해 미끄러지듯 붙고, 마우스가 멈추거나 말풍선 위로 오면 서서 누를 수 있게 한다
       // (전에는 60px 벗어날 때마다 한 번씩 순간이동해서 끊겨 보였다)
       Rectangle over = bub.Bounds; over.Inflate(P(6), P(6));
-      if (!bub.Visible || !near.Contains(m)) chasing = true;
+      if (bub.Typing && bub.Visible) chasing = false;          // 요청칸에 쓰는 동안은 제자리
+      else if (!bub.Visible || !near.Contains(m)) chasing = true;
       else if (over.Contains(m)) chasing = false;
       stillMs = m == lastMouse ? stillMs + dtMs : 0f; lastMouse = m;
       if (chasing) {
@@ -631,6 +685,26 @@ class Helper : ApplicationContext {
     if (cur.Visible) cur.Hide(); if (ring.Visible) ring.Hide(); if (bub.Visible) bub.Hide();
     curPos = new PointF(float.NaN, float.NaN); ringRect = Rectangle.Empty; bubSig = "";
     bubPos = new PointF(float.NaN, float.NaN); chasing = false;
+  }
+  // 요청칸에 쓴 말 → 이 안내를 띄운 세션으로(PT 가 지금 단계를 앞에 붙여 보낸다)
+  string flash = ""; bool flashBad; DateTime flashUntil = DateTime.MinValue;
+  void Say(string text) {
+    Dictionary<string, object> d; lock (lk) d = st;
+    if (d == null) return;
+    Dictionary<string, object> L = D(d, "L");
+    string body = json.Serialize(new Dictionary<string, object> { { "sid", S(d, "sid") }, { "text", text }, { "hid", hid } });
+    ThreadPool.QueueUserWorkItem(delegate {
+      bool ok = false; string sess = "";
+      try {
+        using (WebClient wc = Client()) {
+          wc.Headers[HttpRequestHeader.ContentType] = "application/json";
+          Dictionary<string, object> r = json.Deserialize<Dictionary<string, object>>(wc.UploadString(baseUrl + "/api/guide/helper/say", body));
+          ok = B(r, "ok"); sess = S(r, "session");
+        }
+      } catch { }
+      flash = ok ? S(L, "sent").Replace("{s}", sess.Length > 0 ? sess : S(d, "sess")) : S(L, "sendFail");
+      flashBad = !ok; flashUntil = DateTime.Now.AddSeconds(5);
+    });
   }
   void OnButton(int idx) {
     Dictionary<string, object> d; lock (lk) d = st;

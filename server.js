@@ -1659,7 +1659,7 @@ app.use((req, res, next) => {
 
 // 🧭 도우미 — 단계 안내(guide.js). 토큰 검사 뒤라 원격(폰)에서도 카드로 체크할 수 있다.
 guideApi = require('./guide')(app, { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions: () => sessions, ptys,
-  browserMode, sessProfile, browserProfile, ensureBrowser, spawn, getToken: () => config.token });
+  browserMode, sessProfile, browserProfile, ensureBrowser, spawn, getToken: () => config.token, sendPrompt: (s, p, t) => sendPrompt(s, p, t, { guide: true }) });
 
 // HTML/JS는 캐시 금지 — 업데이트 후 옛 화면이 남지 않도록
 app.use((req, res, next) => {
@@ -3780,9 +3780,15 @@ app.post('/api/voice', async (req, res) => {
   const p = ptys.get(sess.id);
   if (!p || p.dead) return res.json({ ok: false, say: sess.title + ' 세션이 꺼져 있어요. PT 화면에서 먼저 켜 주세요.' });
   voiceLastAt = Date.now();
+  if (!sendPrompt(sess, p, text, { voice: true })) return res.json({ ok: false, say: '보내다가 오류가 났어요.' });
+  res.json({ ok: true, session: sess.title, text, busy: !!p.busy,
+    say: sess.title + ' 세션에 보냈어요' + (p.busy ? '. 지금 하던 일 다음에 처리합니다.' : '.') });
+});
+// 요청 한 줄을 세션에 보낸다(음성·도우미 말풍선) — 요청 기록에 남기고, 글 → 길이만큼 기다렸다 Enter
+function sendPrompt(sess, p, text, mark) {
   try {
     const m = memoOf(sess.path);
-    const entry = { id: crypto.randomBytes(6).toString('hex'), text, ts: Date.now(), st: 'run', sid: sess.id, voice: true };
+    const entry = Object.assign({ id: crypto.randomBytes(6).toString('hex'), text, ts: Date.now(), st: 'run', sid: sess.id }, mark || {});
     if (looksLikeQuestion(text, config.qaDoc !== false)) entry.q = true;
     m.reqs.unshift(entry); m.reqs = m.reqs.slice(0, 200); saveMemos();
   } catch (e) {}
@@ -3791,10 +3797,9 @@ app.post('/api/voice', async (req, res) => {
     writeIn(sess, p, text);
     const wait = sess.agent === 'codex' ? codexEnterDelay(text.length) : claudeEnterDelay(text.length);
     setTimeout(() => { try { scheduler.input(sess.id, '\r'); writeIn(sess, p, '\r'); p.armed = true; p.lastOut = Date.now(); } catch (e) {} }, wait);
-  } catch (e) { return res.json({ ok: false, say: '보내다가 오류가 났어요.' }); }
-  res.json({ ok: true, session: sess.title, text, busy: !!p.busy,
-    say: sess.title + ' 세션에 보냈어요' + (p.busy ? '. 지금 하던 일 다음에 처리합니다.' : '.') });
-});
+    return true;
+  } catch (e) { return false; }
+}
 app.post('/api/memos/req', (req, res) => {            // 빠른 입력줄로 보낸 요청 자동 기록
   const m = memoOf(req.body.path);
   const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
