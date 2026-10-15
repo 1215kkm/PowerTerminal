@@ -1752,22 +1752,22 @@ function readProcTable() {
   return new Promise(resolve => {
     if (IS_WIN) {
       execFile('powershell', ['-NoProfile', '-Command',
-        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize)" }; '
+        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize),$($_.Name)" }; '
         + '$o = Get-CimInstance Win32_OperatingSystem; "OS,$($o.TotalVisibleMemorySize),$($o.FreePhysicalMemory),$($o.TotalVirtualMemorySize),$($o.FreeVirtualMemory)"'],
         { windowsHide: true, timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
           const rows = [];
           String(so || '').split(/\r?\n/).forEach(l => {
-            const [a, b, c, d, e2] = l.trim().split(',');
+            const [a, b, c, d, e2, ...more] = l.trim().split(',');
             // 가상 메모리 = 실제 RAM + 페이징 파일(커밋 한도). KB 단위로 온다
             if (a === 'OS') { osVirt = { total: (+d || 0) * 1024, free: (+e2 || 0) * 1024, at: Date.now() }; return; }
-            if (a) rows.push([+a, +b, +c || 0]);
+            if (a) rows.push([+a, +b, +c || 0, [d, e2, ...more].filter(x => x != null).join(',')]);   // 넷째 = 프로그램 이름(쉼표가 들어 있을 수 있다)
           });
           resolve(rows);
         });
     } else {
-      execFile('ps', ['-A', '-o', 'pid=,ppid=,rss='], { timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
+      execFile('ps', ['-A', '-o', 'pid=,ppid=,rss=,comm='], { timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
         const rows = [];
-        String(so || '').split('\n').forEach(l => { const [a, b, c] = l.trim().split(/\s+/); if (a) rows.push([+a, +b, (+c || 0) * 1024]); });
+        String(so || '').split('\n').forEach(l => { const [a, b, c, ...nm] = l.trim().split(/\s+/); if (a) rows.push([+a, +b, (+c || 0) * 1024, path.basename(nm.join(' '))]); });
         resolve(rows);
       });
     }
@@ -1778,19 +1778,28 @@ async function sessionMem() {
   if (memCache.busy) return memCache.busy;
   memCache.busy = (async () => {
     const rows = await readProcTable();
-    const kids = new Map(), ws = new Map();
-    for (const [pid, ppid, w] of rows) { ws.set(pid, w); if (!kids.has(ppid)) kids.set(ppid, []); kids.get(ppid).push(pid); }
-    const sumTree = root => {
+    const kids = new Map(), ws = new Map(), names = new Map();
+    for (const [pid, ppid, w, nm] of rows) { ws.set(pid, w); names.set(pid, nm || ''); if (!kids.has(ppid)) kids.set(ppid, []); kids.get(ppid).push(pid); }
+    const sumTree = (root, keep) => {
       let total = 0, n = 0; const seen = new Set(), st = [root];
       while (st.length) { const p = st.pop(); if (seen.has(p) || !ws.has(p)) continue; seen.add(p); total += ws.get(p); n++; (kids.get(p) || []).forEach(c => st.push(c)); }
-      return { bytes: total, procs: n };
+      return keep ? { bytes: total, procs: n, pids: seen } : { bytes: total, procs: n };
     };
+    // 메모리 막대 말풍선 — PT 밖에서 메모리를 많이 쓰는 프로그램(이름별 합계, 위 8개). PT 와 세션들은 따로 보인다
+    const ptTree = sumTree(process.pid, true), byName = new Map();
+    for (const [pid, w] of ws) {
+      if (ptTree.pids.has(pid) || !w) continue;
+      const nm = String(names.get(pid) || '').replace(/\.exe$/i, '');
+      if (!nm || /^(System Idle Process|Idle)$/i.test(nm)) continue;
+      const g = byName.get(nm) || { name: nm, bytes: 0, n: 0 }; g.bytes += w; g.n++; byName.set(nm, g);
+    }
+    const top = [...byName.values()].sort((a, b) => b.bytes - a.bytes).slice(0, 8);
     const out = {};
     for (const s of sessions) { const p = ptys.get(s.id); if (p && !p.dead && p.proc && p.proc.pid) out[s.id] = sumTree(p.proc.pid); }
     // 세션이 지금 실제로 쓰는 모델(「자동」 세션의 머리에 이름으로 보여 주려고 같이 실어 보낸다)
     const models = {};
     for (const s of sessions) { try { const m = sessionModelNow(s); if (m) models[s.id] = m; } catch (e) {} }
-    const data = { at: Date.now(), sessions: out, server: sumTree(process.pid).bytes, totalMem: os.totalmem(), freeMem: os.freemem(),
+    const data = { at: Date.now(), sessions: out, server: ptTree.bytes, top, totalMem: os.totalmem(), freeMem: os.freemem(),
       virtTotal: osVirt ? osVirt.total : 0, virtFree: osVirt ? osVirt.free : 0, models };
     memCache = { at: Date.now(), data, busy: null };
     return data;
