@@ -12,6 +12,8 @@ Open multiple Claude Code sessions side by side, watch them work, and send reque
 
 <p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/grid.jpg" alt="Multiple Claude Code sessions side by side" width="820"></p>
 
+▶ **[Video guide](https://pominal.com/#videos)** — nine one-minute videos (English and Korean): install, sessions side by side, phone, faster requests, note mode, auto-run, the AI browser, the login vault and the on-screen helper.
+
 ## Why PowerTerminal?
 
 - **Not a cloud service.** Everything runs on *your* machine with *your* Claude subscription. Nothing is sent anywhere except the private tunnel you choose to open.
@@ -78,6 +80,16 @@ To use it on your phone, click the **QR** button, read the warning, and scan the
 - **⛔ Cancel button** — one tap stops the request in progress (sends ESC), on PC and phone
 - **Paste or drop anything** — images and long text collapse into small chips like `[Image #1]` / `[Text #1 · 597 chars]` and are delivered on send; drag & drop images works too
 - **Select = copy** — drag-select terminal text and it's copied automatically; incoming output pauses while you select, so the highlight doesn't get wiped mid-drag
+
+- **🎤 Voice input** — speak and it turns into text in the request box; check it, then send
+- **💬 Frequent words** — the buttons above the input (`Go on`, `Done?` …) send in one click; add your own with ＋
+
+### Let the AI work for you
+- **🌐 A real browser for the AI** — one click and the session's AI opens Chrome itself to read pages, click, type and check results. *Normal* keeps sign-ins for next time, *incognito* is wiped when it closes; each tab title carries the session name
+- **🔑 Login vault** — save a login once; the AI only says its name and PowerTerminal types the password, and only on the saved address — the AI never sees it. Import your Chrome passwords (all at once or one by one) from Chrome's own export file
+- **🧭 On-screen helper** — not sure how to use what the AI just built? Press the helper button → *Show me*: a pointer and speech bubble walk you through each click, on the desktop or in your own browser, and move on as you do it
+- **⏱ Auto-run** — send a request to a session at a set time, on an interval, or the moment your usage limit resets
+- **📖 Note mode** — read a long conversation page by page like a book; it remembers your page, and you can search, resize the text, export it, paste images and ask right from the page
 
 ### Memo pad
 - **📝 Per-project memo pad** — free-form notes keyed to the folder, stored on your PC (`~/.powerterminal`), same notes on phone and PC
