@@ -1081,6 +1081,44 @@
   .pane-confirm .vt-imp .vi-warn { margin-top: 8px; color: #f59e0b; font-size: 12px; display: none; }
   .pane-confirm .vt-imp.has .vi-warn { display: block; }
   .pane-confirm .vt-log .vt-allow { margin-left: 8px; padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+  /* 🔑 로그인 보관함 — 모든 세션이 같이 쓰므로 PT 화면 전체에 크게. 토스트(z 300)보다는 아래 */
+  .pane-confirm.vault-full { position: fixed; z-index: 250; padding: 24px; }
+  .vault-full .pc-box.vt-box { width: min(1320px, 100%); height: min(92vh, 1100px); max-height: none; overflow: hidden;
+                               display: flex; flex-direction: column; padding: 18px 22px; background: var(--bg); }
+  .vault-full .vt-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .vault-full .vt-title { font-size: 19px; }
+  .vault-full .vt-count { color: var(--muted); font-size: 13px; }
+  .vault-full .vt-find { flex: 1; min-width: 200px; max-width: 460px; margin-left: auto; padding: 9px 12px; border-radius: 10px;
+                         border: 1px solid var(--line); background: var(--panel,#1f2937); color: var(--fg); font: inherit; font-size: 14px; }
+  .vault-full .vt-find:focus { outline: none; border-color: var(--violet); }
+  .vault-full .vt-x { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: #374151;
+                      color: #f87171; font-size: 16px; cursor: pointer; }
+  .vault-full .vt-x:hover { filter: brightness(1.25); }
+  .vault-full .vt-help { margin-top: 8px; font-size: 13px; }
+  .vault-full .vt-help summary { cursor: pointer; color: var(--muted); width: max-content; }
+  .vault-full .vt-help .pc-msg { margin-top: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+  .vault-full .vt-form input { padding: 9px 10px; font-size: 14px; background: var(--panel,#1f2937); }
+  .vault-full .vt-form button { padding: 0 18px; border-radius: 8px; font-size: 14px; }
+  .vault-full .vt-list { flex: 1; min-height: 120px; max-height: none; display: grid; align-content: start;
+                         grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; margin-top: 12px; }
+  .vault-full .vt-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 10px 12px;
+                         background: var(--panel,#1f2937); border-radius: 10px; min-width: 0; }
+  .vault-full .vt-card.editing { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet); }
+  .vault-full .vt-chead { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .vault-full .vt-chead b { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; }
+  .vault-full .vt-acts { flex: none; display: flex; gap: 4px; }
+  .vault-full .vt-acts button { padding: 3px 9px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .vault-full .vt-card .vt-meta { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; white-space: normal; }
+  .vault-full .vt-card .vt-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vault-full .vt-card .vt-used { font-size: 11.5px; opacity: .8; }
+  .vault-full .vt-empty { grid-column: 1 / -1; text-align: center; padding: 30px 0; font-size: 14px; }
+  .vault-full .vt-imp .vi-list { max-height: 26vh; }
+  .vault-full .vt-log { max-height: 14vh; }
+  html.light .vault-full .pc-box.vt-box { background: #f8fafc; }
+  html.light .vault-full .vt-card, html.light .vault-full .vt-find, html.light .vault-full .vt-form input { background: #fff; }
+  @media (max-width: 760px) { .pane-confirm.vault-full { padding: 8px; } .vault-full .pc-box.vt-box { height: 100%; padding: 12px; }
+                              .vault-full .vt-find { max-width: none; flex-basis: 100%; order: 3; } .vault-full .vt-list { grid-template-columns: 1fr; }
+                              .vault-full .vt-form button { grid-column: 1 / -1; min-height: 38px; } }
   .pane-confirm .pc-input { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px;
         background: #0b1220; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
   html.light .pane-confirm .pc-input { background: #fff; }
@@ -2393,7 +2431,7 @@ const I18N_MORE = {
     vault: "Login vault", vaultName: "Name (e.g. Toypang)", vaultDomain: "Login page address(es), comma-separated (e.g. eclogin.cafe24.com)", vaultUser: "Username", vaultPw: "Password",
     vaultAllow: "Allow {h}", vaultAllowed: "Allowed {h} for this login",
     vaultPwKeep: "Password (blank = keep)", vaultAdd: "Save", vaultUpdate: "Update", vaultEdit: "Edit", vaultDel: "Delete", vaultDelSure: "Really delete?",
-    vaultClose: "Close", vaultSaved: "Saved to the login vault", vaultEmpty: "No saved logins yet. Add one below.", vaultUsed: "last used",
+    vaultClose: "Close", vaultTitle: "🔑 Login vault", vaultShared: "Shared by every session · {n}", vaultFind: "Search name, site or username", vaultHow: "How it works", vaultNoHit: "No matching logins", vaultSaved: "Saved to the login vault", vaultEmpty: "No saved logins yet. Add one below.", vaultUsed: "last used",
     vaultLogHead: "Recent use by AI", vaultLocalOnly: "The login vault only opens on the PC running PowerTerminal (passwords never travel to your phone).",
     vaultErr_name: "Enter a name", vaultErr_domain: "That address is not valid (e.g. eclogin.cafe24.com — comma for several). Allow only works for the same company's addresses", vaultErr_username: "Enter the username",
     vaultErr_password: "Enter the password", vaultErr_dup: "That name is already used", vaultErr_gone: "That login was already deleted",
@@ -2528,7 +2566,7 @@ const I18N_MORE = {
     vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "로그인 화면 주소, 여러 개면 쉼표 (예: eclogin.cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
     vaultAllow: "{h} 허용", vaultAllowed: "{h} 도 이 로그인에 허용했어요",
     vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
-    vaultClose: "닫기", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
+    vaultClose: "닫기", vaultTitle: "🔑 로그인 보관함", vaultShared: "모든 세션이 같이 써요 · {n}개", vaultFind: "이름·주소·아이디로 찾기", vaultHow: "어떻게 작동하나요?", vaultNoHit: "찾는 로그인이 없어요", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
     vaultLogHead: "AI 최근 사용 기록", vaultLocalOnly: "로그인 보관함은 PowerTerminal 이 켜진 PC 에서만 열려요 (비밀번호가 폰으로 오가지 않게).",
     vaultErr_name: "이름을 적어 주세요", vaultErr_domain: "주소가 올바르지 않아요 (예: eclogin.cafe24.com — 여러 개면 쉼표). [허용] 은 같은 회사 주소만 돼요", vaultErr_username: "아이디를 적어 주세요",
     vaultErr_password: "비밀번호를 적어 주세요", vaultErr_dup: "이미 있는 이름이에요", vaultErr_gone: "이미 삭제된 로그인이에요",
@@ -13885,13 +13923,17 @@ async function openVault(paneEl) {
   const r = await api('GET', '/api/vault');
   if (r && r.error === 'local_only') { flashToast('⚠ ' + (T.vaultLocalOnly || 'Open this on the PC running PowerTerminal')); return; }
   if (!r || !Array.isArray(r.entries)) { flashToast('⚠ ' + ((r && r.error) || 'vault')); return; }
+  // 보관함은 모든 세션이 같이 쓰는 것이라 세션 칸 안이 아니라 PT 화면 전체에 크게 띄운다
   paneEl.querySelectorAll('.pane-confirm').forEach(n => n.remove());
+  document.querySelectorAll('.vault-full').forEach(n => n.remove());
   const ov = document.createElement('div');
-  ov.className = 'pane-confirm';
-  ov.innerHTML = '<div class="pc-box pc-wide"><div class="pc-msg"></div><div class="vt-list"></div>' +
+  ov.className = 'pane-confirm vault-full';
+  ov.innerHTML = '<div class="pc-box pc-wide vt-box"><div class="vt-top"><b class="vt-title"></b><span class="vt-count"></span>' +
+    '<input class="vt-find" type="search" autocomplete="off"><button class="vt-x" type="button">✕</button></div>' +
+    '<details class="vt-help"><summary></summary><div class="pc-msg"></div></details>' +
     '<div class="vt-form"><input class="vt-name" maxlength="40"><input class="vt-domain" maxlength="200">' +
     '<input class="vt-user" maxlength="200" autocomplete="off"><input class="vt-pw" type="password" maxlength="500" autocomplete="new-password">' +
-    '<button class="pc-yes vt-add"></button></div>' +
+    '<button class="pc-yes vt-add"></button></div><div class="vt-list"></div>' +
     '<div class="vt-imp"><div class="vi-how"></div><div class="vi-btns"><button class="pc-no vi-open"></button><button class="pc-yes vi-pick"></button>' +
     '<input type="file" class="vi-file" accept=".csv,text/csv" style="display:none"></div><div class="vi-who"></div>' +
     '<div class="vi-bar"><span class="vi-sum"></span><input class="vi-find"><button class="pc-yes vi-all"></button></div>' +
@@ -13899,6 +13941,10 @@ async function openVault(paneEl) {
     '<div class="vt-log"></div><div class="pc-btns"></div></div>';
   const $ = s => ov.querySelector(s);
   $('.pc-msg').textContent = T.vaultHead || '';
+  $('.vt-title').textContent = T.vaultTitle || '🔑 Login vault';
+  $('.vt-help summary').textContent = T.vaultHow || 'How it works';
+  $('.vt-find').placeholder = T.vaultFind || 'Search name, site or username';
+  $('.vt-x').title = T.vaultClose || 'Close';
   const fields = [['.vt-name', T.vaultName || 'Name (e.g. Toypang)'], ['.vt-domain', T.vaultDomain || 'Site (e.g. cafe24.com)'],
                   ['.vt-user', T.vaultUser || 'Username'], ['.vt-pw', T.vaultPw || 'Password']];
   // 여기서 친 글자·붙여넣기가 터미널이나 단축키 처리로 새지 않게
@@ -13908,22 +13954,33 @@ async function openVault(paneEl) {
     editId = '';
     fields.forEach(([s, ph]) => { $(s).value = ''; $(s).placeholder = ph; });
     $('.vt-add').textContent = T.vaultAdd || 'Save';
+    ov.querySelectorAll('.vt-card.editing').forEach(n => n.classList.remove('editing'));
   };
   const when = ms => ms ? new Date(ms).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   let vaultNow = r;                       // 가져오기의 "이미 있음" 판정이 보는 최신 목록
+  // 가나다 먼저, 그다음 abc (숫자는 자연 순서)
+  const isHan = t => /^[ㄱ-ㆎ가-힣]/.test(String(t || '').trim());
+  const byName = (a, b) => (isHan(b.name) - isHan(a.name)) || String(a.name).localeCompare(String(b.name), 'ko', { sensitivity: 'base', numeric: true });
   const paint = data => {
     vaultNow = data;
-    const list = $('.vt-list');
+    const list = $('.vt-list'), top = list.scrollTop;
+    const q = $('.vt-find').value.trim().toLowerCase();
+    const shown = data.entries.filter(e => !q || [e.name, e.domain, ...(e.hosts || []), e.username].some(x => String(x || '').toLowerCase().includes(q))).sort(byName);
+    $('.vt-count').textContent = (T.vaultShared || 'Shared by every session · {n}').replace('{n}', q ? shown.length + ' / ' + data.entries.length : data.entries.length);
     list.innerHTML = '';
-    if (!data.entries.length) {
-      const d = document.createElement('div'); d.className = 'vt-empty'; d.textContent = T.vaultEmpty || 'No saved logins yet.';
+    if (!shown.length) {
+      const d = document.createElement('div'); d.className = 'vt-empty';
+      d.textContent = data.entries.length ? (T.vaultNoHit || 'No matching logins') : (T.vaultEmpty || 'No saved logins yet.');
       list.appendChild(d);
     }
-    data.entries.forEach(e => {
-      const row = document.createElement('div'); row.className = 'vt-row';
-      const b = document.createElement('b'); b.textContent = e.name;
+    shown.forEach(e => {
+      const row = document.createElement('div'); row.className = 'vt-row vt-card' + (e.id === editId ? ' editing' : '');
+      const b = document.createElement('b'); b.textContent = e.name; b.title = e.name;
       const meta = document.createElement('span'); meta.className = 'vt-meta';
-      meta.textContent = [e.domain, ...(e.hosts || [])].join(', ') + ' · ' + e.username + (e.lastUsed ? ' · ' + (T.vaultUsed || 'last used') + ' ' + when(e.lastUsed) : '');
+      const dom = document.createElement('span'); dom.textContent = [e.domain, ...(e.hosts || [])].join(', '); dom.title = dom.textContent;
+      const usr = document.createElement('span'); usr.textContent = '👤 ' + e.username; usr.title = e.username;
+      meta.append(dom, usr);
+      if (e.lastUsed) { const u = document.createElement('span'); u.className = 'vt-used'; u.textContent = (T.vaultUsed || 'last used') + ' ' + when(e.lastUsed); meta.appendChild(u); }
       const ed = document.createElement('button'); ed.className = 'pc-no'; ed.textContent = T.vaultEdit || 'Edit';
       ed.onclick = ev => {
         ev.stopPropagation();
@@ -13931,6 +13988,8 @@ async function openVault(paneEl) {
         $('.vt-name').value = e.name; $('.vt-domain').value = [e.domain, ...(e.hosts || [])].join(', '); $('.vt-user').value = e.username;
         $('.vt-pw').value = ''; $('.vt-pw').placeholder = T.vaultPwKeep || 'Password (blank = keep)';
         $('.vt-add').textContent = T.vaultUpdate || 'Update';
+        list.querySelectorAll('.vt-card.editing').forEach(n => n.classList.remove('editing'));
+        row.classList.add('editing');
         $('.vt-pw').focus();
       };
       // 확인창 대신 두 번 누르기 — 창 위에 창을 또 띄우면 이 창이 닫힌다
@@ -13942,9 +14001,12 @@ async function openVault(paneEl) {
         if (res && Array.isArray(res.entries)) { if (editId === e.id) resetForm(); paint(res); }
         else flashToast('⚠ ' + ((res && res.error) || 'delete failed'));
       };
-      row.append(b, meta, ed, del);
+      const acts = document.createElement('span'); acts.className = 'vt-acts'; acts.append(ed, del);
+      const head = document.createElement('div'); head.className = 'vt-chead'; head.append(b, acts);
+      row.append(head, meta);
       list.appendChild(row);
     });
+    list.scrollTop = top;
     const logEl = $('.vt-log');
     logEl.innerHTML = '';
     const log = (data.log || []).slice(0, 12);
@@ -13976,6 +14038,8 @@ async function openVault(paneEl) {
   };
   paint(r);
   resetForm();
+  ['keydown', 'keypress', 'keyup', 'paste'].forEach(t => $('.vt-find').addEventListener(t, e => e.stopPropagation()));
+  $('.vt-find').oninput = () => paint(vaultNow);
   $('.vt-add').onclick = async ev => {
     ev.stopPropagation();
     const res = await api('POST', '/api/vault', { id: editId, name: $('.vt-name').value.trim(), domain: $('.vt-domain').value.trim(),
@@ -14101,12 +14165,12 @@ async function openVault(paneEl) {
   impBtn.className = 'pc-no'; impBtn.textContent = '⬇ ' + (T.vaultImp || 'Import from Chrome');
   impBtn.onclick = e => { e.stopPropagation(); const on = $('.vt-imp').classList.toggle('open'); impBtn.classList.toggle('on', on); if (on) $('.vt-imp').scrollIntoView({ block: 'nearest' }); };
   $('.pc-btns').appendChild(impBtn);
-  const close = document.createElement('button');
-  close.className = 'pc-no'; close.textContent = T.vaultClose || 'Close';
-  close.onclick = e => { e.stopPropagation(); $('.vt-pw').value = ''; imp.forEach(it => { it.password = ''; }); imp = []; ov.remove(); };
-  $('.pc-btns').appendChild(close);
-  paneEl.appendChild(ov);
-  $('.vt-name').focus();
+  const closeVault = () => { $('.vt-pw').value = ''; imp.forEach(it => { it.password = ''; }); imp = []; ov.remove(); };
+  $('.vt-x').onclick = e => { e.stopPropagation(); closeVault(); };
+  // 입력칸들이 키를 터미널로 새지 않게 막고 있어서, Esc 는 먼저 받는 단계(capture)에서 잡는다
+  ov.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeVault(); } }, true);
+  document.body.appendChild(ov);
+  $('.vt-find').focus();
 }
 // 📋 클립보드 복사 + 토스트 (https/localhost가 아니면 구식 execCommand 폴백)
 function copyTxt(t) {

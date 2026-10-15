@@ -67,7 +67,7 @@ To use it on your phone, click the **QR** button, read the warning, and scan the
 
 ## Features
 
-Every feature below has a screenshot and a one-minute video (▶). All 17 videos are also on the site: **[pominal.com → Video guide](https://pominal.com/#videos)**.
+Every feature below has a screenshot and a one-minute video (▶). All 18 videos are also on the site: **[pominal.com → Video guide](https://pominal.com/#videos)**.
 
 | # | Feature | # | Feature |
 |---|---|---|---|
@@ -84,12 +84,13 @@ Every feature below has a screenshot and a one-minute video (▶). All 17 videos
 One AI per project, all on one screen. 1 session fills the screen, 2 split it, 3+ sit in one row and wrap to two rows when narrow; ⛶ expands one pane in place, and 5+ sessions can spill into a second window (nice with two monitors).
 
 - **Any AI per session** — Claude Code, Codex, plain PowerShell or your own command; switch the model from the session header
+- **Claude and GPT side by side** — hover a session number and click ＋ to open the same project again in its own git worktree (🌿 badge), switch that one to GPT, give each its own job, then click 🌿 to merge. Or ask Claude to call GPT (Codex) for the images and build the rest itself
 - **Status borders** — sky-blue while working, thick green when done (stays green until your next request)
 - **☀ / 🌙 light & dark** — the whole screen *including the terminals*
 
 <p align="center"><img src="https://raw.githubusercontent.com/1215kkm/powerterminal-site/main/shots/features/01-sessions.jpg" alt="Four Claude Code sessions side by side" width="820"></p>
 
-▶ [Video: Sessions side by side](https://pominal.com/video/player.html?l=en&v=grid#share-en) · [Install and open your first session](https://pominal.com/video/player.html?l=en&v=start#share-en)
+▶ [Video: Sessions side by side](https://pominal.com/video/player.html?l=en&v=grid#share-en) · [Install and open your first session](https://pominal.com/video/player.html?l=en&v=start#share-en) · [Claude and GPT together](https://pominal.com/video/player.html?l=en&v=duo#share-en)
 
 ### 2. Add a session · new project in one go
 
