@@ -6287,7 +6287,7 @@ function buildPane(sess, idx) {
     numEl.style.opacity = '.45';                                   // 서버 왕복이 1~2초 걸려 '먹통' 처럼 보이던 것 방지
     // extra 는 Object.assign 의 마지막이라 model 을 여기서 덮어써야 새 세션이 '자동'으로 리셋되지 않고
     // 원본과 같은 모델로 뜬다 (4번째 인자는 model 이 아니라 cmd 다 — 빈 문자열이 맞다)
-    const extra = Object.assign({ model: sess.model || 'default' }, same ? { dupSame: true } : {});
+    const extra = Object.assign({ model: sess.model || 'default' }, same ? { dupSame: true } : { fresh: true });
     try { await addSession(sess.path, sess.title, sess.agent, '', true, extra); }
     finally { numEl.style.opacity = ''; done(); }
     applyLayout(); renumber();
@@ -9849,7 +9849,7 @@ async function renderAddCards() {
         applyLayout(); renumber(); renderAddCards();
       },
       async (dupSame) => {   // ＋ = 같은 폴더로 세션 하나 더 (git 레포면 자동으로 worktree 분리)
-        await addSession(k.path, nm, k.agent, '', true, dupSame ? { dupSame: true } : null);
+        await addSession(k.path, nm, k.agent, '', true, dupSame ? { dupSame: true } : { fresh: true });
         applyLayout(); renumber(); renderAddCards();
       }));
     list.appendChild(c);
@@ -10125,6 +10125,11 @@ async function addSession(path, title, agent, cmd, skipPrompt, extra) {
   const pick = document.getElementById('addAgent').value;
   const s = await api('POST', '/api/sessions', Object.assign({ path, title, agent: agent || pick, cmd, model: curAddModel() }, extra || {}));
   if (s.error) { alert(s.error); return null; }
+  // ♻ 저장만 돼 있던 같은 폴더 세션을 서버가 돌려준 경우 — 새로 만들지 않고 그것을 연다 (이미 그려져 있으면 그 칸으로)
+  if (s.reused) {
+    pickPending.delete(s.id);
+    if (panes.has(s.id)) { const p = panes.get(s.id); if (p && p.el) p.el.scrollIntoView({ block: 'nearest' }); return s; }
+  }
   if (s.teamCopied) flashToast(T.wtTeamCopied || '강팀도 새 작업 폴더로 같이 복사했어요.');
   if (skipPrompt) addHere(s);          // 이전에 쓰던 세션 다시 열기 = 새 창 묻지 않고 이 창에
   else await placeNewSession(s);       // 완전히 새 폴더 추가 = 5개↑면 새 창 물어봄
@@ -14363,7 +14368,7 @@ function renderPicker() {
       },
       async (dupSame) => {   // 중복: 같은 폴더로 세션 하나 더 (git 레포면 자동으로 worktree 분리)
         pickDlg.close();
-        await addSession(s.path, s.title, s.agent, '', true, dupSame ? { dupSame: true } : null);
+        await addSession(s.path, s.title, s.agent, '', true, dupSame ? { dupSame: true } : { fresh: true });
       }));
     g.appendChild(c);
   });

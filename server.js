@@ -3009,6 +3009,20 @@ app.post('/api/sessions', async (req, res) => {
   if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
   if (!fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
   const wantTitle = title || path.basename(dir);
+  // ♻ 같은 폴더·같은 AI 로 저장만 돼 있고 지금 안 떠 있는 세션이 있으면 새로 만들지 않고 그것을 다시 연다.
+  //    시작 때 세션 선택창에서 [건너뛰기] 하면 그 세션은 목록에 남은 채 안 열리는데, 그 상태로 같은 폴더를
+  //    [+ 세션] 으로 또 열면 예전엔 새 세션이 하나 더 생겼다. 다음 재시작 때 둘 다 열리면서 나중에 뜬 쪽은
+  //    대화 이어하기(--continue)를 못 받아 빈 대화로 시작했다 (2026-10-16 사장님: "중복 세션들이 열렸네").
+  if (!req.body.autoClose && !req.body.dupSame && !req.body.fresh) {   // fresh = 일부러 하나 더 (중복 단추)
+    const wantAgent = agent || 'claude';
+    const idle = sessions.find(s => !s.autoClose && pathKey(s.path) === pathKey(dir) && (s.agent || 'claude') === wantAgent &&
+                                    !(ptys.get(s.id) && !ptys.get(s.id).dead));
+    if (idle) {
+      res.json(Object.assign({ reused: true }, idle));
+      setImmediate(() => { try { getPty(idle); } catch (e) {} });
+      return;
+    }
+  }
   // 🌿 같은 폴더를 또 여는 경우 = 다른 작업을 시키려는 것 → git 레포면 자동으로 worktree 로 분리.
   //    dupSame:true 면 예전처럼 같은 폴더 그대로 (원본의 미커밋 변경을 그대로 보며 쓰려는 경우).
   let wt = null;
