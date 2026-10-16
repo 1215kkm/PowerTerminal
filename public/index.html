@@ -7049,7 +7049,10 @@ function buildPane(sess, idx) {
   botBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 12l6 6 6-6"/></svg>';
   botBtn.title = T.toBottomT || '';
   botBtn.style.display = 'none';
-  botBtn.onclick = () => smoothTermScroll(term, term.buffer.active.baseY);
+  // 내려간 뒤 바로 숫자(1·2·3)로 AI 의 선택지를 고를 수 있게 터미널에 입력을 넘긴다 (2026-10-16 CEO).
+  // 예전엔 버튼이 입력을 가져가서, 터미널을 한 번 더 눌러야 숫자가 먹었다. 폰은 자판이 튀어나오므로 넘기지 않는다.
+  botBtn.onmousedown = ev => ev.preventDefault();
+  botBtn.onclick = () => { smoothTermScroll(term, term.buffer.active.baseY); if (!IS_TOUCH) term.focus(); };
   el.querySelector('.pane-body').appendChild(botBtn);
   const isReqRow = (buf, y) => {
     const l = buf.getLine(y); if (!l) return false;
