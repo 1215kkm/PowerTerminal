@@ -103,7 +103,9 @@
     .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools {
       position: static; flex: 1 0 100%; max-width: none; margin-left: 0; justify-content: flex-end; flex-wrap: wrap;
       overflow: visible; padding: 2px 0 0; background: none; border-color: transparent; box-shadow: none; }
-    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools .btnClose { position: static; box-shadow: none; }
+    /* ✕ 는 올리기 전부터 보이는 버튼이라 올려도 그 자리(우상단) 그대로 — 나머지 버튼만 아랫줄에 나온다 (2026-10-16 CEO).
+       자리 값 = 평소 떠 있는 묶음의 위치(top -8px + 테두리 1 + 위 여백 8 / right 0 + 테두리 1 + 오른쪽 여백 5) */
+    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools .btnClose { position: absolute; top: 1px; right: 6px; box-shadow: none; }
     .pane:is(:hover, :focus-within) .ph-bottom { flex-wrap: wrap; row-gap: 4px; justify-content: flex-end; }
     /* 늘어나는 빈칸(끌기 자리)이 줄 가운데 끼면 접힌 모양이 들쭉날쭉했다 — 접는 동안엔 폭 0, 모두 오른쪽 정렬 그대로 */
     .pane:is(:hover, :focus-within) .ph-bottom > .dragsp { flex: 0 0 0; min-width: 0; order: -1; }
