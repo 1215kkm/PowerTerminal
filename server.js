@@ -1081,21 +1081,50 @@ const TAB_LABEL_JS = label => `(() => {
   setInterval(tick, 1000);
   tick();
 })()`;
+/* 🧹 세션이 연 크롬 탭은 그 세션이 닫히면 같이 닫는다. 루틴 회차마다 탭이 남아 크롬이 수 GB 를 먹고 있었다
+   (2026-10-18 사장님: 루틴이 연 크롬 중 안 쓰는 건 끌 수 없어? 메모리 부족되지 않아?).
+   누가 연 탭인지는 파일에도 적어 두어, PT 를 다시 켠 뒤에도 주인 없는 탭을 닫고 남은 탭엔 표시를 다시 붙인다. */
+const TAB_OWNERS_FILE = path.join(DATA_DIR, 'tab-owners.json');
+let tabOwnersSaveT = null;
+function tabOwnersSave() {
+  clearTimeout(tabOwnersSaveT);
+  tabOwnersSaveT = setTimeout(() => {
+    const o = {}; for (const [id, r] of tabOwners) o[id] = { sessId: r.sessId, port: r.port };
+    try { fs.writeFileSync(TAB_OWNERS_FILE, JSON.stringify(o)); } catch (e) {}
+  }, 500);
+}
+const closeTab = (port, targetId) => fetch('http://127.0.0.1:' + port + '/json/close/' + targetId, { signal: AbortSignal.timeout(3000) }).catch(() => {});
+async function tabOwnersRestore() {
+  let saved = {}; try { saved = JSON.parse(fs.readFileSync(TAB_OWNERS_FILE, 'utf8')) || {}; } catch (e) { return; }
+  for (const [id, r] of Object.entries(saved)) {
+    if (!r || !r.port) continue;
+    let alive = false;
+    try { const list = await (await fetch('http://127.0.0.1:' + r.port + '/json/list', { signal: AbortSignal.timeout(2000) })).json(); alive = list.some(t => t.id === id); } catch (e) {}
+    if (!alive) continue;
+    if (sessions.some(x => x.id === r.sessId)) tabOwnerSet(id, r.sessId, { port: r.port });
+    else closeTab(r.port, id);
+  }
+  tabOwnersSave();
+}
 async function tabOwnerSet(targetId, sessId, prof) {
   if (!targetId || tabOwners.has(targetId)) return;
-  const rec = { sessId, conn: null };
-  tabOwners.set(targetId, rec);
+  const rec = { sessId, conn: null, port: prof.port };
+  tabOwners.set(targetId, rec); tabOwnersSave();
   const src = TAB_LABEL_JS(tabLabel(sessions.find(s => s.id === sessId)));
   try {
-    const c = await cdpConnect('ws://127.0.0.1:' + prof.port + '/devtools/page/' + targetId, () => { if (tabOwners.get(targetId) === rec) tabOwners.delete(targetId); });
+    const c = await cdpConnect('ws://127.0.0.1:' + prof.port + '/devtools/page/' + targetId, () => { if (tabOwners.get(targetId) === rec) { tabOwners.delete(targetId); tabOwnersSave(); } });
     rec.conn = c;
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: src });
     // 새 탭은 about:blank 로 만들어진 직후 목적지로 이동한다 — 그 사이에 넣은 표시는 이동과 함께 사라질 수 있어 몇 번 더 넣는다
     for (const ms of [0, 800, 2500, 6000]) setTimeout(() => { c.send('Runtime.evaluate', { expression: src }).catch(() => {}); }, ms);
-  } catch (e) { if (tabOwners.get(targetId) === rec) tabOwners.delete(targetId); }
+  } catch (e) { if (tabOwners.get(targetId) === rec) { tabOwners.delete(targetId); tabOwnersSave(); } }
 }
 function tabOwnersDrop(sessId) {
-  for (const [id, rec] of tabOwners) if (rec.sessId === sessId) { tabOwners.delete(id); try { if (rec.conn) rec.conn.close(); } catch (e) {} }
+  for (const [id, rec] of tabOwners) if (rec.sessId === sessId) {
+    tabOwners.delete(id); try { if (rec.conn) rec.conn.close(); } catch (e) {}
+    if (rec.port) closeTab(rec.port, id);   // 그 세션이 연 탭도 닫는다
+  }
+  tabOwnersSave();
   try { fs.unlinkSync(path.join(DATA_DIR, 'browser-mcp-s-' + sessId + '.json')); } catch (e) {}
 }
 const cdpProxyServer = http.createServer((req, res) => { res.writeHead(404); res.end(); });
@@ -4754,6 +4783,7 @@ server.listen(PORT, '0.0.0.0', () => {
   // 고아로 남기던 문제 때문에 둔 스위치. 실사용에는 영향 없음.
   if (process.env.PT_NO_TUNNEL === '1') console.log('  ③ 외부 접속: 꺼짐 (PT_NO_TUNNEL=1)');
   else ensureCloudflared().then(() => startTunnel(wifiUrl));
+  setTimeout(() => { tabOwnersRestore().catch(() => {}); }, 8000);   // 🧹 지난번에 세션이 연 탭: 주인이 없어졌으면 닫고, 있으면 표시를 다시 붙인다
 });
 
 // cloudflared.exe가 없으면 자동 다운로드 (gitignore라 clone 시 안 딸려옴 — 외부 접속을 항상 가능하게)
