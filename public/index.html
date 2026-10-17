@@ -839,6 +839,14 @@
   .reqPanel .mreq:hover .rp-del { display: block; }
   .reqPanel .mreq .rp-del:hover { background: #fecaca; }
   @media (hover: none) { .reqPanel .mreq .rp-del { display: block; } }
+  /* 📋 복사 — 재요청·삭제 아래 한 줄을 다 쓰는 큰 단추 (2026-10-17 사장님). 자리는 늘 잡아 두고 마우스를 올리면 보인다
+     (보일 때만 자리를 만들면 줄 높이가 출렁인다). 폰은 늘 보임 */
+  .reqPanel .mreq .rp-copy { display: block; width: calc(100% + 46px); height: 30px; margin-top: 4px; padding: 0; border: 1px solid #c7d2fe; border-radius: 7px;
+                             background: #eef2ff; color: #4338ca; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; visibility: hidden; }
+  .reqPanel .mreq:hover .rp-copy { visibility: visible; }
+  .reqPanel .mreq .rp-copy:hover { background: #c7d2fe; }
+  .reqPanel .mreq .rp-copy.done { background: #dcfce7; border-color: #86efac; color: #15803d; }
+  @media (hover: none) { .reqPanel .mreq .rp-copy { visibility: visible; } }
   /* 패널은 터미널을 줄이지 않고 위에 겹쳐서 뜸(오버레이) — 터미널 폭이 안 바뀌니 글자폭 재계산 문제 없음 */
   .reqPanel { box-shadow: -5px 0 16px rgba(0,0,0,.4); }
   .reqPanel .memo-row.mreq.gone { opacity: .45; }   /* 현재 터미널 기록에 없어 이동 불가한 항목 (재시작 전 기록) */
@@ -2119,7 +2127,7 @@ const I18N = {
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — Opus',
     memoDoneCol:'Completed', wtRemovedT:'Nothing was done there, so the tree (separate working folder) was removed', wtKeptT:'The tree has changed files, so its folder was kept — merge it back or delete it yourself', reqSearchPh:'🔍 Search requests', reqSearchNone:'No matching requests', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
-    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
+    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqCopy:'Copy', reqCopyT:'Copy this request', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
     memoEdit:'Edit', memoDelBtn:'Del', memoDelConfirm:'Delete this memo?', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
@@ -2218,7 +2226,7 @@ const I18N = {
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
     memoDoneCol:'완료된 항목', wtRemovedT:'작업한 게 없어서 트리(분리 작업 폴더)를 지웠어요', wtKeptT:'트리에 바뀐 파일이 있어 폴더는 남겨 뒀어요 — 원래 브랜치로 합치거나 직접 지우세요', reqSearchPh:'🔍 요청 검색', reqSearchNone:'찾는 요청이 없어요', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
-    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
+    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqCopy:'복사', reqCopyT:'이 요청 글을 복사', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
@@ -6971,6 +6979,12 @@ function buildPane(sess, idx) {
         reqsCache = null; refreshReq();
       };
       r.appendChild(del);
+      // 📋 복사 — 이 요청 글 전체를 클립보드로 (행 클릭=위치 이동과 분리). 누르면 그 자리에서 '복사됨' 으로 바뀐다
+      const cp = document.createElement('button');
+      cp.className = 'rp-copy'; cp.textContent = '📋 ' + (T.reqCopy || 'Copy'); cp.title = T.reqCopyT || 'Copy this request';
+      cp.onclick = ev => { ev.stopPropagation(); copyTxt(rq.text); cp.classList.add('done'); cp.textContent = '✓ ' + (T.copied || 'Copied');
+        clearTimeout(cp._t); cp._t = setTimeout(() => { cp.classList.remove('done'); cp.textContent = '📋 ' + (T.reqCopy || 'Copy'); }, 1500); };
+      r.appendChild(cp);
       list.appendChild(r);
     });
     filterReqRows(list, (reqPanel.querySelector('.rp-search') || {}).value);   // 새로 그려도 검색어는 유지
