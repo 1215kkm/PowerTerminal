@@ -348,8 +348,11 @@
 
   /* 🔍 search: slides down from the top. Left = list of matching requests, right = the picked one. */
   .find { position: fixed; z-index: 80; left: 50%; top: 0; width: min(1040px, 94vw); height: min(82vh, 760px); display: flex; flex-direction: column; background: #1f2126; color: #e8e9ee; border: 1px solid #3a3d46; border-top: 0;
-          border-radius: 0 0 14px 14px; box-shadow: 0 18px 50px rgba(0,0,0,.55); font: 13.5px var(--ui); transform: translate(-50%, -105%); transition: transform .22s ease-out; visibility: hidden; }
-  .find.on { transform: translate(-50%, 0); visibility: visible; }
+          border-radius: 0 0 14px 14px; box-shadow: 0 18px 50px rgba(0,0,0,.55); font: 13.5px var(--ui); transform: translate(-50%, calc(-105% + var(--fy, 0px)));
+          transition: transform .45s cubic-bezier(.22,.8,.3,1), visibility 0s linear .45s; visibility: hidden; }
+  .find.on { transform: translate(-50%, var(--fy, 0px)); visibility: visible; transition: transform .45s cubic-bezier(.22,.8,.3,1), visibility 0s; }
+  /* 손가락으로 끄는 동안엔 손가락을 그대로 따라온다(애니메이션 없음) — 떼면 위의 .45s 로 천천히 자리 잡는다 */
+  .find.drag { transition: none; visibility: visible; }
   .findbar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #33363e; }
   .findbar input { flex: 1 1 auto; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #3a3d46; background: #14161b; color: #fff; font: 15px var(--ui); outline: none; }
   .findbar input:focus { border-color: var(--accent); }
@@ -372,8 +375,8 @@
   .turn.found { animation: foundflash 1.6s ease-out; border-radius: 6px; }
   @keyframes foundflash { 0%, 40% { background: color-mix(in srgb, var(--accent) 26%, transparent); } 100% { background: transparent; } }
   @media (max-width: 820px) {
-    .find { width: 100vw; height: 100%; border: 0; border-radius: 0; left: 0; transform: translateY(-105%); padding-top: env(safe-area-inset-top); }
-    .find.on { transform: none; }
+    .find { width: 100vw; height: 100%; border: 0; border-radius: 0; left: 0; transform: translateY(calc(-105% + var(--fy, 0px))); padding-top: env(safe-area-inset-top); }
+    .find.on { transform: translateY(var(--fy, 0px)); }
     .findn { display: none; }
     .findlist { flex-basis: 40%; padding: 4px; } .findit { padding: 7px 6px; } .findit b { font-size: 12.5px; } .findit span { font-size: 11.5px; -webkit-line-clamp: 3; }
     .findpaper { padding: 10px 10px 24px; }
@@ -1458,13 +1461,25 @@ $('exp').onclick = async () => {
   window.bookFind = { open, close, run, get hits() { return hits.length; } };
   box.querySelector('#findX').onclick = close; sb.onclick = open;
   addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); open(); } else if (e.key === 'Escape' && box.classList.contains('on')) close(); }, true);
-  // phone: swipe down on the page → the bar comes down; swipe up on the bar → it goes away
-  let sy = 0, sx = 0, st = 0, sok = false;
-  vp.addEventListener('touchstart', e => { sok = e.touches.length === 1 && !e.target.closest('pre, .steps, .termbox, textarea, input, table'); sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
-  vp.addEventListener('touchend', e => { if (!sok || e.touches.length || pf) return; const c = e.changedTouches[0], dy = c.clientY - sy, dx = c.clientX - sx; if (dy > 90 && dy > Math.abs(dx) * 2 && Date.now() - st < 700) open(); }, { passive: true });
-  const bar = box.querySelector('.findbar'); let by = 0;
-  bar.addEventListener('touchstart', e => { by = e.touches[0].clientY; }, { passive: true });
-  bar.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - by < -50) close(); }, { passive: true });
+  // phone: swipe down on the page → the panel follows the finger and settles slowly; swipe up on the bar → it follows up and slides away slowly
+  // (2026-10-17 사장님: 쓸어내리면 서서히 나타나고, 올리면 천천히 위로 사라지게)
+  const setFy = px => { if (px) box.style.setProperty('--fy', px + 'px'); else box.style.removeProperty('--fy'); };
+  let sy = 0, sx = 0, st = 0, sok = false, sdrag = false;
+  vp.addEventListener('touchstart', e => { sok = e.touches.length === 1 && !pf && !box.classList.contains('on') && !e.target.closest('pre, .steps, .termbox, textarea, input, table'); sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); sdrag = false; }, { passive: true });
+  vp.addEventListener('touchmove', e => { if (!sok || e.touches.length !== 1) return; const dy = e.touches[0].clientY - sy, dx = e.touches[0].clientX - sx;
+    if (!sdrag) { if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy)) { sok = false; return; } if (dy > 14 && dy > Math.abs(dx) * 1.5) { sdrag = true; box.classList.add('drag'); } else return; }
+    setFy(Math.max(0, Math.min(dy - 14, box.offsetHeight))); }, { passive: true });
+  vp.addEventListener('touchend', e => { if (!sok || e.touches.length) return; const c = e.changedTouches[0], dy = c.clientY - sy, dx = c.clientX - sx; sok = false;
+    if (!sdrag) return;
+    sdrag = false; box.classList.remove('drag'); setFy(0);
+    if (dy > 90 || (dy > 40 && Date.now() - st < 300)) open();       // 충분히 끌었거나 빠르게 튕기면 열고, 아니면 천천히 도로 올라간다
+  }, { passive: true });
+  vp.addEventListener('touchcancel', () => { if (sdrag) { sdrag = false; box.classList.remove('drag'); setFy(0); } sok = false; }, { passive: true });
+  const bar = box.querySelector('.findbar'); let by = 0, bt = 0, bdrag = false;
+  bar.addEventListener('touchstart', e => { by = e.touches[0].clientY; bt = Date.now(); bdrag = false; }, { passive: true });
+  bar.addEventListener('touchmove', e => { const dy = e.touches[0].clientY - by; if (!bdrag && dy < -10) { bdrag = true; box.classList.add('drag'); } if (bdrag) setFy(Math.min(0, dy + 10)); }, { passive: true });
+  bar.addEventListener('touchend', e => { const dy = e.changedTouches[0].clientY - by; if (!bdrag) return; bdrag = false; box.classList.remove('drag'); setFy(0);
+    if (dy < -50 || (dy < -25 && Date.now() - bt < 300)) close(); }, { passive: true });
 }
 (async () => {
   await loadSessions();
