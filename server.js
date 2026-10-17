@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { execFileSync, execFile, spawn } = require('child_process');
 const https = require('https');
 let CLOUDFLARED_PATH;
@@ -2548,8 +2549,82 @@ function bookFeed(c, line) {
     }
   }
 }
-function bookFile(sessPath) {
-  const dir = claudeProjectDir(sessPath);
+/* 🤖 GPT(codex) 세션도 같은 책으로 — codex 는 ~/.codex/sessions/년/월/일/rollout-*.jsonl 에 기록을 남긴다.
+   PT 는 그 폴더에서 `codex resume --last` 로 이어 가므로, 같은 폴더(cwd)에서 가장 최근에 쓴 기록이 이 세션의 대화다.
+   오래된 기록은 codex 가 .jsonl.zst 로 압축해 두므로 풀어서 읽는다 (2026-10-18 사장님: GPT 답변이 노트모드에서 안 보임). */
+const codexCwdCache = new Map();   // 기록 파일 → 그 대화의 폴더 (첫 줄에 적혀 있고 바뀌지 않는다)
+let codexList = { at: 0, files: [] };
+function codexCwdOf(p) {
+  if (codexCwdCache.has(p)) return codexCwdCache.get(p);
+  let cwd = '';
+  try {
+    let head;
+    if (p.endsWith('.zst')) { if (!zlib.zstdDecompressSync) return ''; head = zlib.zstdDecompressSync(fs.readFileSync(p)).subarray(0, 8192); }
+    else { const fd = fs.openSync(p, 'r'); head = Buffer.alloc(8192); const n = fs.readSync(fd, head, 0, 8192, 0); fs.closeSync(fd); head = head.subarray(0, n); }
+    const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(head.toString('utf8'));
+    if (m) { cwd = JSON.parse('"' + m[1] + '"'); if (cwd.startsWith('file:///')) cwd = decodeURIComponent(cwd.slice(8)); }
+  } catch (e) {}
+  codexCwdCache.set(p, cwd);
+  return cwd;
+}
+function codexBookFile(sessPath) {
+  if (Date.now() - codexList.at > 10000) {
+    const files = [];
+    (function walk(dir, depth) {
+      if (depth > 4) return;
+      let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+      for (const e of ents) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p, depth + 1);
+        else if (/^rollout-.*\.jsonl(\.zst)?$/.test(e.name)) { try { const st = fs.statSync(p); files.push({ p, t: st.mtimeMs, size: st.size }); } catch (e2) {} }
+      }
+    })(CODEX_SESS_DIR, 0);
+    codexList = { at: Date.now(), files: files.sort((a, b) => b.t - a.t) };
+  }
+  const want = pathKey(sessPath);
+  const f = codexList.files.find(x => pathKey(codexCwdOf(x.p)) === want);
+  if (!f) return null;
+  try { const st = fs.statSync(f.p); return { p: f.p, t: st.mtimeMs, size: st.size, codex: true }; } catch (e) { return null; }
+}
+const bookText = arr => (Array.isArray(arr) ? arr : []).filter(x => x && typeof x.text === 'string').map(x => x.text).join('\n');
+function bookFeedCodex(c, line) {
+  if (!line || line.indexOf('"item_completed"') < 0) return;        // 그 밖의 줄(그림·설정 등)은 풀지도 않는다
+  let j; try { j = JSON.parse(line); } catch (e) { return; }
+  const p = j && j.payload, it = p && p.type === 'item_completed' && p.item;
+  if (!it) return;
+  const ts = Date.parse(j.timestamp) || 0;
+  if (it.type === 'UserMessage') {
+    const text = bookClean(bookText(it.content).replace(/&#x([0-9a-f]{1,5});/gi, (m, h) => String.fromCodePoint(parseInt(h, 16))));   // codex 입력칸이 공백 등을 &#x20; 으로 남긴다
+    if (!text) return;
+    c.cur = { ts, req: text.slice(0, 20000), ans: '', notes: [], steps: [], log: [], files: [], tools: 0, end: ts };
+    c.turns.push(c.cur);
+    return;
+  }
+  const t = c.cur; if (!t) return;
+  if (ts) t.end = ts;
+  if (it.type === 'AgentMessage') {
+    const text = bookText(it.content).trim(); if (!text) return;
+    if (t.ans && t.notes.length < 60) { t.notes.push(t.ans.slice(0, 300)); if (t.log.length < 200) t.log.splice(Math.min(t.ansAt || 0, t.log.length), 0, { k: 'n', t: t.ans.slice(0, 600) }); }
+    t.ans = text.slice(0, 60000); t.ansAt = t.log.length;
+    return;
+  }
+  let step = '';
+  if (it.type === 'CommandExecution') { const cmd = Array.isArray(it.command) ? it.command[it.command.length - 1] : it.command; step = 'Shell — ' + String(cmd || '').replace(/\s+/g, ' ').slice(0, 90); }
+  else if (it.type === 'McpToolCall') step = (it.arguments && it.arguments.title) ? String(it.arguments.title).slice(0, 90) : it.server + '.' + it.tool;
+  else if (it.type === 'FileChange') {
+    const fps = Object.keys(it.changes || {});
+    for (const fp of fps) if (!t.files.includes(fp) && t.files.length < 40) t.files.push(fp);
+    step = 'Edit — ' + fps.map(x => path.basename(x)).slice(0, 3).join(', ');
+  }
+  else if (it.type === 'ImageView') step = 'View image';
+  else return;
+  t.tools++;
+  if (t.steps.length < 80) t.steps.push(step);
+  if (t.log.length < 200) t.log.push({ k: 's', t: step });
+}
+function bookFile(sess) {
+  if ((sess.agent || 'claude') === 'codex') return codexBookFile(sess.path);
+  const dir = claudeProjectDir(sess.path);
   try {
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'))
       .map(f => { const p = path.join(dir, f); const st = fs.statSync(p); return { p, t: st.mtimeMs, size: st.size }; })
@@ -2557,13 +2632,18 @@ function bookFile(sessPath) {
     return files[0] || null;
   } catch (e) { return null; }
 }
-async function bookTurns(sessPath) {
-  const f = bookFile(sessPath);
+async function bookTurns(sess) {
+  const f = bookFile(sess);
   if (!f) return [];
   let c = bookCache.get(f.p);
   if (!c || f.size < c.offset) { c = { offset: 0, turns: [], cur: null, busy: null }; bookCache.set(f.p, c); }
   if (c.busy) { await c.busy; return c.turns; }
   if (f.size === c.offset) return c.turns;
+  const feed = f.codex ? bookFeedCodex : bookFeed;
+  if (f.p.endsWith('.zst')) {   // 압축된 지난 기록 — 더 늘지 않으니 한 번에 풀어 읽는다
+    try { const b = zlib.zstdDecompressSync(fs.readFileSync(f.p)); let from = 0, nl; while ((nl = b.indexOf(10, from)) >= 0) { feed(c, b.toString('utf8', from, nl)); from = nl + 1; } feed(c, b.toString('utf8', from)); } catch (e) {}
+    c.offset = f.size; return c.turns;
+  }
   c.busy = new Promise(resolve => {
     let rest = Buffer.alloc(0), read = 0;
     c.prog = { read: 0, total: f.size - c.offset };   // 책 모드의 「펴는 중」 진행 막대가 읽어 간다
@@ -2571,7 +2651,7 @@ async function bookTurns(sessPath) {
     rs.on('data', buf => {
       read += buf.length; c.prog.read = read;
       let b = rest.length ? Buffer.concat([rest, buf]) : buf, from = 0, nl;
-      while ((nl = b.indexOf(10, from)) >= 0) { bookFeed(c, b.toString('utf8', from, nl)); from = nl + 1; }
+      while ((nl = b.indexOf(10, from)) >= 0) { feed(c, b.toString('utf8', from, nl)); from = nl + 1; }
       rest = b.subarray(from);
     });
     const fin = () => { c.offset += read - rest.length; c.busy = null; resolve(); };   // 끝나지 않은 줄은 다음에 다시
@@ -2583,7 +2663,7 @@ async function bookTurns(sessPath) {
 // 책을 펴는 동안 얼마나 읽었는지 — 대화 기록이 크면 처음 한 번은 몇 초 걸린다
 app.get('/api/sessions/:id/book-progress', (req, res) => {
   const sess = sessions.find(x => x.id === req.params.id);
-  const f = sess && bookFile(sess.path), c = f && bookCache.get(f.p);
+  const f = sess && bookFile(sess), c = f && bookCache.get(f.p);
   res.json({ busy: !!(c && c.busy), read: c && c.prog ? c.prog.read : 0, total: c && c.prog ? c.prog.total : 0 });
 });
 // ?last=30 — 맨 뒤 30개 · ?before=120 — 그 앞쪽 · ?from=150 — 150번부터(새로 생긴 것 받기)
@@ -2593,9 +2673,9 @@ app.get('/api/sessions/:id/book', async (req, res) => {
   const p = ptys.get(sess.id);
   const base = { id: sess.id, title: sess.title, path: sess.path, agent: sess.agent || 'claude',
     busy: !!(p && p.busy), cols: (p && p.cols) || 0, rows: (p && p.rows) || 0 };
-  if (base.agent !== 'claude' && !process.env.PT_BOOK_ANY) return res.json({ ...base, total: 0, start: 0, turns: [], unsupported: true });
+  if (base.agent !== 'claude' && base.agent !== 'codex' && !process.env.PT_BOOK_ANY) return res.json({ ...base, total: 0, start: 0, turns: [], unsupported: true });
   try {
-    const all = await bookTurns(sess.path);
+    const all = await bookTurns(sess);
     const total = all.length;
     const last = Math.max(1, Math.min(200, parseInt(req.query.last, 10) || 30));
     let start, end = total;
@@ -3794,8 +3874,8 @@ async function voiceAsk(text, def) {
   const state = !p || p.dead ? '꺼져 있어요' : p.busy ? '지금 일하는 중이에요' : '지금은 쉬고 있어요';
   // ③ 마지막 답변 — 클로드는 대화 기록에서, 그 밖(GPT 등)은 요청 기록의 요약에서
   let ans = '', when = 0;
-  if ((sess.agent || 'claude') === 'claude' || process.env.PT_BOOK_ANY) {
-    try { const turns = await bookTurns(sess.path); for (let i = turns.length - 1; i >= 0 && !ans; i--) if (turns[i].ans) { ans = turns[i].ans; when = turns[i].end || turns[i].ts; } } catch (e) {}
+  if (/^(claude|codex)$/.test(sess.agent || 'claude') || process.env.PT_BOOK_ANY) {
+    try { const turns = await bookTurns(sess); for (let i = turns.length - 1; i >= 0 && !ans; i--) if (turns[i].ans) { ans = turns[i].ans; when = turns[i].end || turns[i].ts; } } catch (e) {}
   }
   if (!ans) { const mm = memos[memoKey(sess.path)]; const r = mm && (mm.reqs || []).find(q => q.answer && (!q.sid || q.sid === sess.id)); if (r) { ans = r.answer; when = r.ts; } }
   if (!ans) return name + ' 세션은 ' + state + '. 읽어 드릴 답변 기록은 아직 없어요.';
