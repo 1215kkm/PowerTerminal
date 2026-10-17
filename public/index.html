@@ -1094,6 +1094,17 @@
   .pane-confirm .vt-imp .vi-warn { margin-top: 8px; color: #f59e0b; font-size: 12px; display: none; }
   .pane-confirm .vt-imp.has .vi-warn { display: block; }
   .pane-confirm .vt-log .vt-allow { margin-left: 8px; padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+  /* 📋 글 복사 창 (폰: 터미널 글자를 길게 눌렀다 떼면) — 폰 기본 선택이 되는 보통 글자 */
+  .tx-full { position: fixed; inset: 0; z-index: 250; display: flex; flex-direction: column; background: var(--bg, #0f1115); color: var(--fg, #e5e7eb);
+             padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .tx-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
+  .tx-head b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+  .tx-head button { flex: 0 0 auto; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .tx-all { background: var(--violet); color: #fff; }
+  .tx-x { width: 44px; background: var(--panel); color: #fff; }
+  .tx-hint { flex: 0 0 auto; padding: 8px 12px; font-size: 12.5px; color: var(--muted, #9aa0ad); }
+  .tx-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; padding: 4px 12px 40px; font: 14px/1.6 ui-monospace, Consolas, 'D2Coding', monospace;
+             white-space: pre-wrap; word-break: break-all; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   /* 🔑 로그인 보관함 — 모든 세션이 같이 쓰므로 PT 화면 전체에 크게. 토스트(z 300)보다는 아래 */
   .pane-confirm.vault-full { position: fixed; z-index: 250; padding: 24px; }
   .vault-full .pc-box.vt-box { width: min(1320px, 100%); height: min(92vh, 1100px); max-height: none; overflow: hidden;
@@ -2127,7 +2138,7 @@ const I18N = {
     previewNoIndex:'No index.html in this folder, so there is nothing to preview directly. Either add an index.html at the folder root, or run your dev server and enter its address (e.g. http://localhost:3000).',
     mDefaultLong:'Auto — Opus',
     memoDoneCol:'Completed', wtRemovedT:'Nothing was done there, so the tree (separate working folder) was removed', wtKeptT:'The tree has changed files, so its folder was kept — merge it back or delete it yourself', reqSearchPh:'🔍 Search requests', reqSearchNone:'No matching requests', memoReqCol:'Requests you sent', memoEmpty:'No memos yet — type below.', memoDelT:'Delete',
-    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqCopy:'Copy', reqCopyT:'Copy this request', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
+    memoSend:'Send', memoSendTip:'Send this memo to the session terminal — it moves to Completed when the work finishes', reqResendT:'Send this request to the terminal again', reqCopy:'Copy', reqCopyT:'Copy this request', txTitle:'Copy text', txAll:'Copy all', txHint:'Press and hold on the text to pick the part you want, then Copy.', reqDelT: 'Delete this request from the list', reqDelAsk: 'Delete this request from the history?', reqCleared: 'Cleared the stopped request from the input box', reqDelOld: 'Restart PowerTerminal to delete history rows',
     memoEdit:'Edit', memoDelBtn:'Del', memoDelConfirm:'Delete this memo?', memoEditSaveT:'Save (Enter)', memoEditCancelT:'Cancel editing (Esc)',
     memoExport:'Excel', memoExportAllT:'Download memos & request history of ALL sessions as one styled Excel file',
     memoNewCol:'New memos', memoCopy:'Copy', memoCopyT:'Copy this text to the clipboard',
@@ -2226,7 +2237,7 @@ const I18N = {
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
     memoDoneCol:'완료된 항목', wtRemovedT:'작업한 게 없어서 트리(분리 작업 폴더)를 지웠어요', wtKeptT:'트리에 바뀐 파일이 있어 폴더는 남겨 뒀어요 — 원래 브랜치로 합치거나 직접 지우세요', reqSearchPh:'🔍 요청 검색', reqSearchNone:'찾는 요청이 없어요', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
-    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqCopy:'복사', reqCopyT:'이 요청 글을 복사', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
+    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqCopy:'복사', reqCopyT:'이 요청 글을 복사', txTitle:'글 복사', txAll:'전체 복사', txHint:'글자를 길게 눌러 원하는 부분을 고른 뒤 「복사」를 누르세요.', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
@@ -5701,7 +5712,7 @@ function buildPane(sess, idx) {
       tsel.timer = setTimeout(() => {
         tsel.timer = null;
         const c = cellAt(tsel.x, tsel.y); if (!c) return;
-        tsel.on = true; tsel.a = c;
+        tsel.on = true; tsel.a = c; tsel.dragged = false;
         stopMomentum(); sz.classList.remove('touching');
         body.classList.add('touch-selecting');
         selHold = true; releaseHold(20000);          // 선택하는 동안 화면이 다시 그려져 선택이 지워지지 않게
@@ -5717,6 +5728,7 @@ function buildPane(sess, idx) {
       }
       e.preventDefault(); e.stopPropagation();        // 선택 중 = 스크롤하지 않는다
       const c = cellAt(t.clientX, t.clientY); if (!c) return;
+      if (c.row !== tsel.a.row || c.col !== tsel.a.col) tsel.dragged = true;
       if (t.clientY < c.top + c.chh) term.scrollLines(-1);           // 위·아래 끝에 대면 그쪽으로 넘기며 계속 선택
       else if (t.clientY > c.bottom - c.chh) term.scrollLines(1);
       selectTo(cellAt(t.clientX, t.clientY));
@@ -5726,9 +5738,11 @@ function buildPane(sess, idx) {
       if (!tsel.on) return;
       e.stopPropagation();
       tsel.on = false; body.classList.remove('touch-selecting');
+      releaseHold(1500);
+      // 끌지 않고 길게 눌렀다 떼기만 = 📋 글 복사 창 (폰 기본 선택으로 원하는 만큼 고른다)
+      if (!tsel.dragged) { term.clearSelection(); openTermText(term, tsel.a.row, sess.title); return; }
       const txt = term.getSelection();
       if (txt && txt.trim()) copySel(txt);
-      releaseHold(1500);
     };
     body.addEventListener('touchend', tselEnd, { capture: true });
     body.addEventListener('touchcancel', tselEnd, { capture: true });
@@ -14202,6 +14216,34 @@ async function openVault(paneEl) {
   ov.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeVault(); } }, true);
   document.body.appendChild(ov);
   $('.vt-find').focus();
+}
+/* 📋 글 복사 창 — 폰에서 터미널 글자를 길게 눌렀다 떼면 연다. 터미널 화면은 폰 기본 선택이 안 돼서
+   (통째로 선택돼 막아 둠) 같은 글을 보통 글자로 펼쳐 보여 주고, 폰 손잡이로 원하는 만큼 골라 복사한다.
+   줄바꿈된 줄은 한 줄로 이어 붙여서 긴 경로·명령도 한 번에 고를 수 있다 (2026-10-17 사장님: 모바일에선 선택이 안 돼 복사를 못 해). */
+function openTermText(term, row, title) {
+  const buf = term.buffer.active, lines = []; let at = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const ln = buf.getLine(i); if (!ln) continue;
+    const s = ln.translateToString(true);
+    if (ln.isWrapped && lines.length) lines[lines.length - 1] += s; else lines.push(s);
+    if (i === row) at = lines.length - 1;
+  }
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  const cut = Math.max(0, lines.length - 3000); at = Math.max(0, at - cut);
+  const ov = document.createElement('div'); ov.className = 'tx-full';
+  ov.innerHTML = '<div class="tx-head"><b></b><button type="button" class="tx-all"></button><button type="button" class="tx-x" aria-label="close">✕</button></div>'
+    + '<div class="tx-hint"></div><div class="tx-body"></div>';
+  ov.querySelector('b').textContent = '📋 ' + (T.txTitle || 'Copy text') + (title ? ' · ' + title : '');
+  ov.querySelector('.tx-all').textContent = T.txAll || 'Copy all';
+  ov.querySelector('.tx-hint').textContent = T.txHint || '';
+  const body = ov.querySelector('.tx-body');
+  lines.slice(cut).forEach(t => { const d = document.createElement('div'); d.textContent = t || ' '; body.appendChild(d); });
+  const close = () => ov.remove();
+  ov.querySelector('.tx-x').onclick = close;
+  ov.querySelector('.tx-all').onclick = () => copyTxt(lines.slice(cut).join('\n'));
+  ov.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } }, true);
+  document.body.appendChild(ov);
+  const tgt = body.children[at]; if (tgt) body.scrollTop = Math.max(0, tgt.offsetTop - body.clientHeight / 3);
 }
 // 📋 클립보드 복사 + 토스트 (https/localhost가 아니면 구식 execCommand 폴백)
 function copyTxt(t) {

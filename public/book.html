@@ -353,6 +353,9 @@
   .find.on { transform: translate(-50%, var(--fy, 0px)); visibility: visible; transition: transform .45s cubic-bezier(.22,.8,.3,1), visibility 0s; }
   /* 손가락으로 끄는 동안엔 손가락을 그대로 따라온다(애니메이션 없음) — 떼면 위의 .45s 로 천천히 자리 잡는다 */
   .find.drag { transition: none; visibility: visible; }
+  /* 검색칸 아래 빈 곳을 누르면 닫힌다 — 그동안 뒤 화면은 살짝 어둡게 */
+  .findbg { position: fixed; inset: 0; z-index: 79; background: rgba(0,0,0,.28); opacity: 0; visibility: hidden; transition: opacity .3s, visibility 0s linear .3s; }
+  body.finding .findbg { opacity: 1; visibility: visible; transition: opacity .3s, visibility 0s; }
   .findbar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #33363e; }
   .findbar input { flex: 1 1 auto; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #3a3d46; background: #14161b; color: #fff; font: 15px var(--ui); outline: none; }
   .findbar input:focus { border-color: var(--accent); }
@@ -1403,7 +1406,7 @@ $('exp').onclick = async () => {
   const box = document.createElement('div'); box.className = 'find'; box.setAttribute('role', 'dialog');
   box.innerHTML = '<div class="findbar"><input id="findIn" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="findn" id="findN"></span><button type="button" class="findx" id="findX" aria-label="close">✕</button></div>'
     + '<div class="findbody"><div class="findlist" id="findList"></div><div class="findview" id="findView"></div></div>';
-  document.body.append(box);
+  const bg = document.createElement('div'); bg.className = 'findbg'; document.body.append(bg, box);
   const fin = box.querySelector('#findIn'), list = box.querySelector('#findList'), view = box.querySelector('#findView'), cnt = box.querySelector('#findN');
   fin.placeholder = F.ph; box.querySelector('#findX').title = F.close;
   const sb = document.createElement('button'); sb.className = 'sbtn'; sb.id = 'findBtn'; sb.textContent = F.btn; $('toEnd').before(sb);
@@ -1463,13 +1466,14 @@ $('exp').onclick = async () => {
   list.addEventListener('click', e => { const b = e.target.closest('.findit'); if (b) show(+b.dataset.k); });
   // open: only the bar comes down; the results unfold once there is something typed (an earlier word unfolds after the bar lands)
   // close: the results fold up first, then the bar slides away (2026-10-17 사장님)
-  let ct = 0, ht = 0;
-  function open() { if (!cur || (box.classList.contains('on') && !ct)) return; clearTimeout(ct); ct = 0; if (window.readAloud) readAloud.stop(); box.classList.add('on'); document.body.classList.add('finding');
+  let ct = 0, ht = 0, openedAt = 0;
+  function open() { if (!cur || (box.classList.contains('on') && !ct)) return; clearTimeout(ct); ct = 0; openedAt = Date.now(); if (window.readAloud) readAloud.stop(); box.classList.add('on'); document.body.classList.add('finding');
     if (!fin.value) run(); else { clearTimeout(ht); ht = setTimeout(setHas, 450); } fin.focus(); fin.select(); }
   function close() { clearTimeout(ht); document.body.classList.remove('finding'); fin.blur(); if (!box.classList.contains('on') || ct) return;
     if (box.classList.contains('has')) { box.classList.remove('has'); ct = setTimeout(() => { ct = 0; box.classList.remove('on'); }, 320); } else box.classList.remove('on'); }
   window.bookFind = { open, close, run, get hits() { return hits.length; } };
   box.querySelector('#findX').onclick = close; sb.onclick = open;
+  bg.onclick = () => { if (Date.now() - openedAt > 450) close(); };   // 쓸어내린 손을 떼며 생기는 클릭으로 바로 닫히지 않게
   addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); open(); } else if (e.key === 'Escape' && box.classList.contains('on')) close(); }, true);
   // phone: swipe down on the page → the panel follows the finger and settles slowly; swipe up on the bar → it follows up and slides away slowly
   // (2026-10-17 사장님: 쓸어내리면 서서히 나타나고, 올리면 천천히 위로 사라지게)
