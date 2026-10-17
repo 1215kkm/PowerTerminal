@@ -1372,6 +1372,8 @@
   @media (max-width: 768px) { #winNo { min-width: 24px; height: 24px; font-size: 15px; padding: 0 7px; } }
   .atab { background: #374151; }
   .atab.on { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
+  #brList { grid-auto-rows: max-content; }   /* 아이폰 사파리: 칸 높이가 0 으로 눌려 납작하게 겹치던 것 */
+  .brfolder { flex: 0 0 auto; min-height: 34px; box-sizing: border-box; }
   .brfolder { background: #111827; border: 1px solid var(--line); border-radius: 8px; padding: 8px 6px;
               font-size: 12px; cursor: pointer; text-align: center; overflow: hidden;
               white-space: nowrap; text-overflow: ellipsis; }
@@ -1458,6 +1460,8 @@
     .known-grid { grid-template-columns: 1fr; }         /* 폰: 세션 목록 한 줄에 1개 */
     .card-icons button { width: 30px; height: 30px; }   /* 폰: 아이콘 크게(누르기 쉽게) */
     .card-icons svg { width: 16px; height: 16px; }
+    .known-grid .mini-pane .mp-head { padding-right: 112px; }   /* 30px 단추 3개 + 간격 — 긴 제목이 단추 밑으로 비치지 않게 */
+    .known-grid .mini-pane .mp-title { min-width: 0; }
     .card-icons .ci-del:active { background: #b91c1c; }
   }
 
@@ -2571,7 +2575,7 @@ const I18N_MORE = {
     vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "로그인 화면 주소, 여러 개면 쉼표 (예: eclogin.cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
     vaultAllow: "{h} 허용", vaultAllowed: "{h} 도 이 로그인에 허용했어요",
     vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
-    vaultClose: "닫기", vaultTitle: "🔑 로그인 보관함", vaultShared: "모든 세션이 같이 써요 · {n}개", vaultFind: "이름·주소·아이디로 찾기", vaultHow: "어떻게 작동하나요?", vaultNoHit: "찾는 로그인이 없어요", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
+    micIos: "아이폰은 자판의 🎤(받아쓰기) 키를 눌러 말하세요", vaultClose: "닫기", vaultTitle: "🔑 로그인 보관함", vaultShared: "모든 세션이 같이 써요 · {n}개", vaultFind: "이름·주소·아이디로 찾기", vaultHow: "어떻게 작동하나요?", vaultNoHit: "찾는 로그인이 없어요", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
     vaultLogHead: "AI 최근 사용 기록", vaultLocalOnly: "로그인 보관함은 PowerTerminal 이 켜진 PC 에서만 열려요 (비밀번호가 폰으로 오가지 않게).",
     vaultErr_name: "이름을 적어 주세요", vaultErr_domain: "주소가 올바르지 않아요 (예: eclogin.cafe24.com — 여러 개면 쉼표). [허용] 은 같은 회사 주소만 돼요", vaultErr_username: "아이디를 적어 주세요",
     vaultErr_password: "비밀번호를 적어 주세요", vaultErr_dup: "이미 있는 이름이에요", vaultErr_gone: "이미 삭제된 로그인이에요",
@@ -9629,7 +9633,7 @@ function pickFolderDlg(cur, anchorEl, opts) {
       const r = await api('GET', '/api/browse?dir=' + encodeURIComponent(d));
       if (!r || r.error) { if (d) return go(''); return; }
       dir = r.dir || ''; parent = r.parent || '';
-      const cur = box.querySelector('.pfCur'); cur.textContent = dir || '💻 ' + (T.drives || 'Drives'); cur.title = dir;
+      const cur = box.querySelector('.pfCur'); cur.textContent = dir ? '‎' + dir + '‎' : '💻 ' + (T.drives || 'Drives'); cur.title = dir;
       box.querySelector('.pfOk').disabled = !dir;
       const list = box.querySelector('.pfList'); list.innerHTML = '';
       const sep = r.sep || '\\';
@@ -9669,7 +9673,7 @@ async function browseTo(dir) {
   const r = await api('GET', '/api/browse?dir=' + encodeURIComponent(dir));
   if (r.error) { if (dir) return browseTo(''); return; }
   brDir = r.dir;
-  { const bc = document.getElementById('brCur'); bc.textContent = r.dir || '💻 ' + (T.drives || 'Drives'); bc.title = r.dir || ''; }   // 한 줄 말줄임 + 전체경로는 툴팁
+  { const bc = document.getElementById('brCur'); bc.textContent = r.dir ? '‎' + r.dir + '‎' : '💻 ' + (T.drives || 'Drives'); bc.title = r.dir || ''; }   // 한 줄 말줄임 + 전체경로는 툴팁
   const ap = document.getElementById('addPath');
   ap.value = r.dir || '';
   ap.scrollLeft = ap.scrollWidth;   // 경로가 길면 끝(마지막 폴더)이 보이도록 스크롤
