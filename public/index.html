@@ -99,13 +99,21 @@
     /* 마우스를 올리거나 세션을 고른 동안(버튼이 보일 때) — 머리줄이 커지더라도 다 보이게 (2026-10-15 CEO):
        ① 버튼 묶음은 제목 위에 떠서 덮지 않고, 제목 아래 제 줄로 내려온다(제목이 늘 보인다).
        ② 세션이 많아 칸이 좁으면 AI·모델·검토·🌐 줄이 오른쪽으로 잘려 🌐 이 안 보였다 → 넘치면 아랫줄로 접는다.
-       요청창 위에 마우스가 있을 땐 위 규칙대로 버튼을 숨기므로 예전 모양(✕·⛶ 만 떠 있음)으로 돌아간다. */
+       요청창 위에 마우스가 있을 땐 위 규칙대로 버튼을 숨기므로 예전 모양(✕·⛶ 만 떠 있음)으로 돌아간다.
+       ③ 버튼 줄이 머리줄 안에 들어가 머리줄이 커지면 마우스를 올릴 때마다 터미널이 밀렸다 (2026-10-21 CEO)
+          → 머리줄 바로 아래(터미널 윗부분)에 떠서 겹친다. 머리줄 높이는 그대로라 터미널이 안 움직이고,
+          AI·모델 줄도 가리지 않는다. */
+    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .pane-head { position: relative; }
+    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-top { position: static; }
     .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools {
-      position: static; flex: 1 0 100%; max-width: none; margin-left: 0; justify-content: flex-end; flex-wrap: wrap;
-      overflow: visible; padding: 2px 0 0; background: none; border-color: transparent; box-shadow: none; }
-    /* ✕ 는 올리기 전부터 보이는 버튼이라 올려도 그 자리(우상단) 그대로 — 나머지 버튼만 아랫줄에 나온다 (2026-10-16 CEO).
-       자리 값 = 평소 떠 있는 묶음의 위치(top -8px + 테두리 1 + 위 여백 8 / right 0 + 테두리 1 + 오른쪽 여백 5) */
-    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools .btnClose { position: absolute; top: 1px; right: 6px; box-shadow: none; }
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 12; max-width: none; margin-left: 0;
+      justify-content: flex-end; flex-wrap: wrap; overflow: visible; padding: 4px 8px;
+      border-radius: 0 0 9px 9px; border: 0; border-bottom: 1px solid var(--line); box-shadow: 0 6px 14px rgba(0,0,0,.45); }
+    /* ✕ 는 올리기 전부터 보이는 버튼이라 올려도 그 자리(우상단) 그대로 — 나머지 버튼만 떠 있는 줄에 나온다 (2026-10-16 CEO).
+       자리 값 = 평소 위치(머리줄 위 여백 6 + 1 / 오른쪽 여백 8 + 6). 버튼 줄이 머리줄 아래로 내려가 있으므로
+       머리줄 높이(--phHeadH, JS 가 잼)만큼 위로 올린다. */
+    .pane:is(:hover, :focus-within):not(:has(.quick:hover)) .ph-tools .btnClose {
+      position: absolute; top: calc(7px - var(--phHeadH, 56px)); right: 14px; box-shadow: none; }
   }
   /* ◎ 플로우 연결 버튼은 숨긴다(잘 안 써서) — 이미 화살표가 걸린 창에서만 남긴다(화살표 시작점이라 없으면 선을 못 그린다).
      다시 꺼내려면 이 한 줄만 지우면 된다. */
@@ -5413,6 +5421,13 @@ function buildPane(sess, idx) {
   el.classList.add('pane-in');
   setTimeout(() => el.classList.remove('pane-in'), 350);
 
+  // 마우스를 올리면 버튼 줄이 머리줄 아래에 뜬다 — ✕ 를 원래 자리에 두려면 머리줄 높이를 알아야 한다(CSS --phHeadH)
+  {
+    const head = el.querySelector('.pane-head');
+    const setH = () => head.style.setProperty('--phHeadH', head.clientHeight + 'px');
+    try { new ResizeObserver(setH).observe(head); } catch (e) {}
+    setH();
+  }
   // 터미널 — 색은 현재 테마(라이트/다크)에 맞춰 시작, 토글 시 applyTheme()가 실시간 교체
   const term = new Terminal({
     fontSize: savedFont(), fontFamily: savedTermFont(),
@@ -10375,7 +10390,9 @@ async function refreshBanner() {
         i++;
       };
       show();
-      if (list.length > 1) setInterval(show, 8000);
+      // 10분마다 다시 불리므로 이전 넘김 타이머는 지운다 — 안 지우면 며칠 켜 두면 타이머가 수백 개 쌓였다
+      clearInterval(refreshBanner._t);
+      if (list.length > 1) refreshBanner._t = setInterval(show, 8000);
     }
     if (b.feedbackUrl) feedbackUrl = b.feedbackUrl;
     // 실행 중인 서버가 최신보다 구버전이면 경고 — 자동 업데이트가 안 되는 상황(ZIP 복사본·복사본 여러 개) 안내
