@@ -1628,6 +1628,8 @@ app.use(express.static(path.join(ROOT, 'public')));
 app.get('/vendor/qrcode.js', (req, res) =>
   res.sendFile(path.join(ROOT, 'node_modules', 'qrcode-generator', 'dist', 'qrcode.js')));
 
+require('./export-render')(app, { findBrowserExe, spawn, IS_WIN });   // ⬇ 노트모드 PDF · JPG 내보내기
+
 const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, sessions: () => sessions, ptys, notify: broadcastStatus,
   enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : claudeEnterDelay(written.length); } });
 scheduler.install(app);
