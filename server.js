@@ -873,7 +873,7 @@ function vaultSite(host) {
   return /^(co|or|go|ac|ne|re|pe|com|net|org|gov|edu)\.[a-z]{2}$/.test(two) ? p.slice(-3).join('.') : two;
 }
 const vaultSameSite = (host, dom) => !!host && !!dom && vaultSite(host) === vaultSite(dom);
-const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, hosts: vaultDomains(e).slice(1), username: e.username, updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0 });
+const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, hosts: vaultDomains(e).slice(1), username: e.username, url: e.url || '', updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0 });
 function vaultLog(o) {
   try {
     const line = JSON.stringify(Object.assign({ at: Date.now() }, o)) + '\n';
@@ -952,11 +952,11 @@ const VAULT_FOCUS_JS = (dom, which) => `(() => {
   e.focus(); if (e.select) e.select();
   return document.activeElement === e;
 })()`;
-async function vaultFill({ profile, name, pageUrl, submit }) {
+async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
   const list = vaultLoad();
   const want = String(name || '').trim().toLowerCase();
   const entry = list.find(e => e.name.toLowerCase() === want);
-  const done = (ok, msg, extra) => { vaultLog(Object.assign({ name: entry ? entry.name : String(name || ''), ok, msg }, extra || {})); return { ok, msg }; };
+  const done = (ok, msg, extra) => { vaultLog(Object.assign({ name: entry ? entry.name : String(name || ''), ok, msg }, by ? { by } : {}, extra || {})); return { ok, msg, form: !(extra && extra.noForm) }; };
   if (!entry) return done(false, 'No saved login named "' + name + '". Call list_logins to see the names.');
   const prof = browserProfile(profile);
   let pages = [];
@@ -967,7 +967,7 @@ async function vaultFill({ profile, name, pageUrl, submit }) {
   const hostOf = u => { try { return new URL(u).hostname.toLowerCase(); } catch (e) { return ''; } };
   const doms = vaultDomains(entry);
   const domOf = t => doms.find(d => vaultHostOk(hostOf(t.url), d)) || '';
-  const byUrl = pageUrl ? pages.filter(t => t.url === pageUrl || t.url.startsWith(pageUrl)) : pages;
+  const byUrl = targetId ? pages.filter(t => t.id === targetId) : pageUrl ? pages.filter(t => t.url === pageUrl || t.url.startsWith(pageUrl)) : pages;
   const cand = byUrl.filter(t => domOf(t));
   if (!cand.length) {
     // 저장한 주소가 아닌 탭. 같은 회사 주소(쇼핑몰 ecudemo1.cafe24.com ↔ 로그인 eclogin.cafe24.com)면 채우지는 않되
@@ -1002,7 +1002,7 @@ async function vaultFill({ profile, name, pageUrl, submit }) {
   }
   if (!hits.length) {
     return done(false, 'Found a tab on ' + entry.domain + ' but no visible login form (username or password field). ' +
-      'If the form is inside a frame or behind a "Log in" button, open the actual login form and call login again. [' + JSON.stringify(seen).slice(0, 200) + ']');
+      'If the form is inside a frame or behind a "Log in" button, open the actual login form and call login again. [' + JSON.stringify(seen).slice(0, 200) + ']', { noForm: true });
   }
   if (hits.length > 1) {
     hits.forEach(h => h.c.close());
@@ -2571,7 +2571,10 @@ app.post('/api/vault', (req, res) => {
   if (!cur && !password) return res.status(400).json({ error: 'password' });
   try {
     const e = cur || { id: crypto.randomBytes(6).toString('hex') };
-    Object.assign(e, { name, domain: sites[0], hosts: sites.slice(1), username, updatedAt: Date.now() });
+    // 첫 주소를 https://… 로 적었으면 그 주소(로그인 화면)를 기억해 보관함에서 이름을 누를 때 그리로 연다
+    const u0 = /^https?:\/\//i.test(rawSites[0]) ? rawSites[0].slice(0, 500) : '';
+    const url = u0 || (cur && cur.url && sites.includes(vaultDomain(cur.url)) ? cur.url : '');
+    Object.assign(e, { name, domain: sites[0], hosts: sites.slice(1), username, url, updatedAt: Date.now() });
     if (password) e.secret = vaultSeal(password);          // 수정 때 빈칸이면 기존 비밀번호 유지
     if (!cur) list.push(e);
     vaultSave(list);
@@ -2618,7 +2621,8 @@ app.post('/api/vault/import', (req, res) => {
       if (taken(name)) name = long;
       for (let k = 2; taken(name) && k < 100; k++) name = long + ' ' + k;
       if (taken(name)) { results.push('bad'); continue; }
-      list.push({ id: crypto.randomBytes(6).toString('hex'), name, domain, hosts: [], username, updatedAt: Date.now(), secret: vaultSeal(password) });
+      const url = /^https?:\/\//i.test(String(it.url || '')) ? String(it.url).slice(0, 500) : '';   // 크롬이 적어 둔 로그인 화면 주소 — 이름을 누르면 그리로 연다
+      list.push({ id: crypto.randomBytes(6).toString('hex'), name, domain, hosts: [], username, url, updatedAt: Date.now(), secret: vaultSeal(password) });
       results.push('ok');
     }
     if (results.includes('ok')) vaultSave(list);
@@ -2671,6 +2675,74 @@ app.post('/api/vault/fill', async (req, res) => {
   if (profile && !(config.browserProfiles || {})[profileSlug(profile)]) return res.json({ ok: false, msg: 'Unknown browser window: ' + profile });
   try { res.json(await vaultFill({ profile, name: b.name, pageUrl: String(b.pageUrl || ''), submit: b.submit !== false })); }
   catch (e) { res.json({ ok: false, msg: 'Vault error: ' + (e && e.message) }); }
+});
+/* 🔑 보관함 창에서 이름을 누르면 — PT 브라우저(기본 창)에 새 창으로 그 사이트를 열고, 로그인 칸이 보이면 PT 가 채워
+   Enter 까지 누른다. 칸이 없으면(이미 로그인돼 있거나 로그인 버튼 뒤에 있는 사이트) 연 채로 둔다. 이 PC 에서만. */
+app.post('/api/vault/open', async (req, res) => {
+  if (!vaultLocal(req, res)) return;
+  const entry = vaultLoad().find(e => e.id === String((req.body || {}).id || ''));
+  if (!entry) return res.status(404).json({ error: 'gone' });
+  const prof = browserProfile('');
+  browserCheckAt.delete(prof.port);
+  await ensureBrowser(prof);
+  let ver = null;
+  for (let i = 0; i < 40 && !ver; i++) {
+    try { ver = await (await fetch('http://127.0.0.1:' + prof.port + '/json/version', { signal: AbortSignal.timeout(1500) })).json(); }
+    catch (e) { await new Promise(r => setTimeout(r, 250)); }
+  }
+  if (!ver || !ver.webSocketDebuggerUrl) return res.json({ ok: false, error: 'browser' });
+  const url = /^https?:\/\//i.test(entry.url || '') ? entry.url : 'https://' + entry.domain + '/';
+  let c = null, tid = '';
+  try { c = await cdpConnect(ver.webSocketDebuggerUrl); tid = (await c.send('Target.createTarget', { url, newWindow: true })).targetId; }
+  catch (e) { return res.json({ ok: false, error: 'open: ' + (e && e.message) }); }
+  finally { if (c) c.close(); }
+  // 첫 화면이 뜰 때까지(주소가 about:blank 를 벗어날 때까지, 최대 10초) 기다린 뒤 칸을 찾는다 — 칸 찾기도 4초쯤 다시 본다
+  for (let i = 0; i < 40; i++) {
+    let t = null;
+    try { t = (await (await fetch('http://127.0.0.1:' + prof.port + '/json/list', { signal: AbortSignal.timeout(1500) })).json()).find(x => x.id === tid); } catch (e) {}
+    if (t && /^https?:/.test(t.url)) break;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  await new Promise(r => setTimeout(r, 800));
+  let r = { ok: false, form: false };
+  try { r = await vaultFill({ profile: '', name: entry.name, targetId: tid, submit: true, by: 'me' }); } catch (e) {}
+  res.json({ ok: true, filled: !!r.ok, form: r.form !== false, url });
+});
+/* 👁 저장한 비밀번호 보기 — 보관함은 "AI 가 비밀번호를 못 보게" 만든 것이라, 이 주소만 부르면 바로 돌려주면 같은 PC 의
+   AI 세션도 curl 한 번으로 읽어 간다. 그래서 크롬처럼 사람 확인을 거친다: 바탕화면 맨 위에 윈도우 확인창을 띄우고
+   「예」를 눌러야만 돌려준다(기본 단추는 「아니요」 — 실수로 Enter 를 쳐도 안 보인다). 윈도우만. */
+let vaultAsking = false;
+// 윈도우 기본 확인창(wscript MsgBox — PowerShell 창보다 훨씬 빨리 1초 안에 뜬다, 실측). 맨 위(시스템 모달)·기본 단추 「아니요」.
+// 글은 환경변수로 넘긴다(한글·따옴표가 명령줄에서 깨지지 않게). 「예」= 끝 코드 6.
+function winConfirm(title, msg) {
+  return new Promise(resolve => {
+    const vbs = path.join(DATA_DIR, 'ask.vbs');
+    try {
+      fs.writeFileSync(vbs, 'Set e = CreateObject("WScript.Shell").Environment("PROCESS")\r\nWScript.Quit MsgBox(e("PT_ASK_MSG"), 4 + 32 + 256 + 4096, e("PT_ASK_TTL"))\r\n');
+    } catch (e) { return resolve(false); }
+    let p;
+    try { p = spawn('wscript.exe', ['//nologo', vbs], { env: Object.assign({}, process.env, { PT_ASK_MSG: msg, PT_ASK_TTL: title }), windowsHide: true }); }
+    catch (e) { return resolve(false); }
+    const to = setTimeout(() => { try { p.kill(); } catch (e) {} }, 120000);   // 2분 동안 답이 없으면 「아니요」
+    p.on('error', () => { clearTimeout(to); resolve(false); });
+    p.on('close', code => { clearTimeout(to); resolve(code === 6); });
+  });
+}
+app.post('/api/vault/reveal', async (req, res) => {
+  if (!vaultLocal(req, res)) return;
+  if (!IS_WIN) return res.json({ ok: false, error: 'unsupported' });
+  const entry = vaultLoad().find(e => e.id === String((req.body || {}).id || ''));
+  if (!entry) return res.status(404).json({ error: 'gone' });
+  if (vaultAsking) return res.json({ ok: false, error: 'busy' });
+  vaultAsking = true;
+  try {
+    const yes = await winConfirm('PowerTerminal 🔑', '「' + entry.name + '」의 비밀번호를 PT 화면에 보일까요?\n\n' + entry.domain + '  ·  ' + entry.username +
+      '\n\n직접 누른 게 아니라면 「아니요」를 누르세요.');
+    if (!yes) return res.json({ ok: false, error: 'denied' });
+    vaultLog({ name: entry.name, ok: true, msg: 'password shown on screen', by: 'me' });
+    res.json({ ok: true, password: vaultOpen(entry.secret) });
+  } catch (e) { res.json({ ok: false, error: String(e && e.message) }); }
+  finally { vaultAsking = false; }
 });
 
 // ============ 📆 구글 캘린더 직접 연동 (OAuth) — PT 일정을 사용자 구글 캘린더에 실제로 씀 ============
