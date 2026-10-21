@@ -392,6 +392,71 @@
 
   #darkTg { text-align: center; font-size: 16px; line-height: 1.2; } #darkTg.on { border-color: var(--accent); }
   @media (max-width: 820px) { #darkTg { min-width: 44px; font-size: 15px; } }
+
+  /* ⬇ 내보내기: 가운데 창. 왼쪽 = 내보낼 요청 고르기(최신이 위), 오른쪽 = 형식(PDF · 그림 · Word · 원고 · 크라모북)과 실행 */
+  .xpbg { position: fixed; inset: 0; z-index: 89; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s linear .25s; }
+  .xp { position: fixed; z-index: 90; left: 50%; top: 50%; width: min(940px, 94vw); height: min(640px, 88vh); display: flex; flex-direction: column; background: #1f2126; color: #e8e9ee;
+        border: 1px solid #3a3d46; border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.55); font: 13.5px var(--ui); opacity: 0; visibility: hidden;
+        transform: translate(-50%, -48%) scale(.98); transition: opacity .15s, transform .15s, visibility 0s linear .15s; }
+  body.exporting .xpbg { opacity: 1; visibility: visible; transition: opacity .3s, visibility 0s; }
+  body.exporting .xp { opacity: 1; visibility: visible; transform: translate(-50%, -50%); transition: opacity .3s, transform .35s cubic-bezier(.22,.8,.3,1), visibility 0s; }
+  .xph { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px; border-bottom: 1px solid #33363e; }
+  .xph b { font-size: 15px; } .xph .xpn { color: #9aa0ad; font-size: 12.5px; margin-right: auto; }
+  .xpx { flex: 0 0 auto; width: 40px; height: 40px; border: 0; border-radius: 10px; background: #2a2d34; color: #fff; font-size: 16px; }
+  .xpx:hover { background: #343844; }
+  .xpbody { flex: 1 1 auto; min-height: 0; display: flex; }
+  .xpl { flex: 1 1 56%; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #33363e; }
+  .xpq { flex: 0 0 auto; display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 12px 8px; }
+  .xpq button { padding: 6px 11px; border-radius: 8px; border: 1px solid #3a3d46; background: #2a2d34; color: #e8e9ee; font-size: 12.5px; }
+  .xpq button:hover { border-color: var(--accent); background: #30343d; }
+  .xpq .tip { align-self: center; color: #7d8391; font-size: 11.5px; margin-left: auto; }
+  .xplist { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 8px 10px; }
+  .xpit { display: flex; align-items: flex-start; gap: 9px; padding: 7px 8px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; user-select: none; }
+  .xpit:hover { background: #2a2d34; } .xpit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .xpit.on { background: color-mix(in srgb, var(--accent) 14%, #1f2126); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .xpit input { flex: 0 0 auto; width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--accent); pointer-events: none; }
+  .xpit small { flex: 0 0 auto; color: #9aa0ad; font-size: 11.5px; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .xpit span { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; line-height: 1.45; }
+  .xpit.here small::after { content: attr(data-here); margin-left: 6px; color: #8ab4ff; }
+  .xplist .none { color: #9aa0ad; text-align: center; padding: 40px 10px; }
+  .xpr { flex: 0 0 44%; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; overflow-y: auto; }
+  .xpr h5 { margin: 2px 0 0; font-size: 12px; color: #9aa0ad; font-weight: 600; }
+  /* 형식마다 제 색 — 고른 것만 그 색 테두리 · 바탕 */
+  .xpfm { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 7px; }
+  .xpfm button { --c: #9ca3af; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 9px 10px; border-radius: 10px; border: 1px solid #3a3d46; background: #262931; color: #e8e9ee; text-align: left; transition: transform .1s; }
+  .xpfm button b { font-size: 13.5px; } .xpfm button small { color: #9aa0ad; font-size: 11px; }
+  .xpfm button:hover { border-color: var(--c); background: #2c3039; }
+  .xpfm button:active { transform: scale(.96); }
+  .xpfm button.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 20%, #1f2126); box-shadow: inset 0 0 0 1px var(--c); }
+  .xpfm button.on small { color: #d5d8df; }
+  .xpfm [data-f=pdf] { --c: #f05252; } .xpfm [data-f=jpg] { --c: #10b981; } .xpfm [data-f=doc] { --c: #4f8df5; } .xpfm [data-f=md] { --c: #a3a8b4; } .xpfm [data-f=cromo] { --c: #c084fc; }
+  .xphint { margin: 0; color: #c3c7d0; font-size: 12.5px; line-height: 1.55; }
+  .xpcr { display: none; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: #262931; border: 1px solid #3a3d46; }
+  .xpcr.on { display: flex; }
+  .xpcr p { margin: 0; font-size: 12px; line-height: 1.55; color: #c3c7d0; } .xpcr a { color: #c084fc; }
+  .xpcr textarea { width: 100%; height: 64px; resize: vertical; padding: 8px 10px; border-radius: 8px; border: 1px solid #3a3d46; background: #14161b; color: #fff; font: 13px/1.4 var(--ui); outline: none; }
+  .xpcr textarea:focus { border-color: #c084fc; }
+  .xpcr .row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .xpcr .row b { color: #e9d5ff; font-weight: 600; } .xpcr .row button { margin-left: auto; padding: 5px 10px; border-radius: 7px; border: 1px solid #3a3d46; background: #2a2d34; color: #e8e9ee; font-size: 12px; }
+  .xpgo { margin-top: auto; height: 46px; border: 0; border-radius: 11px; background: var(--accent); color: #fff; font: 700 15px var(--ui); transition: transform .1s, filter .15s; }
+  .xpgo:hover { filter: brightness(1.12); } .xpgo:active { transform: scale(.97); }
+  .xpgo:disabled { opacity: .45; cursor: default; transform: none; filter: none; }
+  .xpst { min-height: 20px; font-size: 12.5px; line-height: 1.5; color: #c3c7d0; }
+  .xpst.ok { color: #6ee7b7; } .xpst.bad { color: #fca5a5; }
+  .xpst a { color: #c084fc; }
+  .xpbar { height: 5px; border-radius: 3px; background: #2a2d34; overflow: hidden; display: none; }
+  .xpbar.on { display: block; } .xpbar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .8s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .xpfm button:active, .xpgo:active { transform: none; } }
+  @media (max-width: 820px) {
+    .xp { width: 100vw; height: 100dvh; top: 0; left: 0; border-radius: 0; border: 0; transform: translateY(2%); padding-top: env(safe-area-inset-top); }
+    body.exporting .xp { transform: none; }
+    .xpbody { flex-direction: column; }
+    .xpl { flex: 1 1 auto; border-right: 0; border-bottom: 1px solid #33363e; }
+    .xpr { flex: 0 0 auto; overflow: visible; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    .xpq .tip { display: none; }
+    .xpfm { grid-template-columns: repeat(3, 1fr); } .xpfm button small { display: none; }
+    .xpcr textarea { font-size: 16px; }
+  }
 </style>
 </head>
 <body>
@@ -446,12 +511,12 @@ const QS = new URLSearchParams(location.search);
 const TOKEN = QS.get('token') || (document.cookie.split('cc_token=')[1] || '').split(';')[0];
 const KO = (localStorage.getItem('pt_lang') || navigator.language || 'en').toLowerCase().startsWith('ko');
 const T = KO ? {
-  ph:'이 책(세션)에 요청하기 — Enter 로 보내기 · Shift+Enter 줄바꿈', send:'보내기', back:'터미널 화면', exp:'원고로 내보내기',
+  ph:'이 책(세션)에 요청하기 — Enter 로 보내기 · Shift+Enter 줄바꿈', send:'보내기', back:'터미널 화면', exp:'⬇ 내보내기',
   req:'요청', working:'작업 중', work:'작업', tools:'도구 {n}번', files:'고친 파일 {n}개', noedit:'확인만 함', open:'작업 과정 펼치기', close:'접기', big:'크게 보기', small:'작게 보기',
   pending:'답변은 작업이 끝나면 이 자리에 들어옵니다.', sending:'보냈습니다. 세션이 받으면 새 쪽이 생깁니다.', more:'앞 대화 {n}개 더 불러오기', turns:'요청 {n}개',
   empty:'아직 대화가 없습니다. 아래에 요청을 적어 보세요.', unsup:'이 세션(GPT 등)은 아직 답변 읽기를 지원하지 않습니다. 터미널 화면에서 확인해 주세요.', min:'분', sec:'초', att:'첨부', noSess:'열려 있는 세션이 없습니다.'
 } : {
-  ph:'Ask this book (session) — Enter to send · Shift+Enter for a new line', send:'Send', back:'Terminal view', exp:'Export manuscript',
+  ph:'Ask this book (session) — Enter to send · Shift+Enter for a new line', send:'Send', back:'Terminal view', exp:'⬇ Export',
   req:'Request', working:'Working', work:'Work', tools:'{n} tool calls', files:'{n} files edited', noedit:'read only', open:'Show the work', close:'Hide', big:'Larger', small:'Smaller',
   pending:'The answer lands here when the work is done.', sending:'Sent. A new page appears once the session picks it up.', more:'Load {n} earlier requests', turns:'{n} requests',
   empty:'No conversation yet. Type a request below.', unsup:'Reading answers is not supported for this session type (e.g. GPT) yet. Use the terminal view.', min:'m', sec:'s', att:'attachment', noSess:'No open sessions.'
@@ -911,7 +976,7 @@ $('pgin').addEventListener('keydown', e => { if (e.key !== 'Enter') return; cons
   pr.addEventListener('pointerup', end); pr.addEventListener('pointercancel', end);
 }
 addEventListener('keydown', e => {
-  if (document.body.classList.contains('finding')) return;   // the search panel is open: keys belong to it
+  if (document.body.classList.contains('finding') || document.body.classList.contains('exporting')) return;   // the search / export panel is open: keys belong to it
   if (e.target === inp && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ) return;
   if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (e.target !== inp) { nav(-1); e.preventDefault(); } }
   else if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (e.target !== inp) { nav(1); e.preventDefault(); } }
@@ -1383,22 +1448,234 @@ askForm.addEventListener('submit', e => {
   setTimeout(poll, 1500);
 });
 
-// ── export: the whole conversation as a Markdown manuscript (## chapter per day, ### per request)
-$('exp').onclick = async () => {
-  if (!cur) return; const id = cur.id; let all = [], before;
-  for (;;) { const r = await api('GET', '/api/sessions/' + id + '/book?last=200' + (before !== undefined ? '&before=' + before : '')); if (!r || !r.turns || !r.turns.length) break; all = r.turns.concat(all); before = r.start; if (r.start <= 0) break; }
-  const demote = t => t.split('\n').map(l => /^#{1,3}\s/.test(l) ? '#### ' + l.replace(/^#+\s*/, '') : l).join('\n');
-  let out = '---\ntitle: ' + (cur.title || 'Session') + '\n---\n', day = '', ch = 0;
-  for (const t of all) {
-    if (!t.ans) continue;
-    const d = new Date(t.ts), p = n => String(n).padStart(2, '0'), dd = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-    if (dd !== day) { ch++; out += '\n## ' + ch + '. ' + dd + '\n\n'; day = dd; }
-    const one = t.req.replace(/\s+/g, ' ').trim();
-    out += '### ' + one.slice(0, 40) + (one.length > 40 ? '…' : '') + '\n\n> [!why] ' + T.req + ' · ' + fmtT(t.ts).slice(6) + '\n> ' + one.slice(0, 900) + '\n\n' + demote(t.ans) + '\n\n---\n\n';
+{ // ⬇ export: pick requests (default = the open spread), then PDF · picture (JPG) · Word · manuscript (.md) · Cromobook (sent to its "received text" box)
+  const X = KO ? { ttl:'⬇ 내보내기', close:'닫기', here:'📖 지금 펼친 쪽', all:'전체 고르기', none:'모두 빼기', tip:'Shift+클릭 = 사이를 한꺼번에', herel:'· 펼친 쪽',
+      n:'요청 {n}개 고름 · 전체 {t}개', loading:'대화 전체를 읽는 중…', empty:'내보낼 요청이 없습니다', fail:'대화를 읽지 못했습니다 — 창을 닫았다 다시 열어 주세요', fmt:'형식',
+      f: { pdf:['📄 PDF','인쇄 · 보관'], jpg:['🖼 그림 JPG','요청마다 한 장'], doc:['📝 Word','.doc · 한글에서도'], md:['📜 원고','.md 마크다운'], cromo:['📮 크라모북','받은 글로 보내기'] },
+      hint: { pdf:'보이는 모습 그대로 A4 쪽으로 만듭니다 — 표는 표로, 코드 · 인용 상자도 그대로. 요청마다 새 쪽에서 시작합니다.',
+              jpg:'보이는 모습 그대로, 요청 하나를 그림 한 장으로 찍습니다. 여러 개를 고르면 zip 파일 하나로 받습니다.',
+              doc:'Word 에서 열어 고칠 수 있는 문서(.doc)입니다. 표는 Word 표로 들어가고, 한글(HWP)에서도 열립니다. 요청마다 새 쪽에서 시작합니다.',
+              md:'다른 편집기 · 크라모북에서 다시 쓰는 글(마크다운)입니다. 날짜마다 장, 요청마다 쪽으로 나뉩니다.',
+              cromo:'내 크라모북의 받은 글로 바로 보냅니다. 크라모북에서 「📮 받은 글 담기」를 누르고 담을 책을 고르면 책이 됩니다 (날짜마다 장, 요청마다 쪽).' },
+      style:'모양: 지금 노트 스타일 「{s}」', go: { pdf:'PDF로 내보내기', jpg:'그림(JPG)으로 내보내기', doc:'Word로 내보내기', md:'원고(.md)로 내보내기', cromo:'크라모북으로 보내기' },
+      making:'만드는 중… {s}초', sending:'크라모북으로 보내는 중… {a}/{b}', saved:'✔ 받았습니다 — 다운로드 폴더의 「{f}」', sent:'✔ 크라모북 받은 글에 넣었습니다 ({n}개). 크라모북에서 「📮 받은 글 담기」를 누르세요 — ',
+      openCromo:'크라모북 열기', noBrowser:'이 PC 에서 크롬 · 엣지를 찾지 못해 PDF · 그림을 만들 수 없습니다. Word 나 원고로 내보내 주세요.', busy:'다른 내보내기가 아직 끝나지 않았습니다. 잠시 뒤 다시 눌러 주세요.',
+      bad:'만들지 못했습니다 ({e}). 다시 눌러 보고, 계속 안 되면 Word 나 원고로 내보내 주세요.',
+      crHow:'크라모북에 로그인 → 👤 계정 → 「글 보내는 방법 복사」를 누른 뒤, 복사된 글을 통째로 아래에 붙여 넣으세요. 한 번만 하면 이 브라우저가 기억합니다.',
+      crPh:'여기에 붙여 넣기 (Ctrl+V)', crBad:'크라모북 「글 보내는 방법 복사」로 복사한 글이 아닙니다. 주소(https://firestore.googleapis.com/…/cromoInbox/…/items)가 들어 있어야 합니다.',
+      crOk:'보낼 곳: 내 크라모북 받은 글함', crChange:'주소 바꾸기', crGone:'크라모북이 이 주소를 받지 않습니다 — 크라모북에서 주소를 새로 만들었다면 「글 보내는 방법 복사」를 다시 붙여 넣어 주세요.',
+      crFail:'크라모북에 보내지 못했습니다 ({e}). 인터넷 연결을 확인하고 다시 눌러 주세요.', part:' ({a}/{b})', cut:'\n\n…(너무 길어 여기까지 보냈습니다)' }
+    : { ttl:'⬇ Export', close:'Close', here:'📖 Open pages', all:'Select all', none:'Clear', tip:'Shift+click selects a range', herel:'· open',
+      n:'{n} of {t} requests selected', loading:'Reading the whole conversation…', empty:'Nothing to export', fail:'Could not read the conversation — close and open again', fmt:'Format',
+      f: { pdf:['📄 PDF','print · keep'], jpg:['🖼 JPG','one per request'], doc:['📝 Word','.doc'], md:['📜 Manuscript','.md Markdown'], cromo:['📮 Cromobook','to received text'] },
+      hint: { pdf:'Exactly as shown, on A4 pages — tables stay tables, code and quote boxes stay as they are. Each request starts a new page.',
+              jpg:'Exactly as shown, one picture per request. Several pictures come as one zip file.',
+              doc:'A document you can edit in Word (.doc). Tables become Word tables. Each request starts a new page.',
+              md:'Plain Markdown for other editors or Cromobook: a chapter per day, a page per request.',
+              cromo:'Sends straight to your Cromobook “received text”. In Cromobook press “📮 Take in” and pick a book (a chapter per day, a page per request).' },
+      style:'Look: current note style “{s}”', go: { pdf:'Export PDF', jpg:'Export JPG', doc:'Export Word', md:'Export manuscript (.md)', cromo:'Send to Cromobook' },
+      making:'Making… {s}s', sending:'Sending to Cromobook… {a}/{b}', saved:'✔ Saved — “{f}” in your Downloads', sent:'✔ Added to your Cromobook received text ({n}). Press “📮 Take in” in Cromobook — ',
+      openCromo:'Open Cromobook', noBrowser:'No Chrome or Edge found on this PC, so PDF and pictures cannot be made. Export Word or a manuscript instead.', busy:'Another export is still running. Try again in a moment.',
+      bad:'Could not make it ({e}). Try again; if it keeps failing, export Word or a manuscript.',
+      crHow:'Sign in to Cromobook → 👤 Account → “Copy how to send text”, then paste the whole copied text below. This browser remembers it.',
+      crPh:'Paste here (Ctrl+V)', crBad:'That is not the text from Cromobook’s “Copy how to send text”. It must contain the address (https://firestore.googleapis.com/…/cromoInbox/…/items).',
+      crOk:'Sending to: my Cromobook received text', crChange:'Change address', crGone:'Cromobook no longer accepts this address — if you made a new one, paste “Copy how to send text” again.',
+      crFail:'Could not send to Cromobook ({e}). Check the connection and try again.', part:' ({a}/{b})', cut:'\n\n…(too long; cut here)' };
+  const FMTS = ['pdf', 'jpg', 'doc', 'md', 'cromo'], CROMO = 'https://crownyclass.com/cromobook/';
+  const CR_RE = /https:\/\/firestore\.googleapis\.com\/v1\/projects\/[\w-]+\/databases\/\(default\)\/documents\/cromoInbox\/[0-9a-f]{32,}\/items/;
+  const bg = document.createElement('div'); bg.className = 'xpbg';
+  const box = document.createElement('div'); box.className = 'xp'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+  box.innerHTML = '<div class="xph"><b></b><span class="xpn"></span><button type="button" class="xpx">✕</button></div>'
+    + '<div class="xpbody"><div class="xpl"><div class="xpq"><button type="button" data-q="here"></button><button type="button" data-q="all"></button><button type="button" data-q="none"></button><span class="tip"></span></div><div class="xplist"></div></div>'
+    + '<div class="xpr"><h5></h5><div class="xpfm">' + FMTS.map(f => '<button type="button" data-f="' + f + '"><b></b><small></small></button>').join('') + '</div>'
+    + '<p class="xphint"></p><p class="xphint xpsty"></p>'
+    + '<div class="xpcr"><p class="how"></p><textarea spellcheck="false"></textarea><div class="row"><b></b><button type="button"></button></div><p><a href="' + CROMO + '" target="_blank" rel="noopener"></a></p></div>'
+    + '<button type="button" class="xpgo"></button><div class="xpbar"><i></i></div><div class="xpst" role="status"></div></div></div>';
+  document.body.append(bg, box);
+  const q = s => box.querySelector(s), list = q('.xplist'), st = q('.xpst'), go = q('.xpgo'), bar = q('.xpbar'), cr = q('.xpcr'), crIn = q('.xpcr textarea');
+  q('.xph b').textContent = X.ttl; q('.xpx').title = X.close; q('.xpq .tip').textContent = X.tip; q('.xpr h5').textContent = X.fmt; q('.xpcr .how').textContent = X.crHow;
+  crIn.placeholder = X.crPh; q('.xpcr .row button').textContent = X.crChange; q('.xpcr a').textContent = '↗ ' + X.openCromo;
+  ['here', 'all', 'none'].forEach(k => { q('[data-q="' + k + '"]').textContent = X[k]; });
+  FMTS.forEach(f => { const b = q('[data-f="' + f + '"]'); b.querySelector('b').textContent = X.f[f][0]; b.querySelector('small').textContent = X.f[f][1]; });
+
+  let turnsAll = [], sel = new Set(), seenNow = new Set(), lastK = -1, fmt = FMTS.includes(LSget('pt_book_xfmt', '')) ? LSget('pt_book_xfmt', '') : 'pdf', running = false, readSeq = 0;
+  const inbox = () => LSget('pt_cromo_inbox', '');
+  // the requests on the open spread (book: the two pages; phone/columns: every request that shows on this page)
+  function seen() {
+    const out = new Set();
+    if (pf) { const k = pf.getCurrentPageIndex(); [pfPages[k], pfPages[k + 1]].forEach(p => { if (p && p.dataset.i !== undefined) out.add(+p.dataset.i); }); }
+    else { const n = perView(), a = page * n, b = a + n - 1, ts = [...flow.querySelectorAll('.turn[data-i]')];
+      ts.forEach((t, j) => { const s = colOf(t), e = j + 1 < ts.length ? colOf(ts[j + 1]) - 1 : Infinity; if (s <= b && e >= a) out.add(+t.dataset.i); }); }
+    return out;
   }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out], { type: 'text/markdown' })); a.download = (cur.title || 'session').replace(/[\\/:*?"<>|]/g, '_') + '.md'; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-};
+  async function readAll() {
+    const id = cur.id; let out = [], before;
+    for (;;) { const r = await api('GET', '/api/sessions/' + id + '/book?last=200' + (before !== undefined ? '&before=' + before : '')); if (!r || !r.turns) { if (!out.length) throw new Error('read'); break; } if (!r.turns.length) break; out = r.turns.concat(out); before = r.start; if (r.start <= 0) break; }
+    return out.filter(t => (t.req || '').trim() || (t.ans || '').trim());
+  }
+  const picked = () => turnsAll.filter(t => sel.has(t.i));   // oldest first, like the book
+  function paintCount() {
+    q('.xpn').textContent = turnsAll.length ? X.n.replace('{n}', sel.size).replace('{t}', turnsAll.length) : '';
+    list.querySelectorAll('.xpit').forEach(r => { const on = sel.has(+r.dataset.i); r.classList.toggle('on', on); r.querySelector('input').checked = on; r.setAttribute('aria-checked', on); });
+    paintGo();
+  }
+  function paintList() {
+    if (!turnsAll.length) { list.innerHTML = '<div class="none">' + esc(X.empty) + '</div>'; return paintCount(); }
+    list.innerHTML = turnsAll.slice().reverse().map((t, k) => { const one = (t.req || '').replace(/\s+/g, ' ').trim() || '—';
+      return '<div class="xpit' + (seenNow.has(t.i) ? ' here' : '') + '" role="checkbox" tabindex="0" data-i="' + t.i + '" data-k="' + k + '"><input type="checkbox" tabindex="-1" aria-hidden="true"><small data-here="' + esc(X.herel) + '">' + esc(fmtT(t.ts)) + '</small><span>' + esc(one.slice(0, 160)) + '</span></div>'; }).join('');
+    paintCount();
+    const h = list.querySelector('.xpit.on'); if (h) h.scrollIntoView({ block: 'center' });
+  }
+  function paintFmt() {
+    box.querySelectorAll('.xpfm button').forEach(b => b.classList.toggle('on', b.dataset.f === fmt));
+    q('.xphint').textContent = X.hint[fmt];
+    const sty = q('.xpsty'), thm = document.querySelector('.thm.on span');
+    sty.style.display = (fmt === 'pdf' || fmt === 'jpg') && thm ? '' : 'none';
+    if (thm) sty.textContent = X.style.replace('{s}', thm.textContent + (document.documentElement.classList.contains('dark') ? (KO ? ' · 어둡게' : ' · dark') : ''));
+    cr.classList.toggle('on', fmt === 'cromo');
+    const has = !!inbox(); crIn.style.display = has ? 'none' : ''; q('.xpcr .how').style.display = has ? 'none' : ''; q('.xpcr .row').style.display = has ? '' : 'none';
+    q('.xpcr .row b').textContent = X.crOk;
+    paintGo();
+  }
+  function paintGo() { go.textContent = X.go[fmt]; go.disabled = running || !sel.size || (fmt === 'cromo' && !inbox()); }
+  function say(text, kind, html) { st.className = 'xpst' + (kind ? ' ' + kind : ''); if (html) st.innerHTML = html; else st.textContent = text || ''; }
+
+  async function open() {
+    if (!cur) return;
+    document.body.classList.add('exporting'); say(''); paintFmt();
+    seenNow = seen(); turnsAll = []; sel = new Set(); lastK = -1;
+    list.innerHTML = '<div class="none">' + esc(X.loading) + '</div>'; paintCount();
+    const my = ++readSeq;
+    try { const ts = await readAll(); if (my !== readSeq) return; turnsAll = ts; }
+    catch (e) { if (my === readSeq) list.innerHTML = '<div class="none">' + esc(X.fail) + '</div>'; return; }
+    turnsAll.forEach(t => { if (seenNow.has(t.i)) sel.add(t.i); });
+    if (!sel.size && turnsAll.length) sel.add(turnsAll[turnsAll.length - 1].i);   // nothing open (cover page): the latest request
+    paintList();
+  }
+  function close() { document.body.classList.remove('exporting'); readSeq++; }
+  $('exp').onclick = open;
+  q('.xpx').onclick = close; bg.onclick = close;
+  box.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') close(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('exporting')) close(); }, true);
+  q('.xpq').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.q === 'all') sel = new Set(turnsAll.map(t => t.i)); else if (b.dataset.q === 'none') sel.clear();
+    else { sel = new Set(); turnsAll.forEach(t => { if (seenNow.has(t.i)) sel.add(t.i); }); }
+    paintCount(); };
+  list.addEventListener('click', e => {
+    const r = e.target.closest('.xpit'); if (!r) return; e.preventDefault();
+    const k = +r.dataset.k, on = !sel.has(+r.dataset.i), rows = [...list.querySelectorAll('.xpit')];
+    if (e.shiftKey && lastK >= 0) rows.slice(Math.min(k, lastK), Math.max(k, lastK) + 1).forEach(x => on ? sel.add(+x.dataset.i) : sel.delete(+x.dataset.i));
+    else on ? sel.add(+r.dataset.i) : sel.delete(+r.dataset.i);
+    lastK = k; paintCount();
+  });
+  list.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && e.target.closest('.xpit')) { e.preventDefault(); e.target.closest('.xpit').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: e.shiftKey })); } });
+  q('.xpfm').onclick = e => { const b = e.target.closest('button'); if (!b) return; fmt = b.dataset.f; LSset('pt_book_xfmt', fmt); say(''); paintFmt(); };
+  crIn.addEventListener('input', () => {
+    const m = CR_RE.exec(crIn.value); if (!crIn.value.trim()) return say('');
+    if (!m) return say(X.crBad, 'bad');
+    LSset('pt_cromo_inbox', m[0]); crIn.value = ''; say(''); paintFmt();
+  });
+  q('.xpcr .row button').onclick = () => { try { localStorage.removeItem('pt_cromo_inbox'); } catch (e) {} paintFmt(); crIn.focus(); };
+
+  const baseName = () => (cur.title || 'session').replace(/[\\/:*?"<>|]/g, '_').trim().slice(0, 60) || 'session';
+  function save(blob, name) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    say(X.saved.replace('{f}', name), 'ok');
+  }
+  // the same page as on screen (current note style, fonts, colours), every request one after another — the PC's browser prints or photographs it
+  function pageHtml(ts) {
+    const root = document.documentElement, font = document.querySelector('link[href*="fonts.googleapis.com/css"]'), paper = getComputedStyle(root).getPropertyValue('--paper').trim() || '#fff';
+    const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n')
+      + '\nhtml, body { height: auto !important; overflow: visible !important; display: block !important; background: var(--paper) !important; margin: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+      + '\n.flow { columns: auto !important; column-count: auto !important; height: auto !important; width: auto !important; transform: none !important; position: static !important; padding: 0 !important; }'
+      + '\n.turn { break-before: page; padding: 30px 38px 34px; } .turn:first-child { break-before: auto; }'
+      + '\n.q { max-height: none !important; overflow: visible !important; } .a .tw { overflow: visible !important; }'
+      + '\n.a pre { max-height: none !important; overflow: visible !important; white-space: pre-wrap !important; overflow-wrap: anywhere; }'
+      + '\n.a table { max-width: 100%; } .a th, .a td { overflow-wrap: anywhere; }'
+      + '\n@page { size: A4; margin: 12mm 0; background: ' + paper + '; } @media print { .turn { padding-top: 0; padding-bottom: 0; } }';
+    const body = ts.map(t => '<section class="turn"><div class="q"><small>' + esc(T.req + ' · ' + fmtT(t.ts)) + '</small><span>' + reqHtml(t.req) + '</span></div><div class="a">' + md(t.ans) + '</div></section>').join('');
+    return '<!doctype html><html lang="' + root.lang + '" class="' + esc(root.className) + '"' + (root.dataset.look ? ' data-look="' + esc(root.dataset.look) + '"' : '') + ' style="' + esc(root.getAttribute('style') || '') + '"><head><meta charset="utf-8"><title>' + esc(cur.title || '') + '</title>'
+      + (font ? '<link rel="stylesheet" href="' + esc(font.href) + '">' : '') + '<style>' + css + '</style></head><body><main class="flow">' + body + '</main></body></html>';
+  }
+  // Word reads HTML saved as .doc — but not CSS variables, so the note style's colours are written out as plain values. Always on white paper.
+  function wordHtml(ts) {
+    const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim(), dark = document.documentElement.classList.contains('dark');
+    const ink = dark ? '#1f2330' : v('--ink') || '#1f2330', head = dark ? '#1f3a68' : v('--head') || ink, acc = (!dark && v('--qc')) || '#4f7cff';
+    const font = (v('--body') || 'serif').replace(/"/g, "'") + ", 'Malgun Gothic'";
+    const css = '@page Section1 { size: 595.3pt 841.9pt; margin: 54pt 50pt; } div.Section1 { page: Section1; }'
+      + ' body { font-family: ' + font + '; font-size: 11pt; line-height: 160%; color: ' + ink + '; }'
+      + ' h4 { font-size: 13pt; font-weight: bold; color: ' + head + '; margin: 12pt 0 4pt; } h5 { font-size: 11.5pt; font-weight: bold; color: ' + head + '; margin: 9pt 0 3pt; }'
+      + ' p { margin: 0 0 7pt; } li { margin: 2pt 0; } li.in1 { margin-left: 18pt; } li.in2 { margin-left: 36pt; }'
+      + ' table { border-collapse: collapse; margin: 0 0 8pt; } th, td { border: 1px solid #b9b4a6; padding: 3pt 6pt; vertical-align: top; font-size: 10pt; line-height: 130%; } th { background: #f0ede4; font-weight: bold; text-align: left; } p.c { margin: 0; }'
+      + ' pre { font-family: Consolas, monospace; font-size: 9pt; background: #f3f0e7; padding: 6pt 8pt; white-space: pre-wrap; } code { font-family: Consolas, monospace; font-size: 9.5pt; background: #f0ede4; }'
+      + ' blockquote { margin: 0 0 7pt; padding: 4pt 10pt; border-left: 3pt solid #cfc9b8; color: #4b5063; background: #f8f6ef; } a { color: #2f5be0; } hr { border: 0; border-top: 1px solid #ddd8c9; }';
+    const qbox = t => '<table width="100%" style="width:100%;margin:0 0 9pt"><tr><td style="border:none;border-left:3pt solid ' + acc + ';background:#eef3ff;padding:6pt 9pt;font-size:10pt">'
+      + '<p style="margin:0;line-height:130%"><span style="color:#5d6b8a;font-size:8.5pt">' + esc(T.req + ' · ' + fmtT(t.ts)) + '</span><br>' + reqHtml(t.req).replace(/\n/g, '<br>') + '</p></td></tr></table>';
+    // a new page per request: Word honours page-break-before on a paragraph (not on a <br> in the flow)
+    // and Word gives every table cell paragraph its own big spacing unless the text sits in a margin-less <p>
+    const cells = h => h.replace(/<(td|th)>/g, '<$1><p class="c">').replace(/<\/(td|th)>/g, '</p></$1>');
+    const body = ts.map((t, k) => (k ? '<p style="page-break-before:always;margin:0;font-size:1pt;line-height:1pt">&nbsp;</p>' : '') + qbox(t) + cells(md(t.ans))).join('');
+    return '﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>' + esc(cur.title || '') + '</title>'
+      + '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>' + css + '</style></head><body><div class="Section1">' + body + '</div></body></html>';
+  }
+  // Markdown manuscript: ## chapter per day, ### per request (Cromobook reads the same shape)
+  const demote = t => t.split('\n').map(l => /^#{1,3}\s/.test(l) ? '#### ' + l.replace(/^#+\s*/, '') : l).join('\n');
+  function mdParts(ts) {
+    let day = '', ch = 0; const out = [];
+    for (const t of ts) {
+      const d = new Date(t.ts), p = n => String(n).padStart(2, '0'), dd = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+      let s = ''; if (dd !== day) { ch++; s += '\n## ' + ch + '. ' + dd + '\n\n'; day = dd; }
+      const one = (t.req || '').replace(/\s+/g, ' ').trim();
+      s += '### ' + one.slice(0, 40) + (one.length > 40 ? '…' : '') + '\n\n> [!why] ' + T.req + ' · ' + fmtT(t.ts).slice(6) + '\n> ' + one.slice(0, 900) + '\n\n' + demote(t.ans || '') + '\n\n---\n\n';
+      out.push(s);
+    }
+    return out;
+  }
+  const front = () => '---\ntitle: ' + (cur.title || 'Session') + '\n---\n';
+  // Cromobook: POST to the owner's received-text address (write-only; text up to 100,000 characters per item, so long exports go in parts)
+  async function toCromo(ts) {
+    const url = inbox(), parts = mdParts(ts), chunks = [], LIM = 95000; let c = front();
+    for (let s of parts) { if (s.length > LIM) s = s.slice(0, LIM - 100) + X.cut; if (c.length + s.length > LIM) { chunks.push(c); c = ''; } c += s; }
+    if (c.trim()) chunks.push(c);
+    for (let k = 0; k < chunks.length; k++) {
+      say(X.sending.replace('{a}', k + 1).replace('{b}', chunks.length));
+      const title = ((cur.title || 'PowerTerminal') + (chunks.length > 1 ? X.part.replace('{a}', k + 1).replace('{b}', chunks.length) : '')).slice(0, 100);
+      let r;
+      try { r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { title: { stringValue: title }, text: { stringValue: chunks[k] }, from: { stringValue: 'PowerTerminal' } } }) }); }
+      catch (e) { return say(X.crFail.replace('{e}', e.message), 'bad'); }
+      if (r.status === 403 || r.status === 404) return say(X.crGone, 'bad');
+      if (!r.ok) return say(X.crFail.replace('{e}', 'HTTP ' + r.status), 'bad');
+    }
+    say('', 'ok', esc(X.sent.replace('{n}', chunks.length)) + '<a href="' + CROMO + '" target="_blank" rel="noopener">' + esc(X.openCromo) + ' ↗</a>');
+  }
+  go.onclick = async () => {
+    if (running || !sel.size || !cur) return;
+    const ts = picked(), name = baseName(); running = true; paintGo();
+    let tick = null;
+    try {
+      if (fmt === 'md') return save(new Blob([front() + mdParts(ts).join('')], { type: 'text/markdown' }), name + '.md');
+      if (fmt === 'doc') return save(new Blob([wordHtml(ts)], { type: 'application/msword' }), name + '.doc');
+      if (fmt === 'cromo') return await toCromo(ts);
+      // PDF · JPG: made on the PC (its Chrome prints / photographs the page) — show the time and a bar while it works
+      const t0 = Date.now(), est = 4000 + ts.length * (fmt === 'jpg' ? 700 : 250);
+      bar.classList.add('on'); bar.firstChild.style.width = '0';
+      const step = () => { const ms = Date.now() - t0; say(X.making.replace('{s}', Math.floor(ms / 1000))); bar.firstChild.style.width = Math.min(95, ms / est * 90) + '%'; };
+      step(); tick = setInterval(step, 500);
+      const r = await fetch('/api/export/render?token=' + TOKEN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fmt, name, html: pageHtml(ts) }) }).catch(e => ({ ok: false, status: 0, e }));
+      if (!r.ok) {
+        const j = r.json ? await r.json().catch(() => ({})) : {};
+        return say(j.error === 'no-browser' ? X.noBrowser : r.status === 429 ? X.busy : X.bad.replace('{e}', j.error || (r.e && r.e.message) || 'HTTP ' + r.status), 'bad');
+      }
+      const blob = await r.blob(), zip = /zip/.test(blob.type);
+      bar.firstChild.style.width = '100%';
+      save(blob, name + (fmt === 'pdf' ? '.pdf' : zip ? '-jpg.zip' : '.jpg'));
+    } finally {
+      clearInterval(tick); setTimeout(() => bar.classList.remove('on'), 600);
+      running = false; paintGo();
+    }
+  };
+}
 
 { // 🔍 search the whole session: a bar that slides down from the top (phone: swipe down on the page). Left = matching requests, right = the one picked.
   const F = KO ? { ph:'이 세션에서 찾을 말', btn:'🔍 검색', close:'닫기', go:'이 쪽으로 가기', loading:'대화 전체를 읽는 중…', none:'찾는 말이 없습니다', type:'찾을 말을 입력하세요', count:'{n}개 요청에서 찾음', req:'요청', pick:'왼쪽 목록에서 고르면 여기에 내용이 나옵니다', fail:'대화를 읽지 못했습니다' }
