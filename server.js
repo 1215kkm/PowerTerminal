@@ -2354,6 +2354,16 @@ const bookClean = t => String(t || '')
   .replace(/<command-(name|message|args)>[\s\S]*?<\/command-\1>/g, '')
   .replace(/\[SYSTEM NOTIFICATION[\s\S]*$/, '')
   .trim();
+/* 한 요청 안에서 AI 가 쓴 글 — 마지막 글이 답이고, 그 전에 한 말("~ 보겠습니다")은 「작업 과정」으로 내린다.
+   단, 앞 글이 이미 보고서(표·제목이 있거나 긴 글)면 지우지 않고 뒤 글을 이어 붙인다: 일하는 중에 끼어든 요청에
+   먼저 답하고 원래 일의 보고를 나중에 하면, 마지막 글만 남겨서는 앞 답이 통째로 사라졌다(2026-10-22 km-cafe24
+   네이버 광고 분석 답이 뒤의 가격 변경 보고에 덮임). */
+const bookReport = s => s.length > 400 || /^#{1,4}\s|^\|.*\|\s*$/m.test(s);
+function bookAnswer(t, text) {
+  if (t.ans && bookReport(t.ans)) { t.ans = (t.ans + '\n\n---\n\n' + text).slice(0, 60000); return; }
+  if (t.ans && t.notes.length < 60) { t.notes.push(t.ans.slice(0, 300)); if (t.log.length < 200) t.log.splice(Math.min(t.ansAt || 0, t.log.length), 0, { k: 'n', t: t.ans.slice(0, 600) }); }   // 앞서 한 말은 「작업 과정」으로
+  t.ans = text.slice(0, 60000); t.ansAt = t.log.length;                                    // 마지막 글 = 답변
+}
 function bookFeed(c, line) {
   if (!line || line[0] !== '{') return;
   let j; try { j = JSON.parse(line); } catch (e) { return; }
@@ -2368,14 +2378,27 @@ function bookFeed(c, line) {
     }
     text = bookClean(text);
     if (!text || /^This session is being continued|^Caveat:|^\[Request interrupted/.test(text)) return;
+    // 일하는 중에 보낸 요청이 나중에 보통 요청으로도 한 번 더 적히면 두 번 세지 않는다
+    if (c.queued && c.queued.some(q => q.text === text && ts - q.ts < 3600000)) return;
     c.cur = { ts, req: text.slice(0, 20000), ans: '', notes: [], steps: [], log: [], files: [], tools: 0, end: ts };
+    c.turns.push(c.cur);
+  } else if (j.type === 'attachment' && j.attachment && j.attachment.type === 'queued_command') {
+    /* AI 가 일하는 도중에 보낸 요청(끼어든 요청)은 user 메시지가 아니라 이 첨부로만 남는다 — 안 읽으면 노트에서 요청이
+       통째로 빠지고 그 답이 앞 요청의 답으로 붙는다(2026-10-22 km-cafe24: 41개 빠짐). 사람이 보낸 것만 — 작업 끝 알림
+       (task-notification)도 같은 모양으로 오지만 요청이 아니다. */
+    const a = j.attachment;
+    if (!(a.origin && a.origin.kind === 'human') || typeof a.prompt !== 'string') return;
+    const text = bookClean(a.prompt);
+    if (!text) return;
+    const qts = Date.parse(a.timestamp) || ts;
+    (c.queued = c.queued || []).push({ text, ts: qts }); if (c.queued.length > 20) c.queued.shift();
+    c.cur = { ts: qts, req: text.slice(0, 20000), ans: '', notes: [], steps: [], log: [], files: [], tools: 0, end: qts };
     c.turns.push(c.cur);
   } else if (j.type === 'assistant' && m && c.cur && Array.isArray(m.content)) {
     const t = c.cur; if (ts) t.end = ts;
     for (const x of m.content) {
       if (x.type === 'text' && x.text && x.text.trim()) {
-        if (t.ans && t.notes.length < 60) { t.notes.push(t.ans.slice(0, 300)); if (t.log.length < 200) t.log.splice(Math.min(t.ansAt || 0, t.log.length), 0, { k: 'n', t: t.ans.slice(0, 600) }); }   // 앞서 한 말은 「작업 과정」으로
-        t.ans = x.text.trim().slice(0, 60000); t.ansAt = t.log.length;                                    // 마지막 글 = 답변
+        bookAnswer(t, x.text.trim());
       } else if (x.type === 'tool_use') {
         t.tools++;
         const inp = x.input || {};
@@ -2443,8 +2466,7 @@ function bookFeedCodex(c, line) {
   if (ts) t.end = ts;
   if (it.type === 'AgentMessage') {
     const text = bookText(it.content).trim(); if (!text) return;
-    if (t.ans && t.notes.length < 60) { t.notes.push(t.ans.slice(0, 300)); if (t.log.length < 200) t.log.splice(Math.min(t.ansAt || 0, t.log.length), 0, { k: 'n', t: t.ans.slice(0, 600) }); }
-    t.ans = text.slice(0, 60000); t.ansAt = t.log.length;
+    bookAnswer(t, text);
     return;
   }
   let step = '';
