@@ -1319,6 +1319,10 @@
   .memo-colhead .mcopyall { padding: 2px 9px; font-size: 10px; border-radius: 5px; cursor: pointer;
                             border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; }
   .memo-colhead .mcopyall:hover { filter: brightness(.92); }
+  .memo-colhead .msendall { margin-left: auto; padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; cursor: pointer; border: none; color: #fff;
+                            background: linear-gradient(90deg, var(--violet), var(--pink)); transition: transform .1s, filter .15s; }
+  .memo-colhead .msendall:hover { filter: brightness(1.1); } .memo-colhead .msendall:active { transform: scale(.95); }
+  .memo-colhead .msendall:disabled { opacity: .4; cursor: default; filter: none; transform: none; }
   /* 요청 행에 마우스 올리면 ↑ (터미널에서 그 요청 위치로 이동) */
   .memo-row.mreq { position: relative; }
   .memo-row.mreq .mjump { position: absolute; right: 4px; top: 5px; width: 22px; height: 22px; padding: 0;
@@ -2222,7 +2226,7 @@ const I18N = {
     mindAddRoot:'Add root', mindAddRootT:'Add another root map', mindAddRootHere:'Add a root here',
     mindExport:'Save image', mindExportT:'Save the map as a PNG image', mindExportOne:'Selected root only', mindExportAll:'Whole map', mindExportPick:'Save which as an image?',
     mindOneWay:'One-way', mindTwoWay:'Two-way', mindLeftWay:'Point left', mindRightWay:'Point right', mindNotePh:'Note about this connection…',
-    memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal',
+    memoNoSess:'Open a session for this folder first, then send.', memoSent:'Sent to the terminal', memoSendAll:'Send all', memoSendAllT:'Send every memo here to the session terminal as one request (numbered in the order you wrote them). Sent memos leave this list — you can still find them under your requests.', memoSentN:'Sent {n} memos to the terminal', memoAllHead:'Here are {n} requests I noted down. Please do them in this order.',
     memoJumpT:'Jump to this request in the terminal', memoJumpNoSess:'This folder\'s session is not open', memoJumpMiss:'Not found in the terminal scrollback (it may have scrolled out or the session restarted)',
     cancelReqT:'Stops only the request in progress (sends ESC) — does not undo finished work',
     advT: 'advisor — before Claude answers, a stronger model reviews the whole conversation. The model shown here is that reviewer. Changing it applies to newly opened sessions (this conversation switches after /clear or /compact).', advOff: 'off', advPick: 'Select advisor', micIos: 'On iPhone, use the 🎤 dictation key on the keyboard', advApply: 'applies to newly opened sessions', advWeak: 'That reviewer is weaker than this session model, so Claude will not turn it on', advFail: 'Couldn\'t save the setting',
@@ -2254,7 +2258,7 @@ const I18N = {
     previewNoIndex:'이 폴더에 index.html이 없어서 바로 보여줄 화면이 없어요. 폴더에 index.html을 만들거나, 개발서버를 켜고 그 주소(예: http://localhost:3000)를 입력하세요.',
     mDefaultLong:'자동 — Opus',
     memoDoneCol:'완료된 항목', wtRemovedT:'작업한 게 없어서 트리(분리 작업 폴더)를 지웠어요', wtKeptT:'트리에 바뀐 파일이 있어 폴더는 남겨 뒀어요 — 원래 브랜치로 합치거나 직접 지우세요', reqSearchPh:'🔍 요청 검색', reqSearchNone:'찾는 요청이 없어요', memoReqCol:'요청했던 내역들', memoEmpty:'메모가 없어요 — 아래에 입력하세요.', memoDelT:'삭제',
-    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 작업이 끝나면 완료된 항목으로 이동', reqResendT:'이 요청을 터미널로 다시 보내기', reqCopy:'복사', reqCopyT:'이 요청 글을 복사', txTitle:'글 복사', txAll:'전체 복사', txHint:'글자를 길게 눌러 원하는 부분을 고른 뒤 「복사」를 누르세요.', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
+    memoSend:'전송', memoSendTip:'이 메모를 세션 터미널로 전송 — 보내면 메모에서 빠지고, 오른쪽 요청 내역에 남아요', memoSendAll:'모두 전송', memoSendAllT:'여기 메모를 전부 한 요청으로 세션 터미널에 보내요 (적은 순서대로 번호를 붙여서). 보낸 메모는 여기서 빠지고, 오른쪽 요청 내역에 남아요.', memoSentN:'메모 {n}개를 터미널로 보냈어요', memoAllHead:'메모해 둔 요청 {n}개예요. 이 순서대로 해 주세요.', reqResendT:'이 요청을 터미널로 다시 보내기', reqCopy:'복사', reqCopyT:'이 요청 글을 복사', txTitle:'글 복사', txAll:'전체 복사', txHint:'글자를 길게 눌러 원하는 부분을 고른 뒤 「복사」를 누르세요.', reqDelT: '이 요청을 기록에서 지우기', reqDelAsk: '이 요청을 기록에서 지울까요?', reqCleared: '중지한 요청글을 입력칸에서 지웠어요', reqDelOld: 'PT를 다시 켜면 기록에서 지울 수 있어요',
     memoEdit:'수정', memoDelBtn:'삭제', memoDelConfirm:'이 메모를 삭제할까요?', memoEditSaveT:'저장 (Enter)', memoEditCancelT:'수정 취소 (Esc)',
     memoExport:'엑셀', memoExportAllT:'모든 세션의 메모·요청내역을 서식 있는 엑셀 파일 하나로 저장',
     memoNewCol:'새 메모들', memoCopy:'복사', memoCopyT:'이 글을 클립보드로 복사',
@@ -13763,6 +13767,9 @@ async function openMemo(sess) {
   };
   colHead('memoNewH', T.memoNewCol || 'New memos',
     () => (memoData.items || []).filter(i => !i.done).map(i => fmtMemoDate(i.ts) + '  ' + i.text));
+  { const h = document.getElementById('memoNewH'), b = document.createElement('button');
+    b.className = 'msendall'; b.title = T.memoSendAllT || ''; b.onclick = ev => { ev.stopPropagation(); sendAllMemos(); };
+    h.querySelector('.mcopyall').before(b); }
   colHead('memoDoneH', T.memoQaCol || 'Questions & answers',
     () => (memoData.reqs || []).filter(r => r.q).map(r => fmtMemoDate(r.ts) + '  ' + r.text + (r.answer ? '\n  💬 ' + String(r.answer).replace(/\n/g, '\n  ') : '')));
   const mrs = document.getElementById('memoReqSearch');
@@ -13784,7 +13791,7 @@ async function openMemo(sess) {
   cols.forEach((col, i) => {
     setFold(col, i > 0);   // 열 때 기본: 새 메모만 펼침 (넓은 화면에선 CSS가 무시)
     col.querySelector('.memo-colhead').onclick = ev => {
-      if (!narrow() || ev.target.closest('.mcopyall')) return;   // 📋 전체복사 클릭은 그대로
+      if (!narrow() || ev.target.closest('.mcopyall, .msendall')) return;   // 📋 전체복사 클릭은 그대로
       const wasFolded = col.classList.contains('mcollapsed');
       cols.forEach(c => setFold(c, c !== col || !wasFolded));    // 접힌 걸 누르면 그것만 펼침 · 펼친 걸 누르면 다 접힘
     };
@@ -13803,6 +13810,7 @@ async function openMemo(sess) {
 }
 function renderMemo() {
   const items = (memoData.items || []).filter(i => !i.done);
+  { const b = document.querySelector('#memoNewH .msendall'); if (b) { b.textContent = '📤 ' + (T.memoSendAll || 'Send all') + (items.length ? ' (' + items.length + ')' : ''); b.disabled = !items.length; } }
   const boxI = document.getElementById('memoItems'); boxI.innerHTML = '';
   if (!items.length) boxI.innerHTML = `<div class="memo-empty">${esc(T.memoEmpty || '')}</div>`;
   items.forEach(it => {
@@ -14329,16 +14337,33 @@ function copyTxt(t) {
 function memoPane() {
   return [...panes.values()].find(p => normPath(p.sess.path) === normPath(memoPath)) || null;
 }
-// 📤 메모를 세션 터미널로 전송 — 요청내역에 기록되고, 작업이 끝나면(완료 신호 3초 유지) 완료된 항목으로 이동
+// 📤 메모를 세션 터미널로 전송 — 요청내역에 기록되고, 메모에서는 바로 빠진다
 function sendMemoToTerminal(it) {
   const p = memoPane();
   if (!p || !p.sendText || !p.sendText(it.text)) { alert(T.memoNoSess || 'Open a session for this folder first.'); return; }
-  const list = memoPending.get(p.sess.id) || [];
-  list.push({ path: memoPath, id: it.id });
-  memoPending.set(p.sess.id, list);
+  memoMarkSent([it]);   // 보낸 메모는 바로 메모에서 뺀다 — 작업이 끝날 때까지 남아 있으면 또 보낼 것처럼 보인다(2026-10-24 CEO). 보낸 글은 요청 내역에 남는다
   closeMemo();
   flashToast(T.memoSent || 'Sent');
   p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+// 📤 모두 전송 — 새 메모 전부를 한 요청으로 (적은 순서대로 번호). 여러 번 나눠 보내면 일하는 중에 끼어든 요청이 되어 섞이기 쉽다
+function sendAllMemos() {
+  const items = (memoData.items || []).filter(i => !i.done).sort((a, b) => (a.ts || 0) - (b.ts || 0));   // 화면은 최신이 위 — 보낼 땐 적은 순서대로
+  if (!items.length) return;
+  if (items.length === 1) return sendMemoToTerminal(items[0]);
+  const text = (T.memoAllHead || 'Here are {n} requests. Please do them in this order.').replace('{n}', items.length) + '\n\n'
+             + items.map((it, k) => (k + 1) + '. ' + it.text.trim()).join('\n\n');
+  const p = memoPane();
+  if (!p || !p.sendText || !p.sendText(text)) { alert(T.memoNoSess || 'Open a session for this folder first.'); return; }
+  memoMarkSent(items);
+  closeMemo();
+  flashToast((T.memoSentN || 'Sent {n}').replace('{n}', items.length));
+  p.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+async function memoMarkSent(items) {
+  const path = memoPath; let last = null;
+  for (const it of items) { const r = await api('POST', '/api/memos/toggle', { path, id: it.id, done: true }); if (r && r.memo) last = r.memo; }
+  if (last && memoDlg.open && normPath(path) === normPath(memoPath)) { memoData = last; renderMemo(); }
 }
 // 요청 텍스트 → 터미널에서 찾을 검색어: 첫 줄에서 공백을 전부 빼고 24자 —
 // 터미널이 단어 단위로 줄을 바꾸거나 간격을 바꿔도 공백 무시 비교로 찾아짐
