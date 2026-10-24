@@ -1776,9 +1776,10 @@ askForm.addEventListener('submit', e => {
     close(); const id = cur.id;
     for (let n = 0; n < 40 && cur && cur.id === id && start > i && start > 0; n++) await loadEarlier();
     if (!cur || cur.id !== id) return;
-    if (pf) { const k = pfPages.findIndex(p => p.dataset.i === String(i)); if (k >= 0) { pf.turnToPage(k - (k % 2)); flipUi(); } return; }
+    // 검색으로 옮길 때도 쪽을 넘긴다 — 순간 이동이면 책장을 넘긴 느낌이 없다(2026-10-24 사장님). go() 가 넘김 효과·소리 설정을 따른다
+    if (pf) { const k = pfPages.findIndex(p => p.dataset.i === String(i)); if (k >= 0) go(Math.floor(k / 2)); return; }
     const el = flow.querySelector('.turn[data-i="' + i + '"]'); if (!el) return;
-    go(Math.floor(colOf(el) / perView()), true);
+    go(Math.floor(colOf(el) / perView()));
     el.classList.add('found'); setTimeout(() => el.classList.remove('found'), 1600);
   }
   let rt;
