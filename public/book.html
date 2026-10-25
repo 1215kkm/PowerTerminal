@@ -535,12 +535,23 @@ $('inp').placeholder = innerWidth <= 820 ? T.ph.split(' — ')[0] : T.ph; $('sen
 const api = (method, url, body) => fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(r => r.json()).catch(() => null);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
+/* addresses → clickable links, on text that is already escaped. Catches http(s)://…, www.… and bare domains with a common
+   ending (crownyclass.com/go/x). An address stops at Korean text, so "https://a.com/x에서" links only the address.
+   Not after = ' " > / @ . - or a letter, so href="…", link text and e-mail addresses are left alone. */
+const URL_RX = /(^|[^"'=\w>\/@.\-])((?:https?:\/\/|www\.)[^\s<>)*ㄱ-ㆎ가-힣]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|kr|dev|app|ai|me|co|xyz|site|shop|link|page)(?:\/[^\s<>)*ㄱ-ㆎ가-힣]*)?(?![\w-]|\.\w))/gi;
+function linkify(h) {
+  return h.replace(URL_RX, (m, p, u) => {
+    const t = (u.match(/(?:[.,;:!?'\]]|&quot;|&#39;)+$/) || [''])[0]; if (t) u = u.slice(0, -t.length);
+    if (!u) return m;
+    return p + '<a href="' + (/^https?:/i.test(u) ? u : 'https://' + u) + '" target="_blank" rel="noopener">' + u + '</a>' + t;
+  });
+}
 // ── small markdown renderer (headings, lists, tables, code, quotes, links) — enough for assistant answers
 function inline(s) {
   const keep = [];
-  s = esc(s).replace(/`([^`]+)`/g, (m, c) => { keep.push(/^https?:\/\/[^\s<]+$/.test(c) ? '<a href="' + c + '" target="_blank" rel="noopener"><code>' + c + '</code></a>' : '<code>' + c + '</code>'); /* an address written as code is still a link */ return '\u0001' + (keep.length - 1) + '\u0001'; });
-  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-       .replace(/(^|[^"'=\w>\/])(https?:\/\/[^\s<)*]+)/g, (m, p, u) => { const t = (u.match(/(?:[.,;:!?'\]]|&quot;|&#39;)+$/) || [''])[0]; if (t) u = u.slice(0, -t.length); return p + '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>' + t; })   // bare address anywhere (also inside **bold**), trailing punctuation left out
+  s = esc(s).replace(/`([^`]+)`/g, (m, c) => { keep.push(/^https?:\/\/[^\s<]+$/.test(c) ? '<a href="' + c + '" target="_blank" rel="noopener"><code>' + c + '</code></a>' : '<code>' + linkify(c) + '</code>'); /* an address written as code is still a link, also one inside a command */ return '\u0001' + (keep.length - 1) + '\u0001'; });
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, (m, x, u) => { keep.push('<a href="' + u + '" target="_blank" rel="noopener">' + x + '</a>'); return '\u0001' + (keep.length - 1) + '\u0001'; });   // kept aside so an address in the link text is not linked again
+  s = linkify(s)   // bare address anywhere (also inside **bold**), trailing punctuation left out
        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
   return s.replace(/\u0001(\d+)\u0001/g, (m, i) => keep[+i]);
 }
@@ -549,7 +560,7 @@ function md(src) {
   const flush = () => { if (para.length) { out += '<p>' + para.map(inline).join('<br>') + '</p>'; para = []; } };
   while (i < L.length) {
     const l = L[i];
-    if (/^\s*```/.test(l)) { flush(); const b = []; i++; while (i < L.length && !/^\s*```/.test(L[i])) b.push(L[i++]); i++; out += '<pre><code>' + esc(b.join('\n')) + '</code></pre>'; continue; }
+    if (/^\s*```/.test(l)) { flush(); const b = []; i++; while (i < L.length && !/^\s*```/.test(L[i])) b.push(L[i++]); i++; out += '<pre><code>' + linkify(esc(b.join('\n'))) + '</code></pre>'; continue; }
     if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < L.length && /^\s*\|[\s:|-]+\|\s*$/.test(L[i + 1])) {
       flush(); const row = x => x.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
       let h = '<div class="tw"><table><thead><tr>' + row(l).map(c => '<th>' + inline(c) + '</th>').join('') + '</tr></thead><tbody>'; i += 2;
@@ -597,7 +608,7 @@ liveBox.querySelector('.bigbtn').onclick = () => { liveBox.classList.toggle('big
 
 const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 60 ? Math.round(s / 60) + T.min : s + T.sec; };
-const reqHtml = t => esc(t).replace(/(^|[\s(])(https?:\/\/[^\s<)*]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>').replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '<span class="att">📎 ' + T.att + ' .' + ext.toLowerCase() + '</span>');
+const reqHtml = t => linkify(esc(t)).replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '<span class="att">📎 ' + T.att + ' .' + ext.toLowerCase() + '</span>');
 
 function turnEl(t) {
   const el = document.createElement('article'); el.className = 'turn'; el.dataset.i = t.i; el.dataset.day = fmtT(t.ts).slice(0, 5);
@@ -622,7 +633,7 @@ function fillTurn(el, t, isLive) {
     const sum = [fmtDur(t.end - t.ts), T.tools.replace('{n}', t.tools), t.files.length ? T.files.replace('{n}', t.files.length) : T.noedit].join(' · ');
     slot.innerHTML = '<div class="work' + (wasOpen ? ' open' : '') + '"><div class="wh"><i class="dot"></i><b>' + T.work + '</b><span>' + esc(sum) + '</span><button type="button">' + (wasOpen ? T.close : T.open) + '</button></div><div class="steps">'
       + t.files.map(f => '<div class="f" title="' + esc(f) + '">✎ ' + esc(f.split(/[\\/]/).slice(-2).join('/')) + '</div>').join('')
-      + t.steps.map(s => '<div title="' + esc(s) + '">· ' + esc(s) + '</div>').join('') + '</div></div>';
+      + t.steps.map(s => '<div title="' + esc(s) + '">· ' + linkify(esc(s)) + '</div>').join('') + '</div></div>';
   }
   return true;
 }

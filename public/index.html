@@ -564,13 +564,15 @@
   /* 전송 줄 — 버튼은 입력창과 같은 폭, 남는 오른쪽 자리(위 버튼 묶음과 같은 폭)에 마지막 완료 시각 */
   .quick .qSendRow { display: flex; align-items: center; gap: 6px; }
   /* 왼쪽=이름(두 줄) · 오른쪽=날짜/시각(두 줄). 시각만 있으면 며칠 전 건지 알 수 없어 날짜를 같이 둔다 */
-  .quick .qLast { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
-                  line-height: 1.25; font-size: 10px; font-weight: 700; color: var(--muted); }
+  /* 세 줄: 최근(날짜) · 시작(시각) · 작업(요청 하나에 걸린 총 시간). 전송 버튼 높이를 넘지 않게 글자를 작게 */
+  .quick .qLast { flex: 0 0 auto; display: grid; grid-template-columns: auto auto; align-items: baseline; align-content: center;
+                  justify-content: center; column-gap: 5px; line-height: 1.1; font-size: 9px; font-weight: 700; color: var(--muted); }
   .quick .qLast:empty { display: none; }
-  .quick .qLast .ql-lab { text-align: center; word-break: keep-all; }
-  .quick .qLast .ql-val { text-align: right; white-space: nowrap; }
-  .quick .qLast .ql-val i { display: block; font-style: normal; font-size: 11px; color: var(--fg); }
-  .quick .qLast b { display: block; font-size: 12px; color: var(--sky); font-weight: 700; }
+  .quick .qLast .ql-lab { text-align: center; white-space: nowrap; }
+  .quick .qLast i, .quick .qLast b, .quick .qLast u { text-align: right; white-space: nowrap; font-style: normal; text-decoration: none; font-size: 10px; }
+  .quick .qLast i { color: var(--fg); }
+  .quick .qLast b { color: var(--sky); font-weight: 700; }
+  .quick .qLast u { color: #fbbf24; }
   .quick .qSend { flex: 1 1 auto; width: 100%; font-weight: 700; background: linear-gradient(90deg, var(--violet), var(--pink));
                   padding: 10px 12px;                                        /* PC: 기존의 1.5배 높이 */
                   transition: transform .08s ease, filter .08s ease; }
@@ -2568,7 +2570,7 @@ const I18N_MORE = {
     guideFoldT: "Click to fold / unfold",
     guideGotoT: "Click: point at this step",
     guideCheckT: "Check / uncheck",
-    lastDone: "last work", lastDoneT: "When this session last finished a request, kept across reloads.",
+    lastDone: "last start", workDur: "work", lastDoneT: "When the last finished request started, and how long it took in total. Kept across reloads.",
     flowQueued: "Handed to “{t}” — it is still working, so it goes out the moment it finishes.",
     fs_report: "Report",
     fsp_report: "The other sessions in this flow have finished their part. Go into each folder below, read `git log --oneline -5` and `git diff` (or `git log -p -3` if committed), and put it together on one page. Do not edit any code and do not merge — this step only collects. Structure it as: 1) what changed, one line per session 2) issues found and how they ended 3) what is still open 4) what needs a human decision.",
@@ -2707,7 +2709,7 @@ const I18N_MORE = {
     guideFoldT: "눌러서 접기 / 펴기",
     guideGotoT: "누르면 이 단계를 짚어 줘요",
     guideCheckT: "체크 / 체크 풀기",
-    lastDone: "최근 작업", lastDoneT: "이 세션이 마지막으로 요청을 끝낸 날짜와 시각. 새로고침해도 남습니다.",
+    lastDone: "최근 시작", workDur: "작업", lastDoneT: "이 세션이 마지막으로 끝낸 요청을 시작한 날짜·시각과, 그 요청에 걸린 총 작업 시간. 새로고침해도 남습니다.",
     flowQueued: "“{t}” 로 넘겼어요 — 지금 작업 중이라 끝나는 대로 들어갑니다.",
     fs_report: "보고",
     fsp_report: "이 흐름의 세션들이 각자 맡은 걸 끝냈어. 아래 폴더를 하나씩 들어가서 `git log --oneline -5` 와 `git diff`(커밋됐으면 `git log -p -3`)를 읽고 한 장으로 정리해줘. 코드는 고치지 말고 합치지도 마 — 이 단계는 모으기만 하는 거야. 정리는 이렇게: ① 무엇이 바뀌었나(세션별 한 줄) ② 발견된 문제와 처리 결과 ③ 아직 남은 것 ④ 사람이 결정해야 할 것.",
@@ -2823,7 +2825,7 @@ const I18N_MORE = {
     flowSortT: "ウィンドウをフローの順に並べ替え — 同じリポジトリのセッションをまとめ、矢印の順に。保存されるので再起動後もそのままです。",
     flowSortDone: "フローの順に並べ替えました。",
     flowSortSame: "すでにフローの順です。",
-    lastDone: "最近の作業", lastDoneT: "このセッションが最後にリクエストを終えた日時。再読み込みしても残ります。",
+    lastDone: "最近 開始", workDur: "作業", lastDoneT: "このセッションが最後にリクエストを終えた日時。再読み込みしても残ります。",
     flowQueued: "「{t}」へ渡しました — いま作業中なので、終わり次第送られます。",
     fs_report: "報告",
     fsp_report: "この流れのセッションが各担当を終えました。下のフォルダに1つずつ入り、`git log --oneline -5` と `git diff`(コミット済みなら `git log -p -3`)を読んで1枚にまとめてください。コードは直さず、統合もしないでください — この段階は集めるだけです。構成: ①何が変わったか(セッションごとに1行) ②見つかった問題とその結末 ③残っていること ④人が決めるべきこと。",
@@ -3107,7 +3109,7 @@ const I18N_MORE = {
     flowSortT: "按流程顺序排列窗口 —— 同一仓库的会话放在一起，按箭头顺序。会保存，重启后依然如此。",
     flowSortDone: "已按流程顺序排列。",
     flowSortSame: "已经是流程顺序了。",
-    lastDone: "最近作业", lastDoneT: "这个会话最后一次完成请求的日期和时间。刷新后仍保留。",
+    lastDone: "最近 开始", workDur: "用时", lastDoneT: "这个会话最后一次完成请求的日期和时间。刷新后仍保留。",
     flowQueued: "已交给「{t}」—— 它还在忙，一结束就会发过去。",
     fs_report: "汇报",
     fsp_report: "这条流程里的会话各自都做完了。逐个进入下面的文件夹，读 `git log --oneline -5` 和 `git diff`(已提交就 `git log -p -3`)，汇总成一页。不要改代码，也不要合并 —— 这一步只负责收集。结构：①改了什么(每个会话一行) ②发现的问题及处理结果 ③还剩什么 ④需要人来决定的事。",
@@ -3391,7 +3393,7 @@ const I18N_MORE = {
     flowSortT: "Ordenar los paneles según el flujo — las sesiones de un mismo repo juntas, en orden de las flechas. Se guarda, así que un reinicio lo conserva.",
     flowSortDone: "Paneles ordenados según el flujo.",
     flowSortSame: "Ya están en orden de flujo.",
-    lastDone: "último trabajo", lastDoneT: "Cuándo terminó esta sesión su última petición. Se conserva al recargar.",
+    lastDone: "último inicio", workDur: "duración", lastDoneT: "Cuándo terminó esta sesión su última petición. Se conserva al recargar.",
     flowQueued: "Pasado a “{t}” — sigue trabajando, así que saldrá en cuanto termine.",
     fs_report: "Informe",
     fsp_report: "Las demás sesiones de este flujo han terminado su parte. Entra en cada carpeta de abajo, lee `git log --oneline -5` y `git diff` (o `git log -p -3` si está confirmado) y reúnelo todo en una página. No edites código ni fusiones nada: este paso solo recopila. Estructúralo así: 1) qué cambió, una línea por sesión 2) problemas encontrados y cómo acabaron 3) qué queda abierto 4) qué necesita una decisión humana.",
@@ -3682,7 +3684,7 @@ const I18N_MORE = {
     flowSortT: "Fenster nach dem Ablauf sortieren — Sitzungen eines Repos zusammen, in Pfeilreihenfolge. Wird gespeichert und übersteht einen Neustart.",
     flowSortDone: "Nach dem Ablauf sortiert.",
     flowSortSame: "Schon in Ablaufreihenfolge.",
-    lastDone: "letzte Arbeit", lastDoneT: "Wann diese Sitzung zuletzt eine Anfrage beendet hat. Bleibt nach dem Neuladen erhalten.",
+    lastDone: "letzter Start", workDur: "Dauer", lastDoneT: "Wann diese Sitzung zuletzt eine Anfrage beendet hat. Bleibt nach dem Neuladen erhalten.",
     flowQueued: "An „{t}“ übergeben — sie arbeitet noch, es geht raus, sobald sie fertig ist.",
     fs_report: "Bericht",
     fsp_report: "Die anderen Sitzungen dieses Ablaufs sind mit ihrem Teil fertig. Geh in jeden Ordner unten, lies `git log --oneline -5` und `git diff` (oder `git log -p -3`, wenn committet), und fasse alles auf einer Seite zusammen. Ändere keinen Code und führe nichts zusammen — dieser Schritt sammelt nur. Gliederung: 1) was sich geändert hat, je Sitzung eine Zeile 2) gefundene Probleme und wie sie endeten 3) was offen ist 4) was ein Mensch entscheiden muss.",
@@ -3965,7 +3967,7 @@ const I18N_MORE = {
     flowSortT: "Trier les panneaux selon le flux — les sessions d’un même dépôt ensemble, dans l’ordre des flèches. Enregistré, donc conservé au redémarrage.",
     flowSortDone: "Panneaux triés selon le flux.",
     flowSortSame: "Déjà dans l’ordre du flux.",
-    lastDone: "dernier travail", lastDoneT: "Quand cette session a terminé sa dernière demande. Conservé après rechargement.",
+    lastDone: "dernier début", workDur: "durée", lastDoneT: "Quand cette session a terminé sa dernière demande. Conservé après rechargement.",
     flowQueued: "Transmis à « {t} » — elle travaille encore, ça partira dès qu’elle aura fini.",
     fs_report: "Rapport",
     fsp_report: "Les autres sessions de ce flux ont fini leur part. Entre dans chacun des dossiers ci-dessous, lis `git log --oneline -5` et `git diff` (ou `git log -p -3` si c’est commité), et rassemble tout sur une page. Ne modifie pas le code et ne fusionne rien : cette étape ne fait que rassembler. Structure : 1) ce qui a changé, une ligne par session 2) problèmes trouvés et leur issue 3) ce qui reste ouvert 4) ce qui demande une décision humaine.",
@@ -4251,7 +4253,7 @@ const I18N_MORE = {
     flowSortT: "Ordenar os painéis pelo fluxo — sessões do mesmo repo juntas, na ordem das setas. Fica salvo, então sobrevive a um reinício.",
     flowSortDone: "Painéis ordenados pelo fluxo.",
     flowSortSame: "Já estão na ordem do fluxo.",
-    lastDone: "último trabalho", lastDoneT: "Quando esta sessão terminou o último pedido. Continua após recarregar.",
+    lastDone: "último início", workDur: "duração", lastDoneT: "Quando esta sessão terminou o último pedido. Continua após recarregar.",
     flowQueued: "Passado para “{t}” — ainda está trabalhando, vai assim que terminar.",
     fs_report: "Relatório",
     fsp_report: "As outras sessões deste fluxo terminaram a parte delas. Entre em cada pasta abaixo, leia `git log --oneline -5` e `git diff` (ou `git log -p -3` se estiver commitado) e junte tudo em uma página. Não edite código nem faça merge — esta etapa só reúne. Estrutura: 1) o que mudou, uma linha por sessão 2) problemas encontrados e como terminaram 3) o que ainda está aberto 4) o que precisa de decisão humana.",
@@ -4537,7 +4539,7 @@ const I18N_MORE = {
     flowSortT: "Упорядочить окна по потоку — сессии одного репозитория вместе, в порядке стрелок. Сохраняется и переживает перезапуск.",
     flowSortDone: "Окна упорядочены по потоку.",
     flowSortSame: "Уже в порядке потока.",
-    lastDone: "последняя работа", lastDoneT: "Когда эта сессия в последний раз закончила запрос. Сохраняется после перезагрузки.",
+    lastDone: "последний старт", workDur: "время", lastDoneT: "Когда эта сессия в последний раз закончила запрос. Сохраняется после перезагрузки.",
     flowQueued: "Передано в «{t}» — сессия ещё занята, уйдёт сразу как освободится.",
     fs_report: "Сводка",
     fsp_report: "Остальные сессии этого потока закончили свою часть. Зайдите в каждую папку ниже, прочитайте `git log --oneline -5` и `git diff` (или `git log -p -3`, если закоммичено) и соберите всё на одну страницу. Код не правьте и ничего не сливайте — этот шаг только собирает. Структура: 1) что изменилось, по строке на сессию 2) найденные проблемы и чем закончились 3) что осталось 4) что требует решения человека.",
@@ -4822,7 +4824,7 @@ const I18N_MORE = {
     flowSortT: "विंडो को क्रम के हिसाब से लगाएँ — एक ही रिपॉज़िटरी की सेशन साथ, तीरों के क्रम में। सेव होता है, इसलिए दोबारा चालू करने पर भी वैसा ही रहता है।",
     flowSortDone: "क्रम के हिसाब से लगा दिया।",
     flowSortSame: "पहले से ही सही क्रम में है।",
-    lastDone: "अंतिम काम", lastDoneT: "इस सेशन ने आख़िरी अनुरोध कब पूरा किया। रीलोड के बाद भी रहता है।",
+    lastDone: "अंतिम शुरुआत", workDur: "समय", lastDoneT: "इस सेशन ने आख़िरी अनुरोध कब पूरा किया। रीलोड के बाद भी रहता है।",
     flowQueued: "“{t}” को दे दिया — वह अभी काम कर रही है, ख़त्म होते ही चला जाएगा।",
     fs_report: "रिपोर्ट",
     fsp_report: "इस फ़्लो के बाक़ी सेशन अपना हिस्सा पूरा कर चुके हैं। नीचे दिए हर फ़ोल्डर में जाएँ, `git log --oneline -5` और `git diff` (कमिट हो तो `git log -p -3`) पढ़ें और सब एक पन्ने में समेटें। कोड न बदलें और न ही मर्ज करें — यह चरण सिर्फ़ इकट्ठा करता है। ढाँचा: 1) क्या बदला, हर सेशन एक पंक्ति 2) मिली समस्याएँ और उनका अंजाम 3) क्या बाक़ी है 4) किस पर इंसान को फ़ैसला लेना है।",
@@ -7730,18 +7732,23 @@ updateSoundBtn();
 /* 🕒 마지막으로 작업이 끝난 때 — 전송 버튼 오른쪽에 '왼쪽=이름 / 오른쪽=날짜·시각' 두 칸으로.
    시각만 있으면 오늘 건지 사흘 전 건지 알 수 없어 날짜를 같이 적는다. 새로고침해도 남도록 브라우저에 적어 둔다.
    (세션 목록이 아니라 화면 표시용이라 서버까지 보낼 필요는 없다) */
+/* 2026-10-26: 시각은 '끝난 때' 대신 그 요청을 '시작한 때' 로, 아래 줄에 요청 하나에 걸린 총 작업 시간(시작→완료)을 더했다.
+   시작 시각은 요청 내역(ts)에서 가져와 브라우저에 같이 적어 둔다(pt_laststart_). 없으면 예전처럼 끝난 시각만. */
 function paintLastDone(el, ts) {
   const box = el.querySelector('.qLast'); if (!box) return;
   if (!ts) { box.innerHTML = ''; return; }
-  const d = new Date(ts), p = n => (n < 10 ? '0' + n : '' + n);
-  // 이름은 좁은 칸에 맞춰 두 줄로 (최근/작업, Last/work). 띄어쓰기 없는 언어는 한 줄 그대로.
-  const lab = esc(T.lastDone || '최근 작업').replace(/\s+/, '<br>');
+  let st = 0; try { st = Number(localStorage.getItem('pt_laststart_' + el.dataset.id) || 0); } catch (e) {}
+  if (!(st > 0 && st <= ts)) st = 0;
+  const d = new Date(st || ts), p = n => (n < 10 ? '0' + n : '' + n);
+  // 이름은 좁은 칸에 맞춰 줄마다 한 낱말 (최근/시작/작업)
+  const lw = String(T.lastDone || '최근 시작').split(/\s+/);
   // 날짜는 숫자로 짧게 — '12월30일' 은 좁은 칸에서 두 배로 길고, 언어별 표기(12. 16. / Dec 30)도 제각각이라
   // 자리 폭이 흔들렸다. 순서만 그 언어 방식대로: 유럽·인도는 일/월, 그 외는 월/일.
   const dayFirst = ['es', 'de', 'fr', 'pt', 'ru', 'hi'].indexOf(LANG) >= 0;
   const day = dayFirst ? (d.getDate() + '/' + (d.getMonth() + 1)) : ((d.getMonth() + 1) + '/' + d.getDate());
-  box.innerHTML = '<span class="ql-lab">' + lab + '</span>' +
-                  '<span class="ql-val"><i>' + esc(day) + '</i><b>' + p(d.getHours()) + ':' + p(d.getMinutes()) + '</b></span>';
+  box.innerHTML = '<span class="ql-lab">' + esc(lw[0] || '') + '</span><i>' + esc(day) + '</i>' +
+                  '<span class="ql-lab">' + esc(lw.slice(1).join(' ')) + '</span><b>' + p(d.getHours()) + ':' + p(d.getMinutes()) + '</b>' +
+                  (st ? '<span class="ql-lab">' + esc(T.workDur || '작업') + '</span><u>' + fmtWorkTime(Math.max(1, Math.round((ts - st) / 1000))) + '</u>' : '');
   syncSendWidth(el);
 }
 /* 처음 열 때는 요청 내역에서 가져온다 — 이 화면에서 완료를 한 번 봐야만 시각이 생기면
@@ -7760,7 +7767,9 @@ async function seedLastDone(el, path, id) {
          옆 작업트리가 한 일을 내 것으로 표시하지 않는다. sid 가 붙기 전 기록은 폴더 단위로 폴백. */
     const real = reqs.filter(r => r.st === 'done' && r.endTs && !r.endAuto);
     const mine = real.filter(r => r.sid === id);
-    for (const r of (mine.length ? mine : real.filter(r => !r.sid))) if (r.endTs > ts) ts = r.endTs;
+    let st = 0;
+    for (const r of (mine.length ? mine : real.filter(r => !r.sid))) if (r.endTs >= ts) { ts = r.endTs; st = r.ts || 0; }
+    if (st) { try { localStorage.setItem('pt_laststart_' + id, String(st)); } catch (e) {} }
   } catch (e) {}
   if (ts) { try { localStorage.setItem('pt_lastdone_' + id, String(ts)); } catch (e) {} paintLastDone(el, ts); }
 }
@@ -7841,7 +7850,7 @@ function setState(el, done, busy, announce) {
         // ◎ 플로우 인계는 여기서 하지 않는다 — 아래에서 훨씬 길게 기다린 뒤에 (FLOW_SETTLE_MS)
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
         const p = panes.get(el.dataset.id);
-        if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); });
+        if (p) api('POST', '/api/memos/reqst', { path: p.sess.path, st: 'done' }).then(() => { if (p.refreshReq) p.refreshReq(); seedLastDone(el, p.sess.path, p.sess.id); });   // 시작 시각·총 작업 시간은 요청 내역에서
         // 📤 메모장에서 전송한 메모가 있으면 → 작업이 끝났으니 '완료된 항목'으로 이동
         const pend = memoPending.get(el.dataset.id);
         if (pend && pend.length) {
