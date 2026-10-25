@@ -519,6 +519,38 @@ function stampReqs(dir, st, auto) {
 // ---------- PTY 관리 ----------
 const ptys = new Map(); // id -> {proc, buffer, sockets:Set, busy, done, lastOut}
 const MAX_BUF = 200 * 1024;
+/* 🖥 서버 쪽 화면 사본 — 새로 붙는 창(폰 등)에 날 출력(p.buffer)을 그대로 다시 틀면, 그 출력은 다른 폭(PC)으로
+   '커서를 N줄 올려 다시 그리기' 를 한 것이라 좁은 화면에선 덜 지워져 같은 요청·답이 두세 번씩 찍혀 보였다(2026-10-25).
+   그래서 PTY 와 같은 폭의 보이지 않는 터미널에 출력을 똑같이 그려 두고, 붙을 땐 '다 그려진 결과' 를 보낸다.
+   모듈이 없으면(npm install 실패 등) 예전처럼 날 출력을 보낸다. */
+let VtTerm = null, VtSerialize = null;
+try { VtTerm = require('@xterm/headless').Terminal; VtSerialize = require('@xterm/addon-serialize').SerializeAddon; } catch (e) { VtTerm = null; }
+const VT_SCROLLBACK = 3000;
+function makeVt(cols, rows) {
+  if (!VtTerm) return null;
+  try {
+    const t = new VtTerm({ cols, rows, scrollback: VT_SCROLLBACK, allowProposedApi: true });
+    const s = new VtSerialize(); t.loadAddon(s);
+    return { t, s };
+  } catch (e) { return null; }
+}
+// 새 창에 지금 화면 보내기 — 사본이 앞서 받은 출력을 다 그린 뒤 찍고, 그 사이 새로 온 출력은 모아 뒤이어 보낸다
+function sendSnapshot(p, ws) {
+  const raw = () => { try { ws.send(JSON.stringify({ type: 'out', data: p.buffer })); } catch (e) {} };
+  if (!p.vt) { raw(); return; }
+  ws._pend = [];
+  const flush = data => {
+    try { ws.send(JSON.stringify({ type: 'out', data })); } catch (e) {}
+    const q = ws._pend || []; ws._pend = null;
+    for (const d of q) { try { ws.send(JSON.stringify({ type: 'out', data: d })); } catch (e) {} }
+  };
+  try {
+    p.vt.t.write('', () => {
+      let snap; try { snap = p.vt.s.serialize({ scrollback: VT_SCROLLBACK }); } catch (e) { snap = null; }
+      flush(snap != null ? snap : p.buffer);
+    });
+  } catch (e) { flush(p.buffer); }
+}
 
 // 세션별 선택: claude(기본) / codex / shell(순수 PowerShell) / custom(직접 명령)
 // 모든 세션은 실제 powershell.exe(PTY)에 붙는다 — 브라우저는 그 화면을 비추는 창일 뿐.
@@ -1356,10 +1388,13 @@ function getPty(sess) {
   // armed = '완료되면 소리로 알릴 작업이 걸려 있음'. 새로 띄운 세션은 사용자가 시킨 일이 아직 없으니 false —
   // 재시작 자동 이어하기(resume)로 뜬 세션만, 끊긴 그 작업이 끝나면 알려주도록 미리 장전한다.
   p = { proc, buffer: pathWarn, sockets: new Set(), busy: true, done: false, armed: !!resume, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
+  p.vt = makeVt(opts.cols, opts.rows);
+  if (p.vt && pathWarn) { try { p.vt.t.write(pathWarn); } catch (e) {} }
   const isClaude = isClaudeAgent;
   const isCodex = sess.agent === 'codex';
   proc.onData(d => {
     p.buffer = (p.buffer + d).slice(-MAX_BUF);
+    if (p.vt) { try { p.vt.t.write(d); } catch (e) {} }
     p.lastOut = Date.now();
     scheduler.observe(sess.id, d);
     if (isClaude) {
@@ -1405,7 +1440,10 @@ function getPty(sess) {
       if (p.done) p.done = false;
       if (wasIdle) broadcastStatus(sess.id, p);
     }
-    for (const ws of p.sockets) { try { ws.send(JSON.stringify({ type: 'out', data: d })); } catch (e) {} }
+    for (const ws of p.sockets) {
+      if (ws._pend) { ws._pend.push(d); continue; }   // 지금 화면을 찍는 중인 새 창 — 찍은 뒤 이어서 보낸다
+      try { ws.send(JSON.stringify({ type: 'out', data: d })); } catch (e) {}
+    }
   });
   proc.onExit(() => {
     p.dead = true;
@@ -4869,6 +4907,7 @@ function applyPtySize(p) {
   }
   if (cols > 10 && rows > 5 && (cols !== p.cols || rows !== p.rows)) {
     try { p.proc.resize(cols, rows); p.cols = cols; p.rows = rows; } catch (e) {}
+    if (p.vt) { try { p.vt.t.resize(cols, rows); } catch (e) {} }
   }
 }
 
@@ -4891,7 +4930,7 @@ wss.on('connection', (ws, req) => {
   }
   p.sockets.add(ws);
   // 접속 시 지금까지 화면 재생 + 상태
-  ws.send(JSON.stringify({ type: 'out', data: p.buffer }));
+  sendSnapshot(p, ws);
   ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, since: p.doneSince || 0 }));
   if (guideApi) guideApi.hello(ws, id);   // 🧭 이 세션의 도우미 안내(있으면)
 

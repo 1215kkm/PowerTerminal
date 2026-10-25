@@ -13647,6 +13647,7 @@ addEventListener('resize', () => { if (cmTermObj) { try { cmTermObj.fit.fit(); }
 // 📱 폰: 입력 중인 세션의 입력줄(.quick)을 키보드 바로 위에 고정. 키보드 높이 = 레이아웃뷰포트 하단과
 // 보이는(visual) 뷰포트 하단의 차. 키보드가 오르내릴 때마다 bottom을 갱신해 항상 키보드 위에 딱 붙게.
 let _pinnedQuick = null;
+let _kbMinH = null, _kbDownT = null;   // 고정한 뒤 가장 낮았던 보이는 높이 · 자판 내려감 확인 타이머
 function positionPinnedQuick() {
   if (!_pinnedQuick) return;
   const vv = window.visualViewport;
@@ -13659,6 +13660,20 @@ function positionPinnedQuick() {
   // 자판이 떠 있는지는 "보이는 높이가 줄었나"로만 본다. 아이폰은 자판이 뜨면 보이는 영역을 아래로 민다(offsetTop>0) —
   // 그러면 위 gap 이 0 이 되어 '자판 없음'으로 잘못 보고, 쓰는 중에 커서를 빼 버리고 화면은 내려간 채로 남았다 (2026-10-11 폰 진단 기록).
   const kbOpen = !!vv && vv.height < window.innerHeight - 120;
+  /* 자판을 뒤로가기로 내리면 포커스가 입력줄에 남아 고정도 그대로였다 — 그 상태로 화면을 밀면 요청칸이 스크롤을 따라다녔다(2026-10-25).
+     고정한 뒤 보이는 높이가 가장 낮았던 때보다 120px 넘게 다시 커지면 = 자판이 내려간 것 → 0.3초 뒤에도 그대로면 입력을 끝낸 것으로 본다. */
+  const h = vv ? vv.height : window.innerHeight;
+  if (_kbMinH === null || h < _kbMinH) _kbMinH = h;
+  if (h > _kbMinH + 120 && !_kbDownT) {
+    const q = _pinnedQuick;
+    _kbDownT = setTimeout(() => {
+      _kbDownT = null;
+      const v2 = window.visualViewport, h2 = v2 ? v2.height : window.innerHeight;
+      if (_pinnedQuick !== q || h2 <= _kbMinH + 120) return;
+      try { const el = document.activeElement; if (el && q.contains(el)) el.blur(); } catch (e) {}
+      unpinQuick(q, true);
+    }, 300);
+  }
   const pane = _pinnedQuick.closest('.pane');
   if (pane && !kbOpen && Date.now() - _pinnedAt > 1500) {
     const r = pane.getBoundingClientRect();
@@ -13719,6 +13734,7 @@ function pinQuick(quick) {
   if (!isMobileNow()) return;                        // 폰 레이아웃일 때만 (PC·태블릿 가로는 원래대로)
   if (_pinnedQuick && _pinnedQuick !== quick) unpinQuick(_pinnedQuick, true);
   { const vv = window.visualViewport; if (_pinnedQuick !== quick && !(vv && vv.height < window.innerHeight - 120)) _pinY = window.scrollY; }   // 자판이 뜨기 전 화면 위치
+  if (_pinnedQuick !== quick) _kbMinH = null;
   _pinnedQuick = quick;
   _pinnedAt = Date.now();
   quick.classList.add('kb-pin');
@@ -13736,7 +13752,7 @@ function unpinQuick(quick, keepScroll) {
   }, 350);
   quick.classList.remove('kb-pin');
   quick.style.removeProperty('--kb-gap');
-  if (_pinnedQuick === quick) _pinnedQuick = null;
+  if (_pinnedQuick === quick) { _pinnedQuick = null; _kbMinH = null; clearTimeout(_kbDownT); _kbDownT = null; }
 }
 // 모바일: 주소창 접힘/펼침은 window resize가 아니라 visualViewport 이벤트로만 옴 → 여기서 재fit (반쪽 높이 핵심 원인)
 if (window.visualViewport) {
