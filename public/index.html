@@ -460,6 +460,26 @@
                padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   .pane.bare > .pane-head, .pane.bare > .quick, .pane.bare > .qThumbs, .pane.bare > .gitbar,
   .pane.bare .termCancel { display: none !important; }
+  /* 전체창에서 한 번 터치 = 아래 요청칸 보이기/숨기기 */
+  .pane.bare.bareAsk > .quick { display: flex !important; }
+  .pane.bare.bareAsk > .qThumbs:not(:empty) { display: flex !important; }
+  /* ✂ 글자 선택 — 전체창 오른쪽 위 단추 + 안드로이드처럼 시작·끝 손잡이 */
+  .bareTools { display: none; }
+  .pane.bare > .bareTools { display: flex; position: absolute; top: calc(env(safe-area-inset-top) + 6px); right: calc(env(safe-area-inset-right) + 6px);
+                            z-index: 20; gap: 6px; }
+  .bareTools button { background: rgba(59,88,118,.92); color: #fff; border: 0; border-radius: 9px; padding: 8px 12px;
+                      font-size: 14px; font-weight: 700; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .bareTools .bsCopy { background: linear-gradient(135deg, var(--violet), var(--pink)); }
+  .bareTools .bsCopy, .bareTools .bsDone { display: none; }
+  .pane.selmode > .bareTools .bsCopy, .pane.selmode > .bareTools .bsDone { display: inline-block; }
+  .pane.selmode > .bareTools .bsSel { display: none; }
+  .tselH { display: none; position: absolute; z-index: 19; width: 26px; height: 26px; background: #4f86ec;
+           touch-action: none; margin-top: 0; }
+  .tselH::after { content: ''; position: absolute; inset: -12px; }   /* 손가락으로 잡기 쉽게 잡는 자리를 넓힘 */
+  .tselH.s { border-radius: 50% 0 50% 50%; }
+  .tselH.e { border-radius: 0 50% 50% 50%; }
+  .pane.selmode > .tselH.on { display: block; }
+  .pane.selmode .scrollzone { background: rgba(79,134,236,.06); }
   .bareHint { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 270; pointer-events: none;
               background: rgba(0,0,0,.72); color: #fff; font-size: 13px; padding: 7px 14px; border-radius: 999px;
               transition: opacity .4s; }
@@ -1552,7 +1572,7 @@
     .pane-head .folder { font-size: 12px; }
     .pane-head .modelSel { font-size: 13px; padding: 5px 8px; }
     .btnMax, .btnTasks { display: none; }  /* 폰: 인라인확대·작업목록 버튼 숨김. 👁 미리보기는 폰에서도 표시 — 내장 미리보기(폴더 index.html)는 서버 경유라 폰에서도 잘 열림 */
-    .btnZoom { display: inline-block; }    /* 폰에선 전체화면 확대(🔍) 버튼 표시 */
+    /* ⛶ 전체화면 버튼은 폰에서도 숨김 — 터미널을 두 번 터치하면 전체창이 된다 (2026-10-25 사용자 요청) */
     /* 이미지 첨부/찾기·취소 버튼 — 폰에서 누르기 쉽게 크게 (입력줄 높이에 맞춤) */
     .quick .qImg { padding: 8px 12px; }
     .quick .qImg svg { width: 20px; height: 20px; }
@@ -2315,7 +2335,7 @@ const I18N = {
     mindColorT:'색상 바꾸기', mindColorReset:'기본',
     mtTodo:'할 일', mtDone:'한 일', mtPh:'할 일 입력 후 Enter', mtAddT:'추가', mtDoneBtn:'완료', mtRestore:'할 일로 되돌리기', mtEmpty:'할 일을 추가해보세요', mtEditT:'클릭해서 수정',
     mindInsertT:'누르면 이 사이에 가지를 끼워 넣습니다 (상위 가지 추가)',
-    bareHint:'다시 두 번 터치하면 원래대로', bookPaneT:'책 모드 — 이 세션을 책처럼 읽는 창을 따로 띄웁니다', reopenNone:'다시 열 닫은 세션이 없습니다',
+    bareHint:'한 번 터치: 요청칸 · 두 번 터치: 원래대로', selBtn:'글자 선택', selCopy:'복사', selHint:'글자를 터치하면 그 낱말이 골라져요 · 양끝 손잡이를 끌어 넓히세요',bookPaneT:'책 모드 — 이 세션을 책처럼 읽는 창을 따로 띄웁니다', reopenNone:'다시 열 닫은 세션이 없습니다',
     mindDropQ:'「{a}」를 「{p}」와 「{c}」 사이에 넣을까요?', mindDropMove:'이동', mindDropCopy:'복사',
     mindSt0:'생각중', mindSt1:'제작시작', mindSt2:'제작중', mindSt3:'마무리중', mindSt4:'곧 끝남', mindSt5:'완료',
     mindMemoT:'가지 메모', mindMemoPh:'이 가지 작성자에게 남길 메모…', mindProgT:'드래그해서 진행률 설정',
@@ -5737,6 +5757,7 @@ function buildPane(sess, idx) {
       if (e.touches.length !== 1) { tselStop(); return; }
       const t = e.touches[0]; tsel.x = t.clientX; tsel.y = t.clientY; tsel.on = false;
       tselStop();
+      if (el.classList.contains('bare')) return;      // 전체창에선 길게 누르기 선택을 쓰지 않는다 — 오른쪽 위 ✂ 글자 선택으로
       tsel.timer = setTimeout(() => {
         tsel.timer = null;
         const c = cellAt(tsel.x, tsel.y); if (!c) return;
@@ -5784,15 +5805,108 @@ function buildPane(sess, idx) {
     body.addEventListener('touchmove', e => {
       const t = e.touches[0]; if (t && Math.hypot(t.clientX - dt.x0, t.clientY - dt.y0) > 10) dt.moved = true;
     }, { passive: true });
+    let oneTap = null;   // 전체창에서 한 번 터치 — 두 번째 터치가 안 오면 그때 요청칸을 켜고 끈다
     body.addEventListener('touchend', e => {
       const now = performance.now();
       if (dt.moved || now - dt.t0 > 300 || (e.target.closest && e.target.closest('button, input, textarea, select, .reqPanel, iframe'))) { dt.lastT = 0; return; }
+      const bare = el.classList.contains('bare');
+      if (bare && e.cancelable) e.preventDefault();   // 전체창 터치가 터미널에 포커스를 줘 자판이 뜨지 않게
+      if (sm.on) { dt.lastT = 0; smWordAt(dt.x0, dt.y0); return; }   // 글자 선택 중 터치 = 그 낱말 고르기
       if (dt.lastT && now - dt.lastT < 380 && Math.hypot(dt.x0 - dt.lastX, dt.y0 - dt.lastY) < 40) {
-        dt.lastT = 0;
+        dt.lastT = 0; clearTimeout(oneTap); oneTap = null;
         if (e.cancelable) e.preventDefault();
         toggleBare(el);
-      } else { dt.lastT = now; dt.lastX = dt.x0; dt.lastY = dt.y0; }
+      } else {
+        dt.lastT = now; dt.lastX = dt.x0; dt.lastY = dt.y0;
+        clearTimeout(oneTap); oneTap = null;
+        if (bare) oneTap = setTimeout(() => { oneTap = null; if (el.classList.contains('bare') && !sm.on) toggleBareAsk(); }, 390);
+      }
     });
+    const toggleBareAsk = on => {
+      on = on === undefined ? !el.classList.contains('bareAsk') : on;
+      el.classList.toggle('bareAsk', on);
+      if (!on) { const q = el.querySelector('.quick'); try { if (q.contains(document.activeElement)) document.activeElement.blur(); } catch (e) {} if (q.classList.contains('kb-pin')) unpinQuick(q, true); }
+      [60, 260].forEach(t => setTimeout(() => fitPane(panes.get(sess.id)), t));
+    };
+    /* ✂ 글자 선택(전체창) — 오른쪽 위 단추로 켠다. 글자를 터치하면 그 낱말이 골라지고, 안드로이드처럼 양끝 손잡이를 끌어 넓힌다.
+       고르는 동안은 화면을 다시 그리지 않게 출력을 잠시 모아 둔다(selHold) — 끝내면 몰아서 쓴다. */
+    const sm = { on: false, a: null, b: null };
+    const bt = document.createElement('div'); bt.className = 'bareTools';
+    bt.innerHTML = `<button type="button" class="bsSel">✂ ${esc(T.selBtn || 'Select text')}</button>`
+      + `<button type="button" class="bsCopy">📋 ${esc(T.selCopy || 'Copy')}</button><button type="button" class="bsDone">✕</button>`;
+    const hs = document.createElement('div'); hs.className = 'tselH s';
+    const he = document.createElement('div'); he.className = 'tselH e';
+    el.appendChild(bt); el.appendChild(hs); el.appendChild(he);
+    const smCell = (x, y) => {   // 화면 좌표 → 버퍼 칸 (화면 밖이면 맨 끝 칸으로)
+      const scr = el.querySelector('.xterm-screen'); if (!scr) return null;
+      const r = scr.getBoundingClientRect(), buf = term.buffer.active;
+      const cw = r.width / term.cols, chh = r.height / term.rows;
+      return { col: Math.max(0, Math.min(term.cols - 1, Math.floor((x - r.left) / cw))),
+               row: buf.viewportY + Math.max(0, Math.min(term.rows - 1, Math.floor((y - r.top) / chh))), r, chh };
+    };
+    const before = (p, q) => p.row < q.row || (p.row === q.row && p.col <= q.col);
+    const smDraw = () => {
+      const { a, b } = sm; if (!a || !b) { hs.classList.remove('on'); he.classList.remove('on'); return; }
+      try { term.select(a.col, a.row, (b.row - a.row) * term.cols + (b.col - a.col) + 1); } catch (e) {}
+      const scr = el.querySelector('.xterm-screen'); if (!scr) return;
+      const r = scr.getBoundingClientRect(), pr = el.getBoundingClientRect(), vy = term.buffer.active.viewportY;
+      const cw = r.width / term.cols, chh = r.height / term.rows;
+      const put = (h, c, x) => {
+        const vis = c.row >= vy && c.row < vy + term.rows;
+        h.classList.toggle('on', vis);
+        if (!vis) return;
+        let left = r.left - pr.left + x * cw - (h === hs ? 26 : 0);
+        left = Math.max(0, Math.min(pr.width - 26, left));   // 맨 왼쪽·오른쪽 글자에서도 손잡이가 화면 안에
+        h.style.left = left + 'px'; h.style.top = (r.top - pr.top + (c.row - vy + 1) * chh) + 'px';
+      };
+      put(hs, a, a.col); put(he, b, b.col + 1);
+    };
+    const wordCell = (line, x) => { const c = line && line.getCell(x); if (!c) return false; if (c.getWidth() === 0) return true; const ch = c.getChars(); return !!ch && !/\s/.test(ch); };
+    const smWordAt = (x, y) => {
+      const c = smCell(x, y); if (!c) return;
+      const line = term.buffer.active.getLine(c.row);
+      if (!wordCell(line, c.col)) { sm.a = { col: c.col, row: c.row }; sm.b = { col: c.col, row: c.row }; smDraw(); return; }
+      let s = c.col, f = c.col;
+      while (s > 0 && wordCell(line, s - 1)) s--;
+      while (f < term.cols - 1 && wordCell(line, f + 1)) f++;
+      sm.a = { col: s, row: c.row }; sm.b = { col: f, row: c.row }; smDraw();
+    };
+    const smSet = on => {
+      sm.on = on; el.classList.toggle('selmode', on);
+      if (on) {
+        clearTimeout(oneTap); oneTap = null; toggleBareAsk(false);
+        clearTimeout(el._selHoldTo); selHold = true;      // 끝낼 때까지 화면 고정
+        sm.a = sm.b = null; term.clearSelection(); smDraw();
+        flashToast(T.selHint || 'Tap a word to select it, then drag the handles');
+      } else {
+        sm.a = sm.b = null; term.clearSelection(); smDraw(); releaseHold(0);
+      }
+    };
+    bt.querySelector('.bsSel').onclick = () => smSet(true);
+    bt.querySelector('.bsDone').onclick = () => smSet(false);
+    bt.querySelector('.bsCopy').onclick = () => {
+      const txt = term.getSelection();
+      if (txt && txt.trim()) { copySel(txt); smSet(false); } else flashToast(T.selHint || 'Tap a word to select it, then drag the handles');
+    };
+    [hs, he].forEach(h => {
+      const isS = h === hs;
+      h.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); }, { passive: false });
+      h.addEventListener('touchmove', e => {
+        e.stopPropagation(); e.preventDefault();
+        const t = e.touches[0];
+        const c = smCell(t.clientX + (isS ? 13 : -13), t.clientY - 26);   // 손잡이 위 글자 줄을 가리키게 (손가락이 글자를 가리지 않도록)
+        if (!c || !sm.a) return;
+        if (t.clientY < c.r.top + c.chh) term.scrollLines(-1);          // 위·아래 끝에 대면 넘기며 계속
+        else if (t.clientY > c.r.bottom) term.scrollLines(1);
+        const p = { col: c.col, row: c.row };
+        if (isS) { if (before(p, sm.b)) sm.a = p; else sm.a = sm.b; }
+        else { if (before(sm.a, p)) sm.b = p; else sm.b = sm.a; }
+        smDraw();
+      }, { passive: false });
+      h.addEventListener('touchend', e => e.stopPropagation());
+    });
+    term.onScroll(() => { if (sm.on) smDraw(); });
+    el._onBare = on => { if (!on) { clearTimeout(oneTap); oneTap = null; if (sm.on) smSet(false); el.classList.remove('bareAsk'); } };
     body.addEventListener('contextmenu', e => e.preventDefault());   // 길게 누를 때 뜨는 브라우저 메뉴 막기
     // 마우스 휠/트랙패드로도 이 존에서 스크롤되게 (터치스크린+마우스 겸용 기기 대응) —
     // 스크롤백이 있으면 이 터미널을, 없으면 페이지를 스크롤
@@ -12583,19 +12697,19 @@ function openZoom(id) {
 // 👆👆 터미널만 보기 — 이 세션창에서 터미널만 남기고 화면 가득. 다시 부르면 원래대로
 function toggleBare(el) {
   const on = !el.classList.contains('bare');
-  document.querySelectorAll('.pane.bare').forEach(x => x.classList.remove('bare'));
+  document.querySelectorAll('.pane.bare').forEach(x => { x.classList.remove('bare'); if (x._onBare) x._onBare(false); });
   if (on) {
     el.classList.add('bare');
     try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}   // 자판이 올라와 있으면 내린다
     document.querySelectorAll('.bareHint').forEach(x => x.remove());
-    const h = document.createElement('div'); h.className = 'bareHint'; h.textContent = T.bareHint || 'Double-tap again to go back';
+    const h = document.createElement('div'); h.className = 'bareHint'; h.textContent = T.bareHint || 'Tap once: request box · double-tap: back';
     document.body.appendChild(h);
     setTimeout(() => { h.style.opacity = '0'; }, 1600); setTimeout(() => h.remove(), 2100);
   }
   [60, 260, 700].forEach(t => setTimeout(refitAll, t));
 }
 function closeZoom() {
-  document.querySelectorAll('.pane.bare').forEach(x => x.classList.remove('bare'));
+  document.querySelectorAll('.pane.bare').forEach(x => { x.classList.remove('bare'); if (x._onBare) x._onBare(false); });
   const modal = document.getElementById('zoomModal');
   modal.classList.remove('on');
   const p = panes.get(zoomedId);
