@@ -1471,7 +1471,9 @@ function viewTurn() {   // 지금 펼친 쪽의 요청 번호 (두 쪽이면 오
 }
 function askCtxUi() {
   if (!askCtxReady) return;
-  const i = viewTurn(), t = i === null ? null : turns.find(x => x.i === i);
+  // 마지막 쪽(펼침)에서 보내는 요청은 최근 대화 이어가기 — 지난 쪽 내용을 붙이지 않는다
+  const atEnd = pf ? pf.getCurrentPageIndex() >= pf.getPageCount() - 2 : page >= pages - 1;
+  const i = atEnd ? null : viewTurn(), t = i === null ? null : turns.find(x => x.i === i);
   ctxI = t && i < total - 1 && i !== ctxOff ? i : null;
   const was = !askCtx.hidden; askCtx.hidden = ctxI === null;
   if (ctxI !== null) {
