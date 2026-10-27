@@ -236,6 +236,8 @@ function pairRateOk(ip) {
 const RECENT_FILE = dataFile('recent.json');
 let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
+// 🔁 루틴 엔진이 터미널 출력을 받는 자리 — 엔진은 아래(scheduler 옆)에서 만들어 여기에 꽂는다
+const routineHooks = { observe: null };
 function saveSessions() { setMark('세션목록 저장'); fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); setMark('idle'); }
 /* 🤖 모델 값은 그 AI 것이어야 한다 — Claude 세션엔 Claude 모델, GPT(codex) 세션엔 GPT 모델.
    예전엔 AI 를 Claude → GPT 로 바꿔도 모델 값(opus)이 그대로 남아, GPT 세션이 `codex --model opus` 로 떴고
@@ -1305,7 +1307,14 @@ function agentCommandRaw(sess, fresh, resume) {
      읽어야 하는데 매번 지워지니 놓치기 쉽다. Claude 에 --settings tui:default 를 강제하는 것과 같은
      이유로 codex 도 --no-alt-screen(공식 지원 플래그, 확인함)으로 인라인 렌더러를 강제한다. */
   const gm = modelFor('codex', sess.model);
-  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + browserFlags(sess) : '';
+  /* 🔁 루틴 세션의 codex 는 승인 창에서 멈추면 안 된다(사람이 없는 시간에 돈다) — 회차 전용 폴더 안에서만 쓰게 하고 승인은 묻지 않는다.
+     일반 세션은 사용자의 ~/.codex/config.toml 설정을 그대로 따른다. */
+  const routineGpt = sess.routineRun ? " -c 'approval_policy=" + (IS_WIN ? "''never''" : '"never"') + "' -c 'sandbox_mode=" + (IS_WIN ? "''workspace-write''" : '"workspace-write"') + "'" : '';
+  /* 🧠 GPT 추론 강도 — codex 는 -c model_reasoning_effort=<low|medium|high|xhigh|max|ultra> 로 받는다.
+     안 고르면(자동) ~/.codex/config.toml 의 model_reasoning_effort 를 그대로 따른다. */
+  const ge = effortFor(sess.effort);
+  const gptEffort = ge ? " -c 'model_reasoning_effort=" + (IS_WIN ? "''" + ge + "''" : '"' + ge + '"') + "'" : '';
+  const gpt = sess.agent === 'codex' ? ' --no-alt-screen' + (gm !== 'default' ? ' --model ' + gm : '') + gptEffort + routineGpt + browserFlags(sess) : '';
   const contArgs = ' --continue' + (resume ? " '" + RESUME_MSG + "'" : '');
   if (IS_WIN) {
     switch (sess.agent) {
@@ -1456,7 +1465,21 @@ function getPty(sess) {
     if (p.vt) { try { p.vt.t.write(d); } catch (e) {} }
     p.lastOut = Date.now();
     scheduler.observe(sess.id, d);
+    if (routineHooks.observe) routineHooks.observe(sess.id, d);
     if (isClaude) {
+      /* 🔁 루틴 세션은 회차마다 새 폴더라 Claude 가 폴더 신뢰 확인창을 띄운다. 사람이 없는 시간에 도는데
+         여기서 멈추면 단계가 시간 초과로 실패한다. 루틴에 그 폴더를 맡긴 것 자체가 신뢰라서 대신 첫 번째(예)를 고른다.
+         일반 세션은 건드리지 않는다. 뜰 때만 나오는 창이라 시작 60초만 본다. */
+      // (폴더를 미리 신뢰 등록하므로 보통은 안 뜬다.) 그래도 뜨면: 창은 "> No, exit / Yes, I trust this folder" 라 기본이 '나가기' —
+      // Enter 만 치면 Claude 가 꺼진다. 아래 화살표로 'Yes' 로 옮긴 뒤 Enter. Claude 가 뜨는 데 1분 넘게 걸리기도 해 5분까지 본다.
+      if (sess.routineRun && !p._claudeTrustDone && Date.now() - p.spawnAt < 300000) {
+        const flat = p.buffer.slice(-4000).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\s+/g, '');
+        if (/Isthisaprojectyoucreated|Yes,Itrustthisfolder|Doyoutrustthecontents/i.test(flat)) {
+          p._claudeTrustDone = true;
+          setTimeout(() => { try { proc.write('\x1b[B'); } catch (e) {} }, 500);
+          setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 1200);
+        }
+      }
       // Claude가 작업 중일 때 그리는 표시로 작업중/완료 판별 (사용량 정지 중 잔출력에 안 흔들리게).
       // 좁은 분할·폰 화면에선 하단 상태바가 잘려 'esc to interrupt'가 버퍼에 안 남음(v1.10.2까지 오완료의 원인).
       // → 화면 폭과 무관하게 항상 남는 '스피너'로 판별. 스피너는 단계마다 표시가 달라짐:
@@ -1479,6 +1502,28 @@ function getPty(sess) {
           || /\(\d+m \d+s|\(\d+s[ ·)]/.test(t15)) {
         p.lastMarker = Date.now();
         scheduler.working(sess.id);   // 일하는 중 = 한도가 아니다 (배너 오작동 방지)
+      }
+      /* 🔁 루틴 세션 — codex 는 그 폴더의 훅(.codex/hooks.json)을 처음 볼 때 「Hooks need review」 에서 멈춘다.
+         사람이 없는 시간에 도는 루틴은 여기서 굳고, 그 사이 들어간 요청은 이 화면에 먹혀 사라진다
+         (2026-09-16 실사용: km-cafe24 의 강팀 훅으로 1회차가 30분 만에 실패). 루틴에 그 폴더를 맡긴 것 자체가
+         그 폴더의 훅을 쓰겠다는 뜻이라 대신 「Trust all and continue」 를 골라 준다. 일반 세션은 그대로 둔다.
+         안내문의 "Press t to trust" 는 실제로는 안 먹었다 — 화살표 메뉴라서, 화면을 읽어 지금 선택된 줄에서
+         신뢰 줄까지 필요한 만큼만 내려간 뒤 Enter 한다(그냥 한 칸 내려가면 3번 '신뢰 안 함' 에 걸릴 수 있다). */
+      /* 「Approaching rate limits — Switch to (싼 모델)?」 메뉴. 사람이 고른 모델로 결과물 품질이 정해지므로
+         루틴은 「Keep current model」 을 고른다(전부 끄는 3번은 사용자 설정이라 건드리지 않는다). 안 고르면 멈춘다. */
+      if (sess.routineRun && Date.now() - (p._codexRateAt || 0) > 20000) {
+        const rawR = p.buffer.slice(-6000).replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+        if (/Approaching rate limits|Switch to gpt[\w.-]* for lower credit usage/i.test(rawR)) {
+          const keys = codexMenuKeys(rawR, /^Keep current model(?!\s*\()/);
+          if (keys) { p._codexRateAt = Date.now(); pressMenu(proc, keys); }
+        }
+      }
+      if (sess.routineRun && Date.now() - (p._codexHookAt || 0) > 20000) {
+        const rawH = p.buffer.slice(-4000).replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+        if (/Hooks?\s+needs?\s+review/i.test(rawH)) {
+          const keys = codexMenuKeys(rawH, /trust all/i);
+          if (keys) { p._codexHookAt = Date.now(); pressMenu(proc, keys); }
+        }
       }
       /* 🔓 codex(GPT) 는 폴더마다 처음 한 번 자체 신뢰 확인창을 띄운다 — Claude 신뢰와는 별개 저장소라,
          이 폴더를 Claude 로는 이미 써 봤어도 codex 로 처음 켜면 또 뜬다. PT 인라인 스크롤 화면에서는
@@ -1518,6 +1563,34 @@ function getPty(sess) {
   return p;
 }
 
+/* codex 의 번호 메뉴(훅 승인·사용량 안내 등)를 화면 글자로 읽는다. 화면이 여러 번 다시 그려지므로
+   1번으로 시작하는 마지막 묶음만 본다. 지금 선택된 줄(›)에서 원하는 줄까지 몇 칸 움직일지 돌려준다.
+   안내문의 단축키(예: "Press t to trust")는 실제로 안 먹는 경우가 있어 화살표로 움직인다(2026-09-16 실측). */
+function codexMenuKeys(raw, wantRe) {
+  const items = [];
+  for (const line of String(raw).split(/\r?\n/)) {
+    const m = line.match(/^\s*(›?)\s*(\d+)\.\s+(.+?)\s*$/);
+    if (m) items.push({ cur: m[1] === '›', n: Number(m[2]), text: m[3] });
+  }
+  let start = -1;
+  for (let i = items.length - 1; i >= 0; i--) if (items[i].n === 1) { start = i; break; }
+  if (start < 0) return null;
+  const last = items.slice(start);
+  const at = last.findIndex(x => x.cur), to = last.findIndex(x => wantRe.test(x.text));
+  if (at < 0 || to < 0) return null;
+  return { down: to - at, text: last[to].text };
+}
+function pressMenu(proc, keys) {
+  setTimeout(() => {
+    try {
+      for (let i = 0; i < Math.abs(keys.down); i++) proc.write(keys.down > 0 ? '\x1b[B' : '\x1b[A');
+      setTimeout(() => { try { proc.write('\r'); } catch (e) {} }, 250);
+    } catch (e) {}
+  }, 500);
+}
+/* 🧠 GPT 추론 강도. '' = 자동(config.toml). 모르는 값은 버린다 — 실행 줄에 그대로 들어가므로 이 목록 밖은 절대 통과시키지 않는다. */
+const GPT_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+function effortFor(e) { return GPT_EFFORTS.includes(String(e || '')) ? String(e) : ''; }
 // announce=true 로 보낸 완료만 클라이언트가 소리로 알린다.
 // 예전엔 status 가 오면 무조건 울려서, PT를 켜기만 해도 세션 수만큼 "session N done" 이 났다
 // (PTY는 busy:true 로 시작 → 마커가 4초간 없으면 곧장 완료 전환 = 아무 요청도 안 한 완료).
@@ -1731,6 +1804,74 @@ const scheduler = require('./scheduler').createScheduler({ dataDir: DATA_DIR, se
   enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : claudeEnterDelay(written.length); } });
 scheduler.install(app);
 
+/* 🔁 루틴 — routines.js 가 회차마다 단계 세션을 만들고 닫을 때 쓰는 두 함수.
+   [+세션] 과 달리 worktree 로 나누지 않고(회차마다 폴더가 따로다) 최근 목록에도 남기지 않는다. */
+function routineCreateSession({ title, path: dir, agent, model, effort, browser, browserProfile, cmd, runId }) {
+  const sess = { id: crypto.randomBytes(4).toString('hex'), title: String(title || '').slice(0, 80), path: dir, previewUrl: '',
+                 agent, model: modelFor(agent, model), cmd: agent === 'custom' ? String(cmd || '') : '', routineRun: runId };
+  if (agent === 'codex' && effortFor(effort)) sess.effort = effortFor(effort);
+  if (browser === 'normal') { sess.browser = 'normal'; sess.browserProfile = browserProfile || ''; }
+  else if (browser === 'incognito') sess.browser = 'incognito';
+  sessions.push(sess);
+  saveSessions();
+  /* Claude 는 처음 여는 폴더마다 "이 폴더를 신뢰합니까?" 창을 띄우고 기본 선택이 "No, exit" 다. 회차마다 새 폴더인
+     루틴은 매번 이 창에서 멈춘다(2026-09-15 실측: 2단계가 25분 동안 입력 준비 안 됨). 사람이 없는 시간에 도는 루틴에
+     폴더를 맡긴 것 자체가 신뢰이므로, 띄우기 전에 ~/.claude.json 에 그 폴더를 신뢰됨으로 미리 적어 창이 안 뜨게 한다. */
+  if ((agent || 'claude') === 'claude') {
+    try {
+      const f = path.join(os.homedir(), '.claude.json');
+      const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+      j.projects = j.projects || {};
+      const key = path.resolve(dir).replace(/\\/g, '/');   // Claude 는 이 파일에 경로를 슬래시(/)로 적는다
+      j.projects[key] = Object.assign({ allowedTools: [], mcpContextUris: [], enabledMcpjsonServers: [], disabledMcpjsonServers: [] }, j.projects[key] || {}, { hasTrustDialogAccepted: true });
+      fs.writeFileSync(f, JSON.stringify(j, null, 2));
+    } catch (e) { console.log('  🔁 폴더 신뢰 등록 실패(확인창이 뜨면 자동 응답으로 넘김): ' + (e && e.message)); }
+  }
+  const p = getPty(sess);
+  if (p.dead) throw Error('터미널을 시작하지 못했습니다');
+  return sess;
+}
+// PT 가 다시 켜진 뒤 도던 회차의 단계 세션을 다시 띄운다 — 화면이 안 붙어도 뜨게. 대화는 --continue 로 이어지고,
+// '이어서 하라' 문구는 루틴이 회차 코드와 함께 따로 보내므로 서버의 자동 이어하기 문구(resumeOnStart)는 끈다(두 번 시키지 않게).
+function routineReopenSession(id) {
+  const sess = sessions.find(x => x.id === id);
+  if (!sess) throw Error('세션이 없습니다');
+  sess.resumeOnStart = false;
+  const p = getPty(sess);
+  if (!p || p.dead) throw Error('터미널을 시작하지 못했습니다');
+}
+function routineCloseSession(id) {
+  const p = ptys.get(id);
+  killDev(id);
+  tabOwnersDrop(id);
+  if (p && !p.dead) { try { p.proc.kill(); } catch (e) {} }
+  ptys.delete(id);
+  sessions = sessions.filter(x => x.id !== id);
+  for (const s of sessions) {
+    if (Array.isArray(s.flowTo) && s.flowTo.includes(id)) s.flowTo = s.flowTo.filter(x => x !== id);
+    if (s.flowMeta && s.flowMeta[id]) delete s.flowMeta[id];
+  }
+  saveSessions();
+}
+const routines = require('./routines').createRoutines({
+  dataDir: DATA_DIR, sessions: () => sessions, ptys, signal: id => scheduler.signal(id),
+  createSession: routineCreateSession, closeSession: routineCloseSession, reopenSession: routineReopenSession,
+  defaultBaseDir: path.join(os.homedir(), 'pt-routines'),
+  enterDelay: (id, written) => { const s = sessions.find(x => x.id === id); return s && s.agent === 'codex' ? codexEnterDelay(written.length) : claudeEnterDelay(written.length); } });
+routines.install(app);
+routineHooks.observe = routines.observe;
+/* 🔁 끝난 회차의 루틴 세션은 PT 를 다시 켤 때 목록에서 뺀다. 세션은 화면이 붙는 순간 새로 뜨는데, 대화는 이미 끝났으니
+   GPT·Claude 가 빈 대화로 떠서 창만 늘고 MCP 도구까지 함께 켜진다(2026-09-16 실측: 멈춘 회차 세션 9개가 재시작 뒤
+   한꺼번에 되살아남). 회차 기록·작업 폴더·AI 대화 기록은 그대로 남는다. 도는 회차의 세션만 둔다. */
+{
+  const live = routines.runningIds();
+  const stale = sessions.filter(s => s.routineRun && !live.has(s.routineRun));
+  if (stale.length) {
+    sessions = sessions.filter(s => !stale.includes(s));
+    saveSessions();
+    console.log('  🔁 끝난 회차의 루틴 세션 ' + stale.length + '개를 목록에서 뺐습니다');
+  }
+}
 /* 🧠 세션별 메모리(RAM) — 컴퓨터가 버벅일 때 어느 세션이 자원을 많이 쓰는지 보려고(2026-10-03 CEO).
    세션 터미널 프로세스 + 그 밑에 딸린 모든 프로세스(AI·MCP·개발서버·브라우저 자동화 등)의 실제 사용량(작업 집합)을 더한다.
    프로세스 목록을 읽는 데 1초 가까이 걸려서 8초 동안은 지난 값을 그대로 준다. */
@@ -1804,6 +1945,28 @@ app.get('/api/sessions', (req, res) => {
 });
 
 // 폴더 탐색 (세션 추가 시 마우스로 폴더 고르기 — 폰에서도 동작)
+/* 모델마다 고를 수 있는 강도가 다르다(astra 는 ultra 까지, gpt-5.5 는 xhigh 까지). codex 가 받아 둔
+   ~/.codex/models_cache.json 을 읽어 준다 — 새 모델이 생겨도 목록을 손으로 고칠 필요가 없다. 못 읽으면 전체 목록. */
+function codexModelInfo() {
+  const out = { efforts: GPT_EFFORTS, configEffort: '', models: {} };
+  try {
+    const toml = fs.readFileSync(path.join(os.homedir(), '.codex', 'config.toml'), 'utf8');
+    const m = toml.match(/^\s*model_reasoning_effort\s*=\s*["']([a-z]+)["']/m);
+    if (m) out.configEffort = m[1];
+  } catch (e) {}
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.codex', 'models_cache.json'), 'utf8'));
+    const list = Array.isArray(j) ? j : (j.models || j.data || []);
+    for (const x of list) {
+      const id = x.slug || x.id; if (!id) continue;
+      const lv = (x.supported_reasoning_levels || []).map(l => (typeof l === 'string' ? l : l.effort)).filter(l => GPT_EFFORTS.includes(l));
+      if (lv.length) out.models[id] = { efforts: lv, def: x.default_reasoning_level || '' };
+    }
+  } catch (e) {}
+  return out;
+}
+app.get('/api/codex-models', (req, res) => res.json(codexModelInfo()));
+
 app.get('/api/browse', (req, res) => {
   let dir = (req.query.dir || '').toString();
   const isWin = process.platform === 'win32';
@@ -3173,7 +3336,7 @@ app.post('/api/accounts', (req, res) => {
 });
 
 app.post('/api/sessions', async (req, res) => {
-  let { path: dir, title, agent, cmd, model } = req.body;
+  let { path: dir, title, agent, cmd, model, effort } = req.body;
   if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
   if (!fs.existsSync(dir)) return res.status(400).json({ error: '폴더가 없습니다: ' + dir });
   const wantTitle = title || path.basename(dir);
@@ -3213,6 +3376,7 @@ app.post('/api/sessions', async (req, res) => {
   const sess = { id, title: wt ? 'tree' + wt.n + ' · ' + baseTitle : wantTitle,
                  path: dir, previewUrl: '',
                  agent: agent || 'claude', model: modelFor(agent || 'claude', model), cmd: cmd || '' };
+  if ((agent || 'claude') === 'codex' && effortFor(effort)) sess.effort = effortFor(effort);
   if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
   // 👥 계정 고르기 + 이어서 하기 — 원래 세션의 대화를 새 트리로 복사해 다른 계정으로 이어 간다
   const acc = parseInt(req.body.account, 10);
@@ -3404,8 +3568,25 @@ app.patch('/api/sessions/:id', (req, res) => {
     if (m && m !== 'default' && s.model !== m) { s.model = m; saveSessions(); syncRecent(s); }
     return res.json(s);
   }
+  if (typeof req.body.effort === 'string' && typeof req.body.model !== 'string') {
+    const e = effortFor(req.body.effort);
+    if (e) s.effort = e; else delete s.effort;
+    s.resumeOnStart = false;
+    saveSessions();
+    syncRecent(s);
+    // 강도는 실행 줄 옵션이라 떠 있는 codex 에는 안 먹는다 — 모델 변경처럼 재시작한다(대화는 resume --last 로 이어짐)
+    const p = ptys.get(s.id);
+    if (p && !p.dead && s.agent === 'codex') {
+      try { p.proc.kill(); } catch (e2) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e2) {} }
+    }
+    return res.json(s);
+  }
   if (typeof req.body.model === 'string') {
     s.model = modelFor(s.agent, req.body.model);
+    // 새 모델이 못 받는 강도(예: gpt-5.5 에 ultra)가 남아 있으면 codex 가 거부한다 — 자동으로 돌린다
+    if (s.effort) { const inf = codexModelInfo().models[s.model]; if (inf && !inf.efforts.includes(s.effort)) delete s.effort; }
     s.resumeOnStart = false;   // 위 agent 분기와 같은 이유 — 사람이 고른 재시작에 이어하기 문구가 끼면 안 된다
     saveSessions();
     syncRecent(s);
