@@ -2298,6 +2298,21 @@ function readCodexUsage() {
   return best;
 }
 
+async function claudeUsageBars(tok) {
+  const r = await fetch('https://api.anthropic.com/api/oauth/usage', {
+    headers: { Authorization: 'Bearer ' + tok, 'anthropic-beta': 'oauth-2025-04-20' },
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!r.ok) throw new Error('http ' + r.status);
+  const j = await r.json();
+  return (j.limits || []).map(l => ({
+    kind: l.kind,
+    scopeName: (l.scope && l.scope.model && l.scope.model.display_name) || '',
+    percent: l.percent || 0, resetsAt: l.resets_at, severity: l.severity
+  }));
+}
+const accUsageLast = {};   // 계정 번호 → 마지막으로 받은 막대 (조회 실패·토큰 만료 때 그대로 보여 준다)
+
 app.get('/api/usage', async (req, res) => {
   // 2분 캐시 — 너무 자주 조회하면 공식 API가 429(rate limit)로 잠시 막는다
   if (usageCache.data && Date.now() - usageCache.t < 120 * 1000) return res.json(usageCache.data);
@@ -2306,19 +2321,7 @@ app.get('/api/usage', async (req, res) => {
     const cred = readJson(path.join(os.homedir(), '.claude', '.credentials.json'));
     const tok = cred.claudeAiOauth && cred.claudeAiOauth.accessToken;
     if (!tok) throw new Error('no token');
-    const r = await fetch('https://api.anthropic.com/api/oauth/usage', {
-      headers: { Authorization: 'Bearer ' + tok, 'anthropic-beta': 'oauth-2025-04-20' },
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!r.ok) throw new Error('http ' + r.status);
-    const j = await r.json();
-    for (const l of (j.limits || [])) {
-      data.bars.push({
-        kind: l.kind,
-        scopeName: (l.scope && l.scope.model && l.scope.model.display_name) || '',
-        percent: l.percent || 0, resetsAt: l.resets_at, severity: l.severity
-      });
-    }
+    data.bars = await claudeUsageBars(tok);
   } catch (e) {
     // 일시 실패(429 등) 시 직전 그래프 유지 — 재시작 후에는 파일에서 복원
     if (usageCache.data && usageCache.data.bars && usageCache.data.bars.length) data.bars = usageCache.data.bars;
@@ -2344,6 +2347,23 @@ app.get('/api/usage', async (req, res) => {
       };
     }
   } catch (e) {}
+  // 👥 계정 2·3… 의 Claude 사용량 — 계정마다 줄 하나. 그 계정 로그인 토큰으로 따로 조회한다.
+  //    토큰은 그 계정으로 Claude 를 띄워 둬야 갱신되므로, 한동안 안 쓰면 만료돼 직전 값을 그대로 보여 준다.
+  if (accounts.length) {
+    data.acc1 = accInfo(1).email;
+    data.accts = [];
+    for (const n of accounts) {
+      const info = accInfo(n);
+      let bars = accUsageLast[n] || [], stale = true;
+      try {
+        const cred = readJson(path.join(accDir(n), '.credentials.json'));
+        const tok = cred.claudeAiOauth && cred.claudeAiOauth.accessToken;
+        if (tok) { bars = await claudeUsageBars(tok); stale = false; }
+      } catch (e) {}
+      if (!stale) accUsageLast[n] = bars;
+      data.accts.push({ n, email: info.email, loggedIn: info.loggedIn, bars, stale });
+    }
+  }
   if (!data.bars.length && !data.fallback) data.error = '사용량 조회 실패';
   // 성공은 2분 캐시, 빈 결과는 30초 후 재시도
   usageCache = { t: data.bars.length ? Date.now() : Date.now() - 90 * 1000, data };
@@ -3311,7 +3331,7 @@ app.get('/api/accounts', (req, res) => res.json([1].concat(accounts).map(accInfo
 app.post('/api/accounts', (req, res) => {
   let n = 2; while (accounts.includes(n)) n++;
   if (!prepAccount(n)) return res.status(500).json({ error: 'cannot create ' + accDir(n) });
-  accounts.push(n); accounts.sort((a, b) => a - b); saveAccounts();
+  accounts.push(n); accounts.sort((a, b) => a - b); saveAccounts(); usageCache.t = 0;
   res.json({ n, list: [1].concat(accounts).map(accInfo) });
 });
 

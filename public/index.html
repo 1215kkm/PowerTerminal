@@ -239,8 +239,10 @@
   /* 🌐 브라우저 조작 — 꺼져 있으면 흐리게, 켜지면 청록 */
   .pane-head .brBtn { flex: 0 0 auto; opacity: .45; }
   .pane-head .brBtn.on { opacity: 1; background: #0e7490; border-color: #22d3ee; color: #fff; }
-  .pane-head .accBtn { flex: 0 0 auto; opacity: .45; }
-  .pane-head .accBtn.on { opacity: 1; background: #7c2d12; border-color: #fb923c; color: #fff; }
+  /* 👤 이모지는 짙은 남색 실루엣이라 어두운 바탕에서 안 보였다 → 흑백으로 바꾼 뒤 밝게 */
+  .pane-head .accBtn { flex: 0 0 auto; color: #fff; font-weight: 700; }
+  .pane-head .accBtn i { font-style: normal; display: inline-block; filter: brightness(0) invert(1); }   /* 짙은 남색 👤 → 흰색 */
+  .pane-head .accBtn.on { background: #c2410c; border-color: #fdba74; }
   .pane-head .brBtn.incog { opacity: 1; background: #4c1d95; border-color: #a78bfa; color: #fff; }
   .pane-head .st { font-size: 11px; flex: 0 0 auto; }
   /* 🟠 작업 중 표시 — 웹의 ✳ 스피너처럼 PT 자체로 '살아있음'을 보여줌 (busy일 때만, 경과초 표시).
@@ -1538,6 +1540,12 @@
   /* 🤖 GPT 사용량 줄 — 클로드 줄 바로 아래(#usageCol 이 세로로 쌓음) */
   #usageGpt { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); white-space: nowrap; }
   #usageGpt:empty { display: none; }
+  /* 👥 계정 2·3… 사용량 줄 — 계정마다 한 줄, 주황 이름표 (세션의 👤2 단추와 같은 색) */
+  #usageAcc { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+  #usageAcc:empty { display: none; }
+  #usageAcc .ua-row { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .ua-tag { font-size: 10.5px; font-weight: 700; color: #fdba74; white-space: nowrap; }
+  .ua-tag.stale::after { content: ' ⚠'; color: #fbbf24; }
   #usageGpt .ub-label { color: #34d399; }        /* GPT는 초록 계열로 구분 */
   #usageGpt .gpt-when { font-size: 10.5px; opacity: .8; }
   @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
@@ -1547,7 +1555,10 @@
        PC용 묶음(#hdrBtns/#usageCol)은 폰에선 자리를 없애서 그 안의 버튼·막대가
        다시 헤더의 직계 flex 항목처럼 줄배치에 참여하게 한다. */
     #hdrBtns, #usageCol { display: contents; }
-    #usageGpt { order: 10; flex: 1 1 100%; }   /* GPT 줄은 맨 아랫줄 하나를 차지 */
+    #usageGpt { order: 10; flex: 1 1 100%; }
+    #usageAcc { order: 9; flex: 1 1 100%; }
+    #usageAcc .ua-row { flex-wrap: wrap; row-gap: 4px; }
+    #usage > .ua-tag { order: 6; flex: 1 1 100%; }   /* #usage 가 display:contents 라 순서를 안 주면 로고 옆으로 튄다 */   /* GPT 줄은 맨 아랫줄 하나를 차지 */
     .logo-wrap { order: 0; display: inline-block; }   /* 폭=로고 글자 폭 → 배지 오른쪽 끝 기준 */
     #hverBadge { position: absolute; right: 0; bottom: 100%; margin-bottom: 1px; }   /* 로고 우측 끝 바로 위 */
     header .sp { order: 2; }
@@ -1686,6 +1697,7 @@
   <!-- ③ AI 사용량 — 클로드/GPT 를 세로로 쌓아 한 칸에 (헤더는 한 줄 유지) -->
   <span id="usageCol">
     <span id="usage" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
+    <span id="usageAcc"></span>
     <span id="usageGpt"></span>
   </span>
   <span class="sp"></span>
@@ -2502,6 +2514,7 @@ const I18N_MORE = {
     accAsk: "Which Claude account should “{t}” use? The session restarts on that account and the conversation carries on",
     accTreeAsk: "Which account should the new tree use? Picking an account continues the current conversation",
     accN: "Account {n}", accNoLogin: "not signed in yet", accCont: "continue this conversation", accFresh: "New conversation (same account)", accNew: "Add an account",
+    accStale: "This account's sign-in expired because Claude hasn't run on it for a while — showing the last values", accNoUsage: "checking usage…",
     accMade: "Account {n} created — sign in with that account on the Claude login screen in the terminal",
     accSwitched: "Restarting on account {n} — the conversation carries on", accCarried: "Copied the conversation — continuing on account {n}",
     brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
@@ -2643,6 +2656,7 @@ const I18N_MORE = {
     accAsk: "「{t}」을(를) 어느 Claude 계정으로 쓸까요? 바꾸면 세션이 그 계정으로 다시 뜨고 대화는 이어집니다",
     accTreeAsk: "새 트리를 어느 계정으로 열까요? 계정을 고르면 지금 대화를 이어서 시작합니다",
     accN: "계정 {n}", accNoLogin: "아직 로그인 안 함", accCont: "대화 이어서", accFresh: "새 대화로 (지금 계정)", accNew: "새 계정 추가",
+    accStale: "이 계정으로 Claude 를 한동안 안 띄워 로그인 정보가 만료됐어요 — 마지막으로 받은 값입니다", accNoUsage: "사용량 확인 중…",
     accMade: "계정 {n}을 만들었어요 — 터미널에 뜨는 Claude 로그인 화면에서 그 계정으로 로그인하세요",
     accSwitched: "계정 {n}(으)로 다시 띄웁니다 — 대화는 이어집니다", accCarried: "지금 대화를 복사해 계정 {n}(으)로 이어서 시작합니다",
     brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
@@ -5458,7 +5472,7 @@ function buildPane(sess, idx) {
         ${modelSel}${effortSel}
         ${isClaude ? `<span class="advWrap" style="display:none"><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
-        ${isClaude ? `<button class="small accBtn${sess.account > 1 ? ' on' : ''}" title="${escA(T.accT || '')}">👤${sess.account > 1 ? sess.account : ''}</button>` : ''}
+        ${isClaude ? `<button class="small accBtn${sess.account > 1 ? ' on' : ''}" title="${escA(T.accT || '')}"><i>👤</i>${sess.account > 1 ? sess.account : ''}</button>` : ''}
       </div>
     </div>
     <div class="pane-body">
@@ -6470,7 +6484,7 @@ function buildPane(sess, idx) {
     const n = await pickAccount(el, (T.accAsk || '').replace('{t}', sess.title || ''), sess.account || 1);
     if (n === null || n === (sess.account || 1)) return;
     sess.account = n > 1 ? n : undefined;
-    accBtn.textContent = '👤' + (n > 1 ? n : ''); accBtn.classList.toggle('on', n > 1);
+    accBtn.innerHTML = '<i>👤</i>' + (n > 1 ? n : ''); accBtn.classList.toggle('on', n > 1);
     await api('PATCH', '/api/sessions/' + sess.id, { account: n });
     flashToast((T.accSwitched || '').replace('{n}', n));
   };
@@ -10519,8 +10533,10 @@ async function refreshUsage() {
     if (u.fallback) {   // $비용 — PC에선 그래프와 함께 항상 병기
       costHtml = `<span class="ub ub-cost"><span class="ub-label">${T.fbUsage.replace('{t}', '$' + u.fallback.todayCost.toFixed(0)).replace('{w}', '$' + u.fallback.weekCost.toFixed(0))}</span></span>`;
     }
+    const multi = Array.isArray(u.accts) && u.accts.length > 0;
+    const acc1Tag = multi ? `<span class="ua-tag" title="${esc(u.acc1 || '')}">${esc((T.accN || 'Account {n}').replace('{n}', 1))}</span>` : '';
     if (u.bars && u.bars.length) {
-      el.innerHTML = u.bars.map(b => {
+      el.innerHTML = acc1Tag + u.bars.map(b => {
         const label = b.kind === 'session' ? T.curSession
                     : b.kind === 'weekly_all' ? T.weeklyAll
                     : b.scopeName ? T.weeklyPfx + b.scopeName : (b.label || b.kind);
@@ -10539,9 +10555,30 @@ async function refreshUsage() {
       el.innerHTML = costHtml;
     } else { el.textContent = ''; }
     _lastUsageBars = u.bars || [];
+    renderAccUsage(u.accts);                      // 👥 계정 2·3… 줄
     renderGptUsage(u.gpt);                        // 🤖 GPT(Codex) 줄
     cmUpdateUsage();                              // 코드 편집 모드 상단 바에도 반영
   } catch (e) {}
+}
+// 👥 계정 2·3… 사용량 — 계정마다 한 줄. 세션 막대만 남은 시간(⏳)을 붙인다 (줄이 길어지지 않게)
+function renderAccUsage(list) {
+  const el = document.getElementById('usageAcc');
+  if (!el) return;
+  if (!Array.isArray(list) || !list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = list.map(a => {
+    const name = (T.accN || 'Account {n}').replace('{n}', a.n);
+    const tip = name + (a.email ? ' · ' + a.email : '') + (a.stale ? ' — ' + (T.accStale || '') : '');
+    const tag = `<span class="ua-tag${a.stale && a.bars && a.bars.length ? ' stale' : ''}" title="${esc(tip)}">${esc(name)}</span>`;
+    if (!a.bars || !a.bars.length) return `<span class="ua-row">${tag}<span class="ub-label">${esc(a.loggedIn ? (T.accNoUsage || '') : (T.accNoLogin || ''))}</span></span>`;
+    return `<span class="ua-row">${tag}` + a.bars.map(b => {
+      const label = b.kind === 'session' ? T.curSession : b.kind === 'weekly_all' ? T.weeklyAll : b.scopeName ? T.weeklyPfx + b.scopeName : (b.label || b.kind);
+      const col = b.percent >= 90 ? '#ef4444' : b.percent >= 70 ? '#f59e0b' : '#3b82f6';
+      const left = b.kind === 'session' && b.resetsAt ? fmtLeft(new Date(b.resetsAt) - Date.now()) : '';
+      return `<span class="ub" title="${esc(tip)}"><span class="ub-label">${label}</span>
+        <span class="ub-track"><span class="ub-fill" style="width:${Math.min(100, b.percent)}%;background:${col}"></span></span>
+        <span class="ub-pct">${b.percent}%</span>${left ? `<span class="ub-left">⏳${left}</span>` : ''}</span>`;
+    }).join('') + '</span>';
+  }).join('');
 }
 // 🤖 GPT(Codex) 사용량 줄 — codex 세션 로그에 남은 한도 스냅샷이라 "마지막으로 GPT를 쓴 시점" 기준.
 // 그래서 언제 값인지도 같이 적어준다 (클로드처럼 실시간 조회가 아님을 감추지 않기 위해).
