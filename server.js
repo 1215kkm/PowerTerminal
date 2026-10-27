@@ -2501,6 +2501,7 @@ const settingsView = () => ({
   qaDoc: config.qaDoc === undefined ? true : !!config.qaDoc,
   nextSteps: config.nextSteps === undefined ? true : !!config.nextSteps,
   billClaude: config.billClaude || 0, billGpt: config.billGpt || 0,
+  routinesOn: !!config.routinesOn,   // 🔁 루틴 — 실험 기능, 기본 꺼짐 (켜면 머리줄의 ⏱ 자동 실행 자리에 🔁 루틴)
   // 💬 자주 쓰는 요청 단어 — 서버에 두어 PC·폰 어디서 보든 같은 버튼이 보이게 한다.
   // null = "아직 한 번도 정한 적 없음" → 클라이언트가 화면 언어에 맞는 기본 4개를 넣는다.
   // 빈 배열([])은 "전부 지웠다"는 사용자의 뜻이므로 기본값을 다시 채우지 않는다 — 둘을 구분해야 한다.
@@ -2516,6 +2517,7 @@ app.post('/api/settings', (req, res) => {
     // 켜는 즉시, 이미 쌓여 있던 질문·답으로 열려 있는 폴더들의 문서를 한 번 만들어 준다
     if (config.qaDoc) { try { [...new Set(sessions.map(s => s.path))].forEach(p => writeQaDoc(p)); } catch (e) {} }
   }
+  if (req.body && typeof req.body.routinesOn === 'boolean') { config.routinesOn = req.body.routinesOn; dirty = true; }
   if (req.body && typeof req.body.nextSteps === 'boolean') { config.nextSteps = req.body.nextSteps; dirty = true; }
   if (req.body && req.body.billClaude !== undefined) { config.billClaude = billDay(req.body.billClaude); dirty = true; }
   if (req.body && req.body.billGpt !== undefined) { config.billGpt = billDay(req.body.billGpt); dirty = true; }

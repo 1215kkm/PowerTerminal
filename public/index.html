@@ -1723,7 +1723,9 @@
     <option value="hi" data-short="HI" data-full="हिन्दी">🌐 हिन्दी</option>
   </select>
   <button id="btnQuit" onclick="quitAll()" data-i18n-title="quitBtn" title="Quit — shut down the server" style="color:#ef4444"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></button>
-  <button onclick="window.open('/routines.html', '_blank', 'noopener')" title="시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행">🔁 루틴</button>
+  <button id="btnSched" onclick="window.open('/scheduler.html', '_blank', 'noopener')" title="세션별 시각·반복·한도 초기화 예약" data-i18n="schedBtn" data-i18n-title="schedT">⏱ 자동 실행</button>
+  <!-- 🔁 루틴 — 실험 기능(⚙ 설정에서 켬). 켜면 ⏱ 자동 실행 자리를 이 단추가 대신한다 -->
+  <button id="btnRoutines" onclick="window.open('/routines.html', '_blank', 'noopener')" data-i18n="routBtn" data-i18n-title="routT" style="display:none">🔁 루틴</button>
   <button id="btnAdd" class="primary" onclick="openAdd()"><span class="plusBig">＋</span><span data-i18n="addSession">Session</span></button>
   </span>
 </header>
@@ -2016,6 +2018,13 @@
     <span style="display:block">
       <span id="setQaDocL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
       <small id="setQaDocHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
+    </span>
+  </label>
+  <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
+    <input type="checkbox" id="setRoutines" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
+    <span style="display:block">
+      <span id="setRoutinesL" style="display:block;font-size:14px;font-weight:600;line-height:1.55"></span>
+      <small id="setRoutinesHint" style="display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6"></small>
     </span>
   </label>
   <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-top:16px">
@@ -2452,8 +2461,8 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free' },
-  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음' },
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
   ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
   zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
   es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
@@ -10496,9 +10505,15 @@ function billText(day) {
   const when = left === 0 ? (T.billToday || '오늘') : (T.billIn || '{n}일 뒤').replace('{n}', left);
   return (T.billNext || '재결제일') + ': ' + d.toLocaleDateString(T.locale, { year: 'numeric', month: 'long', day: 'numeric' }) + ' (' + when + ')';
 }
+// 🔁 루틴(실험 기능)을 켜면 머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추를 보인다
+function applyRoutinesBtn(on) {
+  const a = document.getElementById('btnSched'), b = document.getElementById('btnRoutines');
+  if (a) a.style.display = on ? 'none' : ''; if (b) b.style.display = on ? '' : 'none';
+}
 async function loadBilling() {
   try {
     const s = await api('GET', '/api/settings');
+    applyRoutinesBtn(!!(s && s.routinesOn));
     BILL.claude = Math.floor(Number(s && s.billClaude) || 0);
     BILL.gpt = Math.floor(Number(s && s.billGpt) || 0);
     // 💬 자주 쓰는 요청 단어도 같은 응답에 실려 온다 — 세션이 이미 그려졌으면 버튼 줄을 채운다.
@@ -10793,6 +10808,7 @@ async function openSettings() {
     { const q = document.getElementById('setQaDoc'); if (q) q.checked = !!(s && s.qaDoc); }
     { const p = document.getElementById('setSteps'); if (p) p.checked = !!(s && s.nextSteps); }
     bc.value = (s && s.billClaude) || ''; bg.value = (s && s.billGpt) || '';
+    { const r = document.getElementById('setRoutines'); if (r) r.checked = !!(s && s.routinesOn); }
     BILL.claude = Math.floor(Number(s && s.billClaude) || 0); BILL.gpt = Math.floor(Number(s && s.billGpt) || 0);
   } catch (e) {}
   ci.onchange = () => api('POST', '/api/settings', { intentNotes: ci.checked });
@@ -10802,6 +10818,11 @@ async function openSettings() {
   tag('setQaDocL', T.setQaDocL || '질문 답변 기록 만들기', 'free');   // 페이지 자체엔 추가 비용이 없다
   document.getElementById('setQaDocHint').textContent = T.setQaDocHint || '';
   cq.onchange = () => api('POST', '/api/settings', { qaDoc: cq.checked });
+  // 🔁 루틴 (실험 기능)
+  const cr = document.getElementById('setRoutines');
+  document.getElementById('setRoutinesL').textContent = T.setRoutinesL || '🔁 Routines (experimental)';
+  document.getElementById('setRoutinesHint').textContent = T.setRoutinesHint || '';
+  cr.onchange = () => { applyRoutinesBtn(cr.checked); api('POST', '/api/settings', { routinesOn: cr.checked }); };
   // 🙋 내가 직접 할 일
   const cp = document.getElementById('setSteps');
   tag('setStepsL', T.setStepsL, 'haiku');
