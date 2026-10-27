@@ -1428,6 +1428,7 @@ function getPty(sess) {
                '\r\n    이 세션을 닫고 올바른 폴더로 다시 추가하세요.\x1b[0m\r\n';
     cwd = os.homedir();
   }
+  const freedMB = freeNotes.get(sess.id) || 0; freeNotes.delete(sess.id);
   const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd,
                  // 세션이 임시물을 둘 곳 — 7일 뒤 PT가 알아서 치운다 (sweepScratch)
                  env: Object.assign({}, process.env, { PT_SCRATCH: SCRATCH_DIR }) };
@@ -1456,6 +1457,9 @@ function getPty(sess) {
   // armed = '완료되면 소리로 알릴 작업이 걸려 있음'. 새로 띄운 세션은 사용자가 시킨 일이 아직 없으니 false —
   // 재시작 자동 이어하기(resume)로 뜬 세션만, 끊긴 그 작업이 끝나면 알려주도록 미리 장전한다.
   p = { proc, buffer: pathWarn, sockets: new Set(), busy: true, done: false, armed: !!resume, lastOut: Date.now(), dead: false, cols: 0, rows: 0, spawnAt: Date.now() };
+  // 🧹 비우려고 다시 띄운 세션 — 새 일을 하기 전엔 또 비우지 않는다(막 뜬 크기가 기준을 넘으면 10분마다 다시 뜨는 걸 막음).
+  //   처음 붙는 화면에 알림을 한 번 띄운다(터미널에 적으면 Claude 가 뜨면서 화면을 지워 안 보였다)
+  if (freedMB) { p.freedStart = true; p.freedToast = freedMB; }
   p.vt = makeVt(opts.cols, opts.rows);
   if (p.vt && pathWarn) { try { p.vt.t.write(pathWarn); } catch (e) {} }
   const isClaude = isClaudeAgent;
@@ -1636,6 +1640,7 @@ setInterval(() => {
       // 재시작 이어하기 플래그는 Claude 전용(getPty가 Claude일 때만 씀) — codex엔 안 걸어 불필요한 저장을 막는다
       if (working) {
         if (isClaude) setResume(sess, true);
+        p.freedStart = false;
         if (!p.busy || p.done) { p.busy = true; p.done = false; p.doneSince = 0; broadcastStatus(id, p); }
       } else {
         if (p.busy) { p.busy = false; p.done = true; p.doneSince = Date.now(); broadcastStatus(id, p, p.armed); }
@@ -1936,6 +1941,44 @@ async function sessionMem() {
   return memCache.busy;
 }
 app.get('/api/sessions-mem', async (req, res) => res.json(await sessionMem()));
+
+/* 🧹 자동 비우기 (2026-10-28 CEO) — Claude 는 대화·읽은 파일·명령 결과를 전부 메모리에 들고 있다가 세션이 다시 뜰 때까지 돌려주지 않는다.
+   며칠 켜 두면 세션 하나가 1~2GB 가 되고 세션 수만큼 쌓인다. 머리의 「🧹」를 켠 세션만, 일을 끝내고 10분 넘게 쉬는 중이며
+   (1.5GB 이상 쓰거나, 컴퓨터 메모리가 85% 이상 찼는데 700MB 이상 쓰면) 다시 띄운다 — --continue 라 대화는 이어진다.
+   그 세션이 띄운 개발 서버 같은 자식 프로세스도 같이 꺼진다(그래야 실제로 비워진다).
+   같은 폴더에 살아 있는 다른 세션이 있으면 건너뛴다 — 그 상태로 다시 뜨면 --continue 를 못 써서 새 대화가 된다(getPty 의 dupAlive). */
+const AF_TEST = process.env.PT_AUTOFREE_TEST === '1';   // 시험용 — 기준을 아주 작게
+const AUTO_FREE_BYTES = AF_TEST ? 1048576 : 1.5 * 1073741824, AUTO_FREE_TIGHT_BYTES = 700 * 1048576, AUTO_FREE_IDLE_MS = AF_TEST ? 8000 : 10 * 60000;
+const freeNotes = new Map();   // 세션 id → 비운 MB (다시 뜰 때 화면에 알린다)
+setInterval(async () => {
+  if (!sessions.some(s => s.autoFree)) return;
+  const m = await sessionMem();
+  if (!m || !m.sessions) return;
+  const tot = m.virtTotal > 0 ? m.virtTotal : m.totalMem, free = m.virtTotal > 0 ? m.virtFree : m.freeMem;
+  const tight = tot > 0 && (tot - free) / tot >= 0.85;
+  const now = Date.now();
+  for (const s of sessions) {
+    if (!s.autoFree || s.routineRun || (s.agent && s.agent !== 'claude')) continue;
+    const p = ptys.get(s.id), u = m.sessions[s.id];
+    if (!p || p.dead || !u || p.busy || !p.doneSince) continue;   // done 은 사람이 보거나 치면 꺼지므로 '쉬는 중' 은 busy·doneSince 로 본다
+    if (p.freedStart) continue;
+    if (now - p.doneSince < AUTO_FREE_IDLE_MS || now - (p.lastInAt || 0) < AUTO_FREE_IDLE_MS || now - p.spawnAt < AUTO_FREE_IDLE_MS) continue;
+    if (!(u.bytes >= AUTO_FREE_BYTES || (tight && u.bytes >= AUTO_FREE_TIGHT_BYTES))) continue;
+    if (sessions.some(o => o.id !== s.id && pathKey(o.path) === pathKey(s.path) && ptys.get(o.id) && !ptys.get(o.id).dead)) continue;
+    const mb = Math.round(u.bytes / 1048576);
+    freeNotes.set(s.id, mb);
+    s.resumeOnStart = false; s.autoFreedAt = now; s.autoFreedMB = mb;
+    try { saveSessions(); } catch (e) {}
+    try {
+      if (IS_WIN) spawn('taskkill', ['/F', '/T', '/PID', String(p.proc.pid)], { windowsHide: true });
+      else p.proc.kill();
+    } catch (e) {}
+    ptys.delete(s.id);
+    for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }   // 화면이 다시 붙으면 --continue 로 다시 뜬다
+    memCache.at = 0;
+    console.log('[autoFree]', s.id, s.title, mb + 'MB', tight ? '(memory tight)' : '');
+  }
+}, AF_TEST ? 5000 : 60000);
 
 app.get('/api/sessions', (req, res) => {
   res.json(sessions.map(s => {
@@ -3526,6 +3569,12 @@ app.patch('/api/sessions/:id', (req, res) => {
       ptys.delete(s.id);
       for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }
     }
+    return res.json(s);
+  }
+  // 🧹 자동 비우기 켜고 끄기 (세션마다)
+  if (typeof req.body.autoFree === 'boolean') {
+    if (req.body.autoFree) s.autoFree = true; else delete s.autoFree;
+    saveSessions();
     return res.json(s);
   }
   // 👥 Claude 계정 바꾸기 — 같은 폴더라 다시 뜨면 --continue 로 지금 대화를 그대로 잇는다
@@ -5223,6 +5272,7 @@ wss.on('connection', (ws, req) => {
   // 접속 시 지금까지 화면 재생 + 상태
   sendSnapshot(p, ws);
   ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, since: p.doneSince || 0 }));
+  if (p.freedToast) { ws.send(JSON.stringify({ type: 'autoFreed', mb: p.freedToast, at: sess.autoFreedAt || Date.now() })); p.freedToast = 0; }
   if (guideApi) guideApi.hello(ws, id);   // 🧭 이 세션의 도우미 안내(있으면)
 
   ws.on('message', raw => {
@@ -5234,6 +5284,7 @@ wss.on('connection', (ws, req) => {
       // 보기만 하는 다른 창이 크기를 뺏어가지 않는다. 기기가 바뀔 때만 크기를 다시 맞춘다.
       if (!/^(\x1b\[[\d;?>]*[A-Za-z~]|\x1b\][^\x07]*(\x07|\x1b\\))+$/.test(String(m.data || ''))) {
         const prev = ws._act || 0; ws._act = Date.now();
+        p.lastInAt = ws._act;   // 🧹 자동 비우기는 사람이 터미널에 치고 있는 세션을 건드리지 않는다
         if (!prev || [...p.sockets].some(o => o !== ws && (o._act || 0) > prev)) applyPtySize(p);
       }
       // 🔔 완료음 장전 — 실제로 요청을 제출했을 때만. 어느 창·기기에서 보냈든 세션 단위로 걸리므로
