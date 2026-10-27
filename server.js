@@ -1222,6 +1222,64 @@ cdpWss.on('connection', async (client, req) => {
 // resume=true: 작업 중에 서버가 꺼졌던 세션 — 재개 문구를 실행 인자로 넣어 뜨자마자 이어서 작업.
 // (예전엔 부팅 후 터미널에 타이핑했는데, Claude 로딩 중 입력은 먹혀 사라져서 실패했음)
 const RESUME_MSG = 'Continue the previous task where you left off.';
+/* 👥 Claude 계정 여러 개 — 계정 1 = 평소의 ~/.claude. 계정 2·3… = ~/.claude-acc2 … 를 CLAUDE_CONFIG_DIR 로 넘겨
+   로그인(.credentials.json·.claude.json)만 따로 둔다. 대화 기록(projects)·스킬·에이전트·명령은 계정 1 폴더를
+   가리키게 이어 둬서(junction) 계정을 바꿔도 같은 대화를 --continue 로 이어 가고, 노트 모드·요청 내역·기억도
+   한곳만 보면 된다. CLAUDE.md·settings.json 은 띄울 때마다 내용이 다르면 더 새 쪽으로 맞춘다. */
+const ACC_FILE = dataFile('accounts.json');
+let accounts = (() => { try { const a = readJson(ACC_FILE); return Array.isArray(a) ? a.filter(n => Number.isInteger(n) && n > 1) : []; } catch (e) { return []; } })();
+function saveAccounts() { try { fs.writeFileSync(ACC_FILE, JSON.stringify(accounts)); } catch (e) {} }
+const claudeHome = () => path.join(os.homedir(), '.claude');
+function accDir(n) { return n > 1 ? path.join(os.homedir(), '.claude-acc' + n) : claudeHome(); }
+const ACC_LINK_DIRS = ['projects', 'skills', 'agents', 'commands', 'plugins', 'todos', 'plans'];
+const ACC_SYNC_FILES = ['CLAUDE.md', 'settings.json', 'keybindings.json'];
+function prepAccount(n) {
+  if (!(n > 1)) return null;
+  const home = claudeHome(), dir = accDir(n);
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { return null; }
+  for (const d of ACC_LINK_DIRS) {
+    const src = path.join(home, d), dst = path.join(dir, d);
+    try { fs.lstatSync(dst); continue; } catch (e) {}            // 이미 있으면(링크든 폴더든) 건드리지 않는다
+    try { fs.mkdirSync(src, { recursive: true }); fs.symlinkSync(src, dst, IS_WIN ? 'junction' : 'dir'); } catch (e) {}
+  }
+  for (const f of ACC_SYNC_FILES) {
+    const a = path.join(home, f), b = path.join(dir, f);
+    let ta = 0, tb = 0, ca = null, cb = null;
+    try { ta = fs.statSync(a).mtimeMs; ca = fs.readFileSync(a, 'utf8'); } catch (e) {}
+    try { tb = fs.statSync(b).mtimeMs; cb = fs.readFileSync(b, 'utf8'); } catch (e) {}
+    if (ca === cb) continue;                                      // 같으면 그대로 (서로 덮어 시각만 바뀌는 핑퐁 방지)
+    try { if (ca !== null && (cb === null || ta >= tb)) fs.copyFileSync(a, b); else if (cb !== null) fs.copyFileSync(b, a); } catch (e) {}
+  }
+  // 연결 도구(MCP)·폴더 신뢰 기록은 계정 1 것을 처음 한 번만 가져온다. 로그인 정보는 가져오지 않는다 → 첫 실행 때 로그인 화면이 뜬다
+  const cj = path.join(dir, '.claude.json');
+  if (!fs.existsSync(cj)) {
+    let base = {}; try { base = readJson(path.join(os.homedir(), '.claude.json')) || {}; } catch (e) {}
+    const keep = {}; for (const k of ['mcpServers', 'projects', 'theme']) if (base[k]) keep[k] = base[k];
+    try { fs.writeFileSync(cj, JSON.stringify(keep, null, 2)); } catch (e) {}
+  }
+  return dir;
+}
+function accInfo(n) {
+  const dir = accDir(n), cj = n > 1 ? path.join(dir, '.claude.json') : path.join(os.homedir(), '.claude.json');
+  let email = '', loggedIn = false;
+  try { const j = readJson(cj); email = (j.oauthAccount && j.oauthAccount.emailAddress) || ''; } catch (e) {}
+  try { const c = readJson(path.join(dir, '.credentials.json')); loggedIn = !!(c.claudeAiOauth && c.claudeAiOauth.accessToken); } catch (e) {}
+  if (!loggedIn && n === 1) loggedIn = !!email;                   // 맥은 로그인 정보를 키체인에 둬서 파일이 없다
+  return { n, email, loggedIn };
+}
+// 이어서 하기 — 원래 폴더의 가장 최근 대화 기록을 새 폴더(트리) 쪽으로 복사해 두면 거기서 --continue 가 그 대화를 잇는다
+function carryConversation(fromPath, toPath) {
+  try {
+    const a = claudeProjectDir(fromPath), b = claudeProjectDir(toPath);
+    const last = fs.readdirSync(a).filter(f => f.endsWith('.jsonl'))
+      .map(f => ({ f, t: fs.statSync(path.join(a, f)).mtimeMs })).sort((x, y) => y.t - x.t)[0];
+    if (!last) return false;
+    fs.mkdirSync(b, { recursive: true });
+    fs.copyFileSync(path.join(a, last.f), path.join(b, last.f));
+    return true;
+  } catch (e) { return false; }
+}
+
 // 🌿 worktree 는 추적 안 되는 파일(node_modules·.env·dist)을 안 가져온다. package.json 이 있는데
 // node_modules 가 없으면 AI 를 띄우기 전에 설치부터 — 안 그러면 첫 명령이 전부 "모듈 없음"으로 실패한다.
 function worktreePrep(sess) {
@@ -1364,6 +1422,7 @@ function getPty(sess) {
   const opts = { name: 'xterm-256color', cols: 120, rows: 34, cwd,
                  // 세션이 임시물을 둘 곳 — 7일 뒤 PT가 알아서 치운다 (sweepScratch)
                  env: Object.assign({}, process.env, { PT_SCRATCH: SCRATCH_DIR }) };
+  if (isClaudeAgent && sess.account > 1) { const d = prepAccount(sess.account); if (d) opts.env.CLAUDE_CONFIG_DIR = d; }
   let proc;
   try {
     if (IS_WIN) {
@@ -3084,6 +3143,15 @@ app.get('/api/admin/translate', async (req, res) => {
   }
 });
 
+// 👥 Claude 계정 목록 / 새 계정 (로그인은 그 계정으로 세션을 띄우면 터미널에 뜨는 Claude 로그인 화면에서)
+app.get('/api/accounts', (req, res) => res.json([1].concat(accounts).map(accInfo)));
+app.post('/api/accounts', (req, res) => {
+  let n = 2; while (accounts.includes(n)) n++;
+  if (!prepAccount(n)) return res.status(500).json({ error: 'cannot create ' + accDir(n) });
+  accounts.push(n); accounts.sort((a, b) => a - b); saveAccounts();
+  res.json({ n, list: [1].concat(accounts).map(accInfo) });
+});
+
 app.post('/api/sessions', async (req, res) => {
   let { path: dir, title, agent, cmd, model } = req.body;
   if (!dir) dir = os.homedir();   // 경로 미지정(예: gh 설치용 세션)이면 홈 폴더에서 실행
@@ -3126,6 +3194,11 @@ app.post('/api/sessions', async (req, res) => {
                  path: dir, previewUrl: '',
                  agent: agent || 'claude', model: modelFor(agent || 'claude', model), cmd: cmd || '' };
   if (wt) { sess.repo = wt.repo || repoOf(dir); sess.branch = wt.branch; sess.worktree = true; }
+  // 👥 계정 고르기 + 이어서 하기 — 원래 세션의 대화를 새 트리로 복사해 다른 계정으로 이어 간다
+  const acc = parseInt(req.body.account, 10);
+  if (acc > 1 && accounts.includes(acc)) sess.account = acc;
+  const from = req.body.carryFrom && sessions.find(x => x.id === req.body.carryFrom);
+  const carried = !!(wt && from && carryConversation(from.path, dir));
   if (req.body.autoClose) sess.autoClose = true;   // 설치용 임시 세션 — 명령 종료 후 자동 제거
   sessions.push(sess);
   saveSessions();
@@ -3135,7 +3208,7 @@ app.post('/api/sessions', async (req, res) => {
   // [추가] 버튼이 한참 반응 없는 것처럼 보였다. 클라이언트는 응답을 받아 창을 그리고 WebSocket 을
   // 붙이는데, 그때 getPty 가 이미 만들어진 걸 그대로 돌려준다. (getPty 는 동기 함수라 중복 생성 없음)
   // 강팀을 같이 넣어 줬으면 알려 준다 (세션 자체에 저장할 값은 아니라 응답에만 얹는다)
-  res.json(wt && wt.team ? Object.assign({ teamCopied: true }, sess) : sess);
+  res.json(Object.assign(wt && wt.team ? { teamCopied: true } : {}, carried ? { carried: true } : {}, sess));
   setImmediate(() => { try { getPty(sess); } catch (e) {} });
 });
 
@@ -3263,6 +3336,21 @@ app.patch('/api/sessions/:id', (req, res) => {
     if (s.browser === 'normal') preLaunchBrowser(sessProfile(s));
     const p = ptys.get(s.id);
     if (p && !p.dead && ((s.agent || 'claude') === 'claude' || s.agent === 'codex')) {
+      try { p.proc.kill(); } catch (e) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }
+    }
+    return res.json(s);
+  }
+  // 👥 Claude 계정 바꾸기 — 같은 폴더라 다시 뜨면 --continue 로 지금 대화를 그대로 잇는다
+  if (req.body.account !== undefined) {
+    const n = parseInt(req.body.account, 10);
+    if (n > 1 && !accounts.includes(n)) return res.status(400).json({ error: 'no account ' + n });
+    if (n > 1) s.account = n; else delete s.account;
+    s.resumeOnStart = false;
+    saveSessions();
+    const p = ptys.get(s.id);
+    if (p && !p.dead && (s.agent || 'claude') === 'claude') {
       try { p.proc.kill(); } catch (e) {}
       ptys.delete(s.id);
       for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }

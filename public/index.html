@@ -239,6 +239,8 @@
   /* 🌐 브라우저 조작 — 꺼져 있으면 흐리게, 켜지면 청록 */
   .pane-head .brBtn { flex: 0 0 auto; opacity: .45; }
   .pane-head .brBtn.on { opacity: 1; background: #0e7490; border-color: #22d3ee; color: #fff; }
+  .pane-head .accBtn { flex: 0 0 auto; opacity: .45; }
+  .pane-head .accBtn.on { opacity: 1; background: #7c2d12; border-color: #fb923c; color: #fff; }
   .pane-head .brBtn.incog { opacity: 1; background: #4c1d95; border-color: #a78bfa; color: #fff; }
   .pane-head .st { font-size: 11px; flex: 0 0 auto; }
   /* 🟠 작업 중 표시 — 웹의 ✳ 스피너처럼 PT 자체로 '살아있음'을 보여줌 (busy일 때만, 경과초 표시).
@@ -2496,6 +2498,12 @@ const I18N_MORE = {
     wtTeamCopied: "The team files (.claude) were copied into the new work folder too.",
     brOffT: "🌐 Browser control is OFF — click to let this session's AI operate a Chrome window itself (normal or incognito; no API needed)",
     brOnT: "🌐 Browser control is ON (normal window) — sign-ins and cookies stay in PT's own Chrome window. Click to switch or turn off",
+    accT: "👤 Claude account — pick which account this session uses. The conversation carries on when you switch",
+    accAsk: "Which Claude account should “{t}” use? The session restarts on that account and the conversation carries on",
+    accTreeAsk: "Which account should the new tree use? Picking an account continues the current conversation",
+    accN: "Account {n}", accNoLogin: "not signed in yet", accCont: "continue this conversation", accFresh: "New conversation (same account)", accNew: "Add an account",
+    accMade: "Account {n} created — sign in with that account on the Claude login screen in the terminal",
+    accSwitched: "Restarting on account {n} — the conversation carries on", accCarried: "Copied the conversation — continuing on account {n}",
     brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
     brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
@@ -2631,6 +2639,12 @@ const I18N_MORE = {
     wtTeamCopied: "강팀(.claude)도 새 작업 폴더로 같이 복사했어요.",
     brOffT: "🌐 브라우저 조작 꺼짐 — 누르면 이 세션의 AI가 크롬 창을 직접 조작하게 합니다 (일반창/시크릿창 선택, API 없어도 됨)",
     brOnT: "🌐 브라우저 조작 켜짐 (일반창) — PT 전용 크롬 창에 로그인·쿠키가 남습니다. 누르면 바꾸거나 끕니다",
+    accT: "👤 Claude 계정 — 이 세션을 어느 계정으로 쓸지 고릅니다. 바꿔도 대화는 그대로 이어집니다",
+    accAsk: "「{t}」을(를) 어느 Claude 계정으로 쓸까요? 바꾸면 세션이 그 계정으로 다시 뜨고 대화는 이어집니다",
+    accTreeAsk: "새 트리를 어느 계정으로 열까요? 계정을 고르면 지금 대화를 이어서 시작합니다",
+    accN: "계정 {n}", accNoLogin: "아직 로그인 안 함", accCont: "대화 이어서", accFresh: "새 대화로 (지금 계정)", accNew: "새 계정 추가",
+    accMade: "계정 {n}을 만들었어요 — 터미널에 뜨는 Claude 로그인 화면에서 그 계정으로 로그인하세요",
+    accSwitched: "계정 {n}(으)로 다시 띄웁니다 — 대화는 이어집니다", accCarried: "지금 대화를 복사해 계정 {n}(으)로 이어서 시작합니다",
     brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
     brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
@@ -5417,6 +5431,7 @@ function buildPane(sess, idx) {
         ${modelSel}
         ${isClaude ? `<span class="advWrap" style="display:none"><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
+        ${isClaude ? `<button class="small accBtn${sess.account > 1 ? ' on' : ''}" title="${escA(T.accT || '')}">👤${sess.account > 1 ? sess.account : ''}</button>` : ''}
       </div>
     </div>
     <div class="pane-body">
@@ -6403,11 +6418,31 @@ function buildPane(sess, idx) {
     };
   }
 
+  // 👤 Claude 계정 — 이 세션을 어느 계정으로 쓸지. 바꾸면 서버가 그 계정으로 다시 띄우고 대화는 --continue 로 이어진다.
+  //   처음 쓰는 계정이면 터미널에 Claude 로그인 화면이 뜬다.
+  const accBtn = el.querySelector('.accBtn');
+  if (accBtn) accBtn.onclick = async ev => {
+    ev.stopPropagation();
+    const n = await pickAccount(el, (T.accAsk || '').replace('{t}', sess.title || ''), sess.account || 1);
+    if (n === null || n === (sess.account || 1)) return;
+    sess.account = n > 1 ? n : undefined;
+    accBtn.textContent = '👤' + (n > 1 ? n : ''); accBtn.classList.toggle('on', n > 1);
+    await api('PATCH', '/api/sessions/' + sess.id, { account: n });
+    flashToast((T.accSwitched || '').replace('{n}', n));
+  };
+
   // ＋ (마우스 올렸을 때의 번호 자리) — 같은 폴더로 세션 하나 더. git 레포면 서버가 worktree 로 분리해
   //   두 세션이 같은 파일을 동시에 건드려 충돌하는 일이 없다. Shift·우클릭 = 같은 폴더 그대로.
   const numEl = el.querySelector('.num');
   const addSibling = async same => {
     if (el.classList.contains('wtmaking')) return;                 // 만드는 중에 또 누르면 worktree 가 두 개 생긴다
+    // 👥 계정이 둘 이상이면 새 트리를 어느 계정으로 열지 묻는다 — 계정을 고르면 지금 대화를 이어서 시작한다
+    let accX = null;
+    if (!same && accBtn && (await loadAccounts()).length > 1) {
+      const k = await pickAccount(el, T.accTreeAsk || '', null, true);
+      if (k === null) return;
+      accX = k === 'fresh' ? { account: sess.account || 1 } : { account: k, carryFrom: sess.id };
+    }
     // git worktree add 는 레포 크기에 따라 몇 초 걸린다 — 그 사이 아무 표시가 없어 멈춘 것처럼 보였다.
     el.classList.add('wtmaking');
     const note = document.createElement('span');
@@ -6418,8 +6453,8 @@ function buildPane(sess, idx) {
     numEl.style.opacity = '.45';                                   // 서버 왕복이 1~2초 걸려 '먹통' 처럼 보이던 것 방지
     // extra 는 Object.assign 의 마지막이라 model 을 여기서 덮어써야 새 세션이 '자동'으로 리셋되지 않고
     // 원본과 같은 모델로 뜬다 (4번째 인자는 model 이 아니라 cmd 다 — 빈 문자열이 맞다)
-    const extra = Object.assign({ model: sess.model || 'default' }, same ? { dupSame: true } : { fresh: true });
-    try { await addSession(sess.path, sess.title, sess.agent, '', true, extra); }
+    const extra = Object.assign({ model: sess.model || 'default' }, same ? { dupSame: true } : { fresh: true }, accX || {});
+    try { const ns = await addSession(sess.path, sess.title, sess.agent, '', true, extra); if (ns && ns.carried) flashToast((T.accCarried || '').replace('{n}', ns.account || 1)); }
     finally { numEl.style.opacity = ''; done(); }
     applyLayout(); renumber();
   };
@@ -10280,6 +10315,33 @@ async function addManual() {
   renderAddCards();   // 창은 닫지 않고 카드만 갱신 — 이어서 추가 가능
   if (s) showAddMsg(s.title || title || p);
 }
+// 👥 Claude 계정 목록 [{ n, email, loggedIn }] — 계정 1 = 평소 계정
+let ACCS = null;
+async function loadAccounts(force) {
+  if (!ACCS || force) { try { ACCS = await api('GET', '/api/accounts'); } catch (e) {} }
+  return Array.isArray(ACCS) ? ACCS : [{ n: 1 }];
+}
+// 계정 고르기 — 고른 번호, 트리용(tree)이면 'fresh'(새 대화) 도 있음, 취소면 null. '＋ 새 계정' 을 고르면 만들고 그 번호를 돌려준다.
+async function pickAccount(el, title, cur, tree) {
+  const list = await loadAccounts(true);
+  const lab = a => '👤 ' + (T.accN || 'Account {n}').replace('{n}', a.n) + ' · ' + (a.email || (a.loggedIn ? '' : (T.accNoLogin || 'not signed in yet')))
+    + (tree ? ' — ' + (T.accCont || 'continue this conversation') : '');
+  const choices = list.map(a => [String(a.n), lab(a)]);
+  if (tree) choices.push(['fresh', '🌿 ' + (T.accFresh || 'New conversation (same account)')]);
+  choices.push(['__new__', '＋ ' + (T.accNew || 'Add an account'), 'pc-no']);
+  const pick = await paneChoice(el, title, choices, cur ? String(cur) : null);
+  if (pick === null || pick === undefined) return null;
+  if (pick === 'fresh') return 'fresh';
+  if (pick === '__new__') {
+    const r = await api('POST', '/api/accounts', {});
+    if (!r || !r.n) { flashToast((r && r.error) || 'failed'); return null; }
+    ACCS = r.list;
+    flashToast((T.accMade || '').replace(/\{n\}/g, r.n));
+    return r.n;
+  }
+  return parseInt(pick, 10);
+}
+
 async function addSession(path, title, agent, cmd, skipPrompt, extra) {
   const pick = document.getElementById('addAgent').value;
   const s = await api('POST', '/api/sessions', Object.assign({ path, title, agent: agent || pick, cmd, model: curAddModel() }, extra || {}));
