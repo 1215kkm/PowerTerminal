@@ -195,6 +195,7 @@
   .dayhd { text-align:center; padding-top:30%; font-family:var(--ui); } .dayhd h2 { font:700 26px var(--body); margin:0 0 8px; color:var(--ink); } .dayhd p { color:var(--muted); font-size:13px; margin:0; }
   .daytoc .dayhd { padding-top:4px; text-align:left; margin-bottom:12px; } .daytoc .dayhd h2 { font-size:20px; }
   .tocit b { flex:0 0 auto; font-weight:700; color:var(--ink); }
+  .tocit.full { align-items:flex-start; padding:8px 4px; } .tocit.full small { padding-top:2px; } .tocit.full span { white-space:pre-wrap; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; line-height:1.55; }
   @media (max-width: 820px) {
     .desk { padding:30px 6px 26px; gap:0; } .navcol, .topmid { display:none; }
     .side { flex:0 0 auto; flex-direction:row; order:-1; overflow-x:auto; padding:6px 8px; gap:6px; border-left:none; border-bottom:1px solid #33363e; }
@@ -617,7 +618,9 @@ const reqHtml = t => linkify(esc(t)).replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt
 const dayOf = ts => fmtT(ts).slice(0, 5);
 const dayTitle = ts => { const d = new Date(ts); return KO ? (d.getMonth() + 1) + '월 ' + d.getDate() + '일' : d.toLocaleDateString('en', { month: 'short', day: 'numeric' }); };
 // 그날 요청 차례 — 요청 글만 한 줄씩, 누르면 그 요청 쪽으로 간다
-const tocList = list => list.map(t => '<button type="button" class="tocit" data-i="' + t.i + '"><small>' + fmtT(t.ts).slice(6) + '</small><span>' + esc(t.req.replace(/\s+/g, ' ').trim().slice(0, 80)) + '</span></button>').join('');
+// 요청 글은 자르지 않고 전부, 여러 줄이면 여러 줄로 (붙인 그림·파일 경로만 📎 로 줄인다. 링크는 만들지 않는다 — 차례 줄 자체가 누르는 단추라서)
+const attOnly = t => esc(t).replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '📎 ' + T.att + ' .' + ext.toLowerCase());
+const tocList = list => list.map(t => '<button type="button" class="tocit full" data-i="' + t.i + '"><small>' + fmtT(t.ts).slice(6) + '</small><span>' + attOnly(t.req.trim()) + '</span></button>').join('');
 const dayHd = list => '<div class="dayhd"><h2>' + esc(dayTitle(list[0].ts)) + '</h2><p>' + esc(T.turns.replace('{n}', list.length)) + '</p></div>';
 const byDay = () => { const m = new Map(); for (const t of turns) { const k = dayOf(t.ts); if (!m.has(k)) m.set(k, []); m.get(k).push(t); } return m; };
 function turnEl(t) {
