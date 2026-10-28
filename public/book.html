@@ -191,6 +191,10 @@
   .toc { font-family:var(--ui); } .toc h4 { font:700 14px var(--ui); margin:0 0 10px; color:var(--ink); }
   .tocit { all:unset; box-sizing:border-box; display:flex; gap:10px; width:100%; padding:6px 4px; border-bottom:1px dotted #d9d4c6; cursor:pointer; font-size:12.5px; color:var(--ink); }
   .tocit:hover { background:#f3f0e7; } .tocit small { flex:0 0 auto; color:var(--muted); font-size:11.5px; } .tocit span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* 날짜마다 첫 장 = 그날 요청 차례 (2026-10-29 CEO) */
+  .dayhd { text-align:center; padding-top:30%; font-family:var(--ui); } .dayhd h2 { font:700 26px var(--body); margin:0 0 8px; color:var(--ink); } .dayhd p { color:var(--muted); font-size:13px; margin:0; }
+  .daytoc .dayhd { padding-top:4px; text-align:left; margin-bottom:12px; } .daytoc .dayhd h2 { font-size:20px; }
+  .tocit b { flex:0 0 auto; font-weight:700; color:var(--ink); }
   @media (max-width: 820px) {
     .desk { padding:30px 6px 26px; gap:0; } .navcol, .topmid { display:none; }
     .side { flex:0 0 auto; flex-direction:row; order:-1; overflow-x:auto; padding:6px 8px; gap:6px; border-left:none; border-bottom:1px solid #33363e; }
@@ -610,8 +614,14 @@ const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0')
 const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 60 ? Math.round(s / 60) + T.min : s + T.sec; };
 const reqHtml = t => linkify(esc(t)).replace(/(&quot;)?[A-Za-z]:\\[^\s&]*?\\\.pt-images\\[^\s&]+?\.(png|jpe?g|gif|webp|mp4|txt|pdf)(&quot;)?/gi, (m, a, ext) => '<span class="att">📎 ' + T.att + ' .' + ext.toLowerCase() + '</span>');
 
+const dayOf = ts => fmtT(ts).slice(0, 5);
+const dayTitle = ts => { const d = new Date(ts); return KO ? (d.getMonth() + 1) + '월 ' + d.getDate() + '일' : d.toLocaleDateString('en', { month: 'short', day: 'numeric' }); };
+// 그날 요청 차례 — 요청 글만 한 줄씩, 누르면 그 요청 쪽으로 간다
+const tocList = list => list.map(t => '<button type="button" class="tocit" data-i="' + t.i + '"><small>' + fmtT(t.ts).slice(6) + '</small><span>' + esc(t.req.replace(/\s+/g, ' ').trim().slice(0, 80)) + '</span></button>').join('');
+const dayHd = list => '<div class="dayhd"><h2>' + esc(dayTitle(list[0].ts)) + '</h2><p>' + esc(T.turns.replace('{n}', list.length)) + '</p></div>';
+const byDay = () => { const m = new Map(); for (const t of turns) { const k = dayOf(t.ts); if (!m.has(k)) m.set(k, []); m.get(k).push(t); } return m; };
 function turnEl(t) {
-  const el = document.createElement('article'); el.className = 'turn'; el.dataset.i = t.i; el.dataset.day = fmtT(t.ts).slice(0, 5);
+  const el = document.createElement('article'); el.className = 'turn'; el.dataset.i = t.i; el.dataset.day = dayOf(t.ts);
   el.innerHTML = '<div class="q"><small></small><span></span></div><div class="a"></div><div class="wslot"></div>';
   return el;
 }
@@ -657,6 +667,15 @@ function render(full) {
     }
     fillTurn(el, t, busy && t.i === lastI);
   }
+  { const days = byDay(), want = new Set();
+    for (const [day, list] of days) {
+      const first = flow.querySelector('.turn[data-i="' + list[0].i + '"]'); if (!first) continue;
+      want.add(day);
+      let toc = first.previousElementSibling;
+      if (!toc || !toc.classList.contains('daytoc') || toc.dataset.toc !== day) { toc = flow.querySelector('.daytoc[data-toc="' + day + '"]') || document.createElement('article'); toc.className = 'turn daytoc toc'; toc.dataset.toc = day; first.before(toc); }
+      const h = dayHd(list) + tocList(list); if (toc._sig !== h) { toc._sig = h; toc.innerHTML = h; }
+    }
+    flow.querySelectorAll('.daytoc').forEach(e => { if (!want.has(e.dataset.toc)) e.remove(); }); }
   if (cur._unsup && !flipMode() && liveBox.parentNode !== flow) flow.append(liveBox);   // no transcript to read — show the terminal only
   let note = flow.querySelector('.sentnote');
   if (sentAt && Date.now() - sentAt < 90000 && total <= sentTotal) { if (!note) { note = document.createElement('div'); note.className = 'pending sentnote'; note.textContent = T.sending; flow.append(note); } }
@@ -781,9 +800,9 @@ function leafDrop(commit, from) {
 function marks() {
   const days = []; let curDay = '';
   const n = perView();
-  const firsts = pf ? pfPages.map((p, k) => ({ p, k })).filter(x => x.p.dataset.i !== undefined && (x.k === 0 || pfPages[x.k - 1].dataset.i !== x.p.dataset.i))
-      .map(x => ({ day: (flow.querySelector('.turn[data-i="' + x.p.dataset.i + '"]') || { dataset: {} }).dataset.day || '', pg: Math.floor(x.k / 2) }))
-    : [...flow.querySelectorAll('.turn[data-i]')].map(el => ({ day: el.dataset.day, pg: Math.floor(colOf(el) / n) }));
+  const firsts = pf ? pfPages.map((p, k) => ({ p, k })).filter(x => x.p.dataset.toc && x.k % 2 === 0).map(x => ({ day: x.p.dataset.toc, pg: Math.floor(x.k / 2) })).concat(pfPages.map((p, k) => ({ p, k })).filter(x => x.p.dataset.i !== undefined && (x.k === 0 || pfPages[x.k - 1].dataset.i !== x.p.dataset.i))
+      .map(x => ({ day: (flow.querySelector('.turn[data-i="' + x.p.dataset.i + '"]') || { dataset: {} }).dataset.day || '', pg: Math.floor(x.k / 2) }))).sort((a, b) => a.pg - b.pg)
+    : [...flow.querySelectorAll('.turn[data-i]')].map(el => { const p = el.previousElementSibling, at = p && p.classList.contains('daytoc') ? p : el; return { day: el.dataset.day, pg: Math.floor(colOf(at) / n) }; });
   for (const x of firsts) {
     const el = { dataset: { day: x.day } }, pg = x.pg;
     if (!days.length || days[days.length - 1].d !== el.dataset.day) days.push({ d: el.dataset.day, pg });
@@ -799,6 +818,8 @@ $('prev').onclick = () => nav(-1); $('next').onclick = () => nav(1);
 $('book').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.classList.contains('more')) return loadEarlier();
+  if (b.classList.contains('tocday')) { const k = pfPages.findIndex(p => p.dataset.toc === b.dataset.day); if (k >= 0) go(Math.floor(k / 2)); return; }
+  if (b.classList.contains('tocit') && !pf) { const el = flow.querySelector('.turn[data-i="' + b.dataset.i + '"]'); if (el) go(Math.floor(colOf(el) / perView())); return; }
   if (b.classList.contains('tocit')) {   // a request that shares the last spread: open it and scroll to that request
     const k = pfPages.findIndex(p => p.dataset.i === b.dataset.i);
     if (k >= 0) go(Math.floor(k / 2));
@@ -907,8 +928,8 @@ function fillCover(c) {
   const src = flow.querySelector('.cover'), cv = src ? src.cloneNode(true) : document.createElement('div'); cv.classList.remove('turn');
   c.pages[0]._in.textContent = ''; c.pages[0]._in.append(cv);
   const R = c.pages[1]._in, top = R.scrollTop;
-  R.innerHTML = '<div class="toc"><h4>' + W.toc + '</h4>' + turns.map(t => { const one = t.req.replace(/\s+/g, ' ').trim();
-    return '<button type="button" class="tocit" data-i="' + t.i + '"><small>' + fmtT(t.ts) + '</small><span>' + esc(one.slice(0, 80)) + '</span></button>'; }).join('') + '</div>';
+  R.innerHTML = '<div class="toc"><h4>' + W.toc + '</h4>' + [...byDay()].map(([day, list]) =>
+    '<button type="button" class="tocit tocday" data-day="' + day + '"><b>' + esc(dayTitle(list[0].ts)) + '</b><small>' + esc(T.turns.replace('{n}', list.length)) + '</small><span>' + esc(list[0].req.replace(/\s+/g, ' ').trim().slice(0, 60)) + '</span></button>').join('') + '</div>';
   R.scrollTop = top;
 }
 function buildFlip(keep) {
@@ -930,7 +951,15 @@ function buildFlip(keep) {
     if (c0.sig !== s0) { c0.sig = s0; fillCover(c0); }
     const noteOn = !!(sentAt && Date.now() - sentAt < 90000 && total <= sentTotal);
     const liveI = busy ? lastI : -1, grp = turns.filter(t => t.i >= liveFrom);
+    const days = byDay(); let prevDay = '';
     for (const list of turns.filter(t => t.i < liveFrom).map(t => [t]).concat(grp.length ? [grp] : [])) {
+      const day = dayOf(list[0].ts);
+      if (day !== prevDay) {   // 날짜가 바뀌는 첫 장 = 그날 요청 차례. 왼쪽 = 날짜, 오른쪽 = 요청 목록
+        prevDay = day;
+        const dl = days.get(day) || list, c = spread('day:' + day), sig = dl.map(t => t.i + ':' + t.req.length).join(',');
+        c.pages.forEach(p => { p.classList.remove('wk', 'qa'); p.dataset.toc = day; });
+        if (c.sig !== sig) { c.sig = sig; c.pages[0]._in.innerHTML = dayHd(dl); c.pages[1]._in.innerHTML = '<div class="toc"><h4>' + W.toc + '</h4>' + tocList(dl) + '</div>'; }
+      }
       const note = noteOn && list[list.length - 1].i === lastI, hasLive = list.some(t => t.i === liveI), c = spread(list[0].i), sig = grpSig(list, liveI, note);
       if (c.sig !== sig || (hasLive && !c.pages[0].contains(liveBox))) { c.sig = sig; fillSpread(c, list, liveI, note); }
     }
