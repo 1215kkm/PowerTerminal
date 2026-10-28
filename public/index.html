@@ -176,7 +176,8 @@
     background: transparent; color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
   .ph-sub .afBtn:hover { color: var(--text); border-color: var(--muted); }
   .ph-sub .afBtn.on { background: #166534; color: #fff; border-color: #22c55e; font-weight: 700; }
-  @media (max-width: 700px) { .ph-sub .afBtn span { display: none; } }   /* 폰은 칸이 좁아 아이콘만 — 켜짐은 초록으로 보인다 */
+  /* 폰은 칸이 좁아 경로가 「D:...」로만 남는다 — 경로를 빼고 🧠 숫자와 🧹(아이콘만, 켜짐은 초록)이 보이게 */
+  @media (max-width: 700px) { .ph-sub .afBtn span { display: none; } .ph-sub .folder { display: none; } .ph-sub { gap: 2px 5px; padding-left: 0; flex-wrap: wrap; } .ph-sub .afBtn { font-size: 14px; padding: 2px 12px; } }
   /* 🔢 선택창 버튼 — AI 가 「1. Yes / 2. No」 같은 선택창을 띄우면 입력칸 위에 뜬다 (폰에서는 방향키가 없어서) */
   .qMenu { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; margin: 0 0 6px;
            background: #1e1b4b; border: 1px solid #6366f1; border-radius: 10px; }
