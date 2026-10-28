@@ -5297,7 +5297,7 @@ function savedFont() {
   const v = Math.floor(Number(localStorage.getItem('pt_fontsize')));
   return FONT_SIZES.includes(v) ? v : DEFAULT_FONT;
 }
-const MIN_W = 300;         // 세션 한 칸 최소 폭 — 이보다 좁아지면 2줄/새 창 안내
+const MIN_W = 390;         // 세션 한 칸 최소 폭 — 이보다 좁아지면 다음 줄로 넘긴다(2026-10-28 CEO: 390) / 새 창 안내
 const MIN_ROW_H = 340;     // 세션 한 줄 최소 높이 — .pane 의 min-height 와 같은 값.
                            // 여러 줄이 이보다 납작해져야 할 상황이면 칸이 더 안 줄어드니 화면맞춤을 포기하고 스크롤.
 const FOCUS_FR = 3;        // 확대 시 그 칸이 차지하는 비율 (나머지 칸은 1)
@@ -9613,19 +9613,18 @@ function applyLayout() {
   grid.style.gridTemplateRows = '';
   grid.style.gridAutoRows = '';
   grid.style.height = '';
-  // 1=전체 · 2=좌우 반반 · 3개↑=가로로 나란히 (한 줄).
-  // 한 칸이 MIN_W(300px) 미만으로 좁아지면 2줄로 접어서 배치.
+  // 가로로 나란히 두되, 한 칸이 MIN_W(390px)보다 좁아지면 그만큼 다음 줄로 넘긴다.
   const gw = grid.clientWidth || window.innerWidth;
   let cols, singleRow;
   // 7개 이상(넓은 화면) — 6개는 그대로 한 줄에 두고, 7번째부터는 화면 아래로 내려 스크롤로 본다(CEO 2026-10-08).
   // 예전엔 4+3 두 줄로 접혀 칸이 전부 반 높이가 됐다. 아래에 세션이 더 있다는 걸 알 수 있게 첫 줄 높이를
   // 조금 줄여 다음 줄의 제목이 화면에 걸치게 한다.
   const PER_ROW = 6, PEEK = 62;
-  const overflowRows = n > PER_ROW && gw / PER_ROW >= MIN_W && !hasMax;
-  if (n <= 1) { cols = 1; singleRow = true; }
-  else if (n === 2) { cols = 2; singleRow = true; }
-  else if (overflowRows) { cols = PER_ROW; singleRow = false; }
-  else { singleRow = (gw / n >= MIN_W); cols = singleRow ? n : Math.ceil(n / 2); }
+  const fitCols = Math.max(1, Math.floor((gw - 20 + 10) / (MIN_W + 10)));   // 안쪽 여백 20 · 칸 사이 10
+  cols = Math.min(n, PER_ROW, fitCols);
+  singleRow = cols >= n;
+  // 3줄 이상이 되거나 7개 이상이면 줄을 화면에 욱여넣지 않고, 다음 줄 제목이 걸치게 해서 스크롤로 본다
+  const overflowRows = !hasMax && !singleRow && (Math.ceil(n / cols) > 2 || n > PER_ROW);
 
   // 열 너비 — 확대 중이면 그 칸의 열만 크게. 위치는 그대로, grid 트랜지션으로 부드럽게 커짐
   const weights = Array(cols).fill('1fr');
