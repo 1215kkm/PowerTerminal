@@ -2542,6 +2542,9 @@ const I18N_MORE = {
     afLbl: "Auto-free", afT: "🧹 Auto-free memory — when this session has been idle for 10+ minutes and uses 1.5GB+ (or 700MB+ while the PC is 85%+ full), PT restarts it to free memory. The conversation carries on; dev servers it started stop too. Click to turn on/off",
     afDone: "🧹 {t}: restarted to free {mb} of memory — the conversation carries on", afLast: "Last freed: {when} ({mb})",
     afOn: "🧹 Auto-free on — restarts this session when it idles with a lot of memory (the conversation carries on)", afOff: "🧹 Auto-free off",
+    gaccT: "👤 GPT account — pick which GPT (ChatGPT) account this session uses. Switching starts a new GPT conversation", gaccAsk: "Which GPT account should \"{t}\" use?", gaccN: "GPT account {n}",
+    gaccTreeAsk: "Which GPT account should the new tree use?", gaccSwitched: "Restarting on GPT account {n} — GPT starts a new conversation on another account",
+    gaccMade: "Added GPT account {n} — pick it in a GPT session and sign in on the screen that appears",
     accSwitched: "Restarting on account {n} — the conversation carries on", accCarried: "Copied the conversation — continuing on account {n}",
     brIncT: "🕶 Browser control is ON (incognito) — a clean Chrome just for this session, wiped when it ends. Click to switch or turn off",
     brNormal: "Normal window", brIncog: "Incognito window", brOff: "Turn off",
@@ -2687,6 +2690,9 @@ const I18N_MORE = {
     afLbl: "자동 비우기", afT: "🧹 메모리 자동 비우기 — 이 세션이 일을 끝내고 10분 넘게 쉬는 중에 1.5GB 이상 쓰면(컴퓨터 메모리가 85% 넘게 찼으면 700MB 이상) PT 가 다시 띄워 메모리를 비웁니다. 대화는 이어지고, 이 세션이 띄운 개발 서버는 같이 꺼집니다. 눌러서 켜고 끄기",
     afDone: "🧹 {t}: 메모리 {mb}를 비우려고 다시 띄웠습니다 — 대화는 이어집니다", afLast: "마지막으로 비운 때: {when} ({mb})",
     afOn: "🧹 자동 비우기 켬 — 쉬는 중에 메모리를 많이 쓰면 다시 띄웁니다(대화는 이어짐)", afOff: "🧹 자동 비우기 끔",
+    gaccT: "👤 GPT 계정 — 이 세션을 어느 GPT(ChatGPT) 계정으로 쓸지 고릅니다. 바꾸면 GPT 는 새 대화로 시작합니다", gaccAsk: "「{t}」을(를) 어느 GPT 계정으로 쓸까요?", gaccN: "GPT 계정 {n}",
+    gaccTreeAsk: "새 트리를 어느 GPT 계정으로 열까요?", gaccSwitched: "GPT 계정 {n}(으)로 다시 띄웁니다 — 계정이 바뀌면 GPT 는 새 대화로 시작합니다",
+    gaccMade: "GPT 계정 {n}을(를) 만들었어요 — GPT 세션에서 고르면 뜨는 화면에서 로그인하세요",
     accSwitched: "계정 {n}(으)로 다시 띄웁니다 — 대화는 이어집니다", accCarried: "지금 대화를 복사해 계정 {n}(으)로 이어서 시작합니다",
     brIncT: "🕶 브라우저 조작 켜짐 (시크릿창) — 이 세션만의 깨끗한 크롬, 끝나면 전부 지워집니다. 누르면 바꾸거나 끕니다",
     brNormal: "일반창", brIncog: "시크릿창", brOff: "끄기",
@@ -5501,7 +5507,8 @@ function buildPane(sess, idx) {
         ${modelSel}${effortSel}
         ${isClaude ? `<span class="advWrap" style="display:none"><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
-        ${isClaude ? `<button class="small accBtn${sess.account > 1 ? ' on' : ''}" title="${escA(T.accT || '')}"><i>👤</i>${sess.account > 1 ? sess.account : ''}</button>` : ''}
+        ${isClaude ? `<button class="small accBtn${sess.account > 1 ? ' on' : ''}" title="${escA(T.accT || '')}"><i>👤</i>${sess.account > 1 ? sess.account : ''}</button>`
+          : aiCur === 'codex' ? `<button class="small accBtn${sess.gptAccount > 1 ? ' on' : ''}" title="${escA(T.gaccT || '')}"><i>👤</i>${sess.gptAccount > 1 ? sess.gptAccount : ''}</button>` : ''}
       </div>
     </div>
     <div class="pane-body">
@@ -6522,15 +6529,16 @@ function buildPane(sess, idx) {
   };
   // 👤 Claude 계정 — 이 세션을 어느 계정으로 쓸지. 바꾸면 서버가 그 계정으로 다시 띄우고 대화는 --continue 로 이어진다.
   //   처음 쓰는 계정이면 터미널에 Claude 로그인 화면이 뜬다.
-  const accBtn = el.querySelector('.accBtn');
+  //   GPT 세션도 같은 단추로 GPT 계정을 고른다(계정마다 대화 기록이 따로라 바꾸면 새 대화로 시작).
+  const accBtn = el.querySelector('.accBtn'), accKind = sess.agent === 'codex' ? 'gpt' : 'claude', accKey = accKind === 'gpt' ? 'gptAccount' : 'account';
   if (accBtn) accBtn.onclick = async ev => {
     ev.stopPropagation();
-    const n = await pickAccount(el, (T.accAsk || '').replace('{t}', sess.title || ''), sess.account || 1);
-    if (n === null || n === (sess.account || 1)) return;
-    sess.account = n > 1 ? n : undefined;
+    const n = await pickAccount(el, ((accKind === 'gpt' ? T.gaccAsk : T.accAsk) || '').replace('{t}', sess.title || ''), sess[accKey] || 1, false, accKind);
+    if (n === null || n === (sess[accKey] || 1)) return;
+    sess[accKey] = n > 1 ? n : undefined;
     accBtn.innerHTML = '<i>👤</i>' + (n > 1 ? n : ''); accBtn.classList.toggle('on', n > 1);
-    await api('PATCH', '/api/sessions/' + sess.id, { account: n });
-    flashToast((T.accSwitched || '').replace('{n}', n));
+    await api('PATCH', '/api/sessions/' + sess.id, { [accKey]: n });
+    flashToast(((accKind === 'gpt' ? T.gaccSwitched : T.accSwitched) || '').replace('{n}', n));
   };
 
   // ＋ (마우스 올렸을 때의 번호 자리) — 같은 폴더로 세션 하나 더. git 레포면 서버가 worktree 로 분리해
@@ -6540,10 +6548,16 @@ function buildPane(sess, idx) {
     if (el.classList.contains('wtmaking')) return;                 // 만드는 중에 또 누르면 worktree 가 두 개 생긴다
     // 👥 계정이 둘 이상이면 새 트리를 어느 계정으로 열지 묻는다 — 계정을 고르면 지금 대화를 이어서 시작한다
     let accX = null;
-    if (!same && accBtn && (await loadAccounts()).length > 1) {
-      const k = await pickAccount(el, T.accTreeAsk || '', null, true);
-      if (k === null) return;
-      accX = k === 'fresh' ? { account: sess.account || 1 } : { account: k, carryFrom: sess.id };
+    if (!same && accBtn && (await loadAccounts(false, accKind)).length > 1) {
+      if (accKind === 'gpt') {
+        const k = await pickAccount(el, T.gaccTreeAsk || '', sess.gptAccount || 1, false, 'gpt');
+        if (k === null) return;
+        accX = { gptAccount: k };
+      } else {
+        const k = await pickAccount(el, T.accTreeAsk || '', null, true);
+        if (k === null) return;
+        accX = k === 'fresh' ? { account: sess.account || 1 } : { account: k, carryFrom: sess.id };
+      }
     }
     // git worktree add 는 레포 크기에 따라 몇 초 걸린다 — 그 사이 아무 표시가 없어 멈춘 것처럼 보였다.
     el.classList.add('wtmaking');
@@ -10451,15 +10465,17 @@ async function addManual() {
   if (s) showAddMsg(s.title || title || p);
 }
 // 👥 Claude 계정 목록 [{ n, email, loggedIn }] — 계정 1 = 평소 계정
-let ACCS = null;
-async function loadAccounts(force) {
-  if (!ACCS || force) { try { ACCS = await api('GET', '/api/accounts'); } catch (e) {} }
-  return Array.isArray(ACCS) ? ACCS : [{ n: 1 }];
+//    GPT 계정 목록은 kind 'gpt' 로 따로 (같은 모양)
+const ACCS = {};
+async function loadAccounts(force, kind) {
+  const k = kind === 'gpt' ? 'gpt' : 'claude';
+  if (!ACCS[k] || force) { try { ACCS[k] = await api('GET', '/api/accounts' + (k === 'gpt' ? '?kind=gpt' : '')); } catch (e) {} }
+  return Array.isArray(ACCS[k]) ? ACCS[k] : [{ n: 1 }];
 }
 // 계정 고르기 — 고른 번호, 트리용(tree)이면 'fresh'(새 대화) 도 있음, 취소면 null. '＋ 새 계정' 을 고르면 만들고 그 번호를 돌려준다.
-async function pickAccount(el, title, cur, tree) {
-  const list = await loadAccounts(true);
-  const lab = a => '👤 ' + (T.accN || 'Account {n}').replace('{n}', a.n) + ' · ' + (a.email || (a.loggedIn ? '' : (T.accNoLogin || 'not signed in yet')))
+async function pickAccount(el, title, cur, tree, kind) {
+  const gpt = kind === 'gpt', list = await loadAccounts(true, kind);
+  const lab = a => '👤 ' + ((gpt ? T.gaccN : T.accN) || 'Account {n}').replace('{n}', a.n) + ' · ' + (a.email || (a.loggedIn ? '' : (T.accNoLogin || 'not signed in yet')))
     + (tree ? ' — ' + (T.accCont || 'continue this conversation') : '');
   const choices = list.map(a => [String(a.n), lab(a)]);
   if (tree) choices.push(['fresh', '🌿 ' + (T.accFresh || 'New conversation (same account)')]);
@@ -10468,10 +10484,10 @@ async function pickAccount(el, title, cur, tree) {
   if (pick === null || pick === undefined) return null;
   if (pick === 'fresh') return 'fresh';
   if (pick === '__new__') {
-    const r = await api('POST', '/api/accounts', {});
+    const r = await api('POST', '/api/accounts', gpt ? { kind: 'gpt' } : {});
     if (!r || !r.n) { flashToast((r && r.error) || 'failed'); return null; }
-    ACCS = r.list;
-    flashToast((T.accMade || '').replace(/\{n\}/g, r.n));
+    ACCS[gpt ? 'gpt' : 'claude'] = r.list;
+    flashToast(((gpt ? T.gaccMade : T.accMade) || '').replace(/\{n\}/g, r.n));
     return r.n;
   }
   return parseInt(pick, 10);

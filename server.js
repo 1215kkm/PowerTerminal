@@ -1269,6 +1269,46 @@ function accInfo(n) {
   if (!loggedIn && n === 1) loggedIn = !!email;                   // 맥은 로그인 정보를 키체인에 둬서 파일이 없다
   return { n, email, loggedIn };
 }
+/* 👥 GPT(codex) 계정 — Claude 와 같은 방식(2026-10-30 CEO). codex 는 로그인·설정·대화를 CODEX_HOME 한 폴더에 둔다.
+   계정 n(>1) = ~/.codex-acc<n>. 스킬·에이전트·프롬프트는 계정 1 것을 연결(junction)해 같이 쓰고, config.toml·AGENTS.md 는 더 새 쪽으로 맞춘다.
+   로그인 정보(auth.json)는 가져오지 않는다 → 그 계정으로 GPT 세션을 처음 띄우면 codex 가 로그인을 묻는다.
+   대화 기록은 계정마다 따로라 계정을 바꾸면 GPT 는 새 대화로 시작한다(codex 의 '최근 대화' 목록이 계정 폴더 안 DB 에 있다). */
+const GPT_ACC_FILE = dataFile('gpt-accounts.json');
+let gptAccounts = (() => { try { const a = readJson(GPT_ACC_FILE); return Array.isArray(a) ? a.filter(n => Number.isInteger(n) && n > 1) : []; } catch (e) { return []; } })();
+function saveGptAccounts() { try { fs.writeFileSync(GPT_ACC_FILE, JSON.stringify(gptAccounts)); } catch (e) {} }
+function codexHome() { return process.env.CODEX_HOME || path.join(os.homedir(), '.codex'); }
+function gptAccDir(n) { return n > 1 ? path.join(os.homedir(), '.codex-acc' + n) : codexHome(); }
+const GPT_LINK_DIRS = ['skills', 'agents', 'prompts', 'rules'];
+const GPT_SYNC_FILES = ['config.toml', 'AGENTS.md'];
+function prepGptAccount(n) {
+  if (!(n > 1)) return null;
+  const home = codexHome(), dir = gptAccDir(n);
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { return null; }
+  for (const d of GPT_LINK_DIRS) {
+    const src = path.join(home, d), dst = path.join(dir, d);
+    if (!fs.existsSync(src)) continue;                            // 계정 1 에 없는 폴더는 만들지 않는다
+    try { fs.lstatSync(dst); continue; } catch (e) {}
+    try { fs.symlinkSync(src, dst, IS_WIN ? 'junction' : 'dir'); } catch (e) {}
+  }
+  for (const f of GPT_SYNC_FILES) {
+    const a = path.join(home, f), b = path.join(dir, f);
+    let ta = 0, tb = 0, ca = null, cb = null;
+    try { ta = fs.statSync(a).mtimeMs; ca = fs.readFileSync(a, 'utf8'); } catch (e) {}
+    try { tb = fs.statSync(b).mtimeMs; cb = fs.readFileSync(b, 'utf8'); } catch (e) {}
+    if (ca === cb) continue;
+    try { if (ca !== null && (cb === null || ta >= tb)) fs.copyFileSync(a, b); else if (cb !== null) fs.copyFileSync(b, a); } catch (e) {}
+  }
+  return dir;
+}
+function gptAccInfo(n) {
+  let email = '', loggedIn = false;
+  try {
+    const j = readJson(path.join(gptAccDir(n), 'auth.json')) || {}, t = j.tokens || {};
+    loggedIn = !!(t.access_token || j.OPENAI_API_KEY);
+    if (t.id_token) { const p = JSON.parse(Buffer.from(String(t.id_token).split('.')[1] || '', 'base64url').toString('utf8')); email = p.email || ''; }
+  } catch (e) {}
+  return { n, email, loggedIn };
+}
 // 이어서 하기 — 원래 폴더의 가장 최근 대화 기록을 새 폴더(트리) 쪽으로 복사해 두면 거기서 --continue 가 그 대화를 잇는다
 function carryConversation(fromPath, toPath) {
   try {
@@ -1433,6 +1473,7 @@ function getPty(sess) {
                  // 세션이 임시물을 둘 곳 — 7일 뒤 PT가 알아서 치운다 (sweepScratch)
                  env: Object.assign({}, process.env, { PT_SCRATCH: SCRATCH_DIR }) };
   if (isClaudeAgent && sess.account > 1) { const d = prepAccount(sess.account); if (d) opts.env.CLAUDE_CONFIG_DIR = d; }
+  if (sess.agent === 'codex' && sess.gptAccount > 1) { const d = prepGptAccount(sess.gptAccount); if (d) opts.env.CODEX_HOME = d; }
   let proc;
   try {
     if (IS_WIN) {
@@ -3372,8 +3413,14 @@ app.get('/api/admin/translate', async (req, res) => {
 });
 
 // 👥 Claude 계정 목록 / 새 계정 (로그인은 그 계정으로 세션을 띄우면 터미널에 뜨는 Claude 로그인 화면에서)
-app.get('/api/accounts', (req, res) => res.json([1].concat(accounts).map(accInfo)));
+app.get('/api/accounts', (req, res) => res.json(req.query.kind === 'gpt' ? [1].concat(gptAccounts).map(gptAccInfo) : [1].concat(accounts).map(accInfo)));
 app.post('/api/accounts', (req, res) => {
+  if ((req.body && req.body.kind) === 'gpt') {   // 👥 GPT 계정 하나 더
+    let n = 2; while (gptAccounts.includes(n)) n++;
+    if (!prepGptAccount(n)) return res.status(500).json({ error: 'cannot create ' + gptAccDir(n) });
+    gptAccounts.push(n); gptAccounts.sort((a, b) => a - b); saveGptAccounts();
+    return res.json({ n, list: [1].concat(gptAccounts).map(gptAccInfo) });
+  }
   let n = 2; while (accounts.includes(n)) n++;
   if (!prepAccount(n)) return res.status(500).json({ error: 'cannot create ' + accDir(n) });
   accounts.push(n); accounts.sort((a, b) => a - b); saveAccounts(); usageCache.t = 0;
@@ -3426,6 +3473,7 @@ app.post('/api/sessions', async (req, res) => {
   // 👥 계정 고르기 + 이어서 하기 — 원래 세션의 대화를 새 트리로 복사해 다른 계정으로 이어 간다
   const acc = parseInt(req.body.account, 10);
   if (acc > 1 && accounts.includes(acc)) sess.account = acc;
+  { const g = parseInt(req.body.gptAccount, 10); if (g > 1 && gptAccounts.includes(g)) sess.gptAccount = g; }
   const from = req.body.carryFrom && sessions.find(x => x.id === req.body.carryFrom);
   const carried = !!(wt && from && carryConversation(from.path, dir));
   if (req.body.autoClose) sess.autoClose = true;   // 설치용 임시 세션 — 명령 종료 후 자동 제거
@@ -3575,6 +3623,20 @@ app.patch('/api/sessions/:id', (req, res) => {
   if (typeof req.body.autoFree === 'boolean') {
     if (req.body.autoFree) s.autoFree = true; else delete s.autoFree;
     saveSessions();
+    return res.json(s);
+  }
+  // 👥 GPT 계정 바꾸기 — 다시 띄운다(계정마다 대화 기록이 따로라 새 대화로 시작)
+  if (req.body.gptAccount !== undefined) {
+    const n = parseInt(req.body.gptAccount, 10);
+    if (n > 1 && !gptAccounts.includes(n)) return res.status(400).json({ error: 'no gpt account ' + n });
+    if (n > 1) s.gptAccount = n; else delete s.gptAccount;
+    saveSessions();
+    const p = ptys.get(s.id);
+    if (p && !p.dead && s.agent === 'codex') {
+      try { p.proc.kill(); } catch (e) {}
+      ptys.delete(s.id);
+      for (const ws of p.sockets) { try { ws.close(); } catch (e) {} }
+    }
     return res.json(s);
   }
   // 👥 Claude 계정 바꾸기 — 같은 폴더라 다시 뜨면 --continue 로 지금 대화를 그대로 잇는다
