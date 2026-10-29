@@ -561,6 +561,13 @@
                  content: ''; position: absolute; top: 100%; left: 18px; width: 0; height: 0;
                  border: 7px solid transparent; border-top-color: var(--pink); border-bottom: 0; }
   .quick.typing .qWho { opacity: 1; transform: translateY(0); }
+  /* 📌 스크롤로 세션 머리가 화면 위로 올라가면 그 세션 제목을 화면 맨 위에 붙여 둔다 — 입력 말풍선(.qWho)과 같은 모양. 누르면 그 세션 머리로 */
+  .stickTtl { position: fixed; top: 6px; z-index: 60; padding: 6px 12px; border: 0; border-radius: 10px; cursor: pointer;
+              background: linear-gradient(135deg, var(--violet), var(--pink)); color: #fff; font-size: 13px; font-weight: 700; line-height: 1.35;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 14px rgba(0,0,0,.45);
+              opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .15s, transform .15s; }
+  .stickTtl.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .stickTtl b { display: inline-block; min-width: 18px; margin-right: 6px; padding: 0 5px; border-radius: 6px; background: rgba(255,255,255,.25); text-align: center; }
   /* 입력칸 우측: [📜 요청내역] 아래 [📎 파일] 세로 배치 — 폭은 요청내역 버튼에 맞춤 */
   .quick .qBtns { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
   .quick .qBtns button { width: 100%; }
@@ -8209,6 +8216,35 @@ async function refreshMem() {
   }
 }
 setInterval(refreshMem, 10000); setTimeout(refreshMem, 1500);
+/* 📌 세션이 2줄 이상이라 아래로 스크롤하면 윗줄 세션의 제목이 화면 밖으로 나가 어느 세션인지 모른다(2026-10-29 CEO).
+   머리가 화면 위로 올라갔는데 칸은 아직 보이면, 그 칸 왼쪽 위에 번호·제목 띠를 붙여 둔다. 누르면 그 세션 머리가 보이게 올라간다. PC 만(폰은 미니맵이 있다) */
+const stickTags = new Map();
+function updateStickyTitles() {
+  for (const [id, tag] of stickTags) if (!panes.has(id)) { tag.remove(); stickTags.delete(id); }
+  if (isMobile) return;
+  const hd = document.querySelector('header'), top = Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0);   // PT 머리줄이 위에 붙어 있으면 그 아래부터
+  for (const [id, p] of panes) {
+    const el = p.el, r = el.getBoundingClientRect(), head = el.querySelector('.pane-head');
+    const show = el.isConnected && head && head.getBoundingClientRect().bottom < top && r.bottom > top + 80 && r.right > 0 && r.left < innerWidth;
+    let tag = stickTags.get(id);
+    if (!show) { if (tag) tag.classList.remove('on'); continue; }
+    if (!tag) {
+      tag = document.createElement('button'); tag.type = 'button'; tag.className = 'stickTtl';
+      tag.onclick = () => {   // 머리줄이 위에 붙어 있으면 그 아래로 보이게
+        const pp = panes.get(id), hd2 = document.querySelector('header'), fx = hd2 && /fixed|sticky/.test(getComputedStyle(hd2).position) ? hd2.offsetHeight : 0;
+        if (pp) scrollTo({ top: Math.max(0, pp.el.getBoundingClientRect().top + scrollY - fx - 8), behavior: 'smooth' });
+      };
+      document.body.append(tag); stickTags.set(id, tag);
+    }
+    const num = (el.querySelector('.pane-head .num') || {}).textContent || '', t = ((el.querySelector('.pane-head .title') || {}).textContent || p.sess.title || '').trim();
+    const sig = num + '|' + t;
+    if (tag._sig !== sig) { tag._sig = sig; tag.innerHTML = (num ? '<b>' + esc(num) + '</b>' : '') + esc(t); tag.title = t; }
+    tag.style.top = (top + 6) + 'px'; tag.style.left = Math.max(4, r.left + 10) + 'px'; tag.style.maxWidth = Math.max(80, Math.min(r.right, innerWidth) - Math.max(4, r.left + 10) - 10) + 'px';
+    tag.classList.add('on');
+  }
+}
+{ let q = 0; const kick = () => { if (!q) q = requestAnimationFrame(() => { q = 0; updateStickyTitles(); }); };
+  addEventListener('scroll', kick, { passive: true }); addEventListener('resize', kick); setInterval(kick, 1500); }
 // 이 세션과 한 덩어리로 이어진 '열려 있는' 세션 id 들 (양방향·간접 포함, 자기 자신 제외)
 function flowOpenMates(id) {
   const seen = new Set([id]), out = [], q = [id];
