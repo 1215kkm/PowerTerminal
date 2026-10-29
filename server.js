@@ -731,6 +731,7 @@ function browserRulesPrompt(mode, prof, withRules) {
    세션 id 를 환경변수로 넣어야 해서 세션마다 설정 파일 하나. 실제 일은 guide.js 가 한다. */
 const GUIDE_MCP_NAME = 'pt_guide';
 let guideApi = null;   // guide.js — 서버가 다 뜬 뒤 채워진다
+let peersApi = null;   // 🖥 다른 PC 연결 (peers.js)
 function guideMcpFile(sess) {
   if (!guideApi) return '';
   const f = path.join(DATA_DIR, 'guide-mcp-s-' + sess.id + '.json');
@@ -1810,6 +1811,7 @@ app.post('/api/pair', (req, res) => {
   const code = String((req.body && req.body.code) || '').trim();
   if (code && code === PAIR_CODE) {
     res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
+    if (req.headers['x-pt-peer'] && !config.isPeer) { config.isPeer = true; saveConfig(); }   // 🖥 다른 PC 의 PT 가 짝을 맺었다 → 내 주소를 알림판에 적는다
     return res.json({ ok: true });
   }
   res.status(401).json({ error: 'bad_code' });
@@ -1831,6 +1833,8 @@ app.use((req, res, next) => {
 });
 
 // 🧭 도우미 — 단계 안내(guide.js). 토큰 검사 뒤라 원격(폰)에서도 카드로 체크할 수 있다.
+// 🖥 다른 PC 의 PT 연결 (peers.js) — 토큰 검사 뒤, 세션 API 보다 앞에 둔다("<PC>~<세션>" 요청을 그 PC 로 보낸다)
+peersApi = require('./peers')(app, { dataFile, readJson, config, saveConfig, PORT, getTunnelUrl: () => global.__tunnelUrl || '' });
 guideApi = require('./guide')(app, { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions: () => sessions, ptys,
   browserMode, sessProfile, browserProfile, ensureBrowser, spawn, getToken: () => config.token, sendPrompt: (s, p, t) => sendPrompt(s, p, t, { guide: true }) });
 
@@ -1981,7 +1985,11 @@ async function sessionMem() {
   })().catch(() => { memCache.busy = null; return { at: Date.now(), sessions: {} }; });
   return memCache.busy;
 }
-app.get('/api/sessions-mem', async (req, res) => res.json(await sessionMem()));
+app.get('/api/sessions-mem', async (req, res) => {
+  const m = await sessionMem();
+  if (peersApi && !req.headers['x-pt-token']) { try { const more = await peersApi.peerMem(); if (Object.keys(more).length) return res.json(Object.assign({}, m, { sessions: Object.assign({}, m.sessions, more) })); } catch (e) {} }
+  res.json(m);
+});
 
 /* 🧹 자동 비우기 (2026-10-28 CEO) — Claude 는 대화·읽은 파일·명령 결과를 전부 메모리에 들고 있다가 세션이 다시 뜰 때까지 돌려주지 않는다.
    며칠 켜 두면 세션 하나가 1~2GB 가 되고 세션 수만큼 쌓인다. 머리의 「🧹」를 켠 세션만, 일을 끝내고 10분 넘게 쉬는 중이며
@@ -2021,11 +2029,14 @@ setInterval(async () => {
   }
 }, AF_TEST ? 5000 : 60000);
 
-app.get('/api/sessions', (req, res) => {
-  res.json(sessions.map(s => {
+app.get('/api/sessions', async (req, res) => {
+  const mine = sessions.map(s => {
     const p = ptys.get(s.id);
     return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, doneSince: p ? (p.doneSince || 0) : 0 };
-  }));
+  });
+  // 🖥 다른 PC 세션도 섞는다(그 PC 가 요청한 게 아닐 때만 — 서로 섞으면 끝없이 돈다)
+  let more = []; if (peersApi && !req.headers['x-pt-token']) { try { more = await peersApi.peerSessions(); } catch (e) {} }
+  res.json(mine.concat(more));
 });
 
 // 폴더 탐색 (세션 추가 시 마우스로 폴더 고르기 — 폰에서도 동작)
@@ -2504,6 +2515,7 @@ app.get('/api/info', (req, res) => {
   // platform·home: 브라우저는 서버가 윈도우인지 맥인지 알 수 없다. 이걸 안 내려줘서 화면이 winget 같은
   // 윈도우 전용 명령을 맥에서도 그대로 실행해버렸다(zsh: command not found: winget).
   res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName,
+             host: (() => { try { return os.hostname(); } catch (e) { return ''; } })(), machineId: config.machineId || '',
              platform: process.platform, home: (() => { try { return os.homedir(); } catch (e) { return ''; } })(),
              // 화면이 "brew install ..." 같은 안내를 보여줄지 판단하려면 brew 유무를 알아야 한다
              //  — brew 가 없는 맥에 'brew install gh' 를 안내해 그대로 붙여넣었다가 command not found 를 봤다.
@@ -5321,6 +5333,7 @@ wss.on('connection', (ws, req) => {
   const ck = (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
   if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token && ck !== config.token) { ws.close(); return; }
   const id = url.searchParams.get('id');
+  if (peersApi && peersApi.isPeerId(id)) return peersApi.wsBridge(ws, id);   // 🖥 다른 PC 세션 — 그 PC 의 터미널로 잇는다
   const sess = sessions.find(x => x.id === id);
   if (!sess) { ws.close(); return; }
   let p;
