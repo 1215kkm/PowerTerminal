@@ -390,6 +390,131 @@ module.exports = function peersModule(app, ctx) {
     finally { fs.promises.unlink(file).catch(() => {}); }
   });
 
+  /* ── 📥 결과물 가져오기 / 📤 소재 보내기 (2026-10-30 CEO) — git 에 안 들어가는 결과물(mp4·이미지)을 PC 사이로.
+     그 PC 쪽: 세션 작업 폴더 안만 보이고 꺼낼 수 있다(밖으로 나가는 경로는 막는다). 비밀 파일은 표시해서 가져오기 전에 한 번 더 묻는다.
+     메인 쪽: 받는 대로 '<파일>.ptpart' 에 이어 쓰고 다 받으면 이름을 바꾼다 — 끊기면 받은 데까지 이어서. */
+  const SECRET_RE = /(^|[\\/])(\.env(\.[^\\/]*)?|[^\\/]*\.(pem|key|p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)|credentials(\.json)?|service-account[^\\/]*\.json|\.npmrc|\.pypirc)$/i;
+  const SKIP_DIRS = new Set(['.git', 'node_modules', '.pt-worktrees', '__pycache__', '.venv', 'venv', '.next']);
+  const inside = (root, rel) => {   // 작업 폴더 밖이면 null
+    const full = path.resolve(root, String(rel || '').replace(/^[\\/]+/, ''));
+    const r = path.resolve(root);
+    return (full === r || full.startsWith(r + path.sep)) ? full : null;
+  };
+  const sessOf = sid => getSessions().find(x => x.id === sid);
+  // 그 PC: 폴더 목록(최근 바뀐 것부터). recursive=1 이면 아래 파일 전부(폴더 통째로 가져올 때)
+  app.get('/api/files/list', (req2, res) => {
+    const s = sessOf(req2.query.sid); if (!s) return res.status(404).json({ error: 'no session' });
+    const dir = inside(s.path, req2.query.dir || ''); if (!dir) return res.status(400).json({ error: 'outside' });
+    const rel = f => path.relative(s.path, f).split(path.sep).join('/');
+    try {
+      if (req2.query.recursive === '1') {
+        const out = [], walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (SKIP_DIRS.has(e.name)) continue; const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.isFile()) { const st = fs.statSync(f); out.push({ rel: rel(f), size: st.size, mtime: st.mtimeMs, secret: SECRET_RE.test(e.name) }); } if (out.length > 20000) return; } };
+        walk(dir); return res.json({ files: out });
+      }
+      const items = fs.readdirSync(dir, { withFileTypes: true }).filter(e => !SKIP_DIRS.has(e.name) && (e.isDirectory() || e.isFile())).map(e => {
+        const f = path.join(dir, e.name); let st = null; try { st = fs.statSync(f); } catch (x) {}
+        return { name: e.name, rel: rel(f), dir: e.isDirectory(), size: st && !e.isDirectory() ? st.size : 0, mtime: st ? st.mtimeMs : 0, secret: !e.isDirectory() && SECRET_RE.test(e.name) };
+      }).sort((a, b) => b.mtime - a.mtime);
+      res.json({ root: s.path, dir: rel(dir), items });
+    } catch (e) { res.json({ error: errOf(e) }); }
+  });
+  // 그 PC: 파일 내주기 (start 부터 — 이어 받기)
+  app.get('/api/files/get', (req2, res) => {
+    const s = sessOf(req2.query.sid); if (!s) return res.status(404).end();
+    const f = inside(s.path, req2.query.rel); if (!f) return res.status(400).end();
+    let st; try { st = fs.statSync(f); } catch (e) { return res.status(404).end(); }
+    if (!st.isFile()) return res.status(400).end();
+    const start = Math.max(0, Math.min(st.size, parseInt(req2.query.start, 10) || 0));
+    res.setHeader('Content-Type', 'application/octet-stream'); res.setHeader('Content-Length', st.size - start); res.setHeader('x-pt-size', st.size);
+    if (start >= st.size) return res.end();
+    fs.createReadStream(f, { start }).pipe(res);
+  });
+  // 그 PC: 파일 받기 (📤 메인 → 그 PC)
+  app.post('/api/files/put', (req2, res) => {
+    const s = sessOf(req2.query.sid); if (!s) return res.status(404).json({ error: 'no session' });
+    const f = inside(s.path, req2.query.rel); if (!f || f === path.resolve(s.path)) return res.status(400).json({ error: 'outside' });
+    try { fs.mkdirSync(path.dirname(f), { recursive: true }); } catch (e) {}
+    const part = f + '.ptpart', out = fs.createWriteStream(part);
+    req2.pipe(out);
+    out.on('finish', () => { try { fs.renameSync(part, f); res.json({ ok: true }); } catch (e) { res.json({ error: errOf(e) }); } });
+    out.on('error', e => res.json({ error: errOf(e) }));
+  });
+
+  // 메인: 가져오기 작업 (진행률은 /api/peerfiles/progress 로)
+  const jobs = new Map();
+  const destOf = (p, s) => (s && s.rtree && s.rtree.home === config.machineId && s.rtree.homePath && fs.existsSync(s.rtree.homePath))
+    ? s.rtree.homePath : path.join(os.homedir(), 'Downloads', 'PT-' + safeName(p.name || 'PC'), safeName(String((s && s.title) || 'session').replace(/^tree\d+\s*·\s*/, '')));
+  async function remoteSess(p, b, sid) { try { return (await jget(b, '/api/sessions', p.token, 8000)).find(x => x.id === sid) || null; } catch (e) { return null; } }
+  // 받을 곳과 겹치는 파일 미리 보기
+  app.post('/api/peerfiles/plan', async (req2, res) => {
+    const p = byId(req2.body && req2.body.peer), sid = String((req2.body && req2.body.sid) || '');
+    if (!p || !ID_RE.test(sid)) return res.status(400).json({ error: 'peer / session' });
+    const b = await baseOf(p).catch(() => null); if (!b) return res.json({ error: 'peer_offline' });
+    const s = await remoteSess(p, b, sid); if (!s) return res.json({ error: 'no session' });
+    const dest = destOf(p, s);
+    const files = [];
+    for (const it of [].concat(req2.body.items || [])) {
+      if (it.dir) { try { const j = await jget(b, '/api/files/list?' + new URLSearchParams({ sid, dir: it.rel, recursive: '1' }), p.token, 60000); files.push(...(j.files || [])); } catch (e) {} }
+      else files.push({ rel: it.rel, size: it.size || 0, secret: !!it.secret });
+    }
+    const exists = files.filter(f => { const t = inside(dest, f.rel); return t && fs.existsSync(t); }).map(f => f.rel);
+    res.json({ dest, files, exists, total: files.reduce((a, f) => a + (f.size || 0), 0), secrets: files.filter(f => f.secret).map(f => f.rel) });
+  });
+  app.post('/api/peerfiles/pull', async (req2, res) => {
+    const p = byId(req2.body && req2.body.peer), sid = String((req2.body && req2.body.sid) || '');
+    if (!p || !ID_RE.test(sid)) return res.status(400).json({ error: 'peer / session' });
+    const b = await baseOf(p).catch(() => null); if (!b) return res.json({ error: 'peer_offline' });
+    const s = await remoteSess(p, b, sid); if (!s) return res.json({ error: 'no session' });
+    const dest = destOf(p, s), mode = req2.body.mode === 'rename' ? 'rename' : 'overwrite';
+    const files = [].concat(req2.body.files || []).filter(f => f && f.rel);
+    const job = { id: crypto.randomBytes(4).toString('hex'), total: files.reduce((a, f) => a + (f.size || 0), 0), done: 0, cur: '', n: 0, count: files.length, dest, saved: [], error: '', finished: false };
+    jobs.set(job.id, job);
+    res.json({ job: job.id, dest });
+    for (const f of files) {
+      let target = inside(dest, f.rel); if (!target) continue;
+      if (mode === 'rename' && fs.existsSync(target)) { const ext = path.extname(target), base = target.slice(0, target.length - ext.length); let k = 2; while (fs.existsSync(base + ' (' + k + ')' + ext)) k++; target = base + ' (' + k + ')' + ext; }
+      job.cur = f.rel; job.n++;
+      try {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        const part = target + '.ptpart';
+        for (let tries = 0; ; tries++) {   // 끊기면 받은 데까지 이어서 (3번까지)
+          let have = 0; try { have = fs.statSync(part).size; } catch (e) {}
+          try {
+            await new Promise((resolve, reject) => {
+              const u = new URL('/api/files/get?' + new URLSearchParams({ sid, rel: f.rel, start: String(have) }), b), mod = u.protocol === 'https:' ? https : http;
+              const r = mod.get(u, { headers: { 'x-pt-token': p.token }, timeout: 120000 }, rs => {
+                if (rs.statusCode !== 200) { rs.resume(); return reject(new Error('HTTP ' + rs.statusCode)); }
+                const out = fs.createWriteStream(part, { flags: 'a' });
+                rs.on('data', c => { job.done += c.length; });
+                rs.pipe(out); out.on('finish', resolve); out.on('error', reject); rs.on('error', reject);
+              });
+              r.on('timeout', () => r.destroy(new Error('timeout'))); r.on('error', reject);
+            });
+            break;
+          } catch (e) { if (tries >= 2) throw e; await new Promise(r => setTimeout(r, 2000)); }
+        }
+        try { fs.rmSync(target, { force: true }); } catch (e) {}
+        fs.renameSync(part, target);
+        job.saved.push(path.relative(dest, target));
+      } catch (e) { job.error = f.rel + ': ' + errOf(e); break; }
+    }
+    job.finished = true; job.cur = '';
+    setTimeout(() => jobs.delete(job.id), 10 * 60000);
+  });
+  app.get('/api/peerfiles/progress', (req2, res) => res.json(jobs.get(req2.query.job) || { error: 'no job' }));
+  // 메인: 📤 이 PC(브라우저에서 고른 파일) → 그 PC 세션 폴더
+  app.post('/api/peerfiles/push', async (req2, res) => {
+    const p = byId(req2.query.peer), sid = String(req2.query.sid || ''), rel = String(req2.query.rel || '');
+    if (!p || !ID_RE.test(sid) || !rel) return res.status(400).json({ error: 'peer / session / name' });
+    const b = await baseOf(p).catch(() => null); if (!b) { req2.resume(); return res.json({ error: 'peer_offline' }); }
+    const u = new URL('/api/files/put?' + new URLSearchParams({ sid, rel }), b), mod = u.protocol === 'https:' ? https : http;
+    const headers = { 'x-pt-token': p.token, 'content-type': 'application/octet-stream' };
+    if (req2.headers['content-length']) headers['content-length'] = req2.headers['content-length'];
+    const r = mod.request(u, { method: 'POST', headers, timeout: 30 * 60000 }, rs => { let d = ''; rs.on('data', c => d += c); rs.on('end', () => { try { res.json(JSON.parse(d)); } catch (e) { res.json({ error: 'HTTP ' + rs.statusCode }); } }); });
+    r.on('timeout', () => r.destroy(new Error('timeout'))); r.on('error', e => { if (!res.headersSent) res.json({ error: errOf(e) }); });
+    req2.pipe(r);
+  });
+
   // 그 PC: 메인이 여기까지 합쳤다
   app.post('/api/rtree/merged', (req2, res) => {
     const s = getSessions().find(x => x.id === (req2.body && req2.body.sid)), h = String((req2.body && req2.body.head) || '');

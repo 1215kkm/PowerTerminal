@@ -570,6 +570,29 @@
   /* 🖥 다른 PC 에서 도는 세션 표시 — 제목 옆. 연결이 끊기면 회색 */
   .peerTag { flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: #0e7490; color: #fff; white-space: nowrap; }
   .peerTag.off { background: #4b5563; color: #d1d5db; }
+  .pfBtn { flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 8px; border: 1px solid #22d3ee; background: transparent; color: #67e8f9; cursor: pointer; white-space: nowrap; }
+  .pfBtn:hover { background: #0e7490; color: #fff; }
+  /* 📥📤 다른 PC 파일 창 */
+  #pfDlg { width: min(760px, 96vw); max-height: 88vh; padding: 0; border: 1px solid #0e7490; border-radius: 12px; background: var(--panel, #1f2937); color: var(--fg); }
+  #pfDlg .pf-in { display: flex; flex-direction: column; max-height: 88vh; }
+  #pfDlg .pf-hd { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; }
+  #pfDlg .pf-hd h3 { margin: 0; flex: 1; font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pfDlg .pf-path { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; font-size: 12px; color: var(--muted); }
+  #pfDlg .pf-path span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  #pfDlg .pf-list { flex: 1; min-height: 160px; overflow: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  #pfDlg .pf-row { display: grid; grid-template-columns: 26px 1fr 84px 112px; align-items: center; gap: 8px; padding: 7px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; }
+  #pfDlg .pf-row:hover { background: rgba(34,211,238,.08); }
+  #pfDlg .pf-row .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pfDlg .pf-row small { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  #pfDlg .pf-row .sec { margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #7f1d1d; color: #fecaca; }
+  #pfDlg .pf-row input { width: 17px; height: 17px; margin: 0; accent-color: #22d3ee; }
+  #pfDlg .pf-ft { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px 14px; }
+  #pfDlg .pf-dest { flex: 1 1 100%; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pfDlg .pf-bar { flex: 1 1 100%; height: 8px; border-radius: 4px; background: #111827; overflow: hidden; display: none; }
+  #pfDlg .pf-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #0e7490, #22d3ee); transition: width .3s; }
+  #pfDlg .pf-msg { flex: 1; min-width: 0; font-size: 12.5px; color: #a5f3fc; }
+  #pfDlg .pf-ask { flex: 1 1 100%; display: none; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; color: #fde68a; }
+  @media (max-width: 640px) { #pfDlg .pf-row { grid-template-columns: 26px 1fr 70px; } #pfDlg .pf-row small.t { display: none; } }
   /* 세션 추가 창 — 어느 PC 에서 돌릴지 */
   #addPcRow { display: none; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
   #addPcRow button { padding: 5px 12px; border: 1px solid var(--line); background: transparent; color: var(--fg); }
@@ -2568,6 +2591,9 @@ const I18N_MORE = {
     peerH: "🖥 Other PCs", peerHint: "Link PowerTerminal on your other PCs and use their sessions from this screen — work that runs on the PC itself (rendering, transcribing) goes faster. On the other PC open ⚙ Settings to see its address and link code, then enter them here.",
     peerMe: "This PC: {n}", peerMeAddr: "Address (same place)", peerMeFar: "Address (elsewhere)", peerMeCode: "Link code", peerOff: "not connected", peerDel: "Unlink", peerDelQ: "Unlink {n}? Its sessions disappear from this screen (they keep running on that PC).", peerDeleted: "Unlinked",
     peerAddrPh: "Address of that PC (e.g. 192.168.0.5:7777)", peerCodePh: "Code", peerNamePh: "Name (e.g. Studio PC)", peerGo: "Link", peerNeed: "Enter that PC's address and the 4-digit code shown on it", peerBadCode: "Wrong code — check the code in that PC's ⚙ Settings", peerUnreach: "Cannot reach that address — is PowerTerminal running there?", peerSelf: "That address is this PC", peerTooMany: "Too many tries — wait a little", peerLinked: "Linked {n} — its sessions now show here",
+    pfBtn: "Files", pfBtnT: "Files on {n} — bring results to this PC, or send files there", pfTitle: "{n} · {t}", pfPush: "Send files here", pfPull: "Bring to this PC", pfAll: "Select all", pfNone: "Select none", pfEmpty: "Empty folder", pfSecret: "secret",
+    pfPlanning: "Checking…", pfDest: "Save to", pfSecretQ: "Includes secret files ({f}). Bring them too?", pfYes: "Bring them", pfSkip: "Leave them out", pfExistsQ: "{n} file(s) with the same name are already there.", pfOverwrite: "Overwrite", pfRename: "Save with a new name",
+    pfFail: "Stopped", pfDone: "Saved {n} file(s)", pfDoneT: "Saved {n} file(s) to {d}", pfSent: "Sent {n} file(s)",
     rtWhere: "Where should the new tree run?", rtSending: "Sending to {n}… (code + conversation)", rtSent: "Made a tree on {n} — it shows up here", rtSentConv: "Made a tree on {n} and carried the conversation — it shows up here",
     rtNotGit: "Only a git repo folder can be sent to another PC", rtOffline: "That PC is not connected", rtSendFail: "Could not send", rtMergeL: "Merge back",
     rtTip: "A tree running on {n}. Click to merge its work back into {p} on this PC (its changes are committed on that PC first)",
@@ -2725,6 +2751,9 @@ const I18N_MORE = {
     peerH: "🖥 다른 PC 연결", peerHint: "다른 PC 에 깐 PowerTerminal 을 이어서 그 PC 의 세션도 이 화면에서 씁니다. 렌더링·받아쓰기처럼 PC 가 직접 하는 일은 나눠 돌리면 빨라집니다. 그 PC 의 ⚙ 설정에서 주소와 연결 코드를 보고 여기에 넣으세요.",
     peerMe: "이 PC: {n}", peerMeAddr: "주소(같은 곳)", peerMeFar: "주소(다른 곳)", peerMeCode: "연결 코드", peerOff: "연결 안 됨", peerDel: "연결 끊기", peerDelQ: "{n} 연결을 끊을까요? 그 PC 세션이 이 화면에서 빠집니다(그 PC 에서는 계속 돕니다).", peerDeleted: "연결을 끊었어요",
     peerAddrPh: "그 PC 주소 (예: 192.168.0.5:7777)", peerCodePh: "코드", peerNamePh: "이름 (예: 작업실 PC)", peerGo: "연결", peerNeed: "그 PC 의 주소와 4자리 코드를 넣으세요", peerBadCode: "코드가 틀렸어요 — 그 PC 의 ⚙ 설정에서 코드를 확인하세요", peerUnreach: "그 주소에 닿지 않아요 — 그 PC 에서 PowerTerminal 이 켜져 있나요?", peerSelf: "그 주소는 이 PC 예요", peerTooMany: "시도가 너무 많아요 — 잠시 뒤에", peerLinked: "{n} 연결됨 — 그 PC 세션이 이 화면에 나옵니다",
+    pfBtn: "파일", pfBtnT: "{n}의 파일 — 결과물을 이 PC 로 가져오거나, 이 PC 파일을 그쪽으로 보냅니다", pfTitle: "{n} · {t}", pfPush: "여기로 파일 보내기", pfPull: "이 PC 로 가져오기", pfAll: "모두 고르기", pfNone: "모두 풀기", pfEmpty: "빈 폴더", pfSecret: "비밀",
+    pfPlanning: "확인 중…", pfDest: "저장 위치", pfSecretQ: "비밀 파일이 들어 있어요({f}). 같이 가져올까요?", pfYes: "같이 가져오기", pfSkip: "빼고 가져오기", pfExistsQ: "같은 이름의 파일이 {n}개 이미 있어요.", pfOverwrite: "덮어쓰기", pfRename: "이름 바꿔 저장",
+    pfFail: "멈춤", pfDone: "{n}개 저장했어요", pfDoneT: "{n}개를 {d} 에 저장했어요", pfSent: "{n}개 보냈어요",
     rtWhere: "새 트리를 어느 PC 에서 돌릴까요?", rtSending: "{n}(으)로 보내는 중… (코드·대화)", rtSent: "{n}에 트리를 만들었어요 — 이 화면에 나옵니다", rtSentConv: "{n}에 트리를 만들고 대화를 이어 붙였어요 — 이 화면에 나옵니다",
     rtNotGit: "git 레포 폴더만 다른 PC 로 보낼 수 있어요", rtOffline: "그 PC 가 연결돼 있지 않아요", rtSendFail: "보내지 못했어요", rtMergeL: "합치기",
     rtTip: "{n}에서 도는 트리 — 누르면 그 PC 가 한 일을 이 PC 의 {p} 로 합칩니다 (그 PC 에서 먼저 커밋)",
@@ -5518,7 +5547,7 @@ function buildPane(sess, idx) {
         <!-- 제목 칸: 윗줄 = 제목·작업시간, 밑의 작은 줄 = 작업 폴더 경로. 아랫줄에 두었더니 칸이 좁으면 경로가 0px 로 눌려 사라졌다 -->
         <span class="ttlcol"><span class="ttlrow">
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
-        ${sess.peer ? `<span class="peerTag${sess.peerOnline === false ? ' off' : ''}" title="${escA((T.peerTagT || '').replace('{n}', sess.peerName || 'PC'))}">🖥 ${esc(sess.peerName || 'PC')}</span>` : ''}
+        ${sess.peer ? `<span class="peerTag${sess.peerOnline === false ? ' off' : ''}" title="${escA((T.peerTagT || '').replace('{n}', sess.peerName || 'PC'))}">🖥 ${esc(sess.peerName || 'PC')}</span><button class="pfBtn" title="${escA((T.pfBtnT || '').replace('{n}', sess.peerName || 'PC'))}">📂 ${esc(T.pfBtn || 'Files')}</button>` : ''}
         <!-- ✳ 작업 시간은 제목 바로 옆에 — 오른쪽 끝에 두었더니 그 위에 떠 있는 도구 버튼에 가려 안 보였다 -->
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
         <span class="st"></span>
@@ -6437,6 +6466,9 @@ function buildPane(sess, idx) {
     if (r && r.error) alert(r.error);
     else { flashToast((T.wtMerged || '{b} → {base} 합쳤습니다').replace('{b}', r.branch || '').replace('{base}', r.base || '')); refreshGit(); }
   };
+  // 📂 다른 PC 세션의 파일 — 결과물 가져오기 / 소재 보내기
+  const pfb = el.querySelector('.pfBtn');
+  if (pfb) pfb.onclick = ev => { ev.stopPropagation(); openPeerFiles(sess); };
   // 🖥🌿 다른 PC 에서 도는 tree — 눌러서 그 PC 가 한 일을 이 PC 의 원래 레포로 합치기
   const rtb = el.querySelector('.rtBadge');
   if (rtb) rtb.onclick = async (ev) => {
@@ -10588,6 +10620,126 @@ async function renderPeers() {
     flashToast((T.peerLinked || 'Linked {n}').replace('{n}', res.peer.name));
     renderPeers(); reconcileSoon();
   };
+}
+/* 📂 다른 PC 세션 파일 창 — 그 PC 작업 폴더를 최근 바뀐 순으로. 체크해서 [📥 가져오기] = 이 PC 로 받기
+   (그 PC 에 보낸 tree 면 원래 폴더 같은 자리에, 아니면 다운로드\PT-<PC>\<세션>), [📤 보내기] = 이 기기에서 고른 파일을 지금 보는 폴더로.
+   같은 이름이 있으면 덮어쓰기/이름 바꿔 저장을 고르고, 비밀 파일(.env·키)은 한 번 더 묻는다. 큰 파일은 진행 막대로. */
+function openPeerFiles(sess) {
+  let dlg = document.getElementById('pfDlg');
+  if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'pfDlg'; document.body.appendChild(dlg); dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); }); }
+  const peer = sess.peer, sid = String(sess.id).split('~')[1];
+  const fmtB = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + 'GB' : b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : b >= 1024 ? Math.round(b / 1024) + 'KB' : (b || 0) + 'B';
+  const fmtD = t => { if (!t) return ''; const d = new Date(t), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+  let cur = '', items = [], busy = false;
+  dlg.innerHTML = '<div class="pf-in"><div class="pf-hd"><h3>📂 ' + esc((T.pfTitle || '{n} · {t}').replace('{n}', sess.peerName || 'PC').replace('{t}', sess.title || '')) + '</h3><button class="small pf-x">✕</button></div>'
+    + '<div class="pf-path"><button class="small pf-up">⬆</button><span class="pf-cur"></span><button class="small pf-all"></button></div>'
+    + '<div class="pf-list"></div>'
+    + '<div class="pf-ft"><div class="pf-dest"></div><div class="pf-ask"></div><div class="pf-bar"><i></i></div><span class="pf-msg"></span>'
+    + '<input type="file" class="pf-file" multiple hidden><button class="small pf-push">📤 ' + esc(T.pfPush || 'Send files here') + '</button><button class="primary pf-pull" disabled>📥 ' + esc(T.pfPull || 'Bring to this PC') + '</button></div></div>';
+  const $ = q => dlg.querySelector(q);
+  $('.pf-x').onclick = () => dlg.close();
+  const msg = t => { $('.pf-msg').textContent = t || ''; };
+  const sel = () => items.filter(it => it._on);
+  const updPull = () => {
+    const on = sel(), files = on.filter(x => !x.dir);
+    const b = $('.pf-pull'); b.disabled = !on.length || busy;
+    b.textContent = '📥 ' + (T.pfPull || 'Bring to this PC') + (on.length ? ' (' + on.length + (files.length === on.length ? ' · ' + fmtB(files.reduce((a, x) => a + x.size, 0)) : '') + ')' : '');
+    $('.pf-all').textContent = items.length && on.length === items.length ? (T.pfNone || 'Select none') : (T.pfAll || 'Select all');
+  };
+  const load = async dir => {
+    msg('…');
+    const r = await api('GET', '/peer/' + peer + '/api/files/list?sid=' + encodeURIComponent(sid) + '&dir=' + encodeURIComponent(dir || ''));
+    if (!r || r.error) { msg(r && r.error === 'peer_offline' ? (T.rtOffline || 'That PC is not connected') : ((r && r.error) || 'error')); return; }
+    cur = r.dir || ''; items = r.items || [];
+    $('.pf-cur').textContent = '‎' + (r.root || '') + (cur ? '\\' + cur.replace(/\//g, '\\') : '') + '‎';
+    $('.pf-up').disabled = !cur;
+    const list = $('.pf-list');
+    list.innerHTML = items.length ? '' : '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">' + esc(T.pfEmpty || 'Empty folder') + '</div>';
+    items.forEach(it => {
+      const row = document.createElement('div'); row.className = 'pf-row';
+      row.innerHTML = '<input type="checkbox"><span class="nm">' + (it.dir ? '📁 ' : '📄 ') + esc(it.name) + (it.secret ? '<span class="sec">🔒 ' + esc(T.pfSecret || 'secret') + '</span>' : '') + '</span><small>' + (it.dir ? '' : fmtB(it.size)) + '</small><small class="t">' + fmtD(it.mtime) + '</small>';
+      const cb = row.querySelector('input');
+      cb.onclick = ev => { ev.stopPropagation(); it._on = cb.checked; updPull(); };
+      row.onclick = () => { if (it.dir) load(it.rel); else { cb.checked = !cb.checked; it._on = cb.checked; updPull(); } };
+      list.appendChild(row);
+    });
+    msg(''); updPull();
+  };
+  $('.pf-up').onclick = () => load(cur.split('/').slice(0, -1).join('/'));
+  $('.pf-all').onclick = () => { const all = !(items.length && sel().length === items.length); items.forEach(it => it._on = all); dlg.querySelectorAll('.pf-row input').forEach(c => c.checked = all); updPull(); };
+  const ask = (text, choices) => new Promise(resolve => {
+    const a = $('.pf-ask'); a.style.display = 'flex'; a.innerHTML = '<span style="flex:1 1 100%">' + esc(text) + '</span>';
+    choices.forEach(([v, l, cls]) => { const b = document.createElement('button'); b.className = 'small' + (cls ? ' ' + cls : ''); b.textContent = l; b.onclick = () => { a.style.display = 'none'; resolve(v); }; a.appendChild(b); });
+  });
+  $('.pf-pull').onclick = async () => {
+    if (busy) return;
+    const on = sel(); if (!on.length) return;
+    busy = true; updPull(); msg(T.pfPlanning || 'Checking…');
+    try {
+      const plan = await api('POST', '/api/peerfiles/plan', { peer, sid, items: on.map(x => ({ rel: x.rel, dir: x.dir, size: x.size, secret: x.secret })) });
+      if (!plan || plan.error) { msg((plan && plan.error) || 'error'); return; }
+      $('.pf-dest').textContent = (T.pfDest || 'Save to') + ': ' + plan.dest;
+      if (!plan.files.length) { msg(T.pfEmpty || 'Empty folder'); return; }
+      let files = plan.files;
+      if (plan.secrets.length) {   // 비밀 파일(.env·키) — 같이 / 빼고 / 그만
+        const c = await ask((T.pfSecretQ || 'Includes secret files ({f}). Bring them too?').replace('{f}', plan.secrets.slice(0, 4).join(', ') + (plan.secrets.length > 4 ? ' …' : '')), [['yes', T.pfYes || 'Bring them'], ['skip', T.pfSkip || 'Leave them out'], ['no', T.cancel || 'Cancel']]);
+        if (c === 'no') { msg(''); return; }
+        if (c === 'skip') files = files.filter(x => !x.secret);
+        if (!files.length) { msg(''); return; }
+      }
+      msg('');
+      let mode = 'overwrite';
+      if (plan.exists.length) {
+        const c = await ask((T.pfExistsQ || '{n} file(s) with the same name already exist in the destination.').replace('{n}', plan.exists.length), [['overwrite', T.pfOverwrite || 'Overwrite'], ['rename', T.pfRename || 'Save with a new name'], ['no', T.cancel || 'Cancel']]);
+        if (c === 'no') { msg(''); return; }
+        mode = c;
+      }
+      const st = await api('POST', '/api/peerfiles/pull', { peer, sid, files, mode });
+      if (!st || st.error) { msg((st && st.error) || 'error'); return; }
+      const bar = $('.pf-bar'); bar.style.display = 'block';
+      for (;;) {
+        await new Promise(r => setTimeout(r, 500));
+        const pg = await api('GET', '/api/peerfiles/progress?job=' + st.job);
+        if (!pg || pg.error) break;
+        const pct = pg.total ? Math.min(100, Math.round(pg.done / pg.total * 100)) : (pg.finished ? 100 : 0);
+        bar.querySelector('i').style.width = pct + '%';
+        msg(pg.n + '/' + pg.count + ' · ' + fmtB(pg.done) + ' / ' + fmtB(pg.total) + (pg.cur ? ' · ' + pg.cur : ''));
+        if (pg.finished) {
+          if (pg.error) msg((T.pfFail || 'Stopped') + ' — ' + pg.error);
+          else { msg((T.pfDone || 'Saved {n} file(s)').replace('{n}', pg.saved.length)); flashToast((T.pfDoneT || 'Saved {n} file(s) to {d}').replace('{n}', pg.saved.length).replace('{d}', pg.dest)); }
+          break;
+        }
+      }
+    } finally { busy = false; updPull(); }
+  };
+  $('.pf-push').onclick = () => $('.pf-file').click();
+  $('.pf-file').onchange = async () => {
+    const fl = [...$('.pf-file').files]; $('.pf-file').value = '';
+    if (!fl.length || busy) return;
+    busy = true; updPull();
+    const bar = $('.pf-bar'); bar.style.display = 'block';
+    const total = fl.reduce((a, x) => a + x.size, 0); let doneB = 0, ok = 0;
+    for (const file of fl) {
+      const rel = (cur ? cur + '/' : '') + file.name;
+      const r = await new Promise(resolve => {
+        const x = new XMLHttpRequest();
+        x.open('POST', '/api/peerfiles/push?peer=' + encodeURIComponent(peer) + '&sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + '&token=' + TOKEN);
+        x.setRequestHeader('Content-Type', 'application/octet-stream');
+        x.upload.onprogress = e => { bar.querySelector('i').style.width = Math.round((doneB + e.loaded) / total * 100) + '%'; msg('📤 ' + file.name + ' · ' + fmtB(doneB + e.loaded) + ' / ' + fmtB(total)); };
+        x.onload = () => { try { resolve(JSON.parse(x.responseText)); } catch (e) { resolve({ error: 'HTTP ' + x.status }); } };
+        x.onerror = () => resolve({ error: 'network' });
+        x.send(file);
+      });
+      doneB += file.size;
+      if (r && r.ok) ok++; else { msg((T.pfFail || 'Stopped') + ' — ' + file.name + ': ' + ((r && r.error) || '')); break; }
+    }
+    busy = false;
+    if (ok === fl.length) { msg((T.pfSent || 'Sent {n} file(s)').replace('{n}', ok)); flashToast((T.pfSent || 'Sent {n} file(s)').replace('{n}', ok)); }
+    load(cur);
+  };
+  $('.pf-dest').textContent = '';
+  dlg.showModal();
+  load('');
 }
 // 세션 목록을 곧 다시 읽어 다른 PC 세션을 반영
 function reconcileSoon() { setTimeout(() => { try { if (typeof reconcile === 'function') reconcile(); } catch (e) {} }, 300); }
