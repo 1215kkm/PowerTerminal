@@ -5506,23 +5506,36 @@ async function startTunnel(wifiUrl) {
     printQR('외부 어디서든(LTE) 접속용', full);
     notifyNewUrl(url, full).catch(e => console.log('  ⚠ 새 주소 알림 실패: ' + (e && e.message)));   // 📨 본인 텔레그램·메일로
   };
-  const watch = pid => {   // 터널 생존 감시(비동기) — 두 번 연속 죽음 확인 후에만 재스폰 (오탐 → 중복 터널 방지)
+  /* ⚠ 2026-10-30 사고: 클라우드플레어가 "요청이 너무 많다(429)" 로 새 주소를 거절하자, 그 오류 문구 속 https://api.trycloudflare.com 을
+     새 주소로 읽어 텔레그램으로 보냈고 → 터널은 이미 죽어 있어 30초 뒤 또 띄우고 → 또 거절… 3시간 동안 터널 30여 개·알림 수십 통.
+     그래서 ① api. 주소는 주소로 안 보고 거절이면 오래 쉰다 ② 지금 터널의 감시만 움직인다(옛 감시·옛 실패 재시도가 따로 또 띄우지 않게)
+     ③ 끊김이 이어지면 다시 띄우는 간격을 1분 → 2분 → … 최대 15분으로 늘린다. */
+  let tunGen = 0, tunRespawnT = null, tunDeaths = [];
+  const respawnLater = (ms, why) => {
+    if (tunRespawnT) return;                    // 이미 하나 예약돼 있으면 또 잡지 않는다
+    if (why) console.log('  ⚠ ' + why + ' — ' + Math.round(ms / 1000) + '초 뒤 다시 엽니다.');
+    tunRespawnT = setTimeout(() => { tunRespawnT = null; spawnDetached(); }, ms);
+  };
+  const watch = (pid, gen) => {   // 터널 생존 감시(비동기) — 두 번 연속 죽음 확인 후에만 재스폰 (오탐 → 중복 터널 방지)
     let checking = false;
     const t = setInterval(async () => {
+      if (gen !== tunGen) { clearInterval(t); return; }   // 그새 다른 터널이 떴다 — 이 감시는 은퇴
       if (checking) return; checking = true;
       try {
         if (await tunnelPidAlive(pid)) return;
         await new Promise(r => setTimeout(r, 3000));       // 일시 오탐(시스템 바쁨) 대비 재확인
         if (await tunnelPidAlive(pid)) return;
         clearInterval(t);
-        console.log('  ⚠ 외부 접속 터널이 끊겼습니다 — 새 주소로 다시 엽니다. (QR 버튼에서 새 주소 확인)');
+        if (gen !== tunGen) return;
         global.__tunnelUrl = '';
-        spawnDetached();
+        const now = Date.now(); tunDeaths = tunDeaths.filter(x => now - x < 60 * 60000); tunDeaths.push(now);
+        respawnLater(Math.min(15 * 60000, 30000 * Math.pow(2, tunDeaths.length - 1)), '외부 접속 터널이 끊겼습니다 (최근 1시간 ' + tunDeaths.length + '번)');
       } finally { checking = false; }
     }, 30000);
   };
   let tunTries = 0;   // 터널 실행 연속 실패 횟수 — 무한 재시도를 막는다
   const spawnDetached = () => {
+    const gen = ++tunGen;
     // 같은 포트를 겨냥한 기존(고아) 터널부터 정리 — 재스폰 반복으로 터널이 쌓이는 것 방지
     killStrayTunnels(null, () => {
       let fd = 'ignore';
@@ -5555,9 +5568,10 @@ async function startTunnel(wifiUrl) {
           showWifiOnce();
           return;                       // 더 이상 재시도하지 않음 — 무한 루프 방지
         }
-        console.log('  ③ 외부 접속 실행 실패 — 20초 후 재시도 (' + code + ')');
         showWifiOnce();
-        setTimeout(spawnDetached, 20000);
+        if (gen !== tunGen) return;
+        // 클라우드플레어가 거절(429)했으면 한참 쉰다 — 바로 다시 요청하면 거절이 길어진다
+        respawnLater(code === 'RATE' ? 10 * 60000 : 20000, '외부 접속 실행 실패 (' + code + ')');
       };
       let proc;
       try {
@@ -5576,13 +5590,23 @@ async function startTunnel(wifiUrl) {
         if (done) { clearInterval(poll); poll = null; return; }
         tries++;
         let m = null;
-        try { m = fs.readFileSync(TUN_LOG, 'utf8').match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/); } catch (e) {}
+        let log = '';
+        try { log = fs.readFileSync(TUN_LOG, 'utf8'); } catch (e) {}
+        // api.trycloudflare.com 은 주소를 *요청하는 곳* 이다 — 오류 문구에 나온다. 진짜 주소만 받는다
+        m = log.match(/https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com/);
+        if (!m && /429|Too Many Requests|rate limit/i.test(log)) {   // 거절 — 이 시도는 끝
+          clearInterval(poll); poll = null;
+          try { process.kill(proc.pid); } catch (e) {}
+          tunTries = Math.max(0, tunTries - 1);   // 거절은 '실행 불가' 가 아니라 기다리면 되는 일 — 포기 횟수에 넣지 않는다
+          failed({ code: 'RATE' });
+          return;
+        }
         if (m) {
           clearInterval(poll); poll = null; done = true;
           tunTries = 0;            // 진짜로 주소를 받았을 때만 카운터 초기화
           try { fs.writeFileSync(TUN_FILE, JSON.stringify({ pid: proc.pid, url: m[0], port: PORT, at: Date.now() })); } catch (e) {}
           announce(m[0]);
-          watch(proc.pid);
+          watch(proc.pid, gen);
         } else if (tries > 60) {   // 30초 넘게 주소가 안 나옴 — 실패 처리로 넘긴다(재시도 횟수 제한이 걸리도록)
           try { process.kill(proc.pid); } catch (e) {}
           failed({ code: 'NOURL' });
@@ -5594,12 +5618,12 @@ async function startTunnel(wifiUrl) {
   let reused = false;
   try {
     const info = JSON.parse(fs.readFileSync(TUN_FILE, 'utf8'));
-    if (info && info.url && info.port === PORT && await tunnelPidAlive(info.pid)) {
+    if (info && info.url && !/\/\/api\.trycloudflare\.com/.test(info.url) && info.port === PORT && await tunnelPidAlive(info.pid)) {
       reused = true;
       console.log('  ♻ 이전 외부 접속 터널 재사용 (주소 유지)');
       announce(info.url);
       killStrayTunnels(info.pid, null);   // 재사용 터널만 남기고 이 포트의 고아 터널 정리
-      watch(info.pid);
+      watch(info.pid, tunGen);
     }
   } catch (e) {}
   if (!reused) spawnDetached();
