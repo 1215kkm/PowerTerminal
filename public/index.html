@@ -2568,6 +2568,11 @@ const I18N_MORE = {
     peerH: "🖥 Other PCs", peerHint: "Link PowerTerminal on your other PCs and use their sessions from this screen — work that runs on the PC itself (rendering, transcribing) goes faster. On the other PC open ⚙ Settings to see its address and link code, then enter them here.",
     peerMe: "This PC: {n}", peerMeAddr: "Address (same place)", peerMeFar: "Address (elsewhere)", peerMeCode: "Link code", peerOff: "not connected", peerDel: "Unlink", peerDelQ: "Unlink {n}? Its sessions disappear from this screen (they keep running on that PC).", peerDeleted: "Unlinked",
     peerAddrPh: "Address of that PC (e.g. 192.168.0.5:7777)", peerCodePh: "Code", peerNamePh: "Name (e.g. Studio PC)", peerGo: "Link", peerNeed: "Enter that PC's address and the 4-digit code shown on it", peerBadCode: "Wrong code — check the code in that PC's ⚙ Settings", peerUnreach: "Cannot reach that address — is PowerTerminal running there?", peerSelf: "That address is this PC", peerTooMany: "Too many tries — wait a little", peerLinked: "Linked {n} — its sessions now show here",
+    rtWhere: "Where should the new tree run?", rtSending: "Sending to {n}… (code + conversation)", rtSent: "Made a tree on {n} — it shows up here", rtSentConv: "Made a tree on {n} and carried the conversation — it shows up here",
+    rtNotGit: "Only a git repo folder can be sent to another PC", rtOffline: "That PC is not connected", rtSendFail: "Could not send", rtMergeL: "Merge back",
+    rtTip: "A tree running on {n}. Click to merge its work back into {p} on this PC (its changes are committed on that PC first)",
+    rtMergeAsk: "Merge the work done on {n} back into {p}? Its changes are committed there, then merged into the current branch here.", rtMerging: "merging",
+    rtNothing: "Nothing new to merge yet", rtNotHome: "This tree was sent from another PC — merge it from that PC", rtFail: "Merge failed", rtMerged: "Merged {c} commit(s): {b} → {base}",
     peerTagT: "Runs on {n} (another PC)", addPcL: "Run on:", addPcMe: "This PC",
     gaccT: "👤 GPT account — pick which GPT (ChatGPT) account this session uses. Switching starts a new GPT conversation", gaccAsk: "Which GPT account should \"{t}\" use?", gaccN: "GPT account {n}",
     gaccTreeAsk: "Which GPT account should the new tree use?", gaccSwitched: "Restarting on GPT account {n} — GPT starts a new conversation on another account",
@@ -2720,6 +2725,11 @@ const I18N_MORE = {
     peerH: "🖥 다른 PC 연결", peerHint: "다른 PC 에 깐 PowerTerminal 을 이어서 그 PC 의 세션도 이 화면에서 씁니다. 렌더링·받아쓰기처럼 PC 가 직접 하는 일은 나눠 돌리면 빨라집니다. 그 PC 의 ⚙ 설정에서 주소와 연결 코드를 보고 여기에 넣으세요.",
     peerMe: "이 PC: {n}", peerMeAddr: "주소(같은 곳)", peerMeFar: "주소(다른 곳)", peerMeCode: "연결 코드", peerOff: "연결 안 됨", peerDel: "연결 끊기", peerDelQ: "{n} 연결을 끊을까요? 그 PC 세션이 이 화면에서 빠집니다(그 PC 에서는 계속 돕니다).", peerDeleted: "연결을 끊었어요",
     peerAddrPh: "그 PC 주소 (예: 192.168.0.5:7777)", peerCodePh: "코드", peerNamePh: "이름 (예: 작업실 PC)", peerGo: "연결", peerNeed: "그 PC 의 주소와 4자리 코드를 넣으세요", peerBadCode: "코드가 틀렸어요 — 그 PC 의 ⚙ 설정에서 코드를 확인하세요", peerUnreach: "그 주소에 닿지 않아요 — 그 PC 에서 PowerTerminal 이 켜져 있나요?", peerSelf: "그 주소는 이 PC 예요", peerTooMany: "시도가 너무 많아요 — 잠시 뒤에", peerLinked: "{n} 연결됨 — 그 PC 세션이 이 화면에 나옵니다",
+    rtWhere: "새 트리를 어느 PC 에서 돌릴까요?", rtSending: "{n}(으)로 보내는 중… (코드·대화)", rtSent: "{n}에 트리를 만들었어요 — 이 화면에 나옵니다", rtSentConv: "{n}에 트리를 만들고 대화를 이어 붙였어요 — 이 화면에 나옵니다",
+    rtNotGit: "git 레포 폴더만 다른 PC 로 보낼 수 있어요", rtOffline: "그 PC 가 연결돼 있지 않아요", rtSendFail: "보내지 못했어요", rtMergeL: "합치기",
+    rtTip: "{n}에서 도는 트리 — 누르면 그 PC 가 한 일을 이 PC 의 {p} 로 합칩니다 (그 PC 에서 먼저 커밋)",
+    rtMergeAsk: "{n}에서 한 일을 {p} 로 합칠까요? 그 PC 에서 변경을 커밋한 뒤, 여기 지금 브랜치로 합칩니다.", rtMerging: "합치는 중",
+    rtNothing: "아직 합칠 새 작업이 없어요", rtNotHome: "다른 PC 에서 보낸 트리예요 — 그 PC 에서 합치세요", rtFail: "합치기 실패", rtMerged: "커밋 {c}개를 합쳤어요: {b} → {base}",
     peerTagT: "{n}(다른 PC)에서 도는 세션", addPcL: "어디서 돌릴까요:", addPcMe: "이 PC",
     gaccT: "👤 GPT 계정 — 이 세션을 어느 GPT(ChatGPT) 계정으로 쓸지 고릅니다. 바꾸면 GPT 는 새 대화로 시작합니다", gaccAsk: "「{t}」을(를) 어느 GPT 계정으로 쓸까요?", gaccN: "GPT 계정 {n}",
     gaccTreeAsk: "새 트리를 어느 GPT 계정으로 열까요?", gaccSwitched: "GPT 계정 {n}(으)로 다시 띄웁니다 — 계정이 바뀌면 GPT 는 새 대화로 시작합니다",
@@ -5534,6 +5544,7 @@ function buildPane(sess, idx) {
         </span>
       </div>
       <div class="ph-bottom">
+        ${sess.rtree && sess.peer ? `<button class="small wtBadge rtBadge" title="${escA((T.rtTip || '').replace('{n}', sess.peerName || 'PC').replace('{p}', sess.rtree.homePath || ''))}">🖥🌿 ${esc((T.rtMergeL || 'Merge back'))}</button>` : ''}
         ${sess.worktree ? `<button class="small wtBadge" title="${esc((T.wtTip || '분리된 작업 폴더(worktree) — 다른 세션과 파일이 안 겹칩니다. 눌러서 원본 브랜치로 합치기') + '\n' + (sess.repo || ''))}">🌿 ${esc(sess.branch || '')}</button>` : ''}
         <span class="dragsp" title="${esc(T.dragMove || 'Drag to move this pane')}"></span>
         ${aiBadge}
@@ -6426,6 +6437,19 @@ function buildPane(sess, idx) {
     if (r && r.error) alert(r.error);
     else { flashToast((T.wtMerged || '{b} → {base} 합쳤습니다').replace('{b}', r.branch || '').replace('{base}', r.base || '')); refreshGit(); }
   };
+  // 🖥🌿 다른 PC 에서 도는 tree — 눌러서 그 PC 가 한 일을 이 PC 의 원래 레포로 합치기
+  const rtb = el.querySelector('.rtBadge');
+  if (rtb) rtb.onclick = async (ev) => {
+    ev.stopPropagation();
+    if (!(await paneConfirm(el, (T.rtMergeAsk || '').replace('{n}', sess.peerName || 'PC').replace('{p}', (sess.rtree && sess.rtree.homePath) || '')))) return;
+    rtb.disabled = true; const old = rtb.textContent; rtb.textContent = '… ' + (T.rtMerging || '');
+    const r = await api('POST', '/api/rtree/merge', { peer: sess.peer, sid: String(sess.id).split('~')[1] });
+    rtb.disabled = false; rtb.textContent = old;
+    if (!r || r.error) {
+      const e = r && r.error;
+      flashToast(e === 'nothing' ? (T.rtNothing || 'Nothing new to merge') : e === 'peer_offline' ? (T.rtOffline || 'That PC is not connected') : e === 'not_home' ? (T.rtNotHome || 'This tree was sent from another PC — merge it there') : ((T.rtFail || 'Merge failed') + ': ' + (e || '')));
+    } else flashToast((T.rtMerged || '').replace('{c}', r.commits || '').replace('{b}', r.branch || '').replace('{base}', r.base || ''));
+  };
   // </> 코드 편집 모드는 세션 툴바에서 빠지고 헤더(⚙ 옆) 버튼 하나로 통합 — 커서가 있던 세션이 선택된 채 열린다.
   // 어느 세션을 보고 있었는지 기억: 이 pane 안에서 마우스를 누르거나 포커스가 들어오면 그 세션을 '최근 사용'으로 표시.
   const markFocus = () => { lastFocusId = sess.id; };
@@ -6579,6 +6603,32 @@ function buildPane(sess, idx) {
   const numEl = el.querySelector('.num');
   const addSibling = async same => {
     if (el.classList.contains('wtmaking')) return;                 // 만드는 중에 또 누르면 worktree 가 두 개 생긴다
+    // 🖥 다른 PC 를 이어 뒀으면 어느 PC 에 만들지 먼저 묻는다 — 다른 PC 를 고르면 지금 작업 상태·대화를 그 PC 로 보내 거기서 이어 간다
+    if (!same && !sess.peer) {
+      let pl = null; try { pl = await api('GET', '/api/peers'); } catch (e) {}
+      const peers = ((pl && pl.peers) || []);
+      if (peers.length) {
+        const pick = await paneChoice(el, T.rtWhere || 'Where should the new tree run?', [['here', '💻 ' + (T.addPcMe || 'This PC')]].concat(peers.map(p => [p.id, '🖥 ' + p.name + (p.online ? '' : ' · ' + (T.peerOff || 'not connected')), p.online ? '' : 'pc-no'])), 'here');
+        if (pick === null || pick === undefined) return;
+        if (pick !== 'here') {
+          const pn = (peers.find(p => p.id === pick) || {}).name || 'PC';
+          el.classList.add('wtmaking');
+          const note = document.createElement('span'); note.className = 'wtnote'; note.textContent = '🖥 ' + (T.rtSending || '').replace('{n}', pn);
+          el.querySelector('.ph-top').appendChild(note);
+          let r = null;
+          try { r = await api('POST', '/api/sessions/' + sess.id + '/remote-tree', { peer: pick }); }
+          finally { el.classList.remove('wtmaking'); note.remove(); }
+          if (!r || r.error) {
+            const e = r && r.error;
+            flashToast(e === 'not_git' ? (T.rtNotGit || 'Only folders that are git repos can be sent') : e === 'peer_offline' ? (T.rtOffline || 'That PC is not connected') : ((T.rtSendFail || 'Could not send') + ': ' + (e || '')));
+            return;
+          }
+          flashToast((r.carried ? T.rtSentConv : T.rtSent || '').replace('{n}', pn));
+          reconcileSoon();
+          return;
+        }
+      }
+    }
     // 👥 계정이 둘 이상이면 새 트리를 어느 계정으로 열지 묻는다 — 계정을 고르면 지금 대화를 이어서 시작한다
     let accX = null;
     if (!same && accBtn && (await loadAccounts(false, accKind)).length > 1) {

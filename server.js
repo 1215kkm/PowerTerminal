@@ -238,6 +238,8 @@ let sessions = [];
 try { sessions = readJson(SESSIONS_FILE); } catch (e) {}
 // 🔁 루틴 엔진이 터미널 출력을 받는 자리 — 엔진은 아래(scheduler 옆)에서 만들어 여기에 꽂는다
 const routineHooks = { observe: null };
+// 🖥 다른 PC 가 보낸 tree 세션을 목록에 넣고 바로 띄운다 (peers.js)
+function addSessionRecord(sess) { sessions.push(sess); saveSessions(); try { addRecent(sess); } catch (e) {} setImmediate(() => { try { getPty(sess); } catch (e) {} }); return sess; }
 function saveSessions() { setMark('세션목록 저장'); fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2)); setMark('idle'); }
 /* 🤖 모델 값은 그 AI 것이어야 한다 — Claude 세션엔 Claude 모델, GPT(codex) 세션엔 GPT 모델.
    예전엔 AI 를 Claude → GPT 로 바꿔도 모델 값(opus)이 그대로 남아, GPT 세션이 `codex --model opus` 로 떴고
@@ -1326,7 +1328,7 @@ function carryConversation(fromPath, toPath) {
 // 🌿 worktree 는 추적 안 되는 파일(node_modules·.env·dist)을 안 가져온다. package.json 이 있는데
 // node_modules 가 없으면 AI 를 띄우기 전에 설치부터 — 안 그러면 첫 명령이 전부 "모듈 없음"으로 실패한다.
 function worktreePrep(sess) {
-  if (!sess.worktree) return '';
+  if (!sess.worktree && !sess.rtree) return '';   // 🖥 다른 PC 로 보낸 tree 도 같은 준비
   try { if (!fs.existsSync(path.join(sess.path, 'package.json'))) return ''; } catch (e) { return ''; }
   try { if (fs.existsSync(path.join(sess.path, 'node_modules'))) return ''; } catch (e) {}
   const note = '  🌿 worktree(' + (sess.branch || '') + ') — node_modules 설치 중… / installing dependencies…';
@@ -1834,7 +1836,8 @@ app.use((req, res, next) => {
 
 // 🧭 도우미 — 단계 안내(guide.js). 토큰 검사 뒤라 원격(폰)에서도 카드로 체크할 수 있다.
 // 🖥 다른 PC 의 PT 연결 (peers.js) — 토큰 검사 뒤, 세션 API 보다 앞에 둔다("<PC>~<세션>" 요청을 그 PC 로 보낸다)
-peersApi = require('./peers')(app, { dataFile, readJson, config, saveConfig, PORT, getTunnelUrl: () => global.__tunnelUrl || '' });
+peersApi = require('./peers')(app, { dataFile, readJson, config, saveConfig, PORT, getTunnelUrl: () => global.__tunnelUrl || '',
+  git, gitMainRoot, claudeProjectDir, getSessions: () => sessions, addSessionRecord, saveSessions });
 guideApi = require('./guide')(app, { DATA_DIR, ROOT, PORT, IS_WIN, isLocal, getSessions: () => sessions, ptys,
   browserMode, sessProfile, browserProfile, ensureBrowser, spawn, getToken: () => config.token, sendPrompt: (s, p, t) => sendPrompt(s, p, t, { guide: true }) });
 

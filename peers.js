@@ -237,5 +237,166 @@ module.exports = function peersModule(app, ctx) {
     return out;
   }
 
+  /* ── 🌿🖥 다른 PC 로 tree 보내기 / 합치기 (3단계)
+     보내기(메인): 지금 작업 상태(커밋 안 한 변경 포함 — git stash create 는 원본을 건드리지 않는다)를 git 묶음(bundle) 하나로
+       → 그 PC 가 ~/PT-trees/<이름>-treeN 에 풀어 새 브랜치로 → 대화 기록을 넣고 세션을 띄운다(Claude 는 --continue 로 이어감).
+     합치기(메인): 그 PC 가 한 일을 커밋하고 새로 생긴 커밋만 묶어 돌려준다 → 메인이 원래 레포에 받아 지금 브랜치로 합친다.
+     GitHub 이 없어도 된다. 추적 안 되는 파일(.env·node_modules·큰 결과물)은 안 간다. */
+  const { git, gitMainRoot, claudeProjectDir, getSessions, addSessionRecord } = ctx;
+  const tmpFile = ext => path.join(os.tmpdir(), 'pt-' + crypto.randomBytes(5).toString('hex') + ext);
+  const safeName = s => String(s || 'repo').replace(/[^\w가-힣.-]/g, '_').slice(0, 40) || 'repo';
+  const readBody = (r, limit) => new Promise((resolve, reject) => {   // JSON 이 아닌 본문(묶음 파일)을 파일로
+    const f = tmpFile('.bundle'), out = fs.createWriteStream(f); let n = 0;
+    r.on('data', c => { n += c.length; if (n > limit) { r.destroy(); out.destroy(); reject(new Error('too big')); } });
+    r.pipe(out); out.on('finish', () => resolve(f)); out.on('error', reject); r.on('error', reject);
+  });
+  function upload(base, pth, token, file) {
+    return new Promise((resolve, reject) => {
+      const u = new URL(pth, base), mod = u.protocol === 'https:' ? https : http;
+      const r = mod.request(u, { method: 'POST', timeout: 30 * 60000, headers: { 'x-pt-token': token, 'content-type': 'application/octet-stream', 'content-length': fs.statSync(file).size } }, res => {
+        let d = ''; res.on('data', c => d += c); res.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { reject(new Error('HTTP ' + res.statusCode + ' ' + d.slice(0, 200))); } });
+      });
+      r.on('timeout', () => r.destroy(new Error('timeout'))); r.on('error', reject);
+      fs.createReadStream(file).pipe(r);
+    });
+  }
+  const jpost = async (base, pth, token, obj, timeout) => {
+    const body = Buffer.from(JSON.stringify(obj), 'utf8');
+    const r = await req(base, 'POST', pth, { headers: { 'x-pt-token': token, 'content-type': 'application/json', 'content-length': body.length }, body, timeout: timeout || 60000 });
+    return { r, j: (() => { try { return JSON.parse(r.body.toString('utf8')); } catch (e) { return null; } })() };
+  };
+  const errOf = e => String((e && (e.stderr || e.message)) || e || '').trim().slice(0, 400);
+
+  // 메인: 이 세션을 그 PC 의 새 tree 로
+  app.post('/api/sessions/:id/remote-tree', async (req2, res) => {
+    const s = getSessions().find(x => x.id === req2.params.id), p = byId(req2.body && req2.body.peer);
+    if (!s || !p) return res.status(404).json({ error: 'no session / peer' });
+    const top = await gitMainRoot(s.path).catch(() => null);
+    if (!top) return res.json({ error: 'not_git' });
+    const b = await baseOf(p).catch(() => null);
+    if (!b) return res.json({ error: 'peer_offline' });
+    const file = tmpFile('.bundle'), ref = 'refs/pt-send/' + crypto.randomBytes(4).toString('hex');
+    try {
+      // 커밋 안 한 변경은 알아보기 쉬운 커밋 하나로 (stash create 는 'WIP on …' 이라는 두 부모 커밋이라 합칠 때 기록이 지저분했다). 원본 폴더·브랜치는 그대로
+      const head = (await git(s.path, ['rev-parse', 'HEAD'], 8000)).trim();
+      const st = (await git(s.path, ['stash', 'create'], 60000)).trim();
+      let sha = head;
+      if (st) {
+        let who = ''; try { who = (await git(s.path, ['config', 'user.email'], 5000)).trim(); } catch (e) {}
+        sha = (await git(s.path, (who ? [] : ['-c', 'user.name=PowerTerminal', '-c', 'user.email=powerterminal@localhost']).concat(['commit-tree', st + '^{tree}', '-p', head, '-m', 'PT: uncommitted work sent to ' + (p.name || 'another PC')]), 60000)).trim();
+      }
+      await git(s.path, ['update-ref', ref, sha], 8000);
+      try { await git(s.path, ['bundle', 'create', file, ref], 30 * 60000); } finally { git(s.path, ['update-ref', '-d', ref], 8000).catch(() => {}); }
+      const q = new URLSearchParams({ name: safeName(path.basename(top)), ref });
+      const got = await upload(b, '/api/rtree/receive?' + q, p.token, file);
+      if (!got || got.error) return res.json({ error: (got && got.error) || 'receive failed' });
+      // 대화 기록 (Claude) — 그 PC 에서 --continue 로 이어 가게. 너무 크면(25MB↑) 대화 없이 시작
+      let conv = null;
+      if (!s.agent || s.agent === 'claude') {
+        try {
+          const a = claudeProjectDir(s.path);
+          const last = fs.readdirSync(a).filter(f => f.endsWith('.jsonl')).map(f => ({ f, t: fs.statSync(path.join(a, f)).mtimeMs, n: fs.statSync(path.join(a, f)).size })).sort((x, y) => y.t - x.t)[0];
+          if (last && last.n < 25 * 1048576) conv = { name: last.f, data: fs.readFileSync(path.join(a, last.f), 'utf8') };
+        } catch (e) {}
+      }
+      const { j } = await jpost(b, '/api/rtree/start', p.token, {
+        dir: got.dir, branch: got.branch, n: got.n, conv, title: String(s.title || '').replace(/^tree\d+\s*·\s*/, ''), agent: s.agent || 'claude', model: s.model || 'default',
+        account: req2.body.account, gptAccount: req2.body.gptAccount,
+        rtree: { home: config.machineId, homeName: os.hostname(), homePath: top, homeSess: s.id, base: sha, branch: got.branch } });
+      if (!j || j.error) return res.json({ error: (j && j.error) || 'start failed' });
+      sessCache.delete(p.id);
+      res.json(Object.assign(prefixIds(j, p.id), { carried: !!conv }));
+    } catch (e) { res.json({ error: errOf(e) }); }
+    finally { fs.promises.unlink(file).catch(() => {}); }
+  });
+  // 그 PC: 묶음 받아 풀기
+  app.post('/api/rtree/receive', async (req2, res) => {
+    const name = safeName(req2.query.name), ref = String(req2.query.ref || '');
+    if (!/^refs\/pt-send\/[0-9a-f]+$/.test(ref)) return res.status(400).json({ error: 'ref' });
+    let file;
+    try { file = await readBody(req2, 8 * 1024 * 1048576); } catch (e) { return res.json({ error: errOf(e) }); }
+    try {
+      const root = path.join(os.homedir(), 'PT-trees'); fs.mkdirSync(root, { recursive: true });
+      let n = 2, dir; for (; n < 100; n++) { dir = path.join(root, name + '-tree' + n); if (!fs.existsSync(dir)) break; }
+      const branch = 'pt/' + name + '-tree' + n;
+      await git(root, ['init', '-q', dir], 30000);
+      await git(dir, ['fetch', '-q', file, ref + ':refs/heads/' + branch], 30 * 60000);
+      await git(dir, ['checkout', '-q', branch], 10 * 60000);
+      res.json({ ok: true, dir, branch, n });
+    } catch (e) { res.json({ error: errOf(e) }); }
+    finally { fs.promises.unlink(file).catch(() => {}); }
+  });
+  // 그 PC: 대화 기록 넣고 세션 띄우기
+  app.post('/api/rtree/start', (req2, res) => {
+    const o = req2.body || {};
+    if (!o.dir || !fs.existsSync(o.dir) || !String(o.dir).startsWith(path.join(os.homedir(), 'PT-trees'))) return res.status(400).json({ error: 'dir' });
+    if (o.conv && o.conv.name && /^[\w.-]+\.jsonl$/.test(o.conv.name)) {
+      try { const d = claudeProjectDir(o.dir); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, o.conv.name), o.conv.data); } catch (e) {}
+    }
+    const sess = { id: crypto.randomBytes(4).toString('hex'), title: 'tree' + (o.n || 2) + ' · ' + String(o.title || path.basename(o.dir)).slice(0, 80),
+      path: o.dir, previewUrl: '', agent: o.agent || 'claude', model: o.model || 'default', cmd: '', rtree: o.rtree || {} };
+    const acc = parseInt(o.account, 10), g = parseInt(o.gptAccount, 10);
+    if (acc > 1) sess.account = acc;
+    if (g > 1) sess.gptAccount = g;
+    try { addSessionRecord(sess); } catch (e) { return res.json({ error: errOf(e) }); }
+    res.json(sess);
+  });
+  // 메인: 그 PC tree 의 일을 받아 원래 레포에 합치기
+  app.post('/api/rtree/merge', async (req2, res) => {
+    const p = byId(req2.body && req2.body.peer), sid = String((req2.body && req2.body.sid) || '');
+    if (!p || !ID_RE.test(sid)) return res.status(400).json({ error: 'peer / session' });
+    const b = await baseOf(p).catch(() => null);
+    if (!b) return res.json({ error: 'peer_offline' });
+    const file = tmpFile('.bundle');
+    try {
+      const body = Buffer.from(JSON.stringify({ sid }), 'utf8');
+      const r = await req(b, 'POST', '/api/rtree/pack', { headers: { 'x-pt-token': p.token, 'content-type': 'application/json', 'content-length': body.length }, body, timeout: 30 * 60000 });
+      if (!/octet-stream/.test(String(r.headers['content-type'] || ''))) { let j = null; try { j = JSON.parse(r.body.toString('utf8')); } catch (e) {} return res.json({ error: (j && j.error) || 'pack failed' }); }
+      const branch = String(r.headers['x-pt-branch'] || ''), home = String(r.headers['x-pt-home'] || ''), homePath = decodeURIComponent(String(r.headers['x-pt-homepath'] || ''));
+      if (home !== config.machineId) return res.json({ error: 'not_home' });
+      if (!/^pt\/[\w가-힣.-]+$/.test(branch) || !homePath || !fs.existsSync(homePath)) return res.json({ error: 'home repo missing: ' + homePath });
+      fs.writeFileSync(file, r.body);
+      await git(homePath, ['fetch', '-q', file, '+' + branch + ':' + branch], 30 * 60000);
+      const cur = (await git(homePath, ['rev-parse', '--abbrev-ref', 'HEAD'], 8000)).trim();
+      let who = ''; try { who = (await git(homePath, ['config', 'user.email'], 5000)).trim(); } catch (e) {}   // 이름이 안 정해진 PC 에서도 합침 커밋이 되게
+      await git(homePath, (who ? [] : ['-c', 'user.name=PowerTerminal', '-c', 'user.email=powerterminal@localhost']).concat(['merge', '--no-edit', branch]), 120000);
+      // 합친 지점을 그 PC 에 알려 다음 합치기는 그 뒤에 한 일만 (같은 걸 또 합쳤다고 나오지 않게)
+      jpost(b, '/api/rtree/merged', p.token, { sid, head: String(r.headers['x-pt-head'] || '') }, 15000).catch(() => {});
+      res.json({ ok: true, base: cur, branch, commits: +(r.headers['x-pt-commits'] || 0) });
+    } catch (e) { res.json({ error: errOf(e) }); }
+    finally { fs.promises.unlink(file).catch(() => {}); }
+  });
+  // 그 PC: tree 의 일을 커밋하고 새 커밋만 묶어 보낸다
+  app.post('/api/rtree/pack', async (req2, res) => {
+    const s = getSessions().find(x => x.id === (req2.body && req2.body.sid));
+    if (!s || !s.rtree || !s.rtree.base) return res.json({ error: 'not a remote tree' });
+    const file = tmpFile('.bundle');
+    try {
+      if ((await git(s.path, ['status', '--porcelain'], 30000)).trim()) {
+        let who = ''; try { who = (await git(s.path, ['config', 'user.email'], 5000)).trim(); } catch (e) {}
+        const idArgs = who ? [] : ['-c', 'user.name=PowerTerminal', '-c', 'user.email=powerterminal@localhost'];
+        await git(s.path, ['add', '-A'], 10 * 60000);
+        await git(s.path, idArgs.concat(['commit', '-q', '-m', 'PT: work done on ' + os.hostname()]), 120000);
+      }
+      const branch = (await git(s.path, ['rev-parse', '--abbrev-ref', 'HEAD'], 8000)).trim();
+      const n = +(await git(s.path, ['rev-list', '--count', s.rtree.base + '..' + branch], 30000)).trim() || 0;
+      if (!n) return res.json({ error: 'nothing' });
+      await git(s.path, ['bundle', 'create', file, branch, '^' + s.rtree.base], 30 * 60000);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('x-pt-head', (await git(s.path, ['rev-parse', branch], 8000)).trim());
+      res.setHeader('x-pt-branch', branch); res.setHeader('x-pt-home', s.rtree.home || ''); res.setHeader('x-pt-homepath', encodeURIComponent(s.rtree.homePath || '')); res.setHeader('x-pt-commits', String(n));
+      res.send(fs.readFileSync(file));
+    } catch (e) { res.json({ error: errOf(e) }); }
+    finally { fs.promises.unlink(file).catch(() => {}); }
+  });
+
+  // 그 PC: 메인이 여기까지 합쳤다
+  app.post('/api/rtree/merged', (req2, res) => {
+    const s = getSessions().find(x => x.id === (req2.body && req2.body.sid)), h = String((req2.body && req2.body.head) || '');
+    if (!s || !s.rtree || !/^[0-9a-f]{40}$/.test(h)) return res.json({ error: 'bad' });
+    s.rtree.base = h; s.rtree.mergedAt = Date.now(); try { ctx.saveSessions(); } catch (e) {}
+    res.json({ ok: true });
+  });
+
   return { peerSessions, wsBridge, peerMem, isPeerId: id => typeof id === 'string' && id.includes('~') && !!byId(id.split('~')[0]), publishMe };
 };
