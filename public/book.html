@@ -1848,8 +1848,12 @@ askForm.addEventListener('submit', e => {
   // (2026-10-17 사장님: 쓸어내리면 서서히 나타나고, 올리면 천천히 위로 사라지게)
   const setFy = px => { if (px) box.style.setProperty('--fy', px + 'px'); else box.style.removeProperty('--fy'); };
   let sy = 0, sx = 0, st = 0, sok = false, sdrag = false;
-  vp.addEventListener('touchstart', e => { sok = e.touches.length === 1 && !pf && !box.classList.contains('on') && !e.target.closest('pre, .steps, .termbox, textarea, input, table'); sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); sdrag = false; }, { passive: true });
+  // 글을 고르는 중이면 쓸어내리기가 아니다 — 고른 글 끝을 아래로 끌다가 검색창이 열렸다(2026-10-31 사장님). 길게 눌러 고르기 시작한 손가락도 마찬가지(움직이기 전에 0.35초 넘게 눌렀으면)
+  const selecting = () => { try { const g = getSelection(); return !!(g && !g.isCollapsed && String(g).trim()); } catch (e) { return false; } };
+  vp.addEventListener('touchstart', e => { sok = e.touches.length === 1 && !pf && !box.classList.contains('on') && !selecting() && !e.target.closest('pre, .steps, .termbox, textarea, input, table'); sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); sdrag = false; }, { passive: true });
   vp.addEventListener('touchmove', e => { if (!sok || e.touches.length !== 1) return; const dy = e.touches[0].clientY - sy, dx = e.touches[0].clientX - sx;
+    if (selecting()) { if (sdrag) { sdrag = false; box.classList.remove('drag'); setFy(0); } sok = false; return; }
+    if (!sdrag && Date.now() - st > 350) { sok = false; return; }
     if (!sdrag) { if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy)) { sok = false; return; } if (dy > 14 && dy > Math.abs(dx) * 1.5) { sdrag = true; box.classList.add('drag'); } else return; }
     setFy(Math.max(0, Math.min(dy - 14, box.offsetHeight))); }, { passive: true });
   vp.addEventListener('touchend', e => { if (!sok || e.touches.length) return; const c = e.changedTouches[0], dy = c.clientY - sy, dx = c.clientX - sx; sok = false;
