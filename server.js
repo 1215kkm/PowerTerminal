@@ -2525,6 +2525,67 @@ app.get('/api/info', (req, res) => {
              hasBrew: (() => { try { return ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'].some(b => fs.existsSync(b)); } catch (e) { return false; } })() });
 });
 
+// ---------- 🔌 끊김 기록 — "PT 가 중간중간 끊긴다" 의 원인을 짐작 대신 기록으로 ----------
+/* 끊기는 길은 여러 개다: ① 크롬이 탭을 재움(메모리 절약) ② 크롬이 탭을 얼림(오래 안 봄) ③ PT 서버가 꺼졌다 켜짐
+   ④ 폰 잠금·다른 앱 ⑤ 터널·와이파이만 끊김. 화면이 아는 것(①②④⑤)은 화면이 보내고, 서버가 아는 것(③·메모리 바닥)은 서버가 적는다.
+   그때 남은 메모리도 같이 적어 "메모리 부족 때문인가" 를 숫자로 본다. 파일 하나(connlog.jsonl), 오래된 줄은 잘라낸다. */
+const CONNLOG = dataFile('connlog.jsonl');
+const ALIVE_FILE = dataFile('alive.json');
+const SERVER_BOOT = Date.now();
+const memRing = [];                          // 최근 10분 남은 메모리 (30초마다)
+const MB = b => Math.round(b / 1048576);
+function connLogAdd(e) {
+  const free = os.freemem();
+  const minFree = memRing.reduce((m, x) => Math.min(m, x), free);
+  const row = { at: Date.now(), freeMB: MB(free), minFreeMB: MB(minFree), totalMB: MB(os.totalmem()), ...e };
+  try {
+    fs.appendFileSync(CONNLOG, JSON.stringify(row) + '\n');
+    if (fs.statSync(CONNLOG).size > 600 * 1024) {
+      const lines = fs.readFileSync(CONNLOG, 'utf8').trim().split('\n');
+      fs.writeFileSync(CONNLOG, lines.slice(-1500).join('\n') + '\n');
+    }
+  } catch (err) {}
+}
+function readConnLog(n) {
+  try {
+    return fs.readFileSync(CONNLOG, 'utf8').trim().split('\n').slice(-n).reverse()
+      .map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+  } catch (e) { return []; }
+}
+let lowMemAt = 0;
+function aliveBeat(clean) {
+  try { fs.writeFileSync(ALIVE_FILE, JSON.stringify({ at: Date.now(), pid: process.pid, freeMB: MB(os.freemem()), clean: !!clean })); } catch (e) {}
+}
+// 서버가 제대로 뜬 뒤에만 부른다 — "이미 실행 중" 으로 바로 꺼지는 두 번째 PT 가 기록을 건드리면 안 된다
+function connLogBoot() {
+  let prev = null; try { prev = readJson(ALIVE_FILE); } catch (e) {}
+  if (prev && prev.at) {
+    const pcBoot = Date.now() - os.uptime() * 1000;
+    // clean = 🔌 종료·🔄 재시작으로 스스로 끔. 아니면 창 닫힘·오류·강제 종료. 그 사이 컴퓨터가 다시 켜졌으면 그쪽이 원인
+    const why = prev.clean ? 'clean' : pcBoot > prev.at ? 'pc-reboot' : 'killed';
+    connLogAdd({ kind: 'server-start', why, downAt: prev.at, downMs: Date.now() - prev.at, lastFreeMB: prev.freeMB });
+  } else connLogAdd({ kind: 'server-start', why: 'first' });
+  aliveBeat(false);
+  process.on('exit', () => { if (global.__ptCleanExit) aliveBeat(true); });
+  setInterval(() => {
+    const free = os.freemem();
+    memRing.push(free); if (memRing.length > 20) memRing.shift();
+    aliveBeat(false);
+    // 메모리가 바닥(7% 아래)이면 그 순간도 남긴다 — 끊김과 시각이 겹치는지 보려고. 10분에 한 번만
+    if (free / os.totalmem() < 0.07 && Date.now() - lowMemAt > 10 * 60000) { lowMemAt = Date.now(); connLogAdd({ kind: 'lowmem' }); }
+  }, 30000).unref();
+}
+const CONN_KINDS = ['discarded', 'frozen', 'disconnect', 'reload'];
+app.get('/api/connlog', (req, res) => res.json({ bootAt: SERVER_BOOT, items: req.query.meta ? [] : readConnLog(Math.min(500, Number(req.query.n) || 300)) }));
+app.post('/api/connlog', (req, res) => {
+  const b = req.body || {};
+  if (!CONN_KINDS.includes(b.kind)) return res.status(400).json({ error: 'kind' });
+  const str = (v, n) => String(v == null ? '' : v).slice(0, n);
+  connLogAdd({ kind: b.kind, cause: str(b.cause, 20), ms: Math.max(0, Math.min(864e5, Number(b.ms) || 0)),
+               dev: str(b.dev, 10), win: str(b.win, 10), seenAt: Number(b.seenAt) || undefined });
+  res.json({ ok: true });
+});
+
 // ---------- 🧠 마인드맵 저장 — PT 데이터 폴더에 트리 JSON 1개 (memos와 같은 철학: 기기 간 동기화) ----------
 const MIND_FILE = dataFile('mindmap.json');
 let mindData = null;
@@ -4969,6 +5030,7 @@ app.post('/api/shutdown', (req, res) => {
   console.log('\n  🔌 브라우저에서 종료 요청 — PowerTerminal 서버를 끕니다. (세션은 저장됨, 다음 실행 때 복원)');
   killAllDev();
   killTunnel();                              // 완전 종료 = 외부 접속 터널도 끔 (재시작(reboot)은 터널 유지 → 주소 보존)
+  global.__ptCleanExit = true;               // 🔌 끊김 기록: 스스로 끈 것
   setTimeout(() => process.exit(0), 300);    // 응답이 전송된 뒤 종료 (exit 0 = 완전 종료, 런처가 다시 안 켬)
 });
 
@@ -4981,6 +5043,7 @@ app.post('/api/reboot', (req, res) => {
   res.json({ ok: true });
   console.log('\n  🔄 재시작 요청 — 최신 버전을 받아 서버를 다시 시작합니다. (세션은 저장됨, 다음 실행 때 복원)');
   killAllDev();
+  global.__ptCleanExit = true;               // 🔌 끊김 기록: 스스로 다시 켠 것
   setTimeout(() => process.exit(75), 300);   // 75 = "재시작" 신호 (런처가 감지해 루프)
 });
 
@@ -5400,6 +5463,7 @@ server.on('error', e => {
   throw e;
 });
 server.listen(PORT, '0.0.0.0', () => {
+  connLogBoot();
   const ips = [];
   for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
     for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);

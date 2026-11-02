@@ -609,6 +609,40 @@
   #peerBox .pr-add { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   #peerBox .pr-add input { flex: 1 1 140px; min-width: 0; margin: 0; }
   #peerBox .pr-add input.code { flex: 0 0 76px; text-align: center; letter-spacing: 3px; }
+  /* 🔌 끊김 기록 — 크롬=주황 · PT 서버=빨강 · 연결=하늘 · 인터넷=파랑 · 새로고침=보라 · 메모리=분홍 · 정상(화면 꺼짐·재시작)=회색 */
+  #connBox { margin: 0 0 16px; padding: 12px; border: 1px solid #b45309; border-radius: 10px; }
+  #connBox .cb-hd { display: flex; align-items: center; gap: 8px; }
+  #connBox .cb-hd b { flex: 1; font-size: 14px; }
+  #connBox .cb-sum { font-size: 12px; color: var(--muted); line-height: 1.7; margin-top: 6px; }
+  #connBox .cb-sum em { font-style: normal; color: var(--fg); font-weight: 700; }
+  #connDlg { width: min(860px, 96vw); max-height: 88vh; padding: 0; border: 1px solid #b45309; border-radius: 12px; background: var(--panel, #1f2937); color: var(--fg); }
+  #connDlg .cd-in { display: flex; flex-direction: column; max-height: 88vh; }
+  #connDlg .cd-hd { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; }
+  #connDlg .cd-hd h3 { margin: 0; flex: 1; font-size: 16px; }
+  #connDlg .cd-advice { margin: 0 16px 10px; padding: 10px 12px; background: #0b0f17; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; line-height: 1.75; }
+  #connDlg .cd-cnt { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+  #connDlg .cd-cnt span { font-size: 12px; padding: 3px 10px; border-radius: 20px; border: 1px solid currentColor; font-weight: 600; }
+  #connDlg .cd-list { overflow: auto; padding: 0 16px; flex: 1; min-height: 0; }
+  #connDlg table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  #connDlg th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel, #1f2937); white-space: nowrap; }
+  #connDlg td { padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+  #connDlg td.t { white-space: nowrap; color: var(--muted); }
+  #connDlg td.k { font-weight: 700; }
+  #connDlg td.k i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; background: currentColor; }
+  #connDlg td.m { white-space: nowrap; }
+  #connDlg td.m.low { color: #f87171; font-weight: 700; }
+  #connDlg .cd-empty { padding: 24px 0; text-align: center; color: var(--muted); font-size: 13px; }
+  #connDlg .cd-ft { padding: 12px 16px; display: flex; justify-content: flex-end; border-top: 1px solid var(--line); }
+  #connDlg .cd-ft button { min-width: 110px; padding: 9px 16px; }
+  .cc-chrome { color: #f59e0b } .cc-server { color: #ef4444 } .cc-link { color: #38bdf8 } .cc-net { color: #60a5fa }
+  .cc-reload { color: #a78bfa } .cc-mem { color: #f472b6 } .cc-bg, .cc-restart, .cc-srvgap { color: #9ca3af }
+  @media (max-width: 600px) { #connDlg td.d, #connDlg th.d { display: none } #connDlg td.t { white-space: normal } }
+  /* 폰: 설정창이 470px 고정이라 오른쪽이 잘렸다(다른 PC 연결 입력칸·기록 보기 단추) — 화면 폭 안으로 */
+  @media (max-width: 520px) {
+    #setDlg { max-width: calc(100vw - 16px) !important; width: calc(100vw - 16px); box-sizing: border-box; padding: 16px !important; }
+    #setDlg #peerBox .pr-add input { flex: 1 1 100%; }
+    #setDlg #peerBox .pr-add input.code { flex: 0 0 90px; }
+  }
   .stickTtl b { display: inline-block; min-width: 18px; margin-right: 6px; padding: 0 5px; border-radius: 6px; background: rgba(255,255,255,.25); text-align: center; }
   /* 입력칸 우측: [📜 요청내역] 아래 [📎 파일] 세로 배치 — 폭은 요청내역 버튼에 맞춤 */
   .quick .qBtns { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
@@ -2053,12 +2087,21 @@
     <div class="mc-grid" id="mcGrid"></div>
   </div>
 </dialog>
+<dialog id="connDlg"><div class="cd-in">
+  <div class="cd-hd"><h3 id="cdTitle"></h3><button class="small" id="cdX" aria-label="close">✕</button></div>
+  <div class="cd-advice" id="cdAdvice"></div>
+  <div class="cd-cnt" id="cdCnt"></div>
+  <div class="cd-list"><table><thead><tr><th id="cdThT"></th><th id="cdThK"></th><th id="cdThL"></th><th id="cdThM"></th><th class="d" id="cdThD"></th></tr></thead><tbody id="cdBody"></tbody></table></div>
+  <div class="cd-ft"><button id="cdOk"></button></div>
+</div></dialog>
 <!-- ⚙ 설정 — 모든 사용자용 (요청 이유 파악·내용 요약 기록) -->
 <dialog id="setDlg" style="border:1px solid var(--line);border-radius:12px;background:var(--panel,#1f2937);color:var(--fg);padding:20px;max-width:470px">
   <h3 id="setTitle" style="margin:0 0 6px"></h3>
   <p id="setSub" style="margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.6"></p>
   <!-- 🖥 다른 PC 연결 — 같은 사람의 다른 PC 에 깐 PT 를 이어서 그 PC 세션도 이 화면에서 쓴다. 찾기 쉽게 맨 위 -->
   <div id="peerBox" style="margin:0 0 16px;padding:12px;border:1px solid #0e7490;border-radius:10px"></div>
+  <!-- 🔌 끊김 기록 — "중간중간 끊긴다" 의 원인을 기록으로 본다 -->
+  <div id="connBox"></div>
   <label style="display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start;cursor:pointer;margin-bottom:16px">
     <input type="checkbox" id="setIntent" style="width:22px;height:22px;margin:1px 0 0;accent-color:var(--violet);cursor:pointer">
     <span style="display:block">
@@ -2591,6 +2634,24 @@ const I18N_MORE = {
     peerH: "🖥 Other PCs", peerHint: "Link PowerTerminal on your other PCs and use their sessions from this screen — work that runs on the PC itself (rendering, transcribing) goes faster. On the other PC open ⚙ Settings to see its address and link code, then enter them here.",
     peerMe: "This PC: {n}", peerMeAddr: "Address (same place)", peerMeFar: "Address (elsewhere)", peerMeCode: "Link code", peerOff: "not connected", peerDel: "Unlink", peerDelQ: "Unlink {n}? Its sessions disappear from this screen (they keep running on that PC).", peerDeleted: "Unlinked",
     peerAddrPh: "Address of that PC (e.g. 192.168.0.5:7777)", peerCodePh: "Code", peerNamePh: "Name (e.g. Studio PC)", peerGo: "Link", peerNeed: "Enter that PC's address and the 4-digit code shown on it", peerBadCode: "Wrong code — check the code in that PC's ⚙ Settings", peerUnreach: "Cannot reach that address — is PowerTerminal running there?", peerSelf: "That address is this PC", peerTooMany: "Too many tries — wait a little", peerLinked: "Linked {n} — its sessions now show here",
+    cbH: "🔌 Disconnect log", cbOpen: "Show log", cbLoading: "Loading…", cbFail: "Could not load the log.", cbNone: "No disconnects in the last 7 days. Each one is recorded automatically.",
+    cbSum: "Last 7 days: <em>{n}</em> disconnect(s) — {parts}", cdTitle: "🔌 Disconnect log", cdOk: "OK, close",
+    cdThT: "When", cdThK: "What happened", cdThL: "How long", cdThM: "Free memory then", cdThD: "Device",
+    cdEmpty: "Nothing recorded yet. Each disconnect from now on is added here.",
+    ccchrome: "Chrome", ccserver: "PT server", cclink: "Connection", ccnet: "Internet", ccreload: "Reload", ccmem: "Memory low", ccbg: "Screen off (normal)", ccrestart: "Restart (normal)",
+    ckDiscarded: "Chrome put the tab to sleep and reloaded it", ckFrozen: "Chrome froze the tab", ckReload: "The page was reloaded (refresh or tab crash)", ckLowmem: "Memory ran very low",
+    ckClean: "PT was restarted (restart / update)", ckKilled: "PT server stopped and came back (window closed, error or forced stop)", ckPcReboot: "The computer was restarted",
+    ckSrvgap: "Disconnected while the PT server restarted", ckNet: "The internet dropped", ckBg: "Disconnected while the screen was off or another app was open", ckLink: "PT kept running but the connection dropped (tunnel, Wi-Fi or a stalled server)",
+    cdBefore: "just before: {m}", cdLow10: "(lowest in 10 min {m})", cdPc: "PC", cdPhone: "Phone", cdApp: "app window", cdTab: "browser tab",
+    cdAdvFew: "Only {n} recorded so far — too few to tell the cause. They pile up automatically each time it drops.",
+    cdAdvchrome: "Most drops ({n}) were Chrome putting the tab to sleep or freezing it. Fix: Chrome Settings › Performance › \"Always keep these sites active\" → add localhost:7777.",
+    cdAdvserver: "Most drops ({n}) were the PT server itself stopping. {mem}",
+    cdAdvlink: "Most drops ({n}) were the connection only — PT kept running. On a phone this is the tunnel or Wi-Fi; on the PC it means the server stalled. {mem}",
+    cdAdvreload: "Most drops ({n}) were page reloads — likely Chrome tab crashes (\"Aw, Snap!\"). {mem}",
+    cdAdvnet: "Most drops ({n}) were the internet itself — a Wi-Fi or mobile network issue, not PT.",
+    cdMemLow: "Free memory was low at those moments (avg {m}) — memory shortage is the likely cause: close idle sessions or turn on auto-free.",
+    cdMemOk: "Free memory was fine at those moments (avg {m}), so memory is probably not the cause.",
+    cdAdvBg: "{n} drop(s) while the screen was off are normal and not counted.",
     pfBtn: "Files", pfBtnT: "Files on {n} — bring results to this PC, or send files there", pfTitle: "{n} · {t}", pfPush: "Send files here", pfPull: "Bring to this PC", pfAll: "Select all", pfNone: "Select none", pfEmpty: "Empty folder", pfSecret: "secret",
     pfPlanning: "Checking…", pfDest: "Save to", pfSecretQ: "Includes secret files ({f}). Bring them too?", pfYes: "Bring them", pfSkip: "Leave them out", pfExistsQ: "{n} file(s) with the same name are already there.", pfOverwrite: "Overwrite", pfRename: "Save with a new name",
     pfFail: "Stopped", pfDone: "Saved {n} file(s)", pfDoneT: "Saved {n} file(s) to {d}", pfSent: "Sent {n} file(s)",
@@ -2753,6 +2814,24 @@ const I18N_MORE = {
     peerAddrPh: "그 PC 주소 (예: 192.168.0.5:7777)", peerCodePh: "코드", peerNamePh: "이름 (예: 작업실 PC)", peerGo: "연결", peerNeed: "그 PC 의 주소와 4자리 코드를 넣으세요", peerBadCode: "코드가 틀렸어요 — 그 PC 의 ⚙ 설정에서 코드를 확인하세요", peerUnreach: "그 주소에 닿지 않아요 — 그 PC 에서 PowerTerminal 이 켜져 있나요?", peerSelf: "그 주소는 이 PC 예요", peerTooMany: "시도가 너무 많아요 — 잠시 뒤에", peerLinked: "{n} 연결됨 — 그 PC 세션이 이 화면에 나옵니다",
     pfBtn: "파일", pfBtnT: "{n}의 파일 — 결과물을 이 PC 로 가져오거나, 이 PC 파일을 그쪽으로 보냅니다", pfTitle: "{n} · {t}", pfPush: "여기로 파일 보내기", pfPull: "이 PC 로 가져오기", pfAll: "모두 고르기", pfNone: "모두 풀기", pfEmpty: "빈 폴더", pfSecret: "비밀",
     pfPlanning: "확인 중…", pfDest: "저장 위치", pfSecretQ: "비밀 파일이 들어 있어요({f}). 같이 가져올까요?", pfYes: "같이 가져오기", pfSkip: "빼고 가져오기", pfExistsQ: "같은 이름의 파일이 {n}개 이미 있어요.", pfOverwrite: "덮어쓰기", pfRename: "이름 바꿔 저장",
+    cbH: "🔌 끊김 기록", cbOpen: "기록 보기", cbLoading: "불러오는 중…", cbFail: "기록을 불러오지 못했어요.", cbNone: "최근 7일 동안 끊긴 적이 없어요. 끊기면 저절로 기록됩니다.",
+    cbSum: "최근 7일 <em>{n}번</em> 끊김 — {parts}", cdTitle: "🔌 끊김 기록", cdOk: "확인 · 닫기",
+    cdThT: "언제", cdThK: "무슨 일", cdThL: "얼마나", cdThM: "그때 남은 메모리", cdThD: "기기",
+    cdEmpty: "아직 기록이 없어요. 지금부터 끊길 때마다 여기에 쌓입니다.",
+    ccchrome: "크롬", ccserver: "PT 서버", cclink: "연결", ccnet: "인터넷", ccreload: "새로고침", ccmem: "메모리 바닥", ccbg: "화면 꺼짐(정상)", ccrestart: "재시작(정상)",
+    ckDiscarded: "크롬이 탭을 재웠다가 다시 불러옴", ckFrozen: "크롬이 탭을 얼려 둠", ckReload: "페이지를 새로 불러옴 (새로고침·탭 오류)", ckLowmem: "메모리가 바닥남",
+    ckClean: "PT 를 다시 켬 (재시작·업데이트)", ckKilled: "PT 서버가 꺼졌다 다시 켜짐 (창 닫힘·오류·강제 종료)", ckPcReboot: "컴퓨터가 꺼졌다 다시 켜짐",
+    ckSrvgap: "PT 서버가 다시 켜지는 동안 끊김", ckNet: "인터넷이 끊김", ckBg: "화면을 꺼 두거나 다른 앱을 보는 동안 끊김", ckLink: "PT 는 켜져 있는데 연결만 끊김 (터널·와이파이·서버 멈춤)",
+    cdBefore: "꺼지기 직전 {m}", cdLow10: "(10분 중 최저 {m})", cdPc: "PC", cdPhone: "폰", cdApp: "앱 창", cdTab: "브라우저 탭",
+    cdAdvFew: "아직 {n}번밖에 기록되지 않아 원인을 가리기 이릅니다. 끊길 때마다 저절로 쌓입니다.",
+    cdAdvchrome: "크롬이 탭을 재우거나 얼려서 끊긴 것이 가장 많습니다({n}번). 크롬 설정 › 성능 › 「항상 활성 상태로 유지할 사이트」에 localhost:7777 을 넣으면 줄어듭니다.",
+    cdAdvserver: "PT 서버가 스스로 꺼진 것이 가장 많습니다({n}번). {mem}",
+    cdAdvlink: "PT 는 켜져 있는데 연결만 끊긴 것이 가장 많습니다({n}번). 폰이면 터널·와이파이, PC 면 서버가 잠깐 멈춘 것입니다. {mem}",
+    cdAdvreload: "페이지가 새로 불러와진 것이 가장 많습니다({n}번). 크롬 탭 오류(「앗, 이런!」)일 수 있습니다. {mem}",
+    cdAdvnet: "인터넷 자체가 끊긴 것이 가장 많습니다({n}번). 와이파이·통신 문제라 PT 쪽 원인은 아닙니다.",
+    cdMemLow: "그때 남은 메모리가 적었습니다(평균 {m}). 메모리 부족이 원인으로 보입니다 — 쉬는 세션을 닫거나 🧹 자동 비우기를 켜세요.",
+    cdMemOk: "그때 남은 메모리는 넉넉했습니다(평균 {m}). 메모리 부족 때문은 아닌 것으로 보입니다.",
+    cdAdvBg: "화면을 꺼 둔 동안 끊긴 {n}번은 정상이라 빼고 셌습니다.",
     pfFail: "멈춤", pfDone: "{n}개 저장했어요", pfDoneT: "{n}개를 {d} 에 저장했어요", pfSent: "{n}개 보냈어요",
     rtWhere: "새 트리를 어느 PC 에서 돌릴까요?", rtSending: "{n}(으)로 보내는 중… (코드·대화)", rtSent: "{n}에 트리를 만들었어요 — 이 화면에 나옵니다", rtSentConv: "{n}에 트리를 만들고 대화를 이어 붙였어요 — 이 화면에 나옵니다",
     rtNotGit: "git 레포 폴더만 다른 PC 로 보낼 수 있어요", rtOffline: "그 PC 가 연결돼 있지 않아요", rtSendFail: "보내지 못했어요", rtMergeL: "합치기",
@@ -5207,7 +5286,7 @@ if (!I18N[LANG]) LANG = 'en';
 try { document.documentElement.lang = LANG; } catch (e) {}   // <html lang> 도 맞춤 (스크린리더·브라우저 번역 제안)
 let T = Object.assign({}, I18N.en, I18N[LANG]);   // 빠진 키는 영어로 폴백
 // setItem이 실패해도(시크릿·저장소 차단·용량초과) 새로고침은 반드시 실행 — 언어 전환이 멈추지 않게.
-function setLang(l) { try { localStorage.setItem('pt_lang', l); } catch (e) {} location.reload(); }
+function setLang(l) { try { localStorage.setItem('pt_lang', l); } catch (e) {} ptMarkReload(), location.reload(); }
 // 나중에 만들어 붙이는 헤더 버튼(⚙ 설정, 🛠 배너관리 등)을 언어 셀렉터 바로 앞에 끼워넣는다.
 // 헤더 구조가 바뀌어도(예: 버튼들이 #hdrBtns 안으로 들어감) 안 깨지도록 langSel 의 '실제 부모'에 넣는다.
 function hdrInsert(el) {
@@ -9490,6 +9569,158 @@ function setOffline(off) {
         (T.connLostHint || '주소가 바뀌었을 수 있어요 — PC 화면의 QR을 다시 스캔하면 새 주소로 연결됩니다.');
     }, 25000);
   } else { clearTimeout(_connHintT); if (b) b.style.display = 'none'; }
+  connOff(off);
+}
+
+// 🔌 끊김 기록 — 끊긴 순간의 사정(화면이 꺼져 있었나·인터넷이 없었나·서버가 새로 켜졌나)을 서버 connlog.jsonl 에 남긴다.
+// 끊긴 동안엔 못 보내니 이 기기에 모아 두었다가 다시 붙으면 보낸다. PT 가 스스로 새로고침한 것은 끊김으로 안 센다.
+const CONN = { offAt: 0, hid: false, net: false };
+try { const o = JSON.parse(sessionStorage.getItem('ptOff') || 'null'); if (o && o.offAt) Object.assign(CONN, o); } catch (e) {}
+let CONNQ = []; try { CONNQ = JSON.parse(localStorage.getItem('ptConnQ') || '[]') || []; } catch (e) {}
+function ptMarkReload() { try { sessionStorage.setItem('ptSelfReload', '1'); } catch (e) {} }
+function connSaveOff() { try { CONN.offAt ? sessionStorage.setItem('ptOff', JSON.stringify(CONN)) : sessionStorage.removeItem('ptOff'); } catch (e) {} }
+function connDev() { return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'phone' : 'pc'; }
+function connWin() { try { if (matchMedia('(display-mode: standalone)').matches || (window.toolbar && window.toolbar.visible === false)) return 'app'; } catch (e) {} return 'tab'; }
+function connSend(kind, extra) {
+  CONNQ.push(Object.assign({ kind, dev: connDev(), win: connWin(), seenAt: Date.now() }, extra || {}));
+  CONNQ = CONNQ.slice(-30);
+  try { localStorage.setItem('ptConnQ', JSON.stringify(CONNQ)); } catch (e) {}
+  connFlush();
+}
+let _connBusy = false;
+async function connFlush() {
+  if (_connBusy || !CONNQ.length) return; _connBusy = true;
+  try {
+    while (CONNQ.length) {
+      const r = await api('POST', '/api/connlog', CONNQ[0], 8000);
+      if (!r || r.offline) break;                       // 아직 끊김 — 다음에 붙으면 다시
+      CONNQ.shift(); try { localStorage.setItem('ptConnQ', JSON.stringify(CONNQ)); } catch (e) {}
+    }
+  } finally { _connBusy = false; }
+}
+function connOff(off) {
+  if (off) {
+    if (!CONN.offAt) { CONN.offAt = Date.now() - 2500; CONN.hid = document.hidden; CONN.net = !navigator.onLine; connSaveOff(); }
+  } else if (CONN.offAt) connBack();
+}
+async function connBack() {
+  const o = Object.assign({}, CONN);
+  CONN.offAt = 0; CONN.hid = CONN.net = false; connSaveOff();
+  const m = await api('GET', '/api/connlog?meta=1', null, 8000);
+  const cause = (m && m.bootAt > o.offAt - 5000) ? 'server' : o.net ? 'network' : o.hid ? 'background' : 'link';
+  connSend('disconnect', { ms: Date.now() - o.offAt, cause, seenAt: o.offAt });
+}
+document.addEventListener('visibilitychange', () => { if (CONN.offAt && document.hidden && !CONN.hid) { CONN.hid = true; connSaveOff(); } });
+window.addEventListener('offline', () => { if (CONN.offAt && !CONN.net) { CONN.net = true; connSaveOff(); } });
+// 크롬이 안 보는 탭을 얼렸다 풀 때 (Page Lifecycle — 얼어 있는 동안엔 아무 코드도 못 돈다)
+document.addEventListener('freeze', () => { try { localStorage.setItem('ptFrozeAt', String(Date.now())); } catch (e) {} });
+document.addEventListener('resume', () => {
+  let at = 0; try { at = Number(localStorage.getItem('ptFrozeAt')) || 0; localStorage.removeItem('ptFrozeAt'); } catch (e) {}
+  connSend('frozen', at ? { ms: Date.now() - at, seenAt: at } : {});
+});
+(function connOnLoad() {
+  let self = false; try { self = sessionStorage.getItem('ptSelfReload') === '1'; sessionStorage.removeItem('ptSelfReload'); } catch (e) {}
+  if (document.wasDiscarded) connSend('discarded');
+  else { try { const n = performance.getEntriesByType('navigation')[0]; if (n && n.type === 'reload' && !self) connSend('reload'); } catch (e) {} }
+  if (CONNQ.length) setTimeout(connFlush, 3000);
+})();
+
+// ---- 보기 (⚙ 설정의 🔌 칸 + 기록 창)
+const connHe = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function connCat(r) {
+  if (r.kind === 'discarded' || r.kind === 'frozen') return 'chrome';
+  if (r.kind === 'reload') return 'reload';
+  if (r.kind === 'lowmem') return 'mem';
+  if (r.kind === 'server-start') return r.why === 'first' ? '' : r.why === 'clean' ? 'restart' : 'server';
+  if (r.kind === 'disconnect') return ({ server: 'srvgap', network: 'net', background: 'bg', link: 'link' })[r.cause] || 'link';
+  return '';
+}
+const CONN_PROBLEM = ['chrome', 'server', 'link', 'net', 'reload'];   // 정상(화면 꺼짐·직접 재시작)과 겹치는 줄(srvgap)은 안 센다
+function connLabel(r) {
+  if (r.kind === 'discarded') return T.ckDiscarded;
+  if (r.kind === 'frozen') return T.ckFrozen;
+  if (r.kind === 'reload') return T.ckReload;
+  if (r.kind === 'lowmem') return T.ckLowmem;
+  if (r.kind === 'server-start') return r.why === 'clean' ? T.ckClean : r.why === 'pc-reboot' ? T.ckPcReboot : T.ckKilled;
+  return ({ server: T.ckSrvgap, network: T.ckNet, background: T.ckBg })[r.cause] || T.ckLink;
+}
+function connDur(ms) {
+  if (!ms) return '—';
+  const sec = Math.round(ms / 1000), ko = LANG === 'ko';
+  if (sec < 60) return sec + (ko ? '초' : 's');
+  const min = Math.round(sec / 60);
+  if (min < 60) return min + (ko ? '분' : ' min');
+  const h = Math.floor(min / 60), mm = min % 60;
+  return ko ? h + '시간' + (mm ? ' ' + mm + '분' : '') : h + 'h' + (mm ? ' ' + mm + 'm' : '');
+}
+const connMemOf = r => r.kind === 'server-start' ? r.lastFreeMB : Math.min(r.freeMB || 1e9, r.minFreeMB || 1e9);
+function connAnalyze(items) {
+  const since = Date.now() - 7 * 864e5, c = {}, mems = [];
+  let total = 0;
+  for (const r of items) {
+    const k = connCat(r); if (!k || (r.seenAt || r.at) < since) continue;
+    c[k] = (c[k] || 0) + 1;
+    if (CONN_PROBLEM.includes(k)) { total++; const m = connMemOf(r); if (m && m < 1e9) mems.push(m); }
+  }
+  const avg = mems.length ? mems.reduce((a, b) => a + b, 0) / mems.length : 0;
+  return { c, total, avgMB: avg };
+}
+function connParts(c) {
+  return CONN_PROBLEM.filter(k => c[k]).sort((a, b) => c[b] - c[a]).map(k => (T['cc' + k] || k) + ' ' + c[k]).join(' · ');
+}
+async function renderConnBox() {
+  const box = document.getElementById('connBox'); if (!box) return;
+  box.innerHTML = '<div class="cb-hd"><b>' + connHe(T.cbH) + '</b><button class="small" id="cbOpen">' + connHe(T.cbOpen) + '</button></div>' +
+                  '<div class="cb-sum">' + connHe(T.cbLoading) + '</div>';
+  box.querySelector('#cbOpen').onclick = openConnLog;
+  const r = await api('GET', '/api/connlog?n=500', null, 8000);
+  const sum = box.querySelector('.cb-sum');
+  if (!r || !Array.isArray(r.items)) { sum.textContent = T.cbFail; return; }
+  const a = connAnalyze(r.items);
+  sum.innerHTML = a.total ? connHe(T.cbSum).replace('&lt;em&gt;', '<em>').replace('&lt;/em&gt;', '</em>').replace('{n}', a.total).replace('{parts}', connHe(connParts(a.c))) : connHe(T.cbNone);
+}
+async function openConnLog() {
+  const d = document.getElementById('connDlg');
+  ['cdTitle', 'cdThT', 'cdThK', 'cdThL', 'cdThM', 'cdThD', 'cdOk'].forEach(id => { document.getElementById(id).textContent = T[id] || ''; });
+  const close = () => d.close();
+  document.getElementById('cdX').onclick = close; document.getElementById('cdOk').onclick = close;
+  d.onclick = e => { if (e.target === d) close(); };
+  const body = document.getElementById('cdBody'), adv = document.getElementById('cdAdvice'), cnt = document.getElementById('cdCnt');
+  body.innerHTML = '<tr><td colspan="5" class="cd-empty">' + connHe(T.cbLoading) + '</td></tr>'; adv.textContent = ''; cnt.innerHTML = '';
+  if (!d.open) d.showModal();
+  const r = await api('GET', '/api/connlog?n=300', null, 8000);
+  if (!r || !Array.isArray(r.items)) { body.innerHTML = '<tr><td colspan="5" class="cd-empty">' + connHe(T.cbFail) + '</td></tr>'; return; }
+  const rows = r.items.filter(x => connCat(x)).sort((a, b) => (b.seenAt || b.at) - (a.seenAt || a.at));
+  // 그래서 무엇을 할지 — 가장 많은 원인 하나를 문장으로
+  const a = connAnalyze(rows);
+  const memTxt = a.avgMB ? (a.avgMB < 1500 ? T.cdMemLow : T.cdMemOk).replace('{m}', fmtMem(a.avgMB * 1048576)) : '';
+  let advice;
+  if (a.total < 3) advice = T.cdAdvFew.replace('{n}', a.total);
+  else {
+    const top = CONN_PROBLEM.filter(k => a.c[k]).sort((x, y) => a.c[y] - a.c[x])[0];
+    advice = (T['cdAdv' + top] || '').replace('{n}', a.c[top]).replace('{mem}', memTxt);
+  }
+  if (a.c.bg) advice += ' ' + T.cdAdvBg.replace('{n}', a.c.bg);
+  adv.textContent = advice;
+  cnt.innerHTML = ['chrome', 'server', 'link', 'net', 'reload', 'mem', 'bg', 'restart'].filter(k => a.c[k])
+    .map(k => '<span class="cc-' + k + '">' + connHe(T['cc' + k]) + ' ' + a.c[k] + '</span>').join('');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="cd-empty">' + connHe(T.cdEmpty) + '</td></tr>'; return; }
+  const loc = T.locale || undefined;
+  body.innerHTML = rows.map(x => {
+    const k = connCat(x), when = new Date(x.seenAt || x.at);
+    const t = when.toLocaleString(loc, { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    const len = x.kind === 'server-start' ? x.downMs : x.ms;
+    let mem = '—', low = false;
+    if (x.kind === 'server-start') { if (x.lastFreeMB) { mem = T.cdBefore.replace('{m}', fmtMem(x.lastFreeMB * 1048576)); low = x.lastFreeMB < 1500; } }
+    else if (x.freeMB) {
+      mem = fmtMem(x.freeMB * 1048576);
+      if (x.minFreeMB && x.minFreeMB < x.freeMB - 300) mem += ' ' + T.cdLow10.replace('{m}', fmtMem(x.minFreeMB * 1048576));
+      low = Math.min(x.freeMB, x.minFreeMB || 1e9) < 1500;
+    }
+    const dev = x.dev ? (x.dev === 'phone' ? T.cdPhone : T.cdPc) + ' · ' + (x.win === 'app' ? T.cdApp : T.cdTab) : (x.kind === 'server-start' || x.kind === 'lowmem' ? T.cdPc : '—');
+    return '<tr><td class="t">' + connHe(t) + '</td><td class="k cc-' + k + '"><i></i>' + connHe(connLabel(x)) + '</td><td>' + connHe(connDur(len)) +
+           '</td><td class="m' + (low ? ' low' : '') + '">' + connHe(mem) + '</td><td class="d">' + connHe(dev) + '</td></tr>';
+  }).join('');
 }
 
 // 카드 우측상단 아이콘 3개 (폴더 열기 · 목록에서 빼기 · 같은 폴더 하나 더 열기)
@@ -11121,11 +11352,11 @@ async function pollUntilBackThenReload() {
     await new Promise(r => setTimeout(r, 1000));
     try {
       const res = await fetch('/api/info?token=' + TOKEN, { cache: 'no-store' });
-      if (res.ok) { if (wentDown) { location.reload(); return; } }
+      if (res.ok) { if (wentDown) { ptMarkReload(), location.reload(); return; } }
       else wentDown = true;
     } catch (e) { wentDown = true; }
   }
-  location.reload();   // 시간 초과 시에도 일단 새로고침 시도
+  ptMarkReload(), location.reload();   // 시간 초과 시에도 일단 새로고침 시도
 }
 refreshBanner();
 setInterval(refreshBanner, 10 * 60 * 1000);
@@ -11268,6 +11499,7 @@ async function openSettings() {
   gcalRefresh();   // 📆 구글 캘린더 연동 상태 표시
   admRefresh();    // 🛠 배너 관리 (개발자에게만 보임)
   renderPeers();
+  renderConnBox();   // 🔌 끊김 기록 요약
   setDlg.showModal();
 }
 // 💬 자주 쓰는 요청 단어 — 모든 세션의 요청칸 바로 위에 버튼으로. 값은 서버에 두어 폰에서도 같이 보인다.
@@ -15326,7 +15558,7 @@ function checkServerVersion(v) {
   // 코드 편집기에 저장 안 한 내용이 있으면 새로고침으로 날리지 않는다 — 저장하면 다음 하트비트에 반영됨
   const dirtyEditor = (typeof cmTabs !== 'undefined' && cmTabs.some(t => t.dirty)) || (typeof cmDirty !== 'undefined' && cmDirty);
   if (dirtyEditor) { flashToast('🔄 업데이트됨 (v' + v + ') — 편집 내용을 저장하면 새로고침합니다'); return; }
-  location.reload();
+  ptMarkReload(), location.reload();
 }
 async function claimWinNo() {
   let r;
