@@ -10019,6 +10019,8 @@ function applyLayout() {
   const fitCols = Math.max(1, Math.floor((gw - 20 + 10) / (MIN_W + 10)));   // 안쪽 여백 20 · 칸 사이 10
   cols = Math.min(n, PER_ROW, fitCols);
   singleRow = cols >= n;
+  // 줄이 나뉘면 줄마다 고르게 — 5+1 처럼 마지막 줄에 하나만 덩그러니 남지 않게 3+3 으로 (2026-11-02 CEO 화면)
+  if (!singleRow && n <= PER_ROW) cols = Math.ceil(n / Math.ceil(n / cols));
   // 3줄 이상이 되거나 7개 이상이면 줄을 화면에 욱여넣지 않고, 다음 줄 제목이 걸치게 해서 스크롤로 본다
   const overflowRows = !hasMax && !singleRow && (Math.ceil(n / cols) > 2 || n > PER_ROW);
 
