@@ -9717,6 +9717,9 @@ async function openConnLog() {
       if (x.minFreeMB && x.minFreeMB < x.freeMB - 300) mem += ' ' + T.cdLow10.replace('{m}', fmtMem(x.minFreeMB * 1048576));
       low = Math.min(x.freeMB, x.minFreeMB || 1e9) < 1500;
     }
+    // 메모리 바닥 순간에 많이 쓰던 프로그램 3개 (v1.90.41+)
+    if (x.kind === 'lowmem' && Array.isArray(x.top) && x.top.length)
+      mem += ' · ' + x.top.slice(0, 3).map(p => p.n + ' ' + fmtMem(p.mb * 1048576)).join(', ');
     const dev = x.dev ? (x.dev === 'phone' ? T.cdPhone : T.cdPc) + ' · ' + (x.win === 'app' ? T.cdApp : T.cdTab) : (x.kind === 'server-start' || x.kind === 'lowmem' ? T.cdPc : '—');
     return '<tr><td class="t">' + connHe(t) + '</td><td class="k cc-' + k + '"><i></i>' + connHe(connLabel(x)) + '</td><td>' + connHe(connDur(len)) +
            '</td><td class="m' + (low ? ' low' : '') + '">' + connHe(mem) + '</td><td class="d">' + connHe(dev) + '</td></tr>';

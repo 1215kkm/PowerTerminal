@@ -2572,8 +2572,20 @@ function connLogBoot() {
     memRing.push(free); if (memRing.length > 20) memRing.shift();
     aliveBeat(false);
     // 메모리가 바닥(7% 아래)이면 그 순간도 남긴다 — 끊김과 시각이 겹치는지 보려고. 10분에 한 번만
-    if (free / os.totalmem() < 0.07 && Date.now() - lowMemAt > 10 * 60000) { lowMemAt = Date.now(); connLogAdd({ kind: 'lowmem' }); }
+    if (free / os.totalmem() < 0.07 && Date.now() - lowMemAt > 10 * 60000) { lowMemAt = Date.now(); memHogs(top => connLogAdd({ kind: 'lowmem', top })); }
   }, 30000).unref();
+}
+// 메모리 바닥일 때 누가 먹고 있었나 — 이름이 같은 프로세스는 합치고, python·node 처럼 이름만으론 모르는 건 실행 파일 이름을 붙인다
+function memHogs(cb) {
+  if (process.platform !== 'win32') return cb([]);
+  const ps = "$ErrorActionPreference='SilentlyContinue';$c=@{};Get-CimInstance Win32_Process|%{$c[[int]$_.ProcessId]=$_.CommandLine};" +
+    "Get-Process|Group-Object ProcessName|%{$g=$_.Group|Sort-Object PrivateMemorySize64 -Desc;$cl=[string]$c[[int]$g[0].Id];" +
+    "$h='';if($_.Name -match '^(python|pythonw|node|java|electron)$' -and $cl -match '([^\\\\/\" ]+\\.(py|js|mjs|cjs|jar))'){$h=$matches[1]};" +
+    "[pscustomobject]@{n=$_.Name;c=$_.Count;mb=[int](($_.Group|Measure-Object PrivateMemorySize64 -Sum).Sum/1MB);h=$h}}|Sort-Object mb -Desc|Select -First 6|ConvertTo-Json -Compress";
+  require('child_process').execFile('powershell', ['-NoProfile', '-Command', ps], { timeout: 20000, windowsHide: true }, (e, out) => {
+    let r = []; try { r = JSON.parse(String(out || '[]')); if (!Array.isArray(r)) r = [r]; } catch (x) {}
+    cb(r.map(x => ({ n: x.n + (x.h ? ' (' + x.h + ')' : ''), c: x.c, mb: x.mb })));
+  });
 }
 const CONN_KINDS = ['discarded', 'frozen', 'disconnect', 'reload'];
 app.get('/api/connlog', (req, res) => res.json({ bootAt: SERVER_BOOT, items: req.query.meta ? [] : readConnLog(Math.min(500, Number(req.query.n) || 300)) }));
