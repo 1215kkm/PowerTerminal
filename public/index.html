@@ -10022,10 +10022,11 @@ function applyLayout() {
   const fitCols = Math.max(1, Math.floor((gw - 20 + 10) / (MIN_W + 10)));   // 안쪽 여백 20 · 칸 사이 10
   cols = Math.min(n, PER_ROW, fitCols);
   singleRow = cols >= n;
-  // 줄이 나뉘면 줄마다 고르게 — 5+1 처럼 마지막 줄에 하나만 덩그러니 남지 않게 3+3 으로 (2026-11-02 CEO 화면)
-  if (!singleRow && n <= PER_ROW) cols = Math.ceil(n / Math.ceil(n / cols));
-  // 3줄 이상이 되거나 7개 이상이면 줄을 화면에 욱여넣지 않고, 다음 줄 제목이 걸치게 해서 스크롤로 본다
-  const overflowRows = !hasMax && !singleRow && (Math.ceil(n / cols) > 2 || n > PER_ROW);
+  // 한 줄에는 폭이 허락하는 만큼 다 채운다 (1900px 폭이면 4개). v1.90.40 의 "줄마다 고르게(5개→3+2)" 는
+  // 칸 수를 줄여 CEO 가 되돌려 달라고 함 (2026-11-03).
+  // 줄이 나뉘면 줄을 화면에 욱여넣지 않는다 — 첫 줄이 화면 높이를 다 쓰고 다음 줄은 제목만 걸쳐 스크롤로 본다.
+  // 두 줄을 반 높이로 접으면 터미널이 너무 낮아진다 (CEO 2026-10-08, 2026-11-03)
+  const overflowRows = !hasMax && !singleRow;
 
   // 열 너비 — 확대 중이면 그 칸의 열만 크게. 위치는 그대로, grid 트랜지션으로 부드럽게 커짐
   const weights = Array(cols).fill('1fr');
