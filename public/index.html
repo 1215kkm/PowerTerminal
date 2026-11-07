@@ -7376,22 +7376,25 @@ function buildPane(sess, idx) {
       return { opts, q: /^[─━-]+$/.test(q) ? '' : q };
     /* 번호 없는 선택창 — 클로드 「폴더 신뢰」 창처럼 「❯ No, exit / Yes, I trust…」 로만 그리는 것.
        입력칸(「❯ 글」 한 줄)과 헷갈리지 않게 바로 밑에 「Enter to confirm」 같은 안내가 있을 때만 본다. */
-    const hi = L.map(l => /enter to (confirm|select)|press enter/i.test(l)).lastIndexOf(true);
+    const hi = L.map(l => /enter to (confirm|select|continue|submit)|press enter|to change\b/i.test(l)).lastIndexOf(true);
     if (hi < 0) return null;
+    /* 줄을 못 읽는 설정 창(「/auto-mode-setup」 의 「항목  true/false · ←/→ to change · Enter to continue」 등)은
+       선택지 버튼 없이 방향키 줄만 띄운다 — 그게 없으면 폰에서는 다음으로 넘어갈 방법이 없다. */
+    const keysOnly = { opts: [], q: '' };
     let j = hi - 1; while (j >= 0 && !L[j].trim()) j--;
     const block = [];
     for (; j >= 0; j--) {
       const mk = L[j].match(/^\s*([❯›>▶])\s+(\S.*?)\s*$/), ind = L[j].match(/^\s{2,}(\S.*?)\s*$/);
       if (mk) block.unshift({ text: mk[2], cur: true }); else if (ind) block.unshift({ text: ind[1], cur: false }); else break;
     }
-    if (block.length < 2 || block.length > 9 || block.filter(o => o.cur).length !== 1) return null;
+    if (block.length < 2 || block.length > 9 || block.filter(o => o.cur).length !== 1) return keysOnly;
     q = j >= 0 ? L[j].trim() : '';
     return { opts: block.map((o, k) => ({ n: k + 1, text: o.text, cur: o.cur })), q: /^[─━-]+$/.test(q) ? '' : q };
   };
   const menuSend = keys => { let t = 0; keys.forEach(k => { setTimeout(() => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: k })); }, t); t += 70; }); };
   const menuPaint = () => {
     const m = isTouch ? menuRead() : null;
-    const key = m ? m.q + '|' + m.opts.map(o => (o.cur ? '*' : '') + o.n + o.text).join('|') : '';
+    const key = m ? m.q + '|k|' + m.opts.map(o => (o.cur ? '*' : '') + o.n + o.text).join('|') : '';
     if (key === qMenuKey) return;
     qMenuKey = key;
     if (!m) { qMenu.style.display = 'none'; qMenu.innerHTML = ''; return; }
@@ -7411,7 +7414,7 @@ function buildPane(sess, idx) {
       qMenu.appendChild(b);
     });
     const keys = document.createElement('span'); keys.className = 'qm-keys';
-    [['↑', '\x1b[A'], ['↓', '\x1b[B'], ['⏎', '\r'], ['Esc', '\x1b']].forEach(([t, k]) => {
+    [['↑', '\x1b[A'], ['↓', '\x1b[B'], ['←', '\x1b[D'], ['→', '\x1b[C'], ['⏎', '\r'], ['Esc', '\x1b']].forEach(([t, k]) => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
       b.onclick = ev => { ev.stopPropagation(); menuSend([k]); };
       keys.appendChild(b);
