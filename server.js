@@ -5222,7 +5222,9 @@ async function notifySend(full, onlyKind) {
 async function notifyNewUrl(url, full) {
   const n = notifyCfg(); if (!(n.telegram && n.telegram.chatId) && !(n.email && n.email.user)) return;
   let last = ''; try { last = JSON.parse(fs.readFileSync(NOTIFY_LAST, 'utf8')).url || ''; } catch (e) {}
-  if (last === url) return;
+  // 보내는 중에 같은 주소로 또 불리면(파일은 보낸 뒤에 쓴다) 두 번 갔다 — 11-08 00:03 같은 주소 2통
+  if (last === url || notifyNewUrl.sending === url) return;
+  notifyNewUrl.sending = url;
   const r = await notifySend(full);
   try { fs.writeFileSync(NOTIFY_LAST, JSON.stringify({ url, at: Date.now(), result: r })); } catch (e) {}
   console.log('  📨 새 접속 주소 알림: ' + JSON.stringify(r));
@@ -5538,9 +5540,12 @@ function tunnelPidAlive(pid) {
     if (!pid) return resolve(false);
     try { process.kill(pid, 0); } catch (e) { if (e.code === 'ESRCH') return resolve(false); }
     // PID 재사용 오탐 방지 — 그 PID가 진짜 cloudflared인지 확인 (비동기)
+    // ⚠ 2026-11-07 사고: 컴퓨터가 바쁠 때 tasklist 가 8초 안에 못 끝나면 "죽었다" 로 봤다 → 멀쩡한 터널을 지우고 새로 띄워
+    //   밤사이 새 주소 알림이 여러 번 갔다(폰 연결도 끊김). 확인을 못 한 것은 죽은 게 아니다 — 프로세스가 있으면 살아 있는 것으로 본다.
+    //   죽었다고 보는 건 PID 가 없거나(ESRCH), tasklist 가 제대로 끝났는데 cloudflared 가 아닐 때만.
     require('child_process').exec('tasklist /FI "PID eq ' + Number(pid) + '" /FO CSV /NH',
-      { timeout: 8000, windowsHide: true },
-      (err, so) => resolve(!err && /cloudflared/i.test(String(so || ''))));
+      { timeout: 20000, windowsHide: true },
+      (err, so) => resolve(err ? true : /cloudflared/i.test(String(so || ''))));
   });
 }
 function killTunnel() {
