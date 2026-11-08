@@ -124,7 +124,7 @@
   .askctx span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .askctx button { flex: none; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 13px; }
   .askctx button:hover { background: color-mix(in srgb, #f59e0b 30%, transparent); }
-  @media (max-width: 820px) {
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
     :root { --padx:18px; --pady:18px; }
     .stage { flex-direction:column; }
     .shelf { flex:0 0 auto; display:flex; gap:6px; overflow-x:auto; border-right:none; border-bottom:1px solid #33363e; padding:8px; }
@@ -163,7 +163,7 @@
   .sbtn { display:block; width:100%; text-align:left; font:13px var(--ui); padding:9px 12px; border-radius:7px; border:1px solid #3a3d46; background:#2a2d34; color:var(--bar-text); text-decoration:none; }
   .sbtn:hover { border-color:var(--accent); } .sbtn.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; text-align:center; }
   .side-note { margin-top:auto; font-size:11.5px; line-height:1.5; color:var(--muted); }
-  @media (min-width: 821px) {
+  @media (min-width: 821px) and (pointer: fine), (min-width: 821px) and (min-height: 521px) {
     /* 책장 — 세션 하나 = 표지가 보이게 놓은 책 한 권, 세 권씩 한 줄 (크라모북 책장과 같은 모양) */
     .shelf { flex:0 0 212px; display:grid; grid-template-columns:repeat(3, 1fr); gap:9px; align-content:start; padding:16px 10px; overflow-y:auto; overflow-x:hidden;
              background:#24262c; border-right:1px solid #33363e; }
@@ -196,7 +196,7 @@
   .daytoc .dayhd { padding-top:4px; text-align:left; margin-bottom:12px; } .daytoc .dayhd h2 { font-size:20px; }
   .tocit b { flex:0 0 auto; font-weight:700; color:var(--ink); }
   .tocit.full { align-items:flex-start; padding:8px 4px; } .tocit.full small { padding-top:2px; } .tocit.full span { white-space:pre-wrap; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; line-height:1.55; }
-  @media (max-width: 820px) {
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
     .desk { padding:30px 6px 26px; gap:0; } .navcol, .topmid { display:none; }
     .side { flex:0 0 auto; flex-direction:row; order:-1; overflow-x:auto; padding:6px 8px; gap:6px; border-left:none; border-bottom:1px solid #33363e; }
     .side-h, .side-note { display:none; } .sbtn { width:auto; flex:0 0 auto; white-space:nowrap; padding:6px 10px; font-size:12px; }
@@ -240,10 +240,10 @@
   .thm { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border-radius: 6px; cursor: pointer; font-size: 13px; border: 2px solid transparent; }
   .thm i { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; } .thm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .thm.on { border-color: var(--accent); } .thm:hover { filter: brightness(1.06); }
-  @media (max-width: 820px) { .themes.on { flex-direction: row; } .thm { width: auto; flex: 0 0 auto; padding: 5px 8px; font-size: 12px; } }
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) { .themes.on { flex-direction: row; } .thm { width: auto; flex: 0 0 auto; padding: 5px 8px; font-size: 12px; } }
 
   /* 책장: 한 줄에 두 권 */
-  @media (min-width: 821px) { .shelf { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 120px; gap: 11px; scrollbar-width: thin; scrollbar-color: #4a4d57 transparent; }
+  @media (min-width: 821px) and (pointer: fine), (min-width: 821px) and (min-height: 521px) { .shelf { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 120px; gap: 11px; scrollbar-width: thin; scrollbar-color: #4a4d57 transparent; }
     .shelf .spine { aspect-ratio: auto; height: 100%; font-size: 12.5px; padding: 9px 7px 9px 11px; } }
   .wlog .none { padding: 8px 2px 4px; text-align: left; }
   /* 날짜 표 옆: 몇 장 가운데 몇 장째 */
@@ -282,7 +282,7 @@
   /* 폰: 쪽을 두 번 터치하면 그 쪽만 화면 가득 (책장·도구 줄·요청 칸을 가린다). 다시 두 번 터치하면 원래대로 */
   .vp { touch-action: manipulation; }
   html, body { overscroll-behavior: none; }   /* 옆으로 쓸 때 브라우저의 뒤로 가기가 먹지 않게 */
-  @media (max-width: 820px) {
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
     body.full .book { position: fixed; inset: 0; z-index: 60; width: auto; max-width: none; filter: none; }
     body.full .vp { border-radius: 0; padding-top: calc(var(--pady) + env(safe-area-inset-top)); padding-bottom: calc(var(--pady) + 14px + env(safe-area-inset-bottom)); }
     body.full .marks, body.full .pager, body.full .prog { display: none; }
@@ -297,19 +297,19 @@
   .sw > span { flex: 1 1 auto; }
   .sw button { flex: 0 0 auto; min-width: 38px; padding: 6px 9px; border-radius: 5px; border: 0; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
   .sw button.on { background: var(--accent); color: #fff; font-weight: 700; }
-  @media (max-width: 820px) { .sw { flex: 0 0 auto; font-size: 12px; padding: 2px 3px 2px 9px; } .sw > span { flex: 0 0 auto; margin-right: 4px; } .sw button { padding: 4px 8px; min-width: 32px; } }
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) { .sw { flex: 0 0 auto; font-size: 12px; padding: 2px 3px 2px 9px; } .sw > span { flex: 0 0 auto; margin-right: 4px; } .sw button { padding: 4px 8px; min-width: 32px; } }
   /* phone: the page turns like a sheet of paper (a copy of the page swings on its left edge) */
   .leaf { transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 0 18px rgba(0,0,0,.3); will-change: transform; }
   .leafsnap { pointer-events: none; }
   .rifl { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 
   /* phone: typing a request must not zoom the page (the viewport is locked to 1x; the box itself uses 15px) */
-  @media (max-width: 820px) { .ask textarea, .pager input { font-size: 15px; } html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } }
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) { .ask textarea, .pager input { font-size: 15px; } html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } }
 
   /* phone: turn-sound switch in the empty bottom-left corner of the page (the tool row keeps the page-flip switch only) */
   .psnd { display: none; }
   #sndTg.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-  @media (max-width: 820px) {
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
     .psnd { display: block; position: absolute; left: 8px; bottom: 3px; z-index: 4; width: 40px; height: 26px; border: 0; border-radius: 13px; padding: 0; font-size: 14px; line-height: 1; cursor: pointer;
             background: color-mix(in srgb, var(--ink) 10%, transparent); }
     .psnd.on { background: var(--accent); }
@@ -393,7 +393,7 @@
   .findpaper pre { max-height: none; }
   .turn.found { animation: foundflash 1.6s ease-out; border-radius: 6px; }
   @keyframes foundflash { 0%, 40% { background: color-mix(in srgb, var(--accent) 26%, transparent); } 100% { background: transparent; } }
-  @media (max-width: 820px) {
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
     .find.has .findbody { height: calc(100dvh - 63px - env(safe-area-inset-top)); }
     .find { width: 100vw; border: 0; border-radius: 0; left: 0; transform: translateY(calc(-105% + var(--fy, 0px))); padding-top: env(safe-area-inset-top); }
     .find.on { transform: translateY(var(--fy, 0px)); }
@@ -404,7 +404,7 @@
   }
 
   #darkTg { text-align: center; font-size: 16px; line-height: 1.2; } #darkTg.on { border-color: var(--accent); }
-  @media (max-width: 820px) { #darkTg { min-width: 44px; font-size: 15px; } }
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) { #darkTg { min-width: 44px; font-size: 15px; } }
 
   /* ⬇ 내보내기: 가운데 창. 왼쪽 = 내보낼 요청 고르기(최신이 위), 오른쪽 = 형식(PDF · 그림 · Word · 원고 · 크라모북)과 실행 */
   .xpbg { position: fixed; inset: 0; z-index: 89; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s linear .25s; }
@@ -460,7 +460,7 @@
   .xpbar { height: 5px; border-radius: 3px; background: #2a2d34; overflow: hidden; display: none; }
   .xpbar.on { display: block; } .xpbar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .8s ease-out; }
   @media (prefers-reduced-motion: reduce) { .xpfm button:active, .xpgo:active { transform: none; } }
-  @media (max-width: 820px) {
+  @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
     .xp { width: 100vw; height: 100dvh; top: 0; left: 0; border-radius: 0; border: 0; transform: translateY(2%); padding-top: env(safe-area-inset-top); }
     body.exporting .xp { transform: none; }
     .xpbody { flex-direction: column; }
@@ -522,6 +522,8 @@
 <script>
 const QS = new URLSearchParams(location.search);
 const TOKEN = QS.get('token') || (document.cookie.split('cc_token=')[1] || '').split(';')[0];
+// phone layout = narrow screen, or a phone turned sideways (touch + short) — turning the phone must not switch to the desk (two-page) layout
+const PHONE_MQ = matchMedia('(max-width: 820px), (pointer: coarse) and (max-height: 520px)'), isPhone = () => PHONE_MQ.matches;
 const KO = (localStorage.getItem('pt_lang') || navigator.language || 'en').toLowerCase().startsWith('ko');
 const T = KO ? {
   ph:'이 책(세션)에 요청하기 — Enter 로 보내기 · Shift+Enter 줄바꿈', send:'보내기', back:'터미널 화면', exp:'⬇ 내보내기',
@@ -536,7 +538,7 @@ const T = KO ? {
 };
 document.documentElement.lang = KO ? 'ko' : 'en';
 const $ = id => document.getElementById(id);
-$('inp').placeholder = innerWidth <= 820 ? T.ph.split(' — ')[0] : T.ph; $('send').textContent = T.send; $('back').textContent = T.back; $('exp').textContent = T.exp;
+$('inp').placeholder = isPhone() ? T.ph.split(' — ')[0] : T.ph; $('send').textContent = T.send; $('back').textContent = T.back; $('exp').textContent = T.exp;
 const api = (method, url, body) => fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(r => r.json()).catch(() => null);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
@@ -600,7 +602,7 @@ let liveFrom = Infinity;                          // requests from this one on (
 const openWork = new Set();                       // turns whose work log is unfolded
 const LSget = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
 const LSset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
-const flipMode = () => innerWidth > 820 && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
+const flipMode = () => !isPhone() && !!(window.St && St.PageFlip) && QS.get('flip') !== '0';
 const soundOn = () => LSget('pt_book_snd', '1') !== '0';   // page-turn sound
 const flipAnim = () => LSget('pt_book_flip', '1') !== '0';   // off = pages change at once, same two-page layout
 const RATIO = 1.42;                                           // open book, width : height (the Cramobook spread)
@@ -691,7 +693,7 @@ function render(full) {
 }
 
 // ── pages: columns of the flow. One step = the visible columns (2 on a wide screen, 1 on a phone)
-const perView = () => (innerWidth <= 820 ? 1 : 2);
+const perView = () => (isPhone() ? 1 : 2);
 function metrics() {
   const clip = flow.parentNode, w = clip.clientWidth, gap = parseFloat(getComputedStyle(flow).columnGap) || 0, n = perView();
   const colW = (w - gap * (n - 1)) / n;
@@ -700,7 +702,7 @@ function metrics() {
 // the open book keeps one shape (RATIO) and is as large as the desk allows
 function sizeBook() {
   const book = $('book');
-  if (innerWidth <= 820) { book.style.width = book.style.height = book.style.flex = book.style.maxWidth = ''; return; }
+  if (isPhone()) { book.style.width = book.style.height = book.style.flex = book.style.maxWidth = ''; return; }
   const desk = book.parentNode, cs = getComputedStyle(desk);
   const navW = [...desk.querySelectorAll('.navcol')].reduce((a, n) => a + n.offsetWidth, 0) + 2 * (parseFloat(cs.columnGap) || 22);
   const aw = desk.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - navW;
@@ -728,6 +730,7 @@ function layout(keep) {
   $('pnr').textContent = (m.n === 2 ? Math.min(cols, page * 2 + 2) : page + 1) + ' / ' + cols;
   marks();
   askCtxUi();
+  if (window.noteAnchor) noteAnchor();
 }
 const colOf = el => { const m = metrics(); return Math.round(el.offsetLeft / (m.colW + m.gap)); };
 function go(p, instant) {
@@ -1075,10 +1078,15 @@ $('book').addEventListener('wheel', e => {
     hint.textContent = on ? (KO ? '옆으로 쓸어 넘기기 · 두 번 터치하면 원래 크기' : 'Swipe to turn · double-tap to exit') : (KO ? '원래 크기' : 'Normal size');
     hint.classList.add('on'); clearTimeout(ht); ht = setTimeout(() => hint.classList.remove('on'), on ? 2200 : 900);
   };
+  // 폰을 돌리면 쪽 폭이 바뀌어 쪽수가 달라진다 — 보던 문단을 기억했다가 돌린 뒤 그 문단이 있는 쪽으로 간다
+  let anc = null, ancT;
+  window.noteAnchor = () => { clearTimeout(ancT); ancT = setTimeout(() => { if (isPhone() && !pf && !leaf) anc = where(); }, 700); };
+  window.holdAnchor = () => clearTimeout(ancT);   // the screen is turning: don't read the spot until the pages are laid out again
+  window.restoreAnchor = () => { if (!isPhone() || pf || !anc || !anc.isConnected) return; flow.style.transition = 'none'; page = colAt(anc); layout(true); void flow.offsetWidth; flow.style.transition = ''; };
   let back = null, t0 = 0, x0 = 0, y0 = 0, lastT = 0, lastX = 0, lastY = 0;
   vp.addEventListener('touchstart', e => { if (e.touches.length !== 1) { lastT = 0; return; } t0 = Date.now(); x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
   vp.addEventListener('touchend', e => {
-    if (innerWidth > 820 || e.touches.length || e.target.closest('a, button, textarea, input')) return;
+    if (!isPhone() || e.touches.length || e.target.closest('a, button, textarea, input')) return;
     const c = e.changedTouches[0], now = Date.now();
     if (now - t0 > 300 || Math.hypot(c.clientX - x0, c.clientY - y0) > 10) { lastT = 0; return; }   // 누르고 있었거나 민 것은 탭이 아니다
     { // a tap on the far left / right edge of the page turns it (one page per tap)
@@ -1088,7 +1096,7 @@ $('book').addEventListener('wheel', e => {
     if (now - lastT < 380 && Math.hypot(c.clientX - lastX, c.clientY - lastY) < 40) { lastT = 0; e.preventDefault(); toggleFull(); }
     else { lastT = now; lastX = c.clientX; lastY = c.clientY; }
   });
-  addEventListener('resize', () => { if (innerWidth > 820) document.body.classList.remove('full'); });
+  addEventListener('resize', () => { if (!isPhone()) document.body.classList.remove('full'); });
 }
 { // 폰: 글을 길게 누르면 그 문단부터 소리 내어 읽는다 (브라우저의 읽어 주기). 읽는 문단에 색을 넣고, 쪽이 바뀌면 따라 넘긴다.
   const R = KO ? { pause:'⏸ 일시정지', resume:'▶ 이어 읽기', stop:'⏹ 멈춤', none:'이 브라우저는 읽어 주기를 지원하지 않습니다', tip:'두 손가락으로 글을 터치하면 「듣기」 단추가 나옵니다', end:'끝까지 읽었습니다', go:'🔊 여기부터 듣기', voice:'목소리', speed:'속도', one:'이 폰에는 이 언어 목소리가 하나뿐입니다.', more:'목소리 추가: 아이폰 설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성 → 한국어에서 내려받으면 여기에 나옵니다.', sp:['느리게','보통','빠르게','더 빠르게'], mute:'목소리가 나오지 않습니다 — 폰의 미디어 음량과 음성 읽기(TTS) 설정을 확인하세요', err:'읽어 주기 오류: ' }
@@ -1176,7 +1184,7 @@ $('book').addEventListener('wheel', e => {
   const blockAt = (x, y) => { const el = document.elementFromPoint(x, y); if (!el || el === flow || !flow.contains(el)) return null; const bl = blocks(); let i = bl.findIndex(q => q.el === el || q.el.contains(el) || el.contains(q.el));
     if (i < 0) i = bl.findIndex(q => el.compareDocumentPosition(q.el) & Node.DOCUMENT_POSITION_FOLLOWING); return i < 0 ? null : bl[i].el; };
   vp.addEventListener('touchstart', e => {
-    if (e.touches.length === 2 && innerWidth <= 820 && !pf) { const [p, q] = e.touches; two = { t: Date.now(), x: [p.clientX, q.clientX], y: [p.clientY, q.clientY], ok: true }; }
+    if (e.touches.length === 2 && isPhone() && !pf) { const [p, q] = e.touches; two = { t: Date.now(), x: [p.clientX, q.clientX], y: [p.clientY, q.clientY], ok: true }; }
     else if (e.touches.length !== 2) { if (two) two.ok = false; if (e.touches.length === 1 && gob.classList.contains('on')) hideGo(); }
   }, { capture: true, passive: true });
   vp.addEventListener('touchmove', e => {
@@ -1197,7 +1205,7 @@ $('book').addEventListener('wheel', e => {
     clearTimeout(goT); goT = setTimeout(hideGo, 6000);
   };
   vp.addEventListener('touchend', twoEnd, { capture: true }); vp.addEventListener('touchcancel', twoEnd, { capture: true });
-  if (innerWidth <= 820 && LSget('pt_book_rdtip', '') !== '2') setTimeout(() => { say(R.tip, 4500); LSset('pt_book_rdtip', '2'); }, 2500);   // told once
+  if (isPhone() && LSget('pt_book_rdtip', '') !== '2') setTimeout(() => { say(R.tip, 4500); LSset('pt_book_rdtip', '2'); }, 2500);   // told once
 }
 let tx = 0, ty = 0;
 vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
@@ -1305,7 +1313,7 @@ vp.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touch
   addEventListener('storage', e => { if (e.key === 'pt_book_dark' || e.key === 'pt_book_theme') apply(LSget('pt_book_theme', 't-basic')); });   // other book windows follow
   apply(LSget('pt_book_theme', 't-basic'));
 }
-let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitTerm(); layout(true); }, 120); });
+let rz; addEventListener('resize', () => { clearTimeout(rz); if (window.holdAnchor) holdAnchor(); rz = setTimeout(() => { fitTerm(); layout(true); if (window.restoreAnchor) restoreAnchor(); }, 120); });
 
 // ── live work window: the session's real terminal, view only (never sends a size, so it cannot shrink the real one)
 // text size of the live terminal: 100% shows the full width of the real terminal (small on a phone), up to 300%
