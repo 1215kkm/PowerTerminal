@@ -204,7 +204,7 @@ module.exports = function peersModule(app, ctx) {
       const mine = [...bridging.keys()].filter(k => k.startsWith(p.id + '~')).map(k => titleOf(p.id, k.slice(p.id.length + 1)));
       const c = sessCache.get(p.id);
       return { id: p.id, name: p.name, online: !!b, addr: b || (p.urls || [])[0] || '', at: p.at, theirCount: c ? c.list.filter(o => o && o.id && !o.autoClose).length : null,
-               usingNow: mine, guest: gView(guests.find(g => g.machineId && g.machineId === p.machineId)) };
+               usingNow: mine, hidden: (p.hidden || []).map(sid => ({ sid, title: lastTitle.get(p.id + '~' + sid) || sid })), guest: gView(guests.find(g => g.machineId && g.machineId === p.machineId)) };
     }));
     // 나를 이었지만 나는 그 PC 를 안 이은 경우(옛 버전 PT) — 그 PC 에게 줄 것만 고를 수 있게
     const lone = guests.filter(g => !peers.some(p => p.machineId && p.machineId === g.machineId)).map(g => ({ id: '', name: g.name, online: false, lone: true, guest: gView(g) }));
@@ -240,6 +240,14 @@ module.exports = function peersModule(app, ctx) {
     }
     res.json({ ok: true, peer: { id: p.id, name: p.name } });
   });
+  // 다른 PC 세션의 ✕ = 이 화면에서만 빼기 (그 PC 의 세션을 지우지 않는다 — 그 PC 에서는 계속 돈다). 새로고침해도 빠진 채로
+  app.post('/api/peers/:id/hide', (req2, res) => {
+    const p = byId(req2.params.id); if (!p) return res.status(404).json({ error: 'no peer' });
+    const sid = String((req2.body && req2.body.sid) || ''), on = !(req2.body && req2.body.show);
+    if (!ID_RE.test(sid)) return res.status(400).json({ error: 'sid' });
+    p.hidden = (p.hidden || []).filter(x => x !== sid); if (on) p.hidden.push(sid);
+    p.hidden = p.hidden.slice(-300); save(); sessCache.delete(p.id); res.json({ ok: true });
+  });
   app.patch('/api/peers/:id', (req2, res) => {
     const p = byId(req2.params.id); if (!p) return res.status(404).json({ error: 'no peer' });
     if (typeof req2.body.name === 'string') p.name = req2.body.name.trim().slice(0, 30) || p.name;
@@ -267,7 +275,8 @@ module.exports = function peersModule(app, ctx) {
         if (!online && c) sessCache.set(p.id, { at: Date.now(), list, online: false });
       } else online = c.online;
       for (const s of list) if (s && s.id) lastTitle.set(p.id + '~' + s.id, s.title || s.id);
-      for (const s of list) if (s && s.id && !s.autoClose) out.push(Object.assign({}, s, { id: p.id + '~' + s.id, peer: p.id, peerName: p.name, peerOnline: online, alive: online && s.alive }));
+      const hid = new Set(p.hidden || []);   // 이 화면에서 ✕ 로 뺀 그 PC 세션
+      for (const s of list) if (s && s.id && !s.autoClose && !hid.has(s.id)) out.push(Object.assign({}, s, { id: p.id + '~' + s.id, peer: p.id, peerName: p.name, peerOnline: online, alive: online && s.alive }));
     }));
     return out;
   }
@@ -309,6 +318,11 @@ module.exports = function peersModule(app, ctx) {
   // 그 밖의 /api/ 요청 중 "<PC>~" 가 든 것
   app.use((req2, res, next) => {
     if (!peers.length || !req2.path.startsWith('/api/')) return next();
+    const hm = req2.method === 'DELETE' && req2.path.match(/^\/api\/sessions\/([a-z0-9]+)~([a-z0-9]+)$/i);
+    if (hm && byId(hm[1])) {   // 옛 화면이 보내는 ✕ 도 지우기 대신 빼기로
+      const p = byId(hm[1]); p.hidden = (p.hidden || []).filter(x => x !== hm[2]).concat(hm[2]).slice(-300); save(); sessCache.delete(p.id);
+      return res.json({ ok: true, hidden: true });
+    }
     const re = tildeRe();
     const hay = req2.url + ' ' + (req2.rawBody ? req2.rawBody.toString('utf8') : '');
     const m = re.exec(hay); if (!m) return next();

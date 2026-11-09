@@ -2657,6 +2657,7 @@ const I18N_MORE = {
     afDone: "🧹 {t}: restarted to free {mb} of memory — the conversation carries on", afLast: "Last freed: {when} ({mb})",
     afOn: "🧹 Auto-free on — restarts this session when it idles with a lot of memory (the conversation carries on)", afOff: "🧹 Auto-free off",
     peerNone: "No PC linked yet. Link one below with its address and code — its row then shows what to share with it: all / chosen / none.",
+    peerHideQ: "Remove \"{t}\" from this screen?\nIt keeps running on {n}; bring it back from ⚙ Settings › Hidden here.", peerHidden: "Hidden here:", peerUnhideT: "Click to show it here again",
     meNameL: "This PC's name", meNameSave: "Save", meNameSaved: "Name changed", peerTheirN: "{n} sessions shared with you", peerTheirNone: "That PC hasn't shared any sessions yet (choose them in its ⚙ Settings)",
     peerIUse: "You're using: {s}", peerTheyUse: "They're using: {s}", shareL: "Share with that PC:", shareAll: "All", shareSome: "Chosen only", shareNone: "None", shareSaved: "Updated what {n} can use",
     shareOld: "That PC runs an older PowerTerminal, so it can't use this PC — update it and link again", peerLone: "Linked to this PC",
@@ -2840,6 +2841,7 @@ const I18N_MORE = {
     afDone: "🧹 {t}: 메모리 {mb}를 비우려고 다시 띄웠습니다 — 대화는 이어집니다", afLast: "마지막으로 비운 때: {when} ({mb})",
     afOn: "🧹 자동 비우기 켬 — 쉬는 중에 메모리를 많이 쓰면 다시 띄웁니다(대화는 이어짐)", afOff: "🧹 자동 비우기 끔",
     peerNone: "아직 연결된 PC 가 없어요. 아래에 그 PC 의 주소와 코드를 넣어 연결하면, 그 PC 줄에 「그 PC 에게 줄 내 세션: 전부 / 고른 세션만 / 안 줌」이 나옵니다.",
+    peerHideQ: "「{t}」을 이 화면에서 뺄까요?\n{n} 에서는 그대로 돌고, ⚙ 설정의 「이 화면에서 뺀 세션」에서 다시 보이게 할 수 있어요.", peerHidden: "이 화면에서 뺀 세션:", peerUnhideT: "누르면 이 화면에 다시 나옵니다",
     meNameL: "이 PC 이름", meNameSave: "저장", meNameSaved: "이름을 바꿨어요", peerTheirN: "그 PC 가 준 세션 {n}개", peerTheirNone: "그 PC 가 아직 준 세션이 없어요 (그 PC 의 ⚙ 설정에서 고릅니다)",
     peerIUse: "내가 쓰는 중: {s}", peerTheyUse: "그 PC 가 쓰는 중: {s}", shareL: "그 PC 에게 줄 내 세션:", shareAll: "전부", shareSome: "고른 세션만", shareNone: "안 줌", shareSaved: "{n} 에게 줄 세션을 바꿨어요",
     shareOld: "그 PC 의 PT 가 옛 버전이라 그 PC 에서 이 PC 를 쓸 수는 없어요 — 그 PC 를 업데이트한 뒤 다시 연결하세요", peerLone: "이 PC 를 이어 둔 PC",
@@ -6926,14 +6928,14 @@ function buildPane(sess, idx) {
   // 닫기
   el.querySelector('.btnClose').onclick = async (ev) => {
     ev.stopPropagation();
-    if (!confirm(T.confirmClose.replace('{t}', sess.title))) return;
+    if (!confirm(sess.peer ? (T.peerHideQ || '{t}').replace('{t}', sess.title).replace('{n}', sess.peerName || 'PC') : T.confirmClose.replace('{t}', sess.title))) return;
     // ◎ 플로우로 이어진 세션들 — 한 흐름은 보통 같이 쓰고 같이 끝난다. 물어보고 같이 닫는다.
     const mates = flowOpenMates(sess.id);
     const alsoClose = mates.length &&
       confirm((T.flowCloseMates || '플로우로 이어진 세션들도 같이 닫을까요?') + '\n\n' +
               mates.map(i => (panes.get(i).sess.title || i)).join(', '));
     if (zoomedId === sess.id) closeZoom();   // 전체화면 중이면 먼저 원위치
-    rememberClosed(sess.id);                 // ↩ Ctrl+Shift+T 로 제자리에 다시 열 수 있게
+    if (!sess.peer) rememberClosed(sess.id);   // ↩ Ctrl+Shift+T 로 제자리에 다시 열 수 있게 (다른 PC 세션은 ⚙ 설정의 「다시 보이기」로)
     if (alsoClose) mates.forEach(rememberClosed);
     try { localStorage.removeItem(draftKey); } catch (e) {}   // 쓰다 만 글 임시저장도 정리
     // 🌿 트리(worktree) 세션이면 서버가 폴더 정리 결과를 몇 초 뒤 돌려준다 — 창은 기다리지 않고 닫고, 결과만 알림으로
@@ -10881,8 +10883,9 @@ async function renderPeers() {
           + ['all', 'some', 'none'].map(v => '<button class="small' + (g.share === v ? ' on' : '') + '" data-sh="' + v + '">' + esc(T['share' + v[0].toUpperCase() + v.slice(1)] || v) + '</button>').join('') + '</div>'
           + (g.share === 'some' ? '<div class="pr-pick" data-g="' + escA(g.id) + '">' + mySess.map(o => '<label><input type="checkbox" value="' + escA(o.id) + '"' + (g.sessions.includes(o.id) ? ' checked' : '') + '><span>' + esc(o.title || o.id) + '</span></label>').join('') + '</div>' : '')
           + (g.usingNow && g.usingNow.length ? '<div class="pr-line pr-use">' + esc((T.peerTheyUse || '{s}').replace('{s}', g.usingNow.join(', '))) + '</div>' : '');
-      return '<div class="pr-pc"><div class="pr-row"><i class="' + (p.online ? 'on' : '') + '"></i><span>' + esc(p.name) + ' <small>' + esc(p.lone ? (T.peerLone || '') : p.online ? p.addr : (T.peerOff || 'not connected')) + '</small></span>'
-        + (p.lone ? '' : '<button class="small" data-del="' + escA(p.id) + '">' + esc(T.peerDel || 'Unlink') + '</button>') + '</div>' + theirs + share + '</div>';
+      const hid = (p.hidden || []).length ? '<div class="pr-line">' + esc(T.peerHidden || 'Hidden here:') + ' ' + p.hidden.map(h => '<button class="small" data-unhide="' + escA(h.sid) + '" data-peer="' + escA(p.id) + '" title="' + escA(T.peerUnhideT || '') + '">↩ ' + esc(h.title) + '</button>').join(' ') + '</div>' : '';
+      return '<div class="pr-pc">' + '<div class="pr-row"><i class="' + (p.online ? 'on' : '') + '"></i><span>' + esc(p.name) + ' <small>' + esc(p.lone ? (T.peerLone || '') : p.online ? p.addr : (T.peerOff || 'not connected')) + '</small></span>'
+        + (p.lone ? '' : '<button class="small" data-del="' + escA(p.id) + '">' + esc(T.peerDel || 'Unlink') + '</button>') + '</div>' + theirs + hid + share + '</div>';
     }).join('')
     + (list.length ? '' : '<div class="pr-line" style="margin-left:0">' + esc(T.peerNone || '') + '</div>')
     + '<div class="pr-add"><input id="peerAddr" placeholder="' + escA(T.peerAddrPh || '192.168.0.5:7777') + '"><input id="peerCode" class="code" inputmode="numeric" maxlength="4" placeholder="' + escA(T.peerCodePh || 'Code') + '">'
@@ -10891,6 +10894,10 @@ async function renderPeers() {
     const p = list.find(x => x.id === b.dataset.del);
     if (!confirm((T.peerDelQ || 'Unlink {n}?').replace('{n}', p ? p.name : ''))) return;
     await api('DELETE', '/api/peers/' + b.dataset.del); flashToast((T.peerDeleted || 'Unlinked'));
+    renderPeers(); reconcileSoon();
+  });
+  box.querySelectorAll('[data-unhide]').forEach(b => b.onclick = async () => {
+    await api('POST', '/api/peers/' + b.dataset.peer + '/hide', { sid: b.dataset.unhide, show: true });
     renderPeers(); reconcileSoon();
   });
   box.querySelector('#meNameGo').onclick = async () => {
