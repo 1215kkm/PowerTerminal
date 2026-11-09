@@ -68,7 +68,12 @@ module.exports = function peersModule(app, ctx) {
     try { const g = JSON.parse(out).find(x => x.files && x.files[GIST_NAME]); if (g) { gistId = g.id; config.peerGistId = gistId; saveConfig(); } } catch (e) {}
     return gistId;
   }
+  let boardCache = null, boardAt = 0;
   async function readBoard() {
+    if (boardCache && Date.now() - boardAt < 120000) return boardCache;
+    boardCache = await readBoardNow(); boardAt = Date.now(); return boardCache;
+  }
+  async function readBoardNow() {
     const id = await findGist(); if (!id) return {};
     const out = await gh(['api', 'gists/' + id]);
     try { return JSON.parse(JSON.parse(out).files[GIST_NAME].content) || {}; } catch (e) { return {}; }
@@ -101,11 +106,22 @@ module.exports = function peersModule(app, ctx) {
 
   // ── 살아 있는 주소 찾기 (마지막에 된 주소 → 나머지 후보 → 알림판)
   const working = new Map();   // peer id → { base, at }
-  async function baseOf(p, force) {
+  /* 꺼진 PC 를 찾느라 이 PC 가 느려지면 안 된다 (2026-11-10: 맥이 꺼져 있자 세션 목록 하나에 11초 — 노트·붙여넣기가 멈춤).
+     한 번 못 찾으면 30초 동안은 바로 「없음」, 찾는 중이면 그 찾기를 같이 기다린다(동시에 여러 번 찾지 않는다). */
+  const failAt = new Map(), finding = new Map();
+  function baseOf(p, force) {
     const w = working.get(p.id);
-    if (w && !force && Date.now() - w.at < 60000) return w.base;
+    if (w && !force && Date.now() - w.at < 60000) return Promise.resolve(w.base);
+    if (!force && Date.now() - (failAt.get(p.id) || 0) < 30000) return Promise.resolve(null);
+    if (finding.has(p.id)) return finding.get(p.id);
+    const job = findBase(p).then(b => { if (b) failAt.delete(p.id); else failAt.set(p.id, Date.now()); return b; }).finally(() => finding.delete(p.id));
+    finding.set(p.id, job);
+    return job;
+  }
+  async function findBase(p) {
     const tryBase = async b => { try { const info = await jget(b, '/api/info', p.token, 3500); p.urls = candidates(info, b); p.name = p.name || info.pcName || info.host || ''; p.denied = false; return b; } catch (e) { if (/HTTP 40[13]/.test(e.message)) p.denied = true; return null; } };   // 401 = 그 PC 가 연결을 끊었다(열쇠 취소)
     for (const b of (p.urls || [])) { const ok = await tryBase(b); if (ok) { working.set(p.id, { base: ok, at: Date.now() }); save(); return ok; } }
+    if (p.denied) { working.delete(p.id); return null; }   // 그 PC 가 연결을 끊었다 — 새 주소를 찾아도 소용없다
     if (p.machineId) {   // 다른 곳에 있는 PC — 알림판에서 그 PC 의 새 주소
       const board = await readBoard(), e = board[p.machineId];
       if (e) for (const b of candidates(e)) { const ok = await tryBase(b); if (ok) { working.set(p.id, { base: ok, at: Date.now() }); save(); return ok; } }
@@ -226,7 +242,7 @@ module.exports = function peersModule(app, ctx) {
     const gView = g => g && { id: g.id, share: g.share, sessions: g.sessions || [], seen: g.seen || 0,
       usingNow: [...using.entries()].filter(([, m]) => m.has(g.id)).map(([sid]) => (getSessions().find(o => o.id === sid) || {}).title || sid) };
     const list = await Promise.all(peers.map(async p => {
-      const b = await baseOf(p).catch(() => null);
+      const b = await Promise.race([baseOf(p).catch(() => null), new Promise(r => setTimeout(() => r(null), 1500))]);   // 꺼진 PC 를 찾느라 설정 화면이 멈추지 않게
       const mine = [...bridging.keys()].filter(k => k.startsWith(p.id + '~')).map(k => titleOf(p.id, k.slice(p.id.length + 1)));
       const c = sessCache.get(p.id);
       return { id: p.id, name: p.name, online: !!b, addr: b || (p.urls || [])[0] || '', at: p.at, theirCount: c ? c.list.filter(o => o && o.id && !o.autoClose).length : null,
@@ -292,19 +308,33 @@ module.exports = function peersModule(app, ctx) {
   async function peerSessions() {
     const out = [];
     await Promise.all(peers.map(async p => {
-      const c = sessCache.get(p.id);
-      let list = c ? c.list : [], online = false;
+      let c = sessCache.get(p.id);
       if (!c || Date.now() - c.at > 2500) {
-        const b = await baseOf(p).catch(() => null);
-        if (b) { try { list = await jget(b, '/api/sessions', p.token, 5000); online = true; sessCache.set(p.id, { at: Date.now(), list, online }); } catch (e) { working.delete(p.id); if (/HTTP 40[13]/.test(e.message)) p.denied = true; } }
-        if (!online && p.denied) list = [];   // 그 PC 가 연결을 끊었으면 남겨 둔 칸도 뺀다
-        if (!online && c) sessCache.set(p.id, { at: Date.now(), list, online: false });
-      } else online = c.online;
+        // 새로 받아 오기 — 1.2초 안에 오면 그걸 쓰고, 늦으면 지난 목록을 먼저 내보낸다(받아 오기는 뒤에서 마저)
+        const job = refreshPeer(p, c);
+        const got = (c && !c.online) ? null : await Promise.race([job, new Promise(r => setTimeout(() => r(null), 1200))]);   // 지난번에 꺼져 있던 PC 는 기다리지 않는다 (켜져 있던 PC 는 1.2초까지 새 목록을 기다린다)
+        c = got || sessCache.get(p.id) || c;
+      }
+      let list = c ? c.list : [], online = !!(c && c.online);
+      if (!online && p.denied) list = [];   // 그 PC 가 연결을 끊었으면 남겨 둔 칸도 뺀다
       for (const s of list) if (s && s.id) lastTitle.set(p.id + '~' + s.id, s.title || s.id);
       const hid = new Set(p.hidden || []);   // 이 화면에서 ✕ 로 뺀 그 PC 세션
       for (const s of list) if (s && s.id && !s.autoClose && !hid.has(s.id)) out.push(Object.assign({}, s, { id: p.id + '~' + s.id, peer: p.id, peerName: p.name, peerOnline: online, alive: online && s.alive }));
     }));
     return out;
+  }
+
+  const refreshing = new Map();
+  function refreshPeer(p, c) {
+    if (refreshing.has(p.id)) return refreshing.get(p.id);
+    const job = (async () => {
+      let list = c ? c.list : [], online = false;
+      const b = await baseOf(p).catch(() => null);
+      if (b) { try { list = await jget(b, '/api/sessions', p.token, 5000); online = true; } catch (e) { working.delete(p.id); if (/HTTP 40[13]/.test(e.message)) p.denied = true; } }
+      const v = { at: Date.now(), list, online }; sessCache.set(p.id, v); return v;
+    })().finally(() => refreshing.delete(p.id));
+    refreshing.set(p.id, job);
+    return job;
   }
 
   // ── "~" 가 든 요청을 그 PC 로 (주소·쿼리·본문 속 "<PC>~" 를 지우고 보낸다. 응답 JSON 의 세션 id 에는 다시 붙인다)
