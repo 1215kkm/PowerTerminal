@@ -138,6 +138,7 @@ module.exports = function peersModule(app, ctx) {
   function guestAllowed(g, r) {
     const p = r.path, m = r.method;
     if (/^\/api\/(peers|guests|pair|peerfiles|rtree\/merge$|me-name)/.test(p)) return false;   // 연결 설정은 손님이 못 바꾼다
+    if (p === '/api/peer-hello' && m === 'POST') return true;   // 「내 주소가 바뀌었어요」 — 무엇을 줬든 받는다
     g.seen = Date.now();
     if (g.share === 'all') return true;
     if (m === 'GET' && (p === '/api/info' || p === '/api/sessions' || p === '/api/sessions-mem')) return true;
@@ -191,6 +192,31 @@ module.exports = function peersModule(app, ctx) {
     if (['all', 'some', 'none'].includes(b.share)) g.share = b.share;
     if (Array.isArray(b.sessions)) g.sessions = b.sessions.map(String).filter(x => ID_RE.test(x)).slice(0, 200);
     saveG(); cutGuests(); res.json({ ok: true });
+  });
+  // 🔑 연결 코드를 바꾸면 — 이 PC 를 쓰던 다른 PC 의 열쇠를 모두 버린다 (열린 터미널도 닫힌다)
+  function revokeGuests() { const n = guests.length; guests = []; saveG(); cutGuests(); return n; }
+  /* 📍 내 주소가 바뀌면(PC 를 다시 켜면 외부 주소가 새로 생긴다) 이어 둔 PC 들에 직접 알린다 — 그 PC 들 주소는 그대로이니 닿는다.
+     둘 다 다시 켜져 서로 옛 주소만 알 때는 주소 알림판(gist)이 마지막 길. 같은 주소가 계속 되는 Tailscale(100.x)이면 이것도 필요 없다. */
+  let lastHello = '';
+  async function helloPeers() {
+    const urls = myUrls(), sig = JSON.stringify(urls) + '|' + myName();
+    if (sig === lastHello || !peers.length) return;
+    let allOk = true;
+    await Promise.all(peers.map(async p => {
+      const b = await baseOf(p).catch(() => null); if (!b) { allOk = false; return; }
+      try { const { r } = await jpost(b, '/api/peer-hello', p.token, { machineId: config.machineId, name: myName(), urls }, 10000); if (r.status !== 200 && r.status !== 403) allOk = false; } catch (e) { allOk = false; }
+    }));
+    if (allOk) lastHello = sig;
+  }
+  setTimeout(() => helloPeers().catch(() => {}), 25000);
+  setInterval(() => helloPeers().catch(() => {}), 60000);
+  app.post('/api/peer-hello', (req2, res) => {
+    const g = req2.ptGuest, b = req2.body || {};
+    if (!g || !b.machineId || g.machineId !== b.machineId) return res.status(403).json({ error: 'guest only' });
+    const p = peers.find(x => x.machineId === b.machineId);
+    if (p) { const u = [].concat(b.urls || []).map(normAddr).filter(Boolean).slice(0, 8); if (u.length) p.urls = u; working.delete(p.id); save(); }
+    if (b.name) g.name = String(b.name).slice(0, 30);
+    saveG(); res.json({ ok: true });
   });
   app.delete('/api/guests/:id', (req2, res) => { guests = guests.filter(x => x.id !== req2.params.id); saveG(); cutGuests(); res.json({ ok: true }); });
 
@@ -641,5 +667,5 @@ module.exports = function peersModule(app, ctx) {
     res.json({ ok: true });
   });
 
-  return { peerSessions, wsBridge, peerMem, guestOf, guestAllowed, filterSessions, canSess, useStart, usedBy, pairGuest, myName, isPeerId: id => typeof id === 'string' && id.includes('~') && !!byId(id.split('~')[0]), publishMe };
+  return { peerSessions, wsBridge, peerMem, guestOf, guestAllowed, filterSessions, revokeGuests, canSess, useStart, usedBy, pairGuest, myName, isPeerId: id => typeof id === 'string' && id.includes('~') && !!byId(id.split('~')[0]), publishMe };
 };

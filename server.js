@@ -221,8 +221,11 @@ function adminRateOk(ip) {
   return e.count <= 8;
 }
 // 원격 페어링 코드: 다른 PC에서 IP만 치고 4자리 코드 입력 → cc_token 쿠키 발급 → 이후 그 PC는 바로 접속.
-// 서버 실행마다 새로 생성(메모리에만 보관, config에 저장 안 함). 무차별대입은 pairRateOk가 IP당 10분에 8회로 제한.
-const PAIR_CODE = String(1000 + crypto.randomBytes(2).readUInt16BE(0) % 9000);
+// 한 번 만든 코드는 config 에 두고 PT·PC 를 다시 켜도 그대로 (2026-11-09 CEO: 꺼졌다 켜지면 번호가 바뀌어 다시 이어야 했다).
+// ⚙ 설정의 「코드 바꾸기」로 언제든 새로 — 바꾸면 이 PC 를 쓰던 다른 PC 연결이 끊긴다. 무차별대입은 pairRateOk 가 IP당 10분에 8회로 제한.
+const newPairCode = () => String(1000 + crypto.randomBytes(2).readUInt16BE(0) % 9000);
+if (!/^\d{4}$/.test(String(config.pairCode || ''))) { config.pairCode = newPairCode(); saveConfig(); }
+let PAIR_CODE = config.pairCode;
 const pairAttempts = new Map();
 function pairRateOk(ip) {
   const now = Date.now();
@@ -1845,6 +1848,13 @@ app.use((req, res, next) => {
   res.status(401).send('<h2 style="font-family:sans-serif">Access token required. Open the URL shown in the server console (or scan the QR).</h2>');
 });
 
+// 🔑 연결 코드 바꾸기 — 새 코드를 만들고, 이 PC 를 쓰던 다른 PC 들의 열쇠를 모두 취소한다(열린 터미널도 닫힌다). 손님(다른 PC)은 못 부른다(peers.js)
+app.post('/api/pair-code/new', (req, res) => {
+  if (req.ptGuest) return res.status(403).json({ error: 'not_shared' });
+  config.pairCode = newPairCode(); PAIR_CODE = config.pairCode; saveConfig();
+  const cut = peersApi ? peersApi.revokeGuests() : 0;
+  res.json({ ok: true, code: PAIR_CODE, cut });
+});
 // 🧭 도우미 — 단계 안내(guide.js). 토큰 검사 뒤라 원격(폰)에서도 카드로 체크할 수 있다.
 // 🖥 다른 PC 의 PT 연결 (peers.js) — 토큰 검사 뒤, 세션 API 보다 앞에 둔다("<PC>~<세션>" 요청을 그 PC 로 보낸다)
 peersApi = require('./peers')(app, { dataFile, readJson, config, saveConfig, PORT, getTunnelUrl: () => global.__tunnelUrl || '',
