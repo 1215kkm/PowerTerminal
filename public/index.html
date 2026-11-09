@@ -2651,6 +2651,7 @@ const I18N_MORE = {
     afLbl: "Auto-free", afT: "🧹 Auto-free memory — when this session has been idle for 10+ minutes and uses 1.5GB+ (or 700MB+ while the PC is 85%+ full), PT restarts it to free memory. The conversation carries on; dev servers it started stop too. Click to turn on/off",
     afDone: "🧹 {t}: restarted to free {mb} of memory — the conversation carries on", afLast: "Last freed: {when} ({mb})",
     afOn: "🧹 Auto-free on — restarts this session when it idles with a lot of memory (the conversation carries on)", afOff: "🧹 Auto-free off",
+    peerNone: "No PC linked yet. Link one below with its address and code — its row then shows what to share with it: all / chosen / none.",
     meNameL: "This PC's name", meNameSave: "Save", meNameSaved: "Name changed", peerTheirN: "{n} sessions shared with you", peerTheirNone: "That PC hasn't shared any sessions yet (choose them in its ⚙ Settings)",
     peerIUse: "You're using: {s}", peerTheyUse: "They're using: {s}", shareL: "Share with that PC:", shareAll: "All", shareSome: "Chosen only", shareNone: "None", shareSaved: "Updated what {n} can use",
     shareOld: "That PC runs an older PowerTerminal, so it can't use this PC — update it and link again", peerLone: "Linked to this PC",
@@ -2833,6 +2834,7 @@ const I18N_MORE = {
     afLbl: "자동 비우기", afT: "🧹 메모리 자동 비우기 — 이 세션이 일을 끝내고 10분 넘게 쉬는 중에 1.5GB 이상 쓰면(컴퓨터 메모리가 85% 넘게 찼으면 700MB 이상) PT 가 다시 띄워 메모리를 비웁니다. 대화는 이어지고, 이 세션이 띄운 개발 서버는 같이 꺼집니다. 눌러서 켜고 끄기",
     afDone: "🧹 {t}: 메모리 {mb}를 비우려고 다시 띄웠습니다 — 대화는 이어집니다", afLast: "마지막으로 비운 때: {when} ({mb})",
     afOn: "🧹 자동 비우기 켬 — 쉬는 중에 메모리를 많이 쓰면 다시 띄웁니다(대화는 이어짐)", afOff: "🧹 자동 비우기 끔",
+    peerNone: "아직 연결된 PC 가 없어요. 아래에 그 PC 의 주소와 코드를 넣어 연결하면, 그 PC 줄에 「그 PC 에게 줄 내 세션: 전부 / 고른 세션만 / 안 줌」이 나옵니다.",
     meNameL: "이 PC 이름", meNameSave: "저장", meNameSaved: "이름을 바꿨어요", peerTheirN: "그 PC 가 준 세션 {n}개", peerTheirNone: "그 PC 가 아직 준 세션이 없어요 (그 PC 의 ⚙ 설정에서 고릅니다)",
     peerIUse: "내가 쓰는 중: {s}", peerTheyUse: "그 PC 가 쓰는 중: {s}", shareL: "그 PC 에게 줄 내 세션:", shareAll: "전부", shareSome: "고른 세션만", shareNone: "안 줌", shareSaved: "{n} 에게 줄 세션을 바꿨어요",
     shareOld: "그 PC 의 PT 가 옛 버전이라 그 PC 에서 이 PC 를 쓸 수는 없어요 — 그 PC 를 업데이트한 뒤 다시 연결하세요", peerLone: "이 PC 를 이어 둔 PC",
@@ -10877,6 +10879,7 @@ async function renderPeers() {
       return '<div class="pr-pc"><div class="pr-row"><i class="' + (p.online ? 'on' : '') + '"></i><span>' + esc(p.name) + ' <small>' + esc(p.lone ? (T.peerLone || '') : p.online ? p.addr : (T.peerOff || 'not connected')) + '</small></span>'
         + (p.lone ? '' : '<button class="small" data-del="' + escA(p.id) + '">' + esc(T.peerDel || 'Unlink') + '</button>') + '</div>' + theirs + share + '</div>';
     }).join('')
+    + (list.length ? '' : '<div class="pr-line" style="margin-left:0">' + esc(T.peerNone || '') + '</div>')
     + '<div class="pr-add"><input id="peerAddr" placeholder="' + escA(T.peerAddrPh || '192.168.0.5:7777') + '"><input id="peerCode" class="code" inputmode="numeric" maxlength="4" placeholder="' + escA(T.peerCodePh || 'Code') + '">'
     + '<input id="peerName" placeholder="' + escA(T.peerNamePh || 'Name (e.g. PC2)') + '"><button class="small primary" id="peerGo">' + esc(T.peerGo || 'Link') + '</button></div>';
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
