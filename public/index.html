@@ -609,6 +609,25 @@
   #peerBox .pr-add { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   #peerBox .pr-add input { flex: 1 1 140px; min-width: 0; margin: 0; }
   #peerBox .pr-add input.code { flex: 0 0 76px; text-align: center; letter-spacing: 3px; }
+  /* 👥 서로 쓰기 — PC 마다 「내가 그 PC 를 쓰는 것」 / 「그 PC 에게 줄 내 세션」 */
+  #peerBox .pr-name { display: flex; gap: 6px; align-items: center; margin: 8px 0 2px; font-size: 13px; }
+  #peerBox .pr-name input { flex: 1; min-width: 0; margin: 0; font-weight: 700; }
+  #peerBox .pr-pc { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  #peerBox .pr-pc .pr-row { border-bottom: 0; padding: 0; }
+  #peerBox .pr-line { font-size: 12px; color: var(--muted); margin: 5px 0 0 17px; line-height: 1.6; }
+  #peerBox .pr-use { color: #fbbf24; font-weight: 700; }
+  #peerBox .pr-share { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0 0 17px; font-size: 12px; color: var(--muted); }
+  #peerBox .pr-share button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+  #peerBox .pr-share button.on[data-sh="all"] { background: #0e7490; border-color: #22d3ee; color: #fff; font-weight: 700; }
+  #peerBox .pr-share button.on[data-sh="some"] { background: #92400e; border-color: #fbbf24; color: #fff; font-weight: 700; }
+  #peerBox .pr-share button.on[data-sh="none"] { background: #374151; border-color: #9ca3af; color: #fff; font-weight: 700; }
+  #peerBox .pr-pick { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 0 17px; font-size: 12px; }
+  #peerBox .pr-pick label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 🖥 이 PC 이름 — 머리줄 (다른 PC 와 이어져 있을 때만). 다른 PC 가 내 세션을 쓰는 중이면 노랑 */
+  #pcChip { display: none; flex: 0 1 auto; min-width: 0; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+            font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; background: #0e7490; color: #fff; border: 0; }
+  #pcChip.busy { background: #92400e; }
+  .useTag { flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: #92400e; color: #fff; white-space: nowrap; display: none; }
   /* 🔌 끊김 기록 — 크롬=주황 · PT 서버=빨강 · 연결=하늘 · 인터넷=파랑 · 새로고침=보라 · 메모리=분홍 · 정상(화면 꺼짐·재시작)=회색 */
   #connBox { margin: 0 0 16px; padding: 12px; border: 1px solid #b45309; border-radius: 10px; }
   #connBox .cb-hd { display: flex; align-items: center; gap: 8px; }
@@ -1790,6 +1809,7 @@
     <span id="usageAcc"></span>
     <span id="usageGpt"></span>
   </span>
+  <button id="pcChip" type="button" onclick="openSettings()"></button>
   <span class="sp"></span>
   <!-- ④ 버튼들 — 항상 오른쪽 끝에 가로로 -->
   <span id="hdrBtns">
@@ -2631,6 +2651,10 @@ const I18N_MORE = {
     afLbl: "Auto-free", afT: "🧹 Auto-free memory — when this session has been idle for 10+ minutes and uses 1.5GB+ (or 700MB+ while the PC is 85%+ full), PT restarts it to free memory. The conversation carries on; dev servers it started stop too. Click to turn on/off",
     afDone: "🧹 {t}: restarted to free {mb} of memory — the conversation carries on", afLast: "Last freed: {when} ({mb})",
     afOn: "🧹 Auto-free on — restarts this session when it idles with a lot of memory (the conversation carries on)", afOff: "🧹 Auto-free off",
+    meNameL: "This PC's name", meNameSave: "Save", meNameSaved: "Name changed", peerTheirN: "{n} sessions shared with you", peerTheirNone: "That PC hasn't shared any sessions yet (choose them in its ⚙ Settings)",
+    peerIUse: "You're using: {s}", peerTheyUse: "They're using: {s}", shareL: "Share with that PC:", shareAll: "All", shareSome: "Chosen only", shareNone: "None", shareSaved: "Updated what {n} can use",
+    shareOld: "That PC runs an older PowerTerminal, so it can't use this PC — update it and link again", peerLone: "Linked to this PC",
+    chipT: "This PC's name · click for settings", chipUse: "using {k} on {pc}", chipUsed: "👥 {pc} using {k} of mine", useTagT: "{n} is using this session",
     peerH: "🖥 Other PCs", peerHint: "Link PowerTerminal on your other PCs and use their sessions from this screen — work that runs on the PC itself (rendering, transcribing) goes faster. On the other PC open ⚙ Settings to see its address and link code, then enter them here.",
     peerMe: "This PC: {n}", peerMeAddr: "Address (same place)", peerMeFar: "Address (elsewhere)", peerMeCode: "Link code", peerOff: "not connected", peerDel: "Unlink", peerDelQ: "Unlink {n}? Its sessions disappear from this screen (they keep running on that PC).", peerDeleted: "Unlinked",
     peerAddrPh: "Address of that PC (e.g. 192.168.0.5:7777)", peerCodePh: "Code", peerNamePh: "Name (e.g. Studio PC)", peerGo: "Link", peerNeed: "Enter that PC's address and the 4-digit code shown on it", peerBadCode: "Wrong code — check the code in that PC's ⚙ Settings", peerUnreach: "Cannot reach that address — is PowerTerminal running there?", peerSelf: "That address is this PC", peerTooMany: "Too many tries — wait a little", peerLinked: "Linked {n} — its sessions now show here",
@@ -2809,6 +2833,10 @@ const I18N_MORE = {
     afLbl: "자동 비우기", afT: "🧹 메모리 자동 비우기 — 이 세션이 일을 끝내고 10분 넘게 쉬는 중에 1.5GB 이상 쓰면(컴퓨터 메모리가 85% 넘게 찼으면 700MB 이상) PT 가 다시 띄워 메모리를 비웁니다. 대화는 이어지고, 이 세션이 띄운 개발 서버는 같이 꺼집니다. 눌러서 켜고 끄기",
     afDone: "🧹 {t}: 메모리 {mb}를 비우려고 다시 띄웠습니다 — 대화는 이어집니다", afLast: "마지막으로 비운 때: {when} ({mb})",
     afOn: "🧹 자동 비우기 켬 — 쉬는 중에 메모리를 많이 쓰면 다시 띄웁니다(대화는 이어짐)", afOff: "🧹 자동 비우기 끔",
+    meNameL: "이 PC 이름", meNameSave: "저장", meNameSaved: "이름을 바꿨어요", peerTheirN: "그 PC 가 준 세션 {n}개", peerTheirNone: "그 PC 가 아직 준 세션이 없어요 (그 PC 의 ⚙ 설정에서 고릅니다)",
+    peerIUse: "내가 쓰는 중: {s}", peerTheyUse: "그 PC 가 쓰는 중: {s}", shareL: "그 PC 에게 줄 내 세션:", shareAll: "전부", shareSome: "고른 세션만", shareNone: "안 줌", shareSaved: "{n} 에게 줄 세션을 바꿨어요",
+    shareOld: "그 PC 의 PT 가 옛 버전이라 그 PC 에서 이 PC 를 쓸 수는 없어요 — 그 PC 를 업데이트한 뒤 다시 연결하세요", peerLone: "이 PC 를 이어 둔 PC",
+    chipT: "이 PC 이름 · 누르면 설정", chipUse: "{pc} 세션 {k}개 쓰는 중", chipUsed: "👥 {pc} 에서 내 세션 {k}개 쓰는 중", useTagT: "{n} 에서 이 세션을 쓰는 중",
     peerH: "🖥 다른 PC 연결", peerHint: "다른 PC 에 깐 PowerTerminal 을 이어서 그 PC 의 세션도 이 화면에서 씁니다. 렌더링·받아쓰기처럼 PC 가 직접 하는 일은 나눠 돌리면 빨라집니다. 그 PC 의 ⚙ 설정에서 주소와 연결 코드를 보고 여기에 넣으세요.",
     peerMe: "이 PC: {n}", peerMeAddr: "주소(같은 곳)", peerMeFar: "주소(다른 곳)", peerMeCode: "연결 코드", peerOff: "연결 안 됨", peerDel: "연결 끊기", peerDelQ: "{n} 연결을 끊을까요? 그 PC 세션이 이 화면에서 빠집니다(그 PC 에서는 계속 돕니다).", peerDeleted: "연결을 끊었어요",
     peerAddrPh: "그 PC 주소 (예: 192.168.0.5:7777)", peerCodePh: "코드", peerNamePh: "이름 (예: 작업실 PC)", peerGo: "연결", peerNeed: "그 PC 의 주소와 4자리 코드를 넣으세요", peerBadCode: "코드가 틀렸어요 — 그 PC 의 ⚙ 설정에서 코드를 확인하세요", peerUnreach: "그 주소에 닿지 않아요 — 그 PC 에서 PowerTerminal 이 켜져 있나요?", peerSelf: "그 주소는 이 PC 예요", peerTooMany: "시도가 너무 많아요 — 잠시 뒤에", peerLinked: "{n} 연결됨 — 그 PC 세션이 이 화면에 나옵니다",
@@ -5626,6 +5654,7 @@ function buildPane(sess, idx) {
         <!-- 제목 칸: 윗줄 = 제목·작업시간, 밑의 작은 줄 = 작업 폴더 경로. 아랫줄에 두었더니 칸이 좁으면 경로가 0px 로 눌려 사라졌다 -->
         <span class="ttlcol"><span class="ttlrow">
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
+        <span class="useTag"></span>
         ${sess.peer ? `<span class="peerTag${sess.peerOnline === false ? ' off' : ''}" title="${escA((T.peerTagT || '').replace('{n}', sess.peerName || 'PC'))}">🖥 ${esc(sess.peerName || 'PC')}</span><button class="pfBtn" title="${escA((T.pfBtnT || '').replace('{n}', sess.peerName || 'PC'))}">📂 ${esc(T.pfBtn || 'Files')}</button>` : ''}
         <!-- ✳ 작업 시간은 제목 바로 옆에 — 오른쪽 끝에 두었더니 그 위에 떠 있는 도구 버튼에 가려 안 보였다 -->
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
@@ -10835,8 +10864,19 @@ async function renderPeers() {
     + '<div class="pr-me">' + esc((T.peerMe || 'This PC: {n}').replace('{n}', me.name || '')) + '<br>'
     + esc(T.peerMeAddr || 'Address') + ': ' + esc(addrs.join(' · ') || '—') + (me.tunnelUrl ? '<br>' + esc(T.peerMeFar || 'From elsewhere') + ': ' + esc(me.tunnelUrl) : '')
     + '<br>' + esc(T.peerMeCode || 'Link code') + ': <b>' + esc((inf && inf.pairCode) || '----') + '</b></div>'
-    + list.map(p => '<div class="pr-row"><i class="' + (p.online ? 'on' : '') + '"></i><span>' + esc(p.name) + ' <small>' + esc(p.online ? p.addr : (T.peerOff || 'not connected')) + '</small></span>'
-      + '<button class="small" data-del="' + escA(p.id) + '">' + esc(T.peerDel || 'Unlink') + '</button></div>').join('')
+    + '<div class="pr-name"><span>' + esc(T.meNameL || "This PC's name") + '</span><input id="meName" maxlength="30" value="' + escA(me.name || '') + '"><button class="small" id="meNameGo">' + esc(T.meNameSave || 'Save') + '</button></div>'
+    + list.map((p, k) => {
+      const g = p.guest, mySess = (r && r.mySessions) || [];
+      const theirs = p.lone ? '' : '<div class="pr-line">' + (p.theirCount ? esc((T.peerTheirN || '{n}').replace('{n}', p.theirCount)) : esc(T.peerTheirNone || '')) + '</div>'
+        + (p.usingNow && p.usingNow.length ? '<div class="pr-line pr-use">' + esc((T.peerIUse || '{s}').replace('{s}', p.usingNow.join(', '))) + '</div>' : '');
+      const share = !g ? (p.lone ? '' : '<div class="pr-line">' + esc(T.shareOld || '') + '</div>')
+        : '<div class="pr-share" data-g="' + escA(g.id) + '" data-k="' + k + '"><span>' + esc(T.shareL || 'Share:') + '</span>'
+          + ['all', 'some', 'none'].map(v => '<button class="small' + (g.share === v ? ' on' : '') + '" data-sh="' + v + '">' + esc(T['share' + v[0].toUpperCase() + v.slice(1)] || v) + '</button>').join('') + '</div>'
+          + (g.share === 'some' ? '<div class="pr-pick" data-g="' + escA(g.id) + '">' + mySess.map(o => '<label><input type="checkbox" value="' + escA(o.id) + '"' + (g.sessions.includes(o.id) ? ' checked' : '') + '>' + esc(o.title || o.id) + '</label>').join('') + '</div>' : '')
+          + (g.usingNow && g.usingNow.length ? '<div class="pr-line pr-use">' + esc((T.peerTheyUse || '{s}').replace('{s}', g.usingNow.join(', '))) + '</div>' : '');
+      return '<div class="pr-pc"><div class="pr-row"><i class="' + (p.online ? 'on' : '') + '"></i><span>' + esc(p.name) + ' <small>' + esc(p.lone ? (T.peerLone || '') : p.online ? p.addr : (T.peerOff || 'not connected')) + '</small></span>'
+        + (p.lone ? '' : '<button class="small" data-del="' + escA(p.id) + '">' + esc(T.peerDel || 'Unlink') + '</button>') + '</div>' + theirs + share + '</div>';
+    }).join('')
     + '<div class="pr-add"><input id="peerAddr" placeholder="' + escA(T.peerAddrPh || '192.168.0.5:7777') + '"><input id="peerCode" class="code" inputmode="numeric" maxlength="4" placeholder="' + escA(T.peerCodePh || 'Code') + '">'
     + '<input id="peerName" placeholder="' + escA(T.peerNamePh || 'Name (e.g. PC2)') + '"><button class="small primary" id="peerGo">' + esc(T.peerGo || 'Link') + '</button></div>';
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
@@ -10845,6 +10885,20 @@ async function renderPeers() {
     await api('DELETE', '/api/peers/' + b.dataset.del); flashToast((T.peerDeleted || 'Unlinked'));
     renderPeers(); reconcileSoon();
   });
+  box.querySelector('#meNameGo').onclick = async () => {
+    const res = await api('POST', '/api/me-name', { name: box.querySelector('#meName').value.trim() });
+    if (res && res.ok) { flashToast(T.meNameSaved || 'Saved'); paintPcChip(true); }
+  };
+  // 그 PC 에게 줄 내 세션 — 누르는 즉시 저장
+  const saveShare = async (gid, body, who) => { const res = await api('PATCH', '/api/guests/' + gid, body); flashToast(res && res.ok ? (T.shareSaved || 'Updated').replace('{n}', who) : ((res && res.error) || 'failed')); };
+  box.querySelectorAll('.pr-share button[data-sh]').forEach(b => b.onclick = async () => {
+    const row = b.closest('.pr-share'), p = list[+row.dataset.k];
+    await saveShare(row.dataset.g, { share: b.dataset.sh }, p ? p.name : ''); renderPeers();
+  });
+  box.querySelectorAll('.pr-pick').forEach(pick => pick.addEventListener('change', () => {
+    const p = list.find(x => x.guest && x.guest.id === pick.dataset.g);
+    saveShare(pick.dataset.g, { sessions: [...pick.querySelectorAll('input:checked')].map(x => x.value) }, p ? p.name : '');
+  }));
   const go = box.querySelector('#peerGo');
   go.onclick = async () => {
     const addr = box.querySelector('#peerAddr').value.trim(), code = box.querySelector('#peerCode').value.trim(), name = box.querySelector('#peerName').value.trim();
@@ -15596,6 +15650,30 @@ window.addEventListener('beforeunload', () => {
 });
 
 // 이 창 소속으로 아직 안 그려진 세션은 그리고, 소속 아닌 세션은 제거 (서버 세션은 유지)
+/* 🖥 머리줄의 이 PC 이름 + 👥 누가 무엇을 쓰는 중 — 다른 PC 와 이어져 있을 때만 보인다.
+   내가 쓰는 중 = 이 화면에 열린 다른 PC 세션, 남이 쓰는 중 = 내 세션 중 다른 PC 가 터미널을 연 것(서버의 usedBy) */
+let pcInfo = null, pcInfoAt = 0;
+async function paintPcChip(force, list) {
+  const chip = document.getElementById('pcChip'); if (!chip) return;
+  if (force || !pcInfo || Date.now() - pcInfoAt > 60000) { pcInfoAt = Date.now(); try { const r = await api('GET', '/api/peers'); if (r && r.me) pcInfo = r; } catch (e) {} }
+  if (!list) { try { list = await api('GET', '/api/sessions'); } catch (e) {} }
+  list = Array.isArray(list) ? list : [];
+  for (const s of list) {   // 세션 칸의 「👥 ○○」
+    const pn = panes.get(s.id), tag = pn && pn.el.querySelector('.useTag'); if (!tag) continue;
+    const who = (s.usedBy || []).join(', ');
+    tag.style.display = who ? 'inline-block' : 'none'; tag.textContent = who ? '👥 ' + who : ''; tag.title = who ? (T.useTagT || '{n}').replace('{n}', who) : '';
+  }
+  if (!(pcInfo && (pcInfo.peers || []).length)) { chip.style.display = 'none'; return; }
+  const mine = list.filter(s => s.peer && panes.has(s.id)), byOthers = list.filter(s => !s.peer && (s.usedBy || []).length);
+  const cnt = (a, tpl) => { const m = {}; a.forEach(x => m[x] = (m[x] || 0) + 1); return Object.entries(m).map(([pc, k]) => tpl.replace('{pc}', pc).replace('{k}', k)).join(' · '); };
+  let t = '🖥 ' + (pcInfo.me.name || '');
+  if (mine.length) t += ' · ' + cnt(mine.map(s => s.peerName || 'PC'), T.chipUse || 'using {k} on {pc}');
+  if (byOthers.length) t += ' · ' + cnt([].concat(...byOthers.map(s => s.usedBy)), T.chipUsed || '{pc} using {k} of mine');
+  chip.textContent = t; chip.title = T.chipT || ''; chip.style.display = 'inline-block';
+  chip.classList.toggle('busy', byOthers.length > 0);
+}
+if (isMobile) setInterval(() => paintPcChip(false), 8000);
+setTimeout(() => paintPcChip(true), 1500);
 async function reconcile() {
   if (isMobile) return;
   // 초기 복원 판단(선택창 띄울지·무엇을 보류할지)이 끝나기 전엔 아무것도 안 한다.
@@ -15610,6 +15688,7 @@ async function reconcile() {
   });
   // 선택창이 답을 기다리는 세션은 건드리지 않는다 — 고른 대로만 열리게 (pickStart가 결정 뒤 풀어줌)
   list.forEach(s => { if (belongsHere(s.id) && !panes.has(s.id) && !pickPending.has(s.id)) { buildPane(s, grid.children.length); changed = true; } });
+  paintPcChip(false, list);
   if (changed) { applyLayout(); renumber(); }   // renumber()가 번호 재정렬 + 미니맵까지 갱신 (변화 없으면 재렌더 안 함)
 }
 window.addEventListener('storage', e => { if (e.key === 'pt_popped') reconcile(); });

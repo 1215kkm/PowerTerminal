@@ -1807,10 +1807,15 @@ async function submit(){c.blur();m.className='msg';m.textContent='확인 중…'
 </script></body></html>`);
 });
 app.post('/api/pair', (req, res) => {
-  if (isLocal(req.socket)) return res.json({ ok: true, local: true });
+  const peerAsk = !!req.headers['x-pt-peer'] && !!peersApi;   // 🖥 다른 PC 의 PT — 전권 열쇠 대신 그 PC 전용 열쇠(peers.js 손님)
+  if (isLocal(req.socket) && !peerAsk) return res.json({ ok: true, local: true });
   const ip = req.socket.remoteAddress || '';
-  if (!pairRateOk(ip)) return res.status(429).json({ error: 'too_many' });
+  if (!isLocal(req.socket) && !pairRateOk(ip)) return res.status(429).json({ error: 'too_many' });
   const code = String((req.body && req.body.code) || '').trim();
+  if (peerAsk && (isLocal(req.socket) || (code && code === PAIR_CODE))) {
+    if (!config.isPeer) { config.isPeer = true; saveConfig(); }
+    return res.json(Object.assign({ ok: true }, peersApi.pairGuest(req.body)));
+  }
   if (code && code === PAIR_CODE) {
     res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
     if (req.headers['x-pt-peer'] && !config.isPeer) { config.isPeer = true; saveConfig(); }   // 🖥 다른 PC 의 PT 가 짝을 맺었다 → 내 주소를 알림판에 적는다
@@ -1821,8 +1826,14 @@ app.post('/api/pair', (req, res) => {
 
 // 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
 app.use((req, res, next) => {
-  if (isLocal(req.socket)) return next();
   const t = req.query.token || req.headers['x-pt-token'] || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
+  // 👥 다른 PC 의 손님 열쇠 — 이 PC 가 그 PC 에게 준 세션만 (같은 PC 에서 와도 손님은 손님)
+  const guest = t && t !== config.token && peersApi ? peersApi.guestOf(t) : null;
+  if (guest) {
+    if (!peersApi.guestAllowed(guest, req)) return res.status(403).json({ error: 'not_shared' });
+    req.ptGuest = guest; return next();
+  }
+  if (isLocal(req.socket)) return next();
   if (t === config.token) {
     if (req.query.token) res.setHeader('Set-Cookie', `cc_token=${config.token}; Path=/; Max-Age=31536000`);
     return next();
@@ -1990,6 +2001,7 @@ async function sessionMem() {
 }
 app.get('/api/sessions-mem', async (req, res) => {
   const m = await sessionMem();
+  if (req.ptGuest) { const ss = {}; for (const [k, v] of Object.entries(m.sessions || {})) if (peersApi.canSess(req.ptGuest, k)) ss[k] = v; return res.json(Object.assign({}, m, { sessions: ss })); }
   if (peersApi && !req.headers['x-pt-token']) { try { const more = await peersApi.peerMem(); if (Object.keys(more).length) return res.json(Object.assign({}, m, { sessions: Object.assign({}, m.sessions, more) })); } catch (e) {} }
   res.json(m);
 });
@@ -2035,8 +2047,10 @@ setInterval(async () => {
 app.get('/api/sessions', async (req, res) => {
   const mine = sessions.map(s => {
     const p = ptys.get(s.id);
-    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, doneSince: p ? (p.doneSince || 0) : 0 };
+    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, doneSince: p ? (p.doneSince || 0) : 0,
+             usedBy: peersApi && !req.ptGuest ? peersApi.usedBy(s.id) : undefined };   // 👥 다른 PC 가 지금 쓰는 중
   });
+  if (req.ptGuest) return res.json(peersApi.filterSessions(req.ptGuest, mine));   // 손님: 이 PC 가 준 세션만
   // 🖥 다른 PC 세션도 섞는다(그 PC 가 요청한 게 아닐 때만 — 서로 섞으면 끝없이 돈다)
   let more = []; if (peersApi && !req.headers['x-pt-token']) { try { more = await peersApi.peerSessions(); } catch (e) {} }
   res.json(mine.concat(more));
@@ -2517,7 +2531,9 @@ app.get('/api/info', (req, res) => {
   let userName = ''; try { userName = os.userInfo().username || ''; } catch (e) {}
   // platform·home: 브라우저는 서버가 윈도우인지 맥인지 알 수 없다. 이걸 안 내려줘서 화면이 winget 같은
   // 윈도우 전용 명령을 맥에서도 그대로 실행해버렸다(zsh: command not found: winget).
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName,
+  if (req.ptGuest) return res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, machineId: config.machineId || '', host: (() => { try { return os.hostname(); } catch (e) { return ''; } })(),
+                                    pcName: peersApi.myName(), platform: process.platform, guestShare: req.ptGuest.share });   // 손님에게는 전권 열쇠·코드를 안 준다
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName, pcName: peersApi ? peersApi.myName() : '',
              host: (() => { try { return os.hostname(); } catch (e) { return ''; } })(), machineId: config.machineId || '',
              platform: process.platform, home: (() => { try { return os.homedir(); } catch (e) { return ''; } })(),
              // 화면이 "brew install ..." 같은 안내를 보여줄지 판단하려면 brew 유무를 알아야 한다
@@ -5411,9 +5427,12 @@ wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   markTunnel(req);
   const ck = (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
-  if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token && ck !== config.token) { ws.close(); return; }
   const id = url.searchParams.get('id');
-  if (peersApi && peersApi.isPeerId(id)) return peersApi.wsBridge(ws, id);   // 🖥 다른 PC 세션 — 그 PC 의 터미널로 잇는다
+  const wt = url.searchParams.get('token') || ck;
+  const guest = wt && wt !== config.token && peersApi ? peersApi.guestOf(wt) : null;   // 👥 다른 PC 손님 — 준 세션만
+  if (guest) { if (!peersApi.canSess(guest, id)) { ws.close(); return; } }
+  else if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token && ck !== config.token) { ws.close(); return; }
+  if (!guest && peersApi && peersApi.isPeerId(id)) return peersApi.wsBridge(ws, id);   // 🖥 다른 PC 세션 — 그 PC 의 터미널로 잇는다
   const sess = sessions.find(x => x.id === id);
   if (!sess) { ws.close(); return; }
   let p;
@@ -5424,6 +5443,7 @@ wss.on('connection', (ws, req) => {
     ws.close(); return;
   }
   p.sockets.add(ws);
+  if (guest) peersApi.useStart(guest, id, ws);   // 👥 누가 쓰는 중인지 양쪽 화면에
   // 접속 시 지금까지 화면 재생 + 상태
   sendSnapshot(p, ws);
   ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, since: p.doneSince || 0 }));

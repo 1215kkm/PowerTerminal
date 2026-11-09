@@ -104,7 +104,7 @@ module.exports = function peersModule(app, ctx) {
   async function baseOf(p, force) {
     const w = working.get(p.id);
     if (w && !force && Date.now() - w.at < 60000) return w.base;
-    const tryBase = async b => { try { const info = await jget(b, '/api/info', p.token, 3500); p.urls = candidates(info, b); p.name = p.name || info.host || ''; return b; } catch (e) { return null; } };
+    const tryBase = async b => { try { const info = await jget(b, '/api/info', p.token, 3500); p.urls = candidates(info, b); p.name = p.name || info.pcName || info.host || ''; p.denied = false; return b; } catch (e) { if (/HTTP 40[13]/.test(e.message)) p.denied = true; return null; } };   // 401 = 그 PC 가 연결을 끊었다(열쇠 취소)
     for (const b of (p.urls || [])) { const ok = await tryBase(b); if (ok) { working.set(p.id, { base: ok, at: Date.now() }); save(); return ok; } }
     if (p.machineId) {   // 다른 곳에 있는 PC — 알림판에서 그 PC 의 새 주소
       const board = await readBoard(), e = board[p.machineId];
@@ -114,22 +114,112 @@ module.exports = function peersModule(app, ctx) {
     return null;
   }
 
+
+  /* ── 👥 손님 열쇠 (2026-11-09 CEO) — 「메인이 그 PC 를 전부 쓰기」 와 「필요한 세션 몇 개만 쓰기」, 그리고 두 PC 가 서로.
+     짝을 맺을 때 이 PC 의 터미널 전권 열쇠(config.token) 대신 그 PC 전용 열쇠를 준다. 그 열쇠로 무엇을 쓸 수 있는지는
+     이 PC 가 정한다(share: all = 전부 / some = 고른 세션만 / none = 안 줌) — 막는 것도 이 PC 서버가 한다(화면에서 숨기는 게 아니라).
+     짝은 양쪽으로 맺는다: 코드를 넣은 쪽(A)이 상대(B)에게 자기 주소와 B 전용 열쇠도 같이 준다. A 는 처음엔 아무것도 안 준다(none) —
+     A 의 ⚙ 설정에서 B 에게 줄 세션을 고르면 B 화면에 나온다. 누가 어느 세션을 쓰는 중인지 양쪽 다 보인다. */
+  const GFILE = dataFile('guests.json');
+  let guests = (() => { try { const a = readJson(GFILE); return Array.isArray(a) ? a : []; } catch (e) { return []; } })();
+  const saveG = () => { try { fs.writeFileSync(GFILE, JSON.stringify(guests, null, 2)); } catch (e) {} };
+  const myName = () => String(config.pcName || os.hostname() || 'PC').slice(0, 30);
+  const myUrls = () => { const o = lanIps().map(ip => 'http://' + ip + ':' + PORT); const t = getTunnelUrl(); if (t) o.push(t); return o; };
+  const guestOf = t => (t && guests.find(g => g.token === t)) || null;
+  const newGuest = (machineId, name, share) => {
+    let g = guests.find(x => machineId && x.machineId === machineId);
+    if (!g) { g = { id: crypto.randomBytes(3).toString('hex') + 'gu', machineId, share: share || 'none', sessions: [] }; guests.push(g); }
+    Object.assign(g, { name: String(name || g.name || 'PC').slice(0, 30), token: crypto.randomBytes(24).toString('hex'), at: Date.now() });
+    saveG(); return g;
+  };
+  const pk = p => String(p || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  const canSess = (g, sid) => g.share === 'all' || (g.share === 'some' && (g.sessions || []).includes(sid));
+  // 손님 요청이 되는지 — some 이면 고른 세션에 걸린 요청만 (주소의 세션 id, ?sid·?id, 본문 sid·id, 또는 그 세션 폴더 path)
+  function guestAllowed(g, r) {
+    const p = r.path, m = r.method;
+    if (/^\/api\/(peers|guests|pair|peerfiles|rtree\/merge$|me-name)/.test(p)) return false;   // 연결 설정은 손님이 못 바꾼다
+    g.seen = Date.now();
+    if (g.share === 'all') return true;
+    if (m === 'GET' && (p === '/api/info' || p === '/api/sessions' || p === '/api/sessions-mem')) return true;
+    if (g.share !== 'some') return false;
+    const sm = p.match(/^\/api\/sessions\/([^/]+)(\/.*)?$/);
+    if (sm) return !(m === 'DELETE' && !sm[2]) && canSess(g, decodeURIComponent(sm[1]));   // 세션 지우기는 주인만
+    if (/^\/api\/(sessions|rtree\/(receive|start))\/?$/.test(p) && m !== 'GET') return false;   // 새 세션 만들기도 주인(또는 「전부」)만 — 고른 세션 폴더로 새로 여는 것까지 막는다
+    const q = r.query || {}, b = (r.body && typeof r.body === 'object') ? r.body : {};
+    const sid = q.sid || q.id || b.sid || b.id;
+    if (sid) return canSess(g, String(sid));
+    const fp = q.path || b.path;
+    if (fp) return getSessions().some(s => canSess(g, s.id) && pk(s.path) === pk(fp));
+    return false;
+  }
+  const filterSessions = (g, list) => list.filter(s => canSess(g, s.id));
+  // 누가 내 세션을 쓰는 중 (손님 터미널 연결) / 내가 그 PC 세션을 쓰는 중 (중계 연결)
+  const using = new Map();      // 내 세션 id → Map(손님 id → 연결 수)
+  const bridging = new Map();   // "<PC>~<세션>" → 연결 수
+  const bump = (m, k, d) => { const n = (m.get(k) || 0) + d; if (n > 0) m.set(k, n); else m.delete(k); };
+  function useStart(g, sid, ws) {
+    if (!using.has(sid)) using.set(sid, new Map());
+    bump(using.get(sid), g.id, 1); g.seen = Date.now();
+    ws.on('close', () => { const u = using.get(sid); if (u) { bump(u, g.id, -1); if (!u.size) using.delete(sid); } });
+  }
+  const usedBy = sid => [...((using.get(sid) || new Map()).keys())].map(id => (guests.find(g => g.id === id) || {}).name).filter(Boolean);
+  // 짝 맺기 받는 쪽: 코드가 맞으면 서버(server.js /api/pair)가 부른다. 상대가 자기 주소·열쇠를 같이 보냈으면 나도 그 PC 를 잇는다
+  function pairGuest(body) {
+    const back = (body && body.back) || {};
+    const g = newGuest(String(back.machineId || ''), back.name || 'PC', 'all');   // 코드를 직접 넣었다 = 이 PC 주인이 허락 → 처음엔 전부
+    if (back.machineId && back.token && back.machineId !== config.machineId) {
+      let p = peers.find(x => x.machineId === back.machineId);
+      if (!p) { p = { id: crypto.randomBytes(3).toString('hex') + 'pc' }; peers.push(p); }
+      Object.assign(p, { token: String(back.token), machineId: String(back.machineId), name: String(back.name || 'PC').slice(0, 30), urls: [].concat(back.urls || []).map(normAddr).filter(Boolean).slice(0, 8), at: Date.now() });
+      save(); working.delete(p.id); sessCache.delete(p.id);
+    }
+    return { token: g.token, name: myName(), machineId: config.machineId };
+  }
+  // ⚙ 설정: 이 PC 이름
+  app.post('/api/me-name', (req2, res) => {
+    const n = String((req2.body && req2.body.name) || '').trim().slice(0, 30);
+    config.pcName = n; saveConfig(); res.json({ ok: true, name: myName() });
+  });
+  // ⚙ 설정: 그 PC 에게 줄 내 세션
+  app.patch('/api/guests/:id', (req2, res) => {
+    const g = guests.find(x => x.id === req2.params.id); if (!g) return res.status(404).json({ error: 'no guest' });
+    const b = req2.body || {};
+    if (['all', 'some', 'none'].includes(b.share)) g.share = b.share;
+    if (Array.isArray(b.sessions)) g.sessions = b.sessions.map(String).filter(x => ID_RE.test(x)).slice(0, 200);
+    saveG(); res.json({ ok: true });
+  });
+  app.delete('/api/guests/:id', (req2, res) => { guests = guests.filter(x => x.id !== req2.params.id); saveG(); res.json({ ok: true }); });
+
   // ── 짝 맺기·목록·끊기
   app.get('/api/peers', async (req2, res) => {
-    const list = await Promise.all(peers.map(async p => { const b = await baseOf(p).catch(() => null); return { id: p.id, name: p.name, online: !!b, addr: b || (p.urls || [])[0] || '', at: p.at }; }));
-    res.json({ me: { name: os.hostname(), machineId: config.machineId, ips: lanIps(), port: PORT, tunnelUrl: getTunnelUrl() || '', board: !!gistId }, peers: list });
+    const titleOf = (pid, sid) => lastTitle.get(pid + '~' + sid) || sid;
+    const gView = g => g && { id: g.id, share: g.share, sessions: g.sessions || [], seen: g.seen || 0,
+      usingNow: [...using.entries()].filter(([, m]) => m.has(g.id)).map(([sid]) => (getSessions().find(o => o.id === sid) || {}).title || sid) };
+    const list = await Promise.all(peers.map(async p => {
+      const b = await baseOf(p).catch(() => null);
+      const mine = [...bridging.keys()].filter(k => k.startsWith(p.id + '~')).map(k => titleOf(p.id, k.slice(p.id.length + 1)));
+      const c = sessCache.get(p.id);
+      return { id: p.id, name: p.name, online: !!b, addr: b || (p.urls || [])[0] || '', at: p.at, theirCount: c ? c.list.filter(o => o && o.id && !o.autoClose).length : null,
+               usingNow: mine, guest: gView(guests.find(g => g.machineId && g.machineId === p.machineId)) };
+    }));
+    // 나를 이었지만 나는 그 PC 를 안 이은 경우(옛 버전 PT) — 그 PC 에게 줄 것만 고를 수 있게
+    const lone = guests.filter(g => !peers.some(p => p.machineId && p.machineId === g.machineId)).map(g => ({ id: '', name: g.name, online: false, lone: true, guest: gView(g) }));
+    const mySess = getSessions().filter(o => !o.autoClose).map(o => ({ id: o.id, title: o.title }));
+    res.json({ me: { name: myName(), host: os.hostname(), machineId: config.machineId, ips: lanIps(), port: PORT, tunnelUrl: getTunnelUrl() || '', board: !!gistId }, peers: list.concat(lone), mySessions: mySess });
   });
   app.post('/api/peers', async (req2, res) => {
     const addr = normAddr(req2.body && req2.body.addr), code = String((req2.body && req2.body.code) || '').trim();
     if (!addr) return res.status(400).json({ error: 'addr' });
     if (!/^\d{4}$/.test(code)) return res.status(400).json({ error: 'code' });
     let token = '';
+    const backTok = crypto.randomBytes(24).toString('hex');   // 그 PC 가 나를 쓸 열쇠 — 처음엔 아무 세션도 안 준다
     try {
-      const r = await req(addr, 'POST', '/api/pair', { headers: { 'Content-Type': 'application/json', 'x-pt-peer': '1' }, body: JSON.stringify({ code }), timeout: 8000 });
+      const r = await req(addr, 'POST', '/api/pair', { headers: { 'Content-Type': 'application/json', 'x-pt-peer': '1' }, body: JSON.stringify({ code, back: { machineId: config.machineId, name: myName(), urls: myUrls(), token: backTok } }), timeout: 8000 });
       if (r.status === 401) return res.status(401).json({ error: 'bad_code' });
       if (r.status === 429) return res.status(429).json({ error: 'too_many' });
       const ck = [].concat(r.headers['set-cookie'] || []).join(';');
-      token = (ck.split('cc_token=')[1] || '').split(';')[0];
+      try { const j = JSON.parse(r.body.toString('utf8')); if (j && j.token) token = String(j.token); } catch (e) {}   // 새 PT: 이 PC 전용 열쇠
+      if (!token) token = (ck.split('cc_token=')[1] || '').split(';')[0];
       if (!token) { const info = await jget(addr, '/api/info', '', 4000).catch(() => null); token = info && info.token || ''; }   // 같은 PC(localhost)면 코드 없이 통과 — 정보에서 받는다
     } catch (e) { return res.status(502).json({ error: 'unreachable', detail: e.message }); }
     if (!token) return res.status(401).json({ error: 'bad_code' });
@@ -137,8 +227,13 @@ module.exports = function peersModule(app, ctx) {
     if (info.machineId && info.machineId === config.machineId) return res.status(400).json({ error: 'self' });
     let p = peers.find(x => info.machineId && x.machineId === info.machineId);
     if (!p) { p = { id: crypto.randomBytes(3).toString('hex') + 'pc' }; peers.push(p); }
-    Object.assign(p, { token, machineId: info.machineId || '', name: (req2.body && String(req2.body.name || '').trim().slice(0, 30)) || info.host || addr, urls: candidates(info, addr), at: Date.now() });
+    Object.assign(p, { token, machineId: info.machineId || '', name: (req2.body && String(req2.body.name || '').trim().slice(0, 30)) || info.pcName || info.host || addr, urls: candidates(info, addr), at: Date.now() });
     save(); working.set(p.id, { base: addr, at: Date.now() }); sessCache.delete(p.id);
+    if (info.machineId) {   // 그 PC 가 나를 쓸 열쇠 (그 PC 가 새 PT 일 때만 쓰인다)
+      let g = guests.find(x => x.machineId === info.machineId);
+      if (!g) { g = { id: crypto.randomBytes(3).toString('hex') + 'gu', machineId: info.machineId, share: 'none', sessions: [] }; guests.push(g); }
+      Object.assign(g, { name: p.name, token: backTok, at: Date.now() }); saveG();
+    }
     res.json({ ok: true, peer: { id: p.id, name: p.name } });
   });
   app.patch('/api/peers/:id', (req2, res) => {
@@ -147,12 +242,15 @@ module.exports = function peersModule(app, ctx) {
     save(); res.json({ ok: true });
   });
   app.delete('/api/peers/:id', (req2, res) => {
+    const gone = byId(req2.params.id);
+    if (gone && gone.machineId) { guests = guests.filter(g => g.machineId !== gone.machineId); saveG(); }   // 끊으면 그 PC 가 나를 쓰던 열쇠도 버린다
     peers = peers.filter(p => p.id !== req2.params.id); save(); working.delete(req2.params.id); sessCache.delete(req2.params.id);
     res.json({ ok: true });
   });
 
   // ── 다른 PC 세션 목록 (메인의 /api/sessions 에 섞는다). 연결이 끊겨도 마지막 목록을 '연결 끊김' 으로 남겨 화면 칸이 사라지지 않게
   const sessCache = new Map();   // peer id → { at, list }
+  const lastTitle = new Map();   // '<PC>~<세션>' → 제목 (설정의 「내가 쓰는 중」 — sessCache 는 요청마다 비워진다)
   async function peerSessions() {
     const out = [];
     await Promise.all(peers.map(async p => {
@@ -160,9 +258,11 @@ module.exports = function peersModule(app, ctx) {
       let list = c ? c.list : [], online = false;
       if (!c || Date.now() - c.at > 2500) {
         const b = await baseOf(p).catch(() => null);
-        if (b) { try { list = await jget(b, '/api/sessions', p.token, 5000); online = true; sessCache.set(p.id, { at: Date.now(), list, online }); } catch (e) { working.delete(p.id); } }
+        if (b) { try { list = await jget(b, '/api/sessions', p.token, 5000); online = true; sessCache.set(p.id, { at: Date.now(), list, online }); } catch (e) { working.delete(p.id); if (/HTTP 40[13]/.test(e.message)) p.denied = true; } }
+        if (!online && p.denied) list = [];   // 그 PC 가 연결을 끊었으면 남겨 둔 칸도 뺀다
         if (!online && c) sessCache.set(p.id, { at: Date.now(), list, online: false });
       } else online = c.online;
+      for (const s of list) if (s && s.id) lastTitle.set(p.id + '~' + s.id, s.title || s.id);
       for (const s of list) if (s && s.id && !s.autoClose) out.push(Object.assign({}, s, { id: p.id + '~' + s.id, peer: p.id, peerName: p.name, peerOnline: online, alive: online && s.alive }));
     }));
     return out;
@@ -221,7 +321,7 @@ module.exports = function peersModule(app, ctx) {
     const b = await baseOf(p).catch(() => null);
     if (!b || closed) { try { ws.send(JSON.stringify({ type: 'out', data: '\r\n\x1b[33m[PT] ' + (p.name || 'PC') + ' 에 연결할 수 없어요 — 그 PC 의 PT 가 켜져 있는지 확인하세요.\x1b[0m\r\n' })); } catch (e) {} ws.close(); return; }
     up = new WebSocket(b.replace(/^http/, 'ws') + '/term?id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(p.token), { maxPayload: 64 * 1024 * 1024 });
-    up.on('open', () => { for (const [m, bin] of pending.splice(0)) up.send(m, { binary: bin }); });
+    up.on('open', () => { bump(bridging, id, 1); up.once('close', () => bump(bridging, id, -1)); for (const [m, bin] of pending.splice(0)) up.send(m, { binary: bin }); });
     up.on('message', (m, bin) => { if (ws.readyState === 1) ws.send(m, { binary: bin }); });
     up.on('close', () => { working.delete(pid); try { ws.close(); } catch (e) {} });
     up.on('error', () => { working.delete(pid); try { ws.close(); } catch (e) {} });
@@ -523,5 +623,5 @@ module.exports = function peersModule(app, ctx) {
     res.json({ ok: true });
   });
 
-  return { peerSessions, wsBridge, peerMem, isPeerId: id => typeof id === 'string' && id.includes('~') && !!byId(id.split('~')[0]), publishMe };
+  return { peerSessions, wsBridge, peerMem, guestOf, guestAllowed, filterSessions, canSess, useStart, usedBy, pairGuest, myName, isPeerId: id => typeof id === 'string' && id.includes('~') && !!byId(id.split('~')[0]), publishMe };
 };
