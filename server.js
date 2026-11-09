@@ -5432,6 +5432,9 @@ function applyPtySize(p) {
 }
 
 const wss = new WebSocketServer({ server, path: '/term' });
+// ws 는 서버의 오류(포트 사용 중 등)를 자기 쪽으로 다시 내보낸다 — 받는 곳이 없으면 그게 '처리되지 않은 오류' 가 되어
+// 아래 server.on('error') 의 「이미 실행 중 → 종료」 가 안 돌고, 아무 일도 못 하는 두 번째 PT 가 계속 떠 있었다 (2026-11-10)
+wss.on('error', () => {});
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
