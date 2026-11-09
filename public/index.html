@@ -68,6 +68,8 @@
           display: flex; flex-direction: column; overflow: hidden; min-height: 340px;
           min-width: 0;   /* 그리드 아이템이 터미널 내용폭(min-content) 아래로도 줄어들게 — 없으면 '크게보기'의 3fr 1fr가 균등폭으로 무시됨 */
           transition: border-color .3s; }
+  /* 🖥 다른 PC 의 세션 — 기본 테두리를 보라로 (작업 중 노랑·완료 초록은 그대로 덮는다) */
+  .pane.peer { border-color: var(--violet); }
   /* 작업 중 — 노란 테두리, 깜빡이지 않고 가만히 (CEO 2026-09-30: 회색 숨쉬기 → 노랑 고정) */
   .pane.busy { border-color: #facc15; outline: 2px solid rgba(250,204,21,.55);
                box-shadow: 0 0 14px rgba(250,204,21,.35); }
@@ -622,7 +624,10 @@
   #peerBox .pr-share button.on[data-sh="some"] { background: #92400e; border-color: #fbbf24; color: #fff; font-weight: 700; }
   #peerBox .pr-share button.on[data-sh="none"] { background: #374151; border-color: #9ca3af; color: #fff; font-weight: 700; }
   #peerBox .pr-pick { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 0 17px; font-size: 12px; }
-  #peerBox .pr-pick label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #peerBox .pr-pick label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; max-width: 220px; min-width: 0; color: var(--fg); }
+  /* dialog input { width:100% } 이 체크칸에도 걸려 맥(사파리)에서 체크칸이 줄 전체를 차지하고 세션 이름이 밀려 안 보였다 */
+  #peerBox .pr-pick input[type=checkbox] { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; padding: 0; accent-color: #f59e0b; }
+  #peerBox .pr-pick label span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 🖥 이 PC 이름 — 머리줄 (다른 PC 와 이어져 있을 때만). 다른 PC 가 내 세션을 쓰는 중이면 노랑 */
   #pcChip { display: none; flex: 0 1 auto; min-width: 0; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
             font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; background: #0e7490; color: #fff; border: 0; }
@@ -5630,7 +5635,7 @@ function buildPane(sess, idx) {
   if (panes.has(sess.id)) return;   // 이미 그려진 세션은 다시 안 그림 — 생성 직후 addHere와 5초 reconcile이 겹치면
                                     // (특히 느린 GitHub+폴더 생성) 같은 세션이 두 pane으로 중복되던 레이스 방지
   const el = document.createElement('div');
-  el.className = 'pane';
+  el.className = 'pane' + (sess.peer ? ' peer' : '');
   el.dataset.id = sess.id;
   const isClaude = !sess.agent || sess.agent === 'claude';
   // 세션에 연결된 AI를 색으로 구분해 모델선택 왼쪽에 표시
@@ -10874,7 +10879,7 @@ async function renderPeers() {
       const share = !g ? (p.lone ? '' : '<div class="pr-line">' + esc(T.shareOld || '') + '</div>')
         : '<div class="pr-share" data-g="' + escA(g.id) + '" data-k="' + k + '"><span>' + esc(T.shareL || 'Share:') + '</span>'
           + ['all', 'some', 'none'].map(v => '<button class="small' + (g.share === v ? ' on' : '') + '" data-sh="' + v + '">' + esc(T['share' + v[0].toUpperCase() + v.slice(1)] || v) + '</button>').join('') + '</div>'
-          + (g.share === 'some' ? '<div class="pr-pick" data-g="' + escA(g.id) + '">' + mySess.map(o => '<label><input type="checkbox" value="' + escA(o.id) + '"' + (g.sessions.includes(o.id) ? ' checked' : '') + '>' + esc(o.title || o.id) + '</label>').join('') + '</div>' : '')
+          + (g.share === 'some' ? '<div class="pr-pick" data-g="' + escA(g.id) + '">' + mySess.map(o => '<label><input type="checkbox" value="' + escA(o.id) + '"' + (g.sessions.includes(o.id) ? ' checked' : '') + '><span>' + esc(o.title || o.id) + '</span></label>').join('') + '</div>' : '')
           + (g.usingNow && g.usingNow.length ? '<div class="pr-line pr-use">' + esc((T.peerTheyUse || '{s}').replace('{s}', g.usingNow.join(', '))) + '</div>' : '');
       return '<div class="pr-pc"><div class="pr-row"><i class="' + (p.online ? 'on' : '') + '"></i><span>' + esc(p.name) + ' <small>' + esc(p.lone ? (T.peerLone || '') : p.online ? p.addr : (T.peerOff || 'not connected')) + '</small></span>'
         + (p.lone ? '' : '<button class="small" data-del="' + escA(p.id) + '">' + esc(T.peerDel || 'Unlink') + '</button>') + '</div>' + theirs + share + '</div>';

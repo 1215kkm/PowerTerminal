@@ -160,8 +160,12 @@ module.exports = function peersModule(app, ctx) {
   function useStart(g, sid, ws) {
     if (!using.has(sid)) using.set(sid, new Map());
     bump(using.get(sid), g.id, 1); g.seen = Date.now();
-    ws.on('close', () => { const u = using.get(sid); if (u) { bump(u, g.id, -1); if (!u.size) using.delete(sid); } });
+    const e = { gid: g.id, sid, ws }; gsocks.add(e);
+    ws.on('close', () => { gsocks.delete(e); const u = using.get(sid); if (u) { bump(u, g.id, -1); if (!u.size) using.delete(sid); } });
   }
+  // 주던 세션을 빼거나 연결을 끊으면 그 PC 가 이미 열어 둔 터미널도 바로 닫는다 (새 요청만 막으면 열린 창으로는 계속 쓸 수 있었다)
+  const gsocks = new Set();
+  const cutGuests = () => { for (const e of [...gsocks]) { const g = guests.find(x => x.id === e.gid); if (!g || !canSess(g, e.sid)) { gsocks.delete(e); try { e.ws.close(); } catch (x) {} } } };
   const usedBy = sid => [...((using.get(sid) || new Map()).keys())].map(id => (guests.find(g => g.id === id) || {}).name).filter(Boolean);
   // 짝 맺기 받는 쪽: 코드가 맞으면 서버(server.js /api/pair)가 부른다. 상대가 자기 주소·열쇠를 같이 보냈으면 나도 그 PC 를 잇는다
   function pairGuest(body) {
@@ -186,9 +190,9 @@ module.exports = function peersModule(app, ctx) {
     const b = req2.body || {};
     if (['all', 'some', 'none'].includes(b.share)) g.share = b.share;
     if (Array.isArray(b.sessions)) g.sessions = b.sessions.map(String).filter(x => ID_RE.test(x)).slice(0, 200);
-    saveG(); res.json({ ok: true });
+    saveG(); cutGuests(); res.json({ ok: true });
   });
-  app.delete('/api/guests/:id', (req2, res) => { guests = guests.filter(x => x.id !== req2.params.id); saveG(); res.json({ ok: true }); });
+  app.delete('/api/guests/:id', (req2, res) => { guests = guests.filter(x => x.id !== req2.params.id); saveG(); cutGuests(); res.json({ ok: true }); });
 
   // ── 짝 맺기·목록·끊기
   app.get('/api/peers', async (req2, res) => {
@@ -243,7 +247,7 @@ module.exports = function peersModule(app, ctx) {
   });
   app.delete('/api/peers/:id', (req2, res) => {
     const gone = byId(req2.params.id);
-    if (gone && gone.machineId) { guests = guests.filter(g => g.machineId !== gone.machineId); saveG(); }   // 끊으면 그 PC 가 나를 쓰던 열쇠도 버린다
+    if (gone && gone.machineId) { guests = guests.filter(g => g.machineId !== gone.machineId); saveG(); cutGuests(); }   // 끊으면 그 PC 가 나를 쓰던 열쇠도 버린다
     peers = peers.filter(p => p.id !== req2.params.id); save(); working.delete(req2.params.id); sessCache.delete(req2.params.id);
     res.json({ ok: true });
   });
