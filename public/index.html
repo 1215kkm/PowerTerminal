@@ -1821,6 +1821,7 @@
   <!-- ④ 버튼들 — 항상 오른쪽 끝에 가로로 -->
   <span id="hdrBtns">
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
+  <button id="btnFlowSort" onclick="flowSortPanes()" data-i18n-title="flowSortT">⇅</button>
   <button id="btnHelper" onclick="helperBtn()" style="display:none"></button>
   <button id="btnTheme" onclick="toggleTheme()" data-i18n-title="themeT">☀</button>
   <button id="btnSound" onclick="toggleSound()" data-i18n-title="soundBtn"><span class="sic">🔇</span></button>
@@ -2747,7 +2748,7 @@ const I18N_MORE = {
     flowOpenMates: "Also open the sessions connected by flow arrows?", flowCloseMates: "Also close the sessions connected by flow arrows?",
     mPinned: 'Older versions (pinned)',
     memoQaCol: 'Questions & answers', memoQaEmpty: 'Start a request with “question” and the answer is collected here.',
-    flowSortT: "Sort the panes by the flow — sessions from one repo together, in arrow order. Saved, so a restart keeps it.",
+    flowSortT: "Tidy sessions — one repo's sessions together, original → tree1 → tree2 … (arrow order where there are arrows). Saved, so a restart keeps it.",
     flowSortDone: "Panes sorted by the flow.",
     flowSortSame: "Already in flow order.",
     helperInstall: "🧭 Install helper",
@@ -2937,7 +2938,7 @@ const I18N_MORE = {
     flowOpenMates: "플로우로 이어진 세션들도 같이 열까요?", flowCloseMates: "플로우로 이어진 세션들도 같이 닫을까요?",
     mPinned: '지난 버전 (고정)',
     memoQaCol: '질문·답변', memoQaEmpty: '요청을 “질문”으로 시작하면 답변이 여기에 모여요.',
-    flowSortT: "창을 흐름 순서로 정렬 — 같은 레포 세션끼리 모으고 화살표 순서대로. 저장돼서 다시 켜도 그대로예요.",
+    flowSortT: "세션 정리 — 같은 레포 세션끼리 모아 원본 → tree1 → tree2 … 순서로 (화살표가 있으면 화살표 순서). 저장돼서 다시 켜도 그대로예요.",
     flowSortDone: "흐름 순서로 정렬했어요.",
     flowSortSame: "이미 흐름 순서예요.",
     helperInstall: "🧭 도우미 설치",
@@ -9462,10 +9463,11 @@ window.addEventListener('keydown', ev => { if (ev.key === 'Escape' && flowPick) 
    창 순서는 만든 순서일 뿐이라 worktree 를 여러 번 만들면 두 레포가 뒤섞이고, 그러면 화살표가
    화면을 가로질러 엉킨다. 정렬한 순서는 서버에도 저장해서 다시 켜도 그대로 온다. */
 function flowSortOrder() {
-  const norm = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+  const norm = p => (p || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();   // 원본 경로와 tree 의 repo 가 / 와 \ 로 달리 적혀 같은 레포로 안 묶였다
   const ids = [...grid.children].map(el => el.dataset.id).filter(id => panes.has(id));
   const pos = new Map(ids.map((id, i) => [id, i]));
-  const famOf = id => { const p = panes.get(id); return norm(p.sess.repo || p.sess.path); };
+  const famOf = id => { const p = panes.get(id); return (p.sess.peer ? p.sess.peer + '~' : '') + norm(p.sess.repo || p.sess.path); };   // 다른 PC 세션은 그 PC 끼리만
+  const treeNo = id => { const x = panes.get(id).sess; if (!x.worktree) return 0; const m = String(x.path || '').match(/-tree(\d+)$/i) || String(x.branch || '').match(/-tree(\d+)$/i); return m ? +m[1] : 9999; };
   // ① 화살표로 이어진 덩어리를 먼저 찾는다 — 레포가 달라도 이어져 있으면 한 덩어리다
   //    (예전엔 레포별로만 묶어서, 다른 폴더끼리 이은 흐름은 정렬해도 그대로였다)
   const grp = new Map();                     // id → 덩어리 대표
@@ -9487,17 +9489,20 @@ function flowSortOrder() {
                || group.find(i => !panes.get(i).sess.worktree)
                || group.slice().sort((a, b) => pos.get(a) - pos.get(b))[0];
     const seen = new Set(); const chain = [];
-    let cur = start;
+    // 화살표가 하나도 없는 덩어리 = 원본 → tree1 → tree2 … (2026-11-10 CEO: 세션 정리 버튼을 tree 순서대로)
+    let cur = group.some(i => flowOf(i).some(t => set.has(t))) ? start : null;
     while (cur && !seen.has(cur)) {
       seen.add(cur); chain.push(cur);
       cur = flowOf(cur).find(t => set.has(t) && !seen.has(t));
     }
-    group.slice().sort((a, b) => pos.get(a) - pos.get(b))
-         .forEach(i => { if (!seen.has(i)) chain.push(i); });   // 화살표에 안 걸린 세션은 뒤에
+    group.slice().sort((a, b) => treeNo(a) - treeNo(b) || pos.get(a) - pos.get(b))
+         .forEach(i => { if (!seen.has(i)) chain.push(i); });   // 화살표에 안 걸린 세션은 뒤에 (원본 → tree 번호 순)
     out.push({ chain, at: Math.min(...chain.map(i => pos.get(i))) });
   }
-  // ③ 덩어리끼리는 지금 화면에서 제일 앞에 있던 순서대로 — 정렬 한 번에 화면이 통째로 뒤집히지 않게
-  return out.sort((a, b) => a.at - b.at).flatMap(b => b.chain);
+  // ③ 덩어리끼리는 지금 화면에서 제일 앞에 있던 순서대로 — 정렬 한 번에 화면이 통째로 뒤집히지 않게. 다른 PC 세션은 맨 뒤(v1.90.50 자리 그대로)
+  const all = out.sort((a, b) => a.at - b.at).flatMap(b => b.chain);
+  const isPeer = id => !!(panes.get(id) && panes.get(id).sess.peer);
+  return all.filter(id => !isPeer(id)).concat(all.filter(isPeer));
 }
 async function flowSortPanes() {
   const order = flowSortOrder();

@@ -503,12 +503,13 @@ function stampReqs(dir, st, auto) {
 }
 /* 옛 worktree 제목 정리 — '원본-tree3', 심하면 '원본-5-tree3' 처럼 번호가 뒤에 붙어 있어서
    이름이 긴 프로젝트는 세션 목록에서 말줄임에 잘려 몇 번 작업트리인지 안 보였다. 'tree3 · 원본' 으로 바꾼다.
-   사람이 직접 붙인 제목은 건드리지 않는다 (tree 번호가 들어 있는 것만). */
+   사람이 직접 붙인 제목은 건드리지 않는다 — 옛 꼴('…-tree3', '…-5-tree3' 로 끝나는 것)만.
+   (2026-11-10 CEO: 'tree4-박영민' 으로 바꿨는데 PT 를 다시 켤 때마다 'tree4 · 미금역마을' 로 돌아갔다 — 전엔 tree 번호만 있으면 바꿨다) */
 {
   let dirty = false;
   for (const s of sessions) {
     if (!s.worktree || !s.repo || !s.title) continue;
-    if (!/tree\d+/i.test(s.title)) continue;
+    if (!/-(\d+-)?tree\d+$/i.test(s.title)) continue;
     const m = String(s.path || '').match(/-tree(\d+)$/) || String(s.branch || '').match(/-tree(\d+)$/);
     if (!m) continue;
     const want = 'tree' + m[1] + ' · ' + path.basename(String(s.repo).replace(/[\/]+$/, ''));
