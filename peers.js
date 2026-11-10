@@ -109,12 +109,16 @@ module.exports = function peersModule(app, ctx) {
   /* 꺼진 PC 를 찾느라 이 PC 가 느려지면 안 된다 (2026-11-10: 맥이 꺼져 있자 세션 목록 하나에 11초 — 노트·붙여넣기가 멈춤).
      한 번 못 찾으면 30초 동안은 바로 「없음」, 찾는 중이면 그 찾기를 같이 기다린다(동시에 여러 번 찾지 않는다). */
   const failAt = new Map(), finding = new Map();
+  /* 한 번 삐끗했다고 「끊김」 이 되면 안 된다 (2026-11-10: 맥 터널이 20번에 1번꼴로 응답을 놓치자 화면이 붙었다 끊겼다 반복).
+     마지막으로 된 때(lastOk)에서 GRACE 안이면 실패해도 「연결됨」 으로 두고 지난 목록을 그대로 보여 준다. 계속 안 되면 그때 끊김. */
+  const lastOk = new Map(), GRACE = 25000;
+  const recentlyOk = p => Date.now() - (lastOk.get(p.id) || 0) < GRACE;
   function baseOf(p, force) {
     const w = working.get(p.id);
     if (w && !force && Date.now() - w.at < 60000) return Promise.resolve(w.base);
-    if (!force && Date.now() - (failAt.get(p.id) || 0) < 30000) return Promise.resolve(null);
+    if (!force && Date.now() - (failAt.get(p.id) || 0) < (recentlyOk(p) ? 3000 : 30000)) return Promise.resolve(null);   // 방금까지 되던 PC 는 3초 뒤 다시 찾는다
     if (finding.has(p.id)) return finding.get(p.id);
-    const job = findBase(p).then(b => { if (b) failAt.delete(p.id); else failAt.set(p.id, Date.now()); return b; }).finally(() => finding.delete(p.id));
+    const job = findBase(p).then(b => { if (b) { failAt.delete(p.id); lastOk.set(p.id, Date.now()); } else failAt.set(p.id, Date.now()); return b; }).finally(() => finding.delete(p.id));
     finding.set(p.id, job);
     return job;
   }
@@ -245,7 +249,7 @@ module.exports = function peersModule(app, ctx) {
       const b = await Promise.race([baseOf(p).catch(() => null), new Promise(r => setTimeout(() => r(null), 1500))]);   // 꺼진 PC 를 찾느라 설정 화면이 멈추지 않게
       const mine = [...bridging.keys()].filter(k => k.startsWith(p.id + '~')).map(k => titleOf(p.id, k.slice(p.id.length + 1)));
       const c = sessCache.get(p.id);
-      return { id: p.id, name: p.name, online: !!b, addr: b || (p.urls || [])[0] || '', at: p.at, theirCount: c ? c.list.filter(o => o && o.id && !o.autoClose).length : null,
+      return { id: p.id, name: p.name, online: !!b || (!p.denied && recentlyOk(p)), addr: b || (p.urls || [])[0] || '', at: p.at, theirCount: c ? c.list.filter(o => o && o.id && !o.autoClose).length : null,
                usingNow: mine, hidden: (p.hidden || []).map(sid => ({ sid, title: lastTitle.get(p.id + '~' + sid) || sid })), guest: gView(guests.find(g => g.machineId && g.machineId === p.machineId)) };
     }));
     // 나를 이었지만 나는 그 PC 를 안 이은 경우(옛 버전 PT) — 그 PC 에게 줄 것만 고를 수 있게
@@ -330,7 +334,8 @@ module.exports = function peersModule(app, ctx) {
     const job = (async () => {
       let list = c ? c.list : [], online = false;
       const b = await baseOf(p).catch(() => null);
-      if (b) { try { list = await jget(b, '/api/sessions', p.token, 5000); online = true; } catch (e) { working.delete(p.id); if (/HTTP 40[13]/.test(e.message)) p.denied = true; } }
+      if (b) { try { list = await jget(b, '/api/sessions', p.token, 5000); online = true; lastOk.set(p.id, Date.now()); } catch (e) { if (/HTTP 40[13]/.test(e.message)) p.denied = true; if (!recentlyOk(p) || p.denied) working.delete(p.id); } }
+      if (!online && !p.denied && c && c.online && recentlyOk(p)) online = true;   // 잠깐 삐끗 — 지난 목록 그대로, 연결됨 유지
       const v = { at: Date.now(), list, online }; sessCache.set(p.id, v); return v;
     })().finally(() => refreshing.delete(p.id));
     refreshing.set(p.id, job);
