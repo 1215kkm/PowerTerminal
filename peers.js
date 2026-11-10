@@ -191,7 +191,7 @@ module.exports = function peersModule(app, ctx) {
   // 짝 맺기 받는 쪽: 코드가 맞으면 서버(server.js /api/pair)가 부른다. 상대가 자기 주소·열쇠를 같이 보냈으면 나도 그 PC 를 잇는다
   function pairGuest(body) {
     const back = (body && body.back) || {};
-    const g = newGuest(String(back.machineId || ''), back.name || 'PC', 'all');   // 코드를 직접 넣었다 = 이 PC 주인이 허락 → 처음엔 전부
+    const g = newGuest(String(back.machineId || ''), back.name || 'PC', 'none');   // 처음엔 아무것도 안 준다 — 줄 세션은 이 PC 주인이 ⚙ 설정에서 고른다 (2026-11-10 CEO: 세 번째 PC 가 내 코드를 넣고 들어오자 세션이 전부 보였다)
     if (back.machineId && back.token && back.machineId !== config.machineId) {
       let p = peers.find(x => x.machineId === back.machineId);
       if (!p) { p = { id: crypto.randomBytes(3).toString('hex') + 'pc' }; peers.push(p); }
