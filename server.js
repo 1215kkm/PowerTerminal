@@ -410,17 +410,26 @@ async function makeWorktree(repoTop) {
     const branch = 'pt/' + base + '-tree' + n;
     if (fs.existsSync(dir)) continue;
     try {
-      await git(repoTop, ['worktree', 'add', dir, '-b', branch], 60000);
+      /* 파일이 많은 레포는 오래 걸린다 — km-cafe24(3.5만 개)는 실측 2분 56초. 예전 60초 제한에 걸려 git 이 죽고,
+         그 실패가 '레포 아님' 과 구분되지 않아 조용히 같은 폴더로 열렸다 (2026-11-11 "tree 안 쓰이고 제목·폴더 같음"). */
+      await git(repoTop, ['worktree', 'add', dir, '-b', branch], 15 * 60000);
       const team = copyTeamFiles(repoTop, dir);                    // 강팀이 있는 레포면 팀도 같이
       wtMap[dir.toLowerCase()] = { dir, repo: repoTop, branch, team };   // dir = 원래 대소문자 (목록 표시용)
       saveWtMap();
       return { dir, branch, n, team };
     } catch (e) {
       // 브랜치 이름이 이미 있으면 다음 번호로. 그 외(레포 아님 등)는 포기하고 같은 폴더로 폴백.
-      if (!/already exists|이미 존재/i.test(e.stderr || e.message || '')) return null;
+      if (!/already exists|이미 존재/i.test(e.stderr || e.message || '')) {
+        // 반쯤 만들다 죽은 작업트리는 치워 둔다 — 남겨 두면 다음 번호로 밀리고 git 에 등록만 남는다
+        try { await git(repoTop, ['worktree', 'remove', '--force', dir], 60000); } catch (_) {}
+        try { await git(repoTop, ['branch', '-D', branch], 20000); } catch (_) {}
+        const why = e.killed || /ETIMEDOUT|timed out/i.test(e.message || '') ? '시간 초과 (15분) / timed out'
+                  : String(e.stderr || e.message || '').trim().split('\n').pop().slice(0, 200);
+        return { error: why };
+      }
     }
   }
-  return null;
+  return { error: 'tree 번호 2~30 이 모두 쓰이고 있어요 / all tree slots 2–30 are taken' };
 }
 // worktree 경로면 원본 레포 경로로 바꿔준다 — 메모·요청내역이 worktree 마다 갈리지 않게 하는 데 씀
 function repoOf(p) {
@@ -3572,6 +3581,8 @@ app.post('/api/sessions', async (req, res) => {
     if (already) {
       const top = await gitMainRoot(dir);   // worktree 에서 또 나눠도 항상 본체 레포 기준
       if (top) wt = await makeWorktree(top);      // git 레포가 아니면 null → 예전처럼 같은 폴더
+      // git 레포인데 tree 를 못 만들었으면 같은 폴더로 몰래 열지 않는다 — 같은 제목·같은 폴더 세션이 둘 생겨 헷갈린다
+      if (wt && wt.error) return res.status(500).json({ error: '🌿 tree 를 만들지 못했어요 / could not create a tree: ' + wt.error });
       if (wt) dir = wt.dir;
     }
   }
