@@ -73,6 +73,16 @@
   .a code { font:12.5px Consolas, "D2Coding", monospace; background:#f0ede4; padding:1px 4px; border-radius:3px; word-break:break-all; }
   .a pre { font:12px/1.5 Consolas, "D2Coding", monospace; background:#f3f0e7; border-radius:6px; padding:9px 11px; margin:0 0 10px; overflow:auto; max-height:55vh; white-space:pre; break-inside:avoid; }
   .a pre code { background:none; padding:0; word-break:normal; }
+  /* 코드 상자 아래 [복사] [▶ 실행] — AI 가 "이 명령을 실행해 주세요" 할 때 손으로 긁어 붙이지 않게 */
+  .a pre:has(+ .cbar) { margin-bottom:0; border-radius:6px 6px 0 0; }
+  .cbar { display:flex; justify-content:flex-end; gap:6px; background:#f3f0e7; border-radius:0 0 6px 6px; padding:2px 6px 6px; margin:0 0 10px; break-inside:avoid; }
+  .cbar button { font:600 12px/1 var(--ui); min-height:28px; padding:0 11px; border-radius:6px; border:1px solid rgba(0,0,0,.16); background:#fff; color:#2b2f3a; cursor:pointer; transition:transform .12s cubic-bezier(.3,1.6,.5,1); }
+  .cbar button:hover { border-color:var(--accent); }
+  .cbar button:active { transform:scale(.92); }
+  .cbar button.run { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .cbar button.ok { background:#1f9d55; border-color:#1f9d55; color:#fff; }
+  .cbar button.bad { background:#d64545; border-color:#d64545; color:#fff; }
+  @media (prefers-reduced-motion: reduce) { .cbar button:active { transform:none; } }
   .a blockquote { margin:0 0 9px; padding:6px 12px; border-left:3px solid #cfc9b8; color:#4b5063; background:#f8f6ef; }
   .a hr { border:none; border-top:1px solid #e3dfd2; margin:12px 0; }
   .a a { color:#2f5be0; word-break:break-all; } .q a { color: var(--link, #2f5be0); word-break: break-all; } .a a, .q a { overflow-wrap: anywhere; text-decoration: underline; }
@@ -219,7 +229,8 @@
   .pg.wk { background: color-mix(in srgb, var(--ink) 3.5%, var(--paper)); }
   .q { background: color-mix(in srgb, var(--qc, var(--accent)) 10%, var(--paper)); border-left-color: var(--qc, var(--accent)); color: var(--ink); }
   .q small { color: color-mix(in srgb, var(--ink) 60%, var(--paper)); } .q .att { background: color-mix(in srgb, var(--qc, var(--accent)) 20%, var(--paper)); }
-  .a code, .a pre, .a th { background: var(--card); } .a th, .a td { border-color: var(--rule); }
+  .a code, .a pre, .a th, .cbar { background: var(--card); } .a th, .a td { border-color: var(--rule); }
+  .cbar button:not(.run):not(.ok):not(.bad) { background: var(--paper); color: var(--ink); border-color: var(--rule); }
   .a blockquote { background: var(--card); border-left-color: var(--rule); color: color-mix(in srgb, var(--ink) 80%, var(--paper)); }
   .a hr { border-top-color: var(--rule); } .a a, .wlog .f { color: var(--link, #2f5be0); }
   .whd { border-bottom-color: var(--rule); color: color-mix(in srgb, var(--ink) 70%, var(--paper)); } .whd b { color: var(--ink); }
@@ -635,7 +646,7 @@ function fillTurn(el, t, isLive) {
   if (el._sig === sig) return false; el._sig = sig;
   el.querySelector('.q small').textContent = T.req + ' · ' + fmtT(t.ts);
   el.querySelector('.q span').innerHTML = reqHtml(t.req);
-  el.querySelector('.a').innerHTML = md(t.ans);
+  el.querySelector('.a').innerHTML = md(t.ans); codeBars(el.querySelector('.a'));
   const slot = el.querySelector('.wslot');
   if (isLive) {
     if (flipMode()) slot.textContent = ''; else if (liveBox.parentNode !== slot) { slot.textContent = ''; slot.append(liveBox); }
@@ -874,6 +885,51 @@ function flipSound(k, gap) {
 }
 
 // the send sound of the main screen (A5→E6, a quick rising "tick-lip"), made on the spot. Silent when the book's sound is off.
+/* 📋 코드 상자마다 [복사] [▶ 실행]. 실행 = 이 세션 입력칸에 '!명령' 을 넣고 Enter — Claude·Codex 의 '!' 는
+   사람이 직접 친 셸 명령이라 AI 의 자동 권한 검사에 막히지 않고, 결과도 대화에 남아 AI 가 바로 이어 본다.
+   (2026-11-13 사장님: "실행해야 한다고 알려 주는 코드 줄을 복사·바로 실행") */
+const CB = KO ? { copy:'📋 복사', copied:'복사됨 ✓', run:'▶ 실행', sent:'보냄 ✓', off:'연결 끊김', runT:'이 명령을 이 세션에서 실행합니다 (입력칸에 ! 를 붙여 보냄 — 결과는 대화에 남아요)', copyT:'명령 복사' }
+                : { copy:'📋 Copy', copied:'Copied ✓', run:'▶ Run', sent:'Sent ✓', off:'Not connected', runT:'Run this command in this session (sent with a leading ! — the output stays in the conversation)', copyT:'Copy the command' };
+function codeBars(root) {
+  for (const p of root.querySelectorAll('pre')) {
+    if (p.nextElementSibling && p.nextElementSibling.classList.contains('cbar')) continue;
+    const b = document.createElement('div'); b.className = 'cbar';
+    b.innerHTML = '<button type="button" class="cpy" title="' + esc(CB.copyT) + '">' + CB.copy + '</button><button type="button" class="run" title="' + esc(CB.runT) + '">' + CB.run + '</button>';
+    p.after(b);
+  }
+}
+function cbFlash(btn, txt, cls) {
+  clearTimeout(btn._t); btn.textContent = txt; btn.classList.add(cls);
+  btn._t = setTimeout(() => { btn.textContent = btn.classList.contains('cpy') ? CB.copy : CB.run; btn.classList.remove('ok', 'bad'); }, 1600);
+}
+async function cbCopy(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.append(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); return ok;
+}
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.cbar button'); if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  const pre = btn.parentElement.previousElementSibling; if (!pre || pre.tagName !== 'PRE') return;
+  const raw = pre.textContent.replace(/\s+$/, '');
+  if (btn.classList.contains('cpy')) { const ok = await cbCopy(raw); return cbFlash(btn, ok ? CB.copied : '✕', ok ? 'ok' : 'bad'); }
+  if (btn._busy) return;                                       // 두 번 눌러도 한 번만
+  if (!cur || !ws || ws.readyState !== 1) return cbFlash(btn, CB.off, 'bad');
+  const cmd = raw.split('\n').map(l => l.replace(/^\s*(?:\$|PS [^>]*>|>)\s+/, '')).join('\n').trim();   // 예시에 붙은 프롬프트 표시($ ·PS>)는 뗀다
+  if (!cmd) return;
+  btn._busy = true; setTimeout(() => { btn._busy = false; }, 1600);
+  const shell = cur.agent === 'shell';
+  const send = d => ws.send(JSON.stringify({ type: 'in', data: d }));
+  if (shell) send(cmd.replace(/\r?\n/g, '\r') + '\r');
+  else {
+    send('!');                                                 // 셸 모드로 바뀌는 데 한 박자 걸린다
+    setTimeout(() => { try { send(cmd.replace(/\r?\n/g, '\x1b\r')); } catch (e2) {} }, 150);
+    setTimeout(() => { try { send('\r'); } catch (e2) {} }, 450);
+  }
+  api('POST', '/api/memos/req', { path: cur.path, text: '! ' + cmd, sid: cur.id });
+  cbFlash(btn, CB.sent, 'ok');
+  setTimeout(poll, 1500);
+}, true);
 function sendBlip() {
   if (!soundOn()) return;
   try {
@@ -916,6 +972,7 @@ function fillSpread(c, list, liveI, note) {
   const top = R.scrollTop, had = R.querySelectorAll('section').length;
   R.innerHTML = list.map(t => '<section data-t="' + t.i + '"><div class="q"><small>' + esc(T.req + ' · ' + fmtT(t.ts)) + '</small><span>' + reqHtml(t.req) + '</span></div><div class="a">' + md(t.ans) + '</div>'
     + (t.i === liveI && !t.ans ? '<div class="pending">' + T.pending + '</div>' : '') + '</section>').join('') + (note ? '<div class="pending">' + T.sending + '</div>' : '');
+  codeBars(R);
   const secs = R.querySelectorAll('section');
   if (note) R.scrollTop = R.scrollHeight;
   else if (had && secs.length > had) R.scrollTop = top + secs[secs.length - 1].getBoundingClientRect().top - R.getBoundingClientRect().top - 2;   // a new request: bring it to the top
@@ -1429,7 +1486,7 @@ async function openBook(id) {
   const s = sessions.find(x => x.id === id); if (!s) return;
   if (window.readAloud) readAloud.stop();
   liveFrom = Infinity;
-  cur = { id, title: s.title, path: s.path }; turns = []; total = 0; start = 0; page = 0; pages = 1; sentAt = 0;
+  cur = { id, title: s.title, path: s.path, agent: s.agent || 'claude' }; turns = []; total = 0; start = 0; page = 0; pages = 1; sentAt = 0;
   try { localStorage.setItem('pt_book_last', id); } catch (e) {}
   history.replaceState(null, '', '?s=' + id + (QS.get('token') ? '&token=' + TOKEN : ''));
   drawShelf(); render(true); connect();
