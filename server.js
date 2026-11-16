@@ -1656,7 +1656,7 @@ function effortFor(e) { return GPT_EFFORTS.includes(String(e || '')) ? String(e)
 // 예전엔 status 가 오면 무조건 울려서, PT를 켜기만 해도 세션 수만큼 "session N done" 이 났다
 // (PTY는 busy:true 로 시작 → 마커가 4초간 없으면 곧장 완료 전환 = 아무 요청도 안 한 완료).
 function broadcastStatus(id, p, announce) {
-  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy, announce: !!announce, since: p.doneSince || 0 });
+  const msg = JSON.stringify({ type: 'status', done: p.done, busy: p.busy, bg: !!p.bg, announce: !!announce, since: p.doneSince || 0 });
   for (const ws of p.sockets) { try { ws.send(msg); } catch (e) {} }
 }
 // 한 번의 요청 안에서도 Claude 는 작업표시가 끊겨 busy→done 이 여러 번 뒤집힌다
@@ -1685,6 +1685,39 @@ function setResume(sess, val) {
   try { saveSessions(); } catch (e) {}
 }
 
+/* ⏳ 뒤에서 도는 작업 — Claude 가 한 차례 답을 끝냈어도 맡겨 둔 셸·에이전트가 아직 돌면 곧 스스로 이어서 보고한다.
+   그런데 스피너가 없어 예전엔 초록(완료)·무색으로 보였다 (2026-11-17 CEO: "작업중이라면서 테두리가 없거나 초록").
+   지금 화면(가상 터미널) 아래쪽만 본다 — 지난 기록의 글자에 속지 않게:
+     · 입력칸 아래 에이전트 목록  「● main / ( ) fork …」  = 뒤에서 도는 에이전트가 있을 때만 그려진다
+     · 마지막 차례 끝 줄  「✻ Baked for 5s · done … · 1 shell still running」 / 「✻ Waiting for 3 background agents to finish」
+   Claude 가 그 줄을 스스로 줄바꿈하므로 들여쓴 다음 줄까지 이어 붙여 읽는다. */
+function bgWorkOf(p) {
+  if (!p.vt) return false;
+  try {
+    const b = p.vt.t.buffer.active, end = b.baseY + p.vt.t.rows, rows = [];
+    for (let i = Math.max(0, end - 45); i < end; i++) {
+      const l = b.getLine(i); if (!l) continue;
+      const t = l.translateToString(true);
+      if (l.isWrapped && rows.length) rows[rows.length - 1] += t; else rows.push(t);
+    }
+    let sep = -1;
+    for (let i = rows.length - 1; i >= 0; i--) if (/^[─━]{6,}/.test(rows[i].trim())) { sep = i; break; }
+    if (sep < 0) return false;
+    const below = rows.slice(sep + 1);
+    if (below.some(r => /^\s*\(\s?\)\s+\S/.test(r) || /^\s*[●○◯]\s+main\s*$/.test(r))) return true;
+    if (below.some(r => /·\s*\d+\s+(shells?|background tasks?)\b/i.test(r))) return true;
+    for (let i = sep - 1; i >= 0; i--) {
+      const r = rows[i].trim();
+      if (!/^[✻✳✽✢✶✦✧*·]\s+\S/.test(r)) continue;
+      if (/^[✻✳✽✢✶✦✧*·]\s+\S+ing…/.test(r)) return false;   // 아직 일하는 중인 스피너 줄
+      let line = r;
+      for (let k = i + 1; k < sep && /^\s+\S/.test(rows[k]); k++) line += ' ' + rows[k].trim();
+      return /still\s+running|Waiting\s+for\s+\d+\s+background/i.test(line);
+    }
+  } catch (e) {}
+  return false;
+}
+
 // 작업 완료 감지 — Claude: 'esc to interrupt' 표시가 4초간 안 그려지면 완료(초록) / 그 외: 8초 조용하면 완료
 setInterval(() => {
   for (const [id, p] of ptys) {
@@ -1696,12 +1729,15 @@ setInterval(() => {
       const working = p.lastMarker && Date.now() - p.lastMarker < 4000;
       // 재시작 이어하기 플래그는 Claude 전용(getPty가 Claude일 때만 씀) — codex엔 안 걸어 불필요한 저장을 막는다
       if (working) {
+        p.bg = false;
         if (isClaude) setResume(sess, true);
         p.freedStart = false;
         if (!p.busy || p.done) { p.busy = true; p.done = false; p.doneSince = 0; broadcastStatus(id, p); }
       } else {
+        const bg = isClaude && bgWorkOf(p);   // ⏳ 맡겨 둔 일이 뒤에서 도는 중인가
+        const bgChanged = bg !== !!p.bg; p.bg = bg;
         if (p.busy) { p.busy = false; p.done = true; p.doneSince = Date.now(); broadcastStatus(id, p, p.armed); }
-        else disarmIfSettled(p);
+        else { disarmIfSettled(p); if (bgChanged) broadcastStatus(id, p); }
         if (isClaude) setResume(sess, false);
       }
     } else if (p.busy && Date.now() - p.lastOut > 8000) {
@@ -2067,7 +2103,7 @@ setInterval(async () => {
 app.get('/api/sessions', async (req, res) => {
   const mine = sessions.map(s => {
     const p = ptys.get(s.id);
-    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, doneSince: p ? (p.doneSince || 0) : 0,
+    return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, bg: !!(p && p.bg), doneSince: p ? (p.doneSince || 0) : 0,
              usedBy: peersApi && !req.ptGuest ? peersApi.usedBy(s.id) : undefined };   // 👥 다른 PC 가 지금 쓰는 중
   });
   if (req.ptGuest) return res.json(peersApi.filterSessions(req.ptGuest, mine));   // 손님: 이 PC 가 준 세션만
@@ -5471,7 +5507,7 @@ wss.on('connection', (ws, req) => {
   if (guest) peersApi.useStart(guest, id, ws);   // 👥 누가 쓰는 중인지 양쪽 화면에
   // 접속 시 지금까지 화면 재생 + 상태
   sendSnapshot(p, ws);
-  ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, since: p.doneSince || 0 }));
+  ws.send(JSON.stringify({ type: 'status', done: p.done, busy: p.busy, bg: !!p.bg, since: p.doneSince || 0 }));
   if (p.freedToast) { ws.send(JSON.stringify({ type: 'autoFreed', mb: p.freedToast, at: sess.autoFreedAt || Date.now() })); p.freedToast = 0; }
   if (guideApi) guideApi.hello(ws, id);   // 🧭 이 세션의 도우미 안내(있으면)
 
