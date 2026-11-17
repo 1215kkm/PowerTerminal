@@ -595,6 +595,8 @@
   #pfDlg .pf-row small { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
   #pfDlg .pf-row .sec { margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #7f1d1d; color: #fecaca; }
   #pfDlg .pf-row input { width: 17px; height: 17px; margin: 0; accent-color: #22d3ee; }
+  #pfDlg .pf-pv { margin-left: 8px; padding: 1px 8px; border-radius: 8px; border: 1px solid #22d3ee; color: #67e8f9; text-decoration: none; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  #pfDlg .pf-pv:hover { background: #0e7490; color: #fff; }
   #pfDlg .pf-ft { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px 14px; }
   #pfDlg .pf-dest { flex: 1 1 100%; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #pfDlg .pf-bar { flex: 1 1 100%; height: 8px; border-radius: 4px; background: #111827; overflow: hidden; display: none; }
@@ -2694,6 +2696,7 @@ const I18N_MORE = {
     cdMemLow: "Free memory was low at those moments (avg {m}) — memory shortage is the likely cause: close idle sessions or turn on auto-free.",
     cdMemOk: "Free memory was fine at those moments (avg {m}), so memory is probably not the cause.",
     cdAdvBg: "{n} drop(s) while the screen was off are normal and not counted.",
+    lfBtnT: "Files in this session folder — download to this device, or upload files into it", lfPull: "Download", lfZip: "Download as zip", lfPush: "Upload here", lfView: "Preview in a new tab", lfViewS: "View", lfYes: "Download it", lfStarted: "Download started — check the browser downloads", lfZipStarted: "Zipping {n} file(s) · {s} — the download starts in the browser", lfTooBig: "Too big for one zip (over 4GB or 65,000 files) — pick fewer",
     pfBtn: "Files", pfBtnT: "Files on {n} — bring results to this PC, or send files there", pfTitle: "{n} · {t}", pfPush: "Send files here", pfPull: "Bring to this PC", pfAll: "Select all", pfNone: "Select none", pfEmpty: "Empty folder", pfSecret: "secret",
     pfPlanning: "Checking…", pfDest: "Save to", pfSecretQ: "Includes secret files ({f}). Bring them too?", pfYes: "Bring them", pfSkip: "Leave them out", pfExistsQ: "{n} file(s) with the same name are already there.", pfOverwrite: "Overwrite", pfRename: "Save with a new name",
     pfFail: "Stopped", pfDone: "Saved {n} file(s)", pfDoneT: "Saved {n} file(s) to {d}", pfSent: "Sent {n} file(s)",
@@ -2862,6 +2865,7 @@ const I18N_MORE = {
     peerH: "🖥 다른 PC 연결", peerHint: "다른 PC 에 깐 PowerTerminal 을 이어서 그 PC 의 세션도 이 화면에서 씁니다. 렌더링·받아쓰기처럼 PC 가 직접 하는 일은 나눠 돌리면 빨라집니다. 그 PC 의 ⚙ 설정에서 주소와 연결 코드를 보고 여기에 넣으세요.",
     peerMe: "이 PC: {n}", peerMeAddr: "주소(같은 곳)", peerMeFar: "주소(다른 곳)", peerMeCode: "연결 코드", peerOff: "연결 안 됨", peerDel: "연결 끊기", peerDelQ: "{n} 연결을 끊을까요? 그 PC 세션이 이 화면에서 빠집니다(그 PC 에서는 계속 돕니다).", peerDeleted: "연결을 끊었어요",
     peerAddrPh: "그 PC 주소 (예: 192.168.0.5:7777)", peerCodePh: "코드", peerNamePh: "이름 (예: 작업실 PC)", peerGo: "연결", peerNeed: "그 PC 의 주소와 4자리 코드를 넣으세요", peerBadCode: "코드가 틀렸어요 — 그 PC 의 ⚙ 설정에서 코드를 확인하세요", peerUnreach: "그 주소에 닿지 않아요 — 그 PC 에서 PowerTerminal 이 켜져 있나요?", peerSelf: "그 주소는 이 PC 예요", peerTooMany: "시도가 너무 많아요 — 잠시 뒤에", peerLinked: "{n} 연결됨 — 그 PC 세션이 이 화면에 나옵니다",
+    lfBtnT: "이 세션 폴더의 파일 — 지금 이 기기로 받거나, 이 기기 파일을 그 폴더에 올립니다", lfPull: "이 기기로 받기", lfZip: "zip으로 받기", lfPush: "여기에 올리기", lfView: "새 탭에서 미리 보기", lfViewS: "보기", lfYes: "받기", lfStarted: "받기 시작 — 브라우저 다운로드를 확인하세요", lfZipStarted: "{n}개 · {s} 묶는 중 — 브라우저에서 받기가 시작됩니다", lfTooBig: "zip 하나로 묶기엔 너무 큽니다 (4GB · 6만5천 개 초과) — 나눠서 고르세요",
     pfBtn: "파일", pfBtnT: "{n}의 파일 — 결과물을 이 PC 로 가져오거나, 이 PC 파일을 그쪽으로 보냅니다", pfTitle: "{n} · {t}", pfPush: "여기로 파일 보내기", pfPull: "이 PC 로 가져오기", pfAll: "모두 고르기", pfNone: "모두 풀기", pfEmpty: "빈 폴더", pfSecret: "비밀",
     pfPlanning: "확인 중…", pfDest: "저장 위치", pfSecretQ: "비밀 파일이 들어 있어요({f}). 같이 가져올까요?", pfYes: "같이 가져오기", pfSkip: "빼고 가져오기", pfExistsQ: "같은 이름의 파일이 {n}개 이미 있어요.", pfOverwrite: "덮어쓰기", pfRename: "이름 바꿔 저장",
     cbH: "🔌 끊김 기록", cbOpen: "기록 보기", cbLoading: "불러오는 중…", cbFail: "기록을 불러오지 못했어요.", cbNone: "최근 7일 동안 끊긴 적이 없어요. 끊기면 저절로 기록됩니다.",
@@ -5677,7 +5681,7 @@ function buildPane(sess, idx) {
         <span class="ttlcol"><span class="ttlrow">
         <span class="title" title="${T.renameHint}">${esc(sess.title)}</span>
         <span class="useTag"></span>
-        ${sess.peer ? `<span class="peerTag${sess.peerOnline === false ? ' off' : ''}" title="${escA((T.peerTagT || '').replace('{n}', sess.peerName || 'PC'))}">🖥 ${esc(sess.peerName || 'PC')}</span><button class="pfBtn" title="${escA((T.pfBtnT || '').replace('{n}', sess.peerName || 'PC'))}">📂 ${esc(T.pfBtn || 'Files')}</button>` : ''}
+        ${sess.peer ? `<span class="peerTag${sess.peerOnline === false ? ' off' : ''}" title="${escA((T.peerTagT || '').replace('{n}', sess.peerName || 'PC'))}">🖥 ${esc(sess.peerName || 'PC')}</span><button class="pfBtn" title="${escA((T.pfBtnT || '').replace('{n}', sess.peerName || 'PC'))}">📂 ${esc(T.pfBtn || 'Files')}</button>` : (!['localhost', '127.0.0.1'].includes(location.hostname) ? `<button class="pfBtn" title="${escA(T.lfBtnT || 'Files in this session folder — download to this device, or upload files into it')}">📂 ${esc(T.pfBtn || 'Files')}</button>` : '')}
         <!-- ✳ 작업 시간은 제목 바로 옆에 — 오른쪽 끝에 두었더니 그 위에 떠 있는 도구 버튼에 가려 안 보였다 -->
         <span class="workBadge" title="${esc(T.workingT || '작업 중')}"><span class="ws-spin">✳</span><span class="ws-sec"></span></span>
         <span class="bgBadge" title="${esc(T.bgRunT || 'Work it started is still running in the background — the AI reports when it finishes')}">⏳ ${esc(T.bgRunS || 'background')}</span>
@@ -10960,18 +10964,20 @@ async function renderPeers() {
 /* 📂 다른 PC 세션 파일 창 — 그 PC 작업 폴더를 최근 바뀐 순으로. 체크해서 [📥 가져오기] = 이 PC 로 받기
    (그 PC 에 보낸 tree 면 원래 폴더 같은 자리에, 아니면 다운로드\PT-<PC>\<세션>), [📤 보내기] = 이 기기에서 고른 파일을 지금 보는 폴더로.
    같은 이름이 있으면 덮어쓰기/이름 바꿔 저장을 고르고, 비밀 파일(.env·키)은 한 번 더 묻는다. 큰 파일은 진행 막대로. */
+const PF_VIEW = /\.(png|jpe?g|gif|webp|bmp|svg|ico|pdf|mp4|webm|mov|mp3|wav|ogg|m4a|txt|md|json|js|mjs|ts|css|html?|xml|csv|log|ya?ml|py|sh|bat|ps1|sql)$/i;
 function openPeerFiles(sess) {
   let dlg = document.getElementById('pfDlg');
   if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'pfDlg'; document.body.appendChild(dlg); dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); }); }
-  const peer = sess.peer, sid = String(sess.id).split('~')[1];
+  const peer = sess.peer, local = !peer, sid = local ? String(sess.id) : String(sess.id).split('~')[1];
+  const qs = o => Object.entries(o).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
   const fmtB = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + 'GB' : b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : b >= 1024 ? Math.round(b / 1024) + 'KB' : (b || 0) + 'B';
   const fmtD = t => { if (!t) return ''; const d = new Date(t), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
   let cur = '', items = [], busy = false;
-  dlg.innerHTML = '<div class="pf-in"><div class="pf-hd"><h3>📂 ' + esc((T.pfTitle || '{n} · {t}').replace('{n}', sess.peerName || 'PC').replace('{t}', sess.title || '')) + '</h3><button class="small pf-x">✕</button></div>'
+  dlg.innerHTML = '<div class="pf-in"><div class="pf-hd"><h3>📂 ' + esc(local ? (sess.title || '') : (T.pfTitle || '{n} · {t}').replace('{n}', sess.peerName || 'PC').replace('{t}', sess.title || '')) + '</h3><button class="small pf-x">✕</button></div>'
     + '<div class="pf-path"><button class="small pf-up">⬆</button><span class="pf-cur"></span><button class="small pf-all"></button></div>'
     + '<div class="pf-list"></div>'
     + '<div class="pf-ft"><div class="pf-dest"></div><div class="pf-ask"></div><div class="pf-bar"><i></i></div><span class="pf-msg"></span>'
-    + '<input type="file" class="pf-file" multiple hidden><button class="small pf-push">📤 ' + esc(T.pfPush || 'Send files here') + '</button><button class="primary pf-pull" disabled>📥 ' + esc(T.pfPull || 'Bring to this PC') + '</button></div></div>';
+    + '<input type="file" class="pf-file" multiple hidden><button class="small pf-push">📤 ' + esc(local ? (T.lfPush || 'Upload here') : (T.pfPush || 'Send files here')) + '</button><button class="primary pf-pull" disabled>📥 ' + esc(local ? (T.lfPull || 'Download') : (T.pfPull || 'Bring to this PC')) + '</button></div></div>';
   const $ = q => dlg.querySelector(q);
   $('.pf-x').onclick = () => dlg.close();
   const msg = t => { $('.pf-msg').textContent = t || ''; };
@@ -10979,12 +10985,12 @@ function openPeerFiles(sess) {
   const updPull = () => {
     const on = sel(), files = on.filter(x => !x.dir);
     const b = $('.pf-pull'); b.disabled = !on.length || busy;
-    b.textContent = '📥 ' + (T.pfPull || 'Bring to this PC') + (on.length ? ' (' + on.length + (files.length === on.length ? ' · ' + fmtB(files.reduce((a, x) => a + x.size, 0)) : '') + ')' : '');
+    b.textContent = '📥 ' + (local ? (on.length > 1 || on.some(x => x.dir) ? (T.lfZip || 'Download as zip') : (T.lfPull || 'Download')) : (T.pfPull || 'Bring to this PC')) + (on.length ? ' (' + on.length + (files.length === on.length ? ' · ' + fmtB(files.reduce((a, x) => a + x.size, 0)) : '') + ')' : '');
     $('.pf-all').textContent = items.length && on.length === items.length ? (T.pfNone || 'Select none') : (T.pfAll || 'Select all');
   };
   const load = async dir => {
     msg('…');
-    const r = await api('GET', '/peer/' + peer + '/api/files/list?sid=' + encodeURIComponent(sid) + '&dir=' + encodeURIComponent(dir || ''));
+    const r = await api('GET', (local ? '' : '/peer/' + peer) + '/api/files/list?sid=' + encodeURIComponent(sid) + '&dir=' + encodeURIComponent(dir || ''));
     if (!r || r.error) { msg(r && r.error === 'peer_offline' ? (T.rtOffline || 'That PC is not connected') : ((r && r.error) || 'error')); return; }
     cur = r.dir || ''; items = r.items || [];
     $('.pf-cur').textContent = '‎' + (r.root || '') + (cur ? '\\' + cur.replace(/\//g, '\\') : '') + '‎';
@@ -10994,6 +11000,8 @@ function openPeerFiles(sess) {
     items.forEach(it => {
       const row = document.createElement('div'); row.className = 'pf-row';
       row.innerHTML = '<input type="checkbox"><span class="nm">' + (it.dir ? '📁 ' : '📄 ') + esc(it.name) + (it.secret ? '<span class="sec">🔒 ' + esc(T.pfSecret || 'secret') + '</span>' : '') + '</span><small>' + (it.dir ? '' : fmtB(it.size)) + '</small><small class="t">' + fmtD(it.mtime) + '</small>';
+      // 👁 미리보기 (내 세션 — 사진·PDF·영상·소리·글자 파일은 새 탭에서 바로 보기)
+      if (local && !it.dir && PF_VIEW.test(it.name)) { const pv = document.createElement('a'); pv.className = 'pf-pv'; pv.textContent = '👁 ' + (T.lfViewS || 'View'); pv.title = T.lfView || 'Preview in a new tab'; pv.target = '_blank'; pv.rel = 'noopener'; pv.href = '/api/files/get?' + qs({ sid, rel: it.rel, inline: 1, token: TOKEN }); pv.onclick = ev => ev.stopPropagation(); row.querySelector('.nm').appendChild(pv); }
       const cb = row.querySelector('input');
       cb.onclick = ev => { ev.stopPropagation(); it._on = cb.checked; updPull(); };
       row.onclick = () => { if (it.dir) load(it.rel); else { cb.checked = !cb.checked; it._on = cb.checked; updPull(); } };
@@ -11007,9 +11015,35 @@ function openPeerFiles(sess) {
     const a = $('.pf-ask'); a.style.display = 'flex'; a.innerHTML = '<span style="flex:1 1 100%">' + esc(text) + '</span>';
     choices.forEach(([v, l, cls]) => { const b = document.createElement('button'); b.className = 'small' + (cls ? ' ' + cls : ''); b.textContent = l; b.onclick = () => { a.style.display = 'none'; resolve(v); }; a.appendChild(b); });
   });
+  // 이 기기로 받기 — 브라우저가 내려받게 주소만 건넨다 (진행률은 브라우저 다운로드 막대)
+  const fetchTo = (url) => { const a = document.createElement('a'); a.href = url; a.download = ''; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); };
+  const localPull = async on => {
+    if (on.length === 1 && !on[0].dir) {
+      const it = on[0];
+      if (it.secret) { const c = await ask((T.pfSecretQ || 'Includes secret files ({f}). Bring them too?').replace('{f}', it.name), [['yes', T.lfYes || 'Download it'], ['no', T.cancel || 'Cancel']]); if (c !== 'yes') return; }
+      fetchTo('/api/files/get?' + qs({ sid, rel: it.rel, dl: 1, token: TOKEN }));
+      msg((T.lfStarted || 'Download started — check the browser downloads') + ' · ' + it.name); return;
+    }
+    const base = { sid, dir: cur, names: JSON.stringify(on.map(x => x.name)), token: TOKEN };
+    msg(T.pfPlanning || 'Checking…');
+    const plan = await api('GET', '/api/files/zip?' + qs(Object.assign({ plan: 1, secrets: 1 }, base)));
+    if (!plan || plan.error) { msg((plan && plan.error) || 'error'); return; }
+    let secrets = 0;
+    if (plan.secrets.length) {
+      const c = await ask((T.pfSecretQ || 'Includes secret files ({f}). Bring them too?').replace('{f}', plan.secrets.slice(0, 4).join(', ') + (plan.secrets.length > 4 ? ' …' : '')), [['yes', T.pfYes || 'Bring them'], ['skip', T.pfSkip || 'Leave them out'], ['no', T.cancel || 'Cancel']]);
+      if (c === 'no') { msg(''); return; }
+      secrets = c === 'yes' ? 1 : 0;
+    } else secrets = 1;
+    const p2 = secrets ? plan : await api('GET', '/api/files/zip?' + qs(Object.assign({ plan: 1, secrets: 0 }, base)));
+    if (!p2 || !p2.count) { msg(T.pfEmpty || 'Empty folder'); return; }
+    if (p2.tooBig) { msg(T.lfTooBig || 'Too big for one zip (over 4GB or 65,000 files) — pick fewer'); return; }
+    fetchTo('/api/files/zip?' + qs(Object.assign({ secrets }, base)));
+    msg((T.lfZipStarted || 'Zipping {n} file(s) · {s} — the download starts in the browser').replace('{n}', p2.count).replace('{s}', fmtB(p2.total)));
+  };
   $('.pf-pull').onclick = async () => {
     if (busy) return;
     const on = sel(); if (!on.length) return;
+    if (local) { busy = true; updPull(); try { await localPull(on); } finally { busy = false; updPull(); } return; }
     busy = true; updPull(); msg(T.pfPlanning || 'Checking…');
     try {
       const plan = await api('POST', '/api/peerfiles/plan', { peer, sid, items: on.map(x => ({ rel: x.rel, dir: x.dir, size: x.size, secret: x.secret })) });
@@ -11055,11 +11089,21 @@ function openPeerFiles(sess) {
     busy = true; updPull();
     const bar = $('.pf-bar'); bar.style.display = 'block';
     const total = fl.reduce((a, x) => a + x.size, 0); let doneB = 0, ok = 0;
+    // 내 세션: 같은 이름이 이미 있으면 덮을지·새 이름으로 둘지 묻는다 (그 PC 로 보내기는 원래대로)
+    let mode = 'overwrite';
+    const taken = new Set(items.filter(x => !x.dir).map(x => x.name.toLowerCase()));
+    if (local && fl.some(f => taken.has(f.name.toLowerCase()))) {
+      const c = await ask((T.pfExistsQ || '{n} file(s) with the same name already exist in the destination.').replace('{n}', fl.filter(f => taken.has(f.name.toLowerCase())).length), [['overwrite', T.pfOverwrite || 'Overwrite'], ['rename', T.pfRename || 'Save with a new name'], ['no', T.cancel || 'Cancel']]);
+      if (c === 'no') { busy = false; bar.style.display = 'none'; updPull(); return; }
+      mode = c;
+    }
+    const freeName = n => { if (!taken.has(n.toLowerCase())) return n; const i = n.lastIndexOf('.'), b = i > 0 ? n.slice(0, i) : n, e = i > 0 ? n.slice(i) : ''; for (let k = 1; ; k++) { const t = b + ' (' + k + ')' + e; if (!taken.has(t.toLowerCase())) return t; } };
     for (const file of fl) {
-      const rel = (cur ? cur + '/' : '') + file.name;
+      const fname = local && mode === 'rename' ? freeName(file.name) : file.name; taken.add(fname.toLowerCase());
+      const rel = (cur ? cur + '/' : '') + fname;
       const r = await new Promise(resolve => {
         const x = new XMLHttpRequest();
-        x.open('POST', '/api/peerfiles/push?peer=' + encodeURIComponent(peer) + '&sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + '&token=' + TOKEN);
+        x.open('POST', local ? '/api/files/put?' + qs({ sid, rel, token: TOKEN }) : '/api/peerfiles/push?peer=' + encodeURIComponent(peer) + '&sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + '&token=' + TOKEN);
         x.setRequestHeader('Content-Type', 'application/octet-stream');
         x.upload.onprogress = e => { bar.querySelector('i').style.width = Math.round((doneB + e.loaded) / total * 100) + '%'; msg('📤 ' + file.name + ' · ' + fmtB(doneB + e.loaded) + ' / ' + fmtB(total)); };
         x.onload = () => { try { resolve(JSON.parse(x.responseText)); } catch (e) { resolve({ error: 'HTTP ' + x.status }); } };

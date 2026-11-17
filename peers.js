@@ -574,6 +574,12 @@ module.exports = function peersModule(app, ctx) {
      메인 쪽: 받는 대로 '<파일>.ptpart' 에 이어 쓰고 다 받으면 이름을 바꾼다 — 끊기면 받은 데까지 이어서. */
   const SECRET_RE = /(^|[\\/])(\.env(\.[^\\/]*)?|[^\\/]*\.(pem|key|p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)|credentials(\.json)?|service-account[^\\/]*\.json|\.npmrc|\.pypirc)$/i;
   const SKIP_DIRS = new Set(['.git', 'node_modules', '.pt-worktrees', '__pycache__', '.venv', 'venv', '.next']);
+  // 미리보기로 브라우저가 바로 보여 줄 수 있는 것만 (html 은 글자로 — 받은 페이지가 PT 화면 안에서 돌지 않게)
+  const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml', ico: 'image/x-icon',
+    pdf: 'application/pdf', mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4' };
+  const TEXT_EXT = new Set('txt md markdown json js mjs cjs ts tsx jsx css scss html htm xml csv tsv log yml yaml ini toml py rb go rs java kt c h cpp cs php sh bat ps1 sql env gitignore'.split(' '));
+  const CRC_T = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
+  const crc32 = (buf, prev) => { let c = ~(prev || 0); for (let i = 0; i < buf.length; i++) c = CRC_T[(c ^ buf[i]) & 0xff] ^ (c >>> 8); return ~c; };
   const inside = (root, rel) => {   // 작업 폴더 밖이면 null
     const full = path.resolve(root, String(rel || '').replace(/^[\\/]+/, ''));
     const r = path.resolve(root);
@@ -604,9 +610,79 @@ module.exports = function peersModule(app, ctx) {
     let st; try { st = fs.statSync(f); } catch (e) { return res.status(404).end(); }
     if (!st.isFile()) return res.status(400).end();
     const start = Math.max(0, Math.min(st.size, parseInt(req2.query.start, 10) || 0));
-    res.setHeader('Content-Type', 'application/octet-stream'); res.setHeader('Content-Length', st.size - start); res.setHeader('x-pt-size', st.size);
+    // 📂 브라우저로 받기(dl=1)·미리보기(inline=1) — 밖에서 외부 주소로 들어온 기기가 이 PC 파일을 받아 갈 때
+    const nm = path.basename(f), q8 = encodeURIComponent(nm);
+    if (req2.query.inline === '1') {
+      const ext = path.extname(nm).slice(1).toLowerCase();
+      const type = MIME[ext] || (TEXT_EXT.has(ext) ? 'text/plain; charset=utf-8' : 'application/octet-stream');
+      res.setHeader('Content-Type', type); res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");   // 받은 HTML·SVG 가 PT 화면의 열쇠로 무언가 하지 못하게
+      res.setHeader('Content-Disposition', "inline; filename*=UTF-8''" + q8);
+    } else {
+      res.setHeader('Content-Type', 'application/octet-stream');
+      if (req2.query.dl === '1') res.setHeader('Content-Disposition', 'attachment; filename="' + nm.replace(/[^\x20-\x7e]|"/g, '_') + "\"; filename*=UTF-8''" + q8);
+    }
+    res.setHeader('Content-Length', st.size - start); res.setHeader('x-pt-size', st.size);
     if (start >= st.size) return res.end();
     fs.createReadStream(f, { start }).pipe(res);
+  });
+  /* 📦 여러 개·폴더를 zip 하나로 (브라우저로 받기) — 라이브러리 없이 흘려 쓴다: 파일마다 deflate 로 눌러 바로 보내고
+     크기·CRC 는 뒤(데이터 설명자)에 적는다. 4GB·6만5천 개를 넘으면 zip64 가 필요해 미리 막는다.
+     plan=1 이면 개수·크기·비밀 파일만 알려 준다(받기 전 확인). secrets=1 이 아니면 비밀 파일(.env·키)은 뺀다. */
+  app.get('/api/files/zip', (req2, res) => {
+    const s = sessOf(req2.query.sid); if (!s) return res.status(404).json({ error: 'no session' });
+    const base = inside(s.path, req2.query.dir || ''); if (!base) return res.status(400).json({ error: 'outside' });
+    let names = []; try { names = JSON.parse(req2.query.names || '[]'); } catch (e) {}
+    if (!Array.isArray(names) || !names.length) return res.status(400).json({ error: 'nothing selected' });
+    const list = [];
+    const walk = (full, rel) => {
+      let st; try { st = fs.statSync(full); } catch (e) { return; }
+      if (st.isDirectory()) { for (const e of fs.readdirSync(full, { withFileTypes: true })) { if (!SKIP_DIRS.has(e.name) && list.length <= 65000) walk(path.join(full, e.name), rel + '/' + e.name); } }
+      else if (st.isFile()) list.push({ full, rel, size: st.size, mtime: st.mtime, secret: SECRET_RE.test(path.basename(full)) });
+    };
+    for (const n of names) { const f = inside(base, String(n)); if (f && f !== base) walk(f, String(n).replace(/\\/g, '/')); }
+    const secrets = list.filter(x => x.secret).map(x => x.rel);
+    const use = req2.query.secrets === '1' ? list : list.filter(x => !x.secret);
+    const total = use.reduce((a, x) => a + x.size, 0);
+    if (req2.query.plan === '1') return res.json({ count: use.length, total, secrets, tooBig: total > 4e9 || use.length > 65000 });
+    if (!use.length) return res.status(400).json({ error: 'empty' });
+    if (total > 4e9 || use.length > 65000) return res.status(413).json({ error: 'too big for one zip (4GB / 65,000 files)' });
+    const zname = (names.length === 1 ? path.basename(String(names[0])) : (path.basename(base) || 'files')) + '.zip';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + zname.replace(/[^\x20-\x7e]|"/g, '_') + "\"; filename*=UTF-8''" + encodeURIComponent(zname));
+    const zlib = require('zlib');
+    const central = []; let off = 0, aborted = false;
+    req2.on('close', () => { aborted = true; });
+    const put = b => new Promise(r => { off += b.length; if (res.write(b)) r(); else res.once('drain', r); });
+    const dosT = d => ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xffff;
+    const dosD = d => (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xffff;
+    (async () => {
+      for (const it of use) {
+        if (aborted) return;
+        const nameB = Buffer.from(it.rel, 'utf8'), at = off;
+        const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x0808, 6); h.writeUInt16LE(8, 8);
+        h.writeUInt16LE(dosT(it.mtime), 10); h.writeUInt16LE(dosD(it.mtime), 12); h.writeUInt16LE(nameB.length, 26);
+        await put(Buffer.concat([h, nameB]));
+        let crc = 0, csize = 0, usize = 0;
+        await new Promise(done => {
+          const src = fs.createReadStream(it.full), def = zlib.createDeflateRaw({ level: 6 });
+          src.on('data', c => { crc = crc32(c, crc); usize += c.length; });
+          src.on('error', () => def.end());
+          def.on('data', c => { csize += c.length; off += c.length; if (!res.write(c)) { def.pause(); res.once('drain', () => def.resume()); } });
+          def.on('end', done);
+          src.pipe(def);
+        });
+        const dd = Buffer.alloc(16); dd.writeUInt32LE(0x08074b50, 0); dd.writeUInt32LE(crc >>> 0, 4); dd.writeUInt32LE(csize, 8); dd.writeUInt32LE(usize, 12);
+        await put(dd);
+        const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x0808, 8); c.writeUInt16LE(8, 10);
+        c.writeUInt16LE(dosT(it.mtime), 12); c.writeUInt16LE(dosD(it.mtime), 14); c.writeUInt32LE(crc >>> 0, 16); c.writeUInt32LE(csize, 20); c.writeUInt32LE(usize, 24);
+        c.writeUInt16LE(nameB.length, 28); c.writeUInt32LE(at, 42);
+        central.push(Buffer.concat([c, nameB]));
+      }
+      const cd = Buffer.concat(central), cdAt = off;
+      const e = Buffer.alloc(22); e.writeUInt32LE(0x06054b50, 0); e.writeUInt16LE(central.length, 8); e.writeUInt16LE(central.length, 10); e.writeUInt32LE(cd.length, 12); e.writeUInt32LE(cdAt, 16);
+      await put(cd); await put(e); res.end();
+    })().catch(() => { try { res.destroy(); } catch (e) {} });
   });
   // 그 PC: 파일 받기 (📤 메인 → 그 PC)
   app.post('/api/files/put', (req2, res) => {
