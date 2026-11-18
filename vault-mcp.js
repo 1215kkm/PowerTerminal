@@ -46,7 +46,11 @@ async function runTool(name, args) {
     const j = await call('/api/vault/ai-list');
     const list = (j && j.entries) || [];
     if (!list.length) return { text: 'No saved logins. Ask the user to add one in PowerTerminal (🌐 → 🔑 Login vault).', isError: false };
-    return { text: list.map(e => '- ' + e.name + ' — ' + e.domain + ' — ' + e.username).join('\n'), isError: false };
+    // 추가 칸(로그인 종류 탭·쇼핑몰 아이디·그 밖의 칸 이름)도 알려 준다 — 값은 PT 가 채우므로 AI 는 login(name) 만 부르면 된다
+    return { text: list.map(e => '- ' + e.name + ' — ' + e.domain + ' — ' + e.username +
+      (e.tab ? ' — login type (tab): ' + e.tab : '') + (e.shop ? ' — shop ID: ' + e.shop : '') +
+      (e.extraKeys && e.extraKeys.length ? ' — extra fields: ' + e.extraKeys.join(', ') : '')).join('\n') +
+      '\n(login(name) clicks the tab and fills every field itself — do not type into the form yourself)', isError: false };
   }
   if (name === 'login') {
     const j = await call('/api/vault/fill', { profile: PROFILE, name: String(args.name || ''), pageUrl: String(args.page_url || ''), submit: args.submit !== false });

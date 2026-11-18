@@ -923,7 +923,11 @@ function vaultSite(host) {
   return /^(co|or|go|ac|ne|re|pe|com|net|org|gov|edu)\.[a-z]{2}$/.test(two) ? p.slice(-3).join('.') : two;
 }
 const vaultSameSite = (host, dom) => !!host && !!dom && vaultSite(host) === vaultSite(dom);
-const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, hosts: vaultDomains(e).slice(1), username: e.username, url: e.url || '', updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0 });
+const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, hosts: vaultDomains(e).slice(1), username: e.username, url: e.url || '', updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0,
+  tab: e.tab || '', shop: e.shop || '', extraKeys: Array.isArray(e.extraKeys) ? e.extraKeys : [] });
+// 자유 칸 — 「칸 이름=값」 한 줄에 하나. 값은 비밀번호처럼 암호문으로만 둔다(AI·화면엔 이름만)
+const vaultExtraParse = t => String(t || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => { const i = l.indexOf('='); return i > 0 ? { k: l.slice(0, i).trim().slice(0, 60), v: l.slice(i + 1).trim().slice(0, 500) } : null; }).filter(x => x && x.k && x.v).slice(0, 8);
+const vaultExtras = e => { if (!e.extraSecret) return []; try { const a = JSON.parse(vaultOpen(e.extraSecret)); return Array.isArray(a) ? a : []; } catch (x) { return []; } };
 function vaultLog(o) {
   try {
     const line = JSON.stringify(Object.assign({ at: Date.now() }, o)) + '\n';
@@ -976,8 +980,25 @@ function cdpConnect(wsUrl, onClose) {
 }
 // 입력칸 찾기 — 보이는 비밀번호 칸 하나와, 같은 폼에서 그 앞에 있는 아이디 칸. 아이디만 있는 화면(2단계 로그인
 // 첫 화면)도 찾는다. 찾은 칸에 표시를 달아 두고, 채우기 직전에 도메인을 한 번 더 확인한다(그 사이 페이지가 바뀌면 중단).
-const VAULT_FIND_JS = dom => `(() => {
+/* 🗂 로그인 종류(탭) 고르기 — 카페24 eclogin 처럼 「대표운영자 / 부운영자 / 공급사」 탭을 먼저 눌러야 칸이 바뀌는 화면.
+   글자가 꼭 같은 보이는 단추·링크·탭을 찾아 누른다(이미 골라져 있으면 그대로). 못 찾으면 found:false — 칸 찾기에서 판단한다. */
+const VAULT_TAB_JS = (dom, tab) => `(() => {
   const h = location.hostname.toLowerCase(), d = ${JSON.stringify(dom)};
+  if (!(h === d || h.endsWith('.' + d))) return { found: false };
+  const want = ${JSON.stringify(String(tab || '').replace(/\s+/g, ''))};
+  const vis = e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+  const txt = e => (e.textContent || '').replace(/\\s+/g, '');
+  const all = [...document.querySelectorAll('a,button,[role=tab],label,li,input[type=radio]')].filter(vis);
+  const el = all.find(e => /^(A|BUTTON)$/.test(e.tagName) && txt(e) === want) || all.find(e => e.getAttribute('role') === 'tab' && txt(e) === want)
+    || all.find(e => txt(e) === want) || all.find(e => e.type === 'radio' && e.labels && [...e.labels].some(l => txt(l) === want));
+  if (!el) return { found: false };
+  const host = el.closest('li,[role=tab]') || el;
+  const already = host.classList.contains('selected') || host.classList.contains('active') || host.classList.contains('on') || host.getAttribute('aria-selected') === 'true' || el.checked === true;
+  if (!already) el.click();
+  return { found: true, clicked: !already };
+})()`;
+const VAULT_FIND_JS = (dom, spec) => `(() => {
+  const h = location.hostname.toLowerCase(), d = ${JSON.stringify(dom)}, spec = ${JSON.stringify(spec || {})};
   if (!(h === d || h.endsWith('.' + d))) return { host: h, badHost: true };
   document.querySelectorAll('[data-pt-vault]').forEach(e => e.removeAttribute('data-pt-vault'));
   const vis = e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e);
@@ -989,19 +1010,44 @@ const VAULT_FIND_JS = dom => `(() => {
   let texts = [...document.querySelectorAll('input')].filter(e => /^(text|email|tel)$/i.test(e.type) && vis(e) && !/search|검색/.test(hint(e)));
   texts = pw ? texts.filter(e => (!pw.form || e.form === pw.form) && (e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING))
              : texts.filter(e => score(e) > 0);
+  // 자유 칸: 칸 이름이 그 입력칸의 안내글·제목·이름·라벨에 들어 있으면 그 칸 (공백·대소문자 무시)
+  const norm = t => String(t || '').toLowerCase().replace(/\\s+/g, '');
+  const hintAll = e => norm([e.placeholder, e.title, e.getAttribute('aria-label'), e.name, e.id, e.labels && e.labels[0] && e.labels[0].textContent].join('|'));
+  const pool = [...document.querySelectorAll('input')].filter(e => /^(text|email|tel|number|password|search)$/i.test(e.type) && vis(e) && e !== pw && (!pw || !pw.form || e.form === pw.form));
+  const used = new Set(), missing = [];
+  (spec.extra || []).forEach((k, i) => {
+    const nk = norm(k);
+    const m = pool.filter(e => !used.has(e)).find(e => norm(e.title) === nk || norm(e.placeholder) === nk || (e.labels && e.labels[0] && norm(e.labels[0].textContent) === nk))
+      || pool.filter(e => !used.has(e)).find(e => hintAll(e).includes(nk));
+    if (m) { used.add(m); m.setAttribute('data-pt-vault', 'x' + i); } else missing.push(k);
+  });
+  texts = texts.filter(e => !used.has(e));
+  // 쇼핑몰(상점) 아이디: 몰·상점·회사 칸이 있으면 그 칸, 없으면 아이디 칸이 둘 이상일 때 첫 칸
+  let shop = null;
+  if (spec.shop) {
+    const SHOP = /mall|shop|store|company|workspace|tenant|domain|상점|쇼핑몰|몰아이디|회사/;
+    const all2 = pw ? texts : [...document.querySelectorAll('input')].filter(e => /^(text|email|tel)$/i.test(e.type) && vis(e) && !used.has(e));
+    shop = all2.find(e => SHOP.test(hintAll(e))) || (all2.length >= 2 ? all2[0] : null);
+    if (shop) { used.add(shop); shop.setAttribute('data-pt-vault', 's'); texts = texts.filter(e => e !== shop); }
+  }
   const user = texts.map((e, i) => [e, score(e) * 1000 + i]).sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || null;
   if (user) user.setAttribute('data-pt-vault', 'u');
   if (pw) pw.setAttribute('data-pt-vault', 'p');
-  return { host: h, user: !!user, pw: !!pw };
+  return { host: h, user: !!user, pw: !!pw, shop: !!shop, missing, prefilled: !!(user && user.value) };
 })()`;
 const VAULT_FOCUS_JS = (dom, which) => `(() => {
   const h = location.hostname.toLowerCase(), d = ${JSON.stringify(dom)};
   if (!(h === d || h.endsWith('.' + d))) return false;
   const e = document.querySelector('[data-pt-vault=${which}]');
   if (!e) return false;
-  e.focus(); if (e.select) e.select();
+  e.focus();
+  // 비우기 — 프레임워크(React 등)도 알아채게 원래 setter 로 비우고 input 이벤트를 낸다
+  try { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, ''); e.dispatchEvent(new Event('input', { bubbles: true })); } catch (x) { e.value = ''; }
+  if (e.select) e.select();
   return document.activeElement === e;
 })()`;
+// 넣은 뒤 확인 — 아이디류는 값, 비밀번호는 길이만 돌려받는다(비밀번호를 응답·기록에 남기지 않게)
+const VAULT_CHECK_JS = (which, secret) => `(() => { const e = document.querySelector('[data-pt-vault=${which}]'); if (!e) return null; return ${secret ? 'e.value.length' : 'e.value'}; })()`;
 async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
   const list = vaultLoad();
   const want = String(name || '').trim().toLowerCase();
@@ -1035,6 +1081,9 @@ async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
   }
   // 그 도메인 탭 중 입력칸이 있는 탭만. 여러 개면 어느 탭인지 AI 에게 되묻는다(엉뚱한 탭에 채우지 않게).
   // 탭을 연 직후엔 아직 그려지는 중이라 칸이 안 보일 수 있다(실측: 연 뒤 1.5초에 못 찾음) → 최대 약 4초 동안 다시 본다.
+  const extras = vaultExtras(entry);
+  const spec = { shop: !!entry.shop, extra: extras.map(x => x.k) };
+  const tabTried = new Set(), tabState = {};
   let hits = [], seen = [];
   for (let round = 0; round < 6 && !hits.length; round++) {
     if (round) await new Promise(r => setTimeout(r, 700));
@@ -1043,7 +1092,13 @@ async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
       let c = null;
       try {
         c = await cdpConnect(t.webSocketDebuggerUrl);
-        const v = ((await c.send('Runtime.evaluate', { expression: VAULT_FIND_JS(domOf(t)), returnByValue: true })).result || {}).value || {};
+        if (entry.tab && !tabTried.has(t.id)) {   // 🗂 로그인 종류 탭부터 (한 탭에 한 번)
+          tabTried.add(t.id);
+          const tv = ((await c.send('Runtime.evaluate', { expression: VAULT_TAB_JS(domOf(t), entry.tab), returnByValue: true })).result || {}).value || {};
+          tabState[t.id] = tv;
+          if (tv.clicked) await new Promise(r => setTimeout(r, 900));
+        }
+        const v = ((await c.send('Runtime.evaluate', { expression: VAULT_FIND_JS(domOf(t), spec), returnByValue: true })).result || {}).value || {};
         seen.push(v);
         if (v.user || v.pw) { hits.push({ t, c, v }); c = null; }
       } catch (e) { seen.push({ error: e && e.message }); }
@@ -1062,13 +1117,28 @@ async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
   const host = hostOf(t.url);
   try {
     await c.send('Page.bringToFront').catch(() => {});
-    const put = async (which, text) => {
-      const r = await c.send('Runtime.evaluate', { expression: VAULT_FOCUS_JS(domOf(t), which), returnByValue: true });
-      if (!(r.result && r.result.value)) throw new Error('the page changed before filling');
-      await c.send('Input.insertText', { text });
+    const ts = tabState[t.id];
+    if (entry.tab && !(ts && ts.found)) throw new Error('could not find the "' + entry.tab + '" tab on the page (login type)');
+    if (entry.shop && !v.shop) throw new Error('could not find a field for the shop ID');
+    if (v.missing && v.missing.length) throw new Error('could not find the field(s): ' + v.missing.join(', '));
+    const put = async (which, text, secret) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const r = await c.send('Runtime.evaluate', { expression: VAULT_FOCUS_JS(domOf(t), which), returnByValue: true });
+        if (!(r.result && r.result.value)) throw new Error('the page changed before filling');
+        if (attempt) {   // 두 번째: 키보드로 전부 지운 뒤 (자동완성이 다시 채운 경우)
+          for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: 'a', code: 'KeyA', modifiers: 2, windowsVirtualKeyCode: 65 });
+          for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+        }
+        await c.send('Input.insertText', { text });
+        const got = ((await c.send('Runtime.evaluate', { expression: VAULT_CHECK_JS(which, secret), returnByValue: true })).result || {}).value;
+        if (secret ? got === text.length : got === text) return;
+      }
+      throw new Error('a field kept a different value after filling (browser autofill?) — nothing was submitted');
     };
+    for (let i = 0; i < extras.length; i++) await put('x' + i, extras[i].v, true);
+    if (v.shop) await put('s', entry.shop);
     if (v.user) await put('u', entry.username);
-    if (v.pw) await put('p', vaultOpen(entry.secret));
+    if (v.pw) await put('p', vaultOpen(entry.secret), true);
     if (submit !== false) {
       for (const type of ['keyDown', 'keyUp']) {
         await c.send('Input.dispatchKeyEvent', Object.assign({ type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, type === 'keyDown' ? { text: '\r' } : {}));
@@ -1082,11 +1152,11 @@ async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
   c.close();
   entry.lastUsed = Date.now();
   try { vaultSave(list); } catch (e) {}
-  const what = v.user && v.pw ? 'username and password' : v.pw ? 'password' : 'username';
+  const what = [v.shop ? 'shop ID' : '', extras.length ? extras.length + ' extra field(s)' : '', v.user ? 'username' : '', v.pw ? 'password' : ''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
   const tail = v.pw
     ? (submit !== false ? ' and pressed Enter. Check the page to confirm you are signed in (if Enter did nothing, click the login button).' : '. Click the login button to continue.')
     : (submit !== false ? ' and pressed Enter. This site asks for the password on the next screen — call login again once it shows.' : '. Go to the next screen, then call login again for the password.');
-  return done(true, 'Filled the ' + what + ' for "' + entry.name + '" on ' + host + tail, { host });
+  return done(true, (entry.tab ? 'Chose the "' + entry.tab + '" tab and filled the ' : 'Filled the ') + what + ' for "' + entry.name + '" on ' + host + ' (checked that every field holds the saved value)' + tail, { host });
 }
 /* 🏷 PT 브라우저 탭 주인 표시 — 계정 창 하나를 여러 세션이 같이 쓰면, 크롬에 뜬 탭이 어느 세션 것인지 알 수 없었다.
    그래서 일반창 세션의 브라우저 도구는 크롬에 바로 붙지 않고 PT 중계(127.0.0.1 전용 포트 + 비밀 토큰 주소)를 거친다.
@@ -3117,6 +3187,12 @@ app.post('/api/vault', (req, res) => {
   if (b.id && !cur) return res.status(404).json({ error: 'gone' });
   if (list.some(e => e !== cur && e.name.toLowerCase() === name.toLowerCase())) return res.status(400).json({ error: 'dup' });
   if (!cur && !password) return res.status(400).json({ error: 'password' });
+  // 추가 칸 — 빈칸이면 그대로(새 항목은 없음), 자유 칸에 「-」 한 글자면 지우기
+  const tab = typeof b.tab === 'string' ? b.tab.trim().slice(0, 40) : undefined;
+  const shop = typeof b.shop === 'string' ? b.shop.trim().slice(0, 200) : undefined;
+  const extraRaw = typeof b.extra === 'string' ? b.extra.trim() : '';
+  const extraPairs = extraRaw && extraRaw !== '-' ? vaultExtraParse(extraRaw) : null;
+  if (extraRaw && extraRaw !== '-' && !extraPairs.length) return res.status(400).json({ error: 'extra' });
   try {
     const e = cur || { id: crypto.randomBytes(6).toString('hex') };
     // 첫 주소를 https://… 로 적었으면 그 주소(로그인 화면)를 기억해 보관함에서 이름을 누를 때 그리로 연다
@@ -3124,6 +3200,10 @@ app.post('/api/vault', (req, res) => {
     const url = u0 || (cur && cur.url && sites.includes(vaultDomain(cur.url)) ? cur.url : '');
     Object.assign(e, { name, domain: sites[0], hosts: sites.slice(1), username, url, updatedAt: Date.now() });
     if (password) e.secret = vaultSeal(password);          // 수정 때 빈칸이면 기존 비밀번호 유지
+    if (tab !== undefined) { if (tab) e.tab = tab; else delete e.tab; }
+    if (shop !== undefined) { if (shop) e.shop = shop; else delete e.shop; }
+    if (extraRaw === '-') { delete e.extraSecret; delete e.extraKeys; }
+    else if (extraPairs) { e.extraSecret = vaultSeal(JSON.stringify(extraPairs)); e.extraKeys = extraPairs.map(x => x.k); }
     if (!cur) list.push(e);
     vaultSave(list);
   } catch (err) { return res.status(500).json({ error: String(err && err.message) }); }
@@ -3213,7 +3293,7 @@ function vaultTool(req, res) {
   return false;
 }
 app.get('/api/vault/ai-list', (req, res) => {
-  if (vaultTool(req, res)) res.json({ entries: vaultLoad().map(e => ({ name: e.name, domain: e.domain, username: e.username })) });
+  if (vaultTool(req, res)) res.json({ entries: vaultLoad().map(e => ({ name: e.name, domain: e.domain, username: e.username, tab: e.tab || '', shop: e.shop || '', extraKeys: e.extraKeys || [] })) });
 });
 app.post('/api/vault/fill', async (req, res) => {
   if (!vaultTool(req, res)) return;

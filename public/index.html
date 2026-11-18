@@ -1230,6 +1230,14 @@
   .pane-confirm .vt-empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
   .pane-confirm .vt-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 6px; margin-top: 10px; }
   .pane-confirm .vt-form input { min-width: 0; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; }
+  .pane-confirm .vt-more { margin-top: 6px; font-size: 13px; }
+  .pane-confirm .vt-more summary { cursor: pointer; color: var(--muted); padding: 4px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pane-confirm .vt-more[open] summary { color: var(--fg); font-weight: 700; }
+  .pane-confirm .vt-more-in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 6px; margin-top: 4px; }
+  .pane-confirm .vt-more-in input, .pane-confirm .vt-more-in textarea { min-width: 0; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; resize: vertical; }
+  .pane-confirm .vt-more-tip { grid-column: 1 / -1; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  html.light .pane-confirm .vt-more-in input, html.light .pane-confirm .vt-more-in textarea { background: #fff; }
+  @media (max-width: 640px) { .pane-confirm .vt-more-in { grid-template-columns: 1fr; } }
   .pane-confirm .vt-log { margin-top: 10px; font-size: 12px; color: var(--muted); max-height: 18vh; overflow-y: auto; white-space: pre-wrap; }
   @media (max-width: 640px) { .pane-confirm .vt-form { grid-template-columns: 1fr 1fr; } }
   html.light .pane-confirm .vt-form input { background: #fff; }
@@ -2715,7 +2723,7 @@ const I18N_MORE = {
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
     vault: "Login vault", vaultName: "Name (e.g. Toypang)", vaultDomain: "Login page address(es), comma-separated (e.g. eclogin.cafe24.com)", vaultUser: "Username", vaultPw: "Password",
     vaultAllow: "Allow {h}", vaultAllowed: "Allowed {h} for this login",
-    vaultPwKeep: "Password (blank = keep)", vaultAdd: "Save", vaultUpdate: "Update", vaultEdit: "Edit", vaultDel: "Delete", vaultDelSure: "Really delete?",
+    vaultPwKeep: "Password (blank = keep)", vaultMore: "➕ Extra fields — for logins with 3+ boxes (e.g. cafe24 sub-admin)", vaultMoreN: "{n} field(s)", vaultTab: "Login type (tab), e.g. Sub-admin", vaultShop: "Shop (store) ID, e.g. myshop01", vaultExtra: "Other fields — one per line: field name=value (e.g. Auth code=1234)", vaultExtraKeep: "Saved: {k} — blank = keep, a single - = remove", vaultMoreTip: "Type the tab label exactly as on the page and PT clicks it first. The shop ID goes into the mall/store box (or the first box), the username into the next one. Other fields go into the box whose label contains the field name. Leave all blank for normal logins.", vaultTabT: "Login type (tab) PT clicks first", vaultShopT: "Shop (store) ID", vaultExtraT: "Extra fields (values hidden)", vaultAdd: "Save", vaultUpdate: "Update", vaultEdit: "Edit", vaultDel: "Delete", vaultDelSure: "Really delete?",
     vaultClose: "Close", vaultTitle: "🔑 Login vault", vaultShared: "Shared by every session · {n}", vaultFind: "Search name, site or username", vaultHow: "How it works", vaultNoHit: "No matching logins", vaultSaved: "Saved to the login vault", vaultEmpty: "No saved logins yet. Add one below.", vaultUsed: "last used",
     vaultLogHead: "Recent use (🖱 = by you)", vaultOpenTip: "Click: open in a new PT browser window, signed in", vaultOpening: "Opening {n} in a new window…", vaultOpened: "✓ Opened {n} and signed in", vaultOpenedNoForm: "✓ Opened {n} — no login form on that page (already signed in, or press its Log in button)", vaultOpenFail: "Could not open the PT browser window", vaultPwShow: "👁 Show", vaultPwHide: "Hide", vaultPwWait: "Answer the box on the desktop…", vaultPwAsk: "A confirm box opened on the desktop — press Yes to show it", vaultPwDenied: "Not shown (you pressed No)", vaultPwBusy: "Another confirm box is still open on the desktop", vaultPwCopy: "Copy", vaultPwCopied: "Password copied", vaultPwNoWin: "Showing passwords works on Windows only", vaultLocalOnly: "The login vault only opens on the PC running PowerTerminal (passwords never travel to your phone).",
     vaultErr_name: "Enter a name", vaultErr_domain: "That address is not valid (e.g. eclogin.cafe24.com — comma for several). Allow only works for the same company's addresses", vaultErr_username: "Enter the username",
@@ -2902,7 +2910,7 @@ const I18N_MORE = {
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
     vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "로그인 화면 주소, 여러 개면 쉼표 (예: eclogin.cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
     vaultAllow: "{h} 허용", vaultAllowed: "{h} 도 이 로그인에 허용했어요",
-    vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
+    vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultMore: "➕ 추가 칸 — 카페24 부운영자처럼 칸이 3개 이상인 로그인", vaultMoreN: "칸 {n}개", vaultTab: "로그인 종류(탭) 예) 부운영자", vaultShop: "쇼핑몰(상점) 아이디 예) myshop01", vaultExtra: "그 밖의 칸 — 한 줄에 하나: 칸 이름=값 (예: 인증코드=1234)", vaultExtraKeep: "저장된 칸: {k} — 비우면 그대로, - 한 글자면 지우기", vaultMoreTip: "탭 이름을 화면 글자 그대로 적으면 PT 가 그 탭을 먼저 누릅니다. 쇼핑몰 아이디는 몰·상점 칸(없으면 첫 칸)에, 아이디는 그다음 칸에 넣어요. 그 밖의 칸은 칸 이름이 들어간 입력칸에 넣습니다. 보통 로그인은 모두 비워 두세요.", vaultTabT: "PT 가 먼저 누르는 로그인 종류(탭)", vaultShopT: "쇼핑몰(상점) 아이디", vaultExtraT: "추가 칸 (값은 숨김)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
     micIos: "아이폰은 자판의 🎤(받아쓰기) 키를 눌러 말하세요", vaultClose: "닫기", vaultTitle: "🔑 로그인 보관함", vaultShared: "모든 세션이 같이 써요 · {n}개", vaultFind: "이름·주소·아이디로 찾기", vaultHow: "어떻게 작동하나요?", vaultNoHit: "찾는 로그인이 없어요", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
     vaultLogHead: "최근 사용 기록 (🖱 = 내가 직접)", vaultOpenTip: "누르면 PT 브라우저에 새 창으로 열고 로그인까지 해요", vaultOpening: "{n} 새 창으로 여는 중…", vaultOpened: "✓ {n} 새 창에서 로그인했어요", vaultOpenedNoForm: "✓ {n} 새 창으로 열었어요 — 그 화면에 로그인 칸이 없어요 (이미 로그인됐거나, 사이트의 로그인 버튼을 눌러야 해요)", vaultOpenFail: "PT 브라우저 창을 띄우지 못했어요", vaultPwShow: "👁 보기", vaultPwHide: "숨기기", vaultPwWait: "바탕화면 확인창에 답해 주세요…", vaultPwAsk: "바탕화면에 확인창이 떴어요 — 「예」를 누르면 보여요", vaultPwDenied: "보이지 않았어요 (「아니요」를 눌렀어요)", vaultPwBusy: "바탕화면에 확인창이 이미 떠 있어요", vaultPwCopy: "복사", vaultPwCopied: "비밀번호를 복사했어요", vaultPwNoWin: "비밀번호 보기는 윈도우에서만 돼요", vaultLocalOnly: "로그인 보관함은 PowerTerminal 이 켜진 PC 에서만 열려요 (비밀번호가 폰으로 오가지 않게).",
     vaultErr_name: "이름을 적어 주세요", vaultErr_domain: "주소가 올바르지 않아요 (예: eclogin.cafe24.com — 여러 개면 쉼표). [허용] 은 같은 회사 주소만 돼요", vaultErr_username: "아이디를 적어 주세요",
@@ -15053,7 +15061,9 @@ async function openVault(paneEl) {
     '<details class="vt-help"><summary></summary><div class="pc-msg"></div></details>' +
     '<div class="vt-form"><input class="vt-name" maxlength="40"><input class="vt-domain" maxlength="200">' +
     '<input class="vt-user" maxlength="200" autocomplete="off"><input class="vt-pw" type="password" maxlength="500" autocomplete="new-password">' +
-    '<button class="pc-yes vt-add"></button></div><div class="vt-list"></div>' +
+    '<button class="pc-yes vt-add"></button></div>' +
+    '<details class="vt-more"><summary></summary><div class="vt-more-in"><input class="vt-tab" maxlength="40" autocomplete="off"><input class="vt-shop" maxlength="200" autocomplete="off">' +
+    '<textarea class="vt-extra" rows="2" autocomplete="off" spellcheck="false"></textarea><div class="vt-more-tip"></div></div></details><div class="vt-list"></div>' +
     '<div class="vt-imp"><div class="vi-how"></div><div class="vi-btns"><button class="pc-no vi-open"></button><button class="pc-yes vi-pick"></button>' +
     '<input type="file" class="vi-file" accept=".csv,text/csv" style="display:none"></div><div class="vi-who"></div>' +
     '<div class="vi-bar"><span class="vi-sum"></span><input class="vi-find"><button class="pc-yes vi-all"></button></div>' +
@@ -15069,10 +15079,24 @@ async function openVault(paneEl) {
                   ['.vt-user', T.vaultUser || 'Username'], ['.vt-pw', T.vaultPw || 'Password']];
   // 여기서 친 글자·붙여넣기가 터미널이나 단축키 처리로 새지 않게
   fields.forEach(([s, ph]) => { $(s).placeholder = ph; ['keydown', 'keypress', 'keyup', 'paste'].forEach(t => $(s).addEventListener(t, e => e.stopPropagation())); });
+  // ➕ 추가 칸 — 매번 쓰는 칸이 아니라 접어 두고, 접힌 줄에 지금 값을 요약해 보인다
+  const moreSum = (keys) => {
+    const parts = [$('.vt-tab').value.trim() && '🗂 ' + $('.vt-tab').value.trim(), $('.vt-shop').value.trim() && '🏬 ' + $('.vt-shop').value.trim(),
+      $('.vt-extra').value.trim() && $('.vt-extra').value.trim() !== '-' ? '➕ ' + (T.vaultMoreN || '{n} field(s)').replace('{n}', $('.vt-extra').value.trim().split(/\n/).filter(l => l.includes('=')).length) : (keys && keys.length ? '➕ ' + keys.join(', ') : '')].filter(Boolean);
+    $('.vt-more summary').textContent = (T.vaultMore || '➕ Extra fields — for logins with 3+ boxes (e.g. cafe24 sub-admin)') + (parts.length ? '  ·  ' + parts.join('  ·  ') : '');
+  };
+  let editKeys = [];
+  $('.vt-tab').placeholder = T.vaultTab || 'Login type (tab), e.g. Sub-admin';
+  $('.vt-shop').placeholder = T.vaultShop || 'Shop (store) ID, e.g. myshop01';
+  $('.vt-more-tip').textContent = T.vaultMoreTip || '';
+  ['.vt-tab', '.vt-shop', '.vt-extra'].forEach(s => { ['keydown', 'keypress', 'keyup', 'paste'].forEach(t => $(s).addEventListener(t, e => e.stopPropagation())); $(s).addEventListener('input', () => moreSum(editKeys)); });
   let editId = '';
   const resetForm = () => {
-    editId = '';
+    editId = ''; editKeys = [];
     fields.forEach(([s, ph]) => { $(s).value = ''; $(s).placeholder = ph; });
+    ['.vt-tab', '.vt-shop', '.vt-extra'].forEach(s => { $(s).value = ''; });
+    $('.vt-extra').placeholder = T.vaultExtra || 'Other fields — one per line: field name=value (e.g. Auth code=1234)';
+    $('.vt-more').open = false; moreSum([]);
     $('.vt-add').textContent = T.vaultAdd || 'Save';
     ov.querySelectorAll('.vt-card.editing').forEach(n => n.classList.remove('editing'));
   };
@@ -15085,7 +15109,7 @@ async function openVault(paneEl) {
     vaultNow = data;
     const list = $('.vt-list'), top = list.scrollTop;
     const q = $('.vt-find').value.trim().toLowerCase();
-    const shown = data.entries.filter(e => !q || [e.name, e.domain, ...(e.hosts || []), e.username].some(x => String(x || '').toLowerCase().includes(q))).sort(byName);
+    const shown = data.entries.filter(e => !q || [e.name, e.domain, ...(e.hosts || []), e.username, e.shop, e.tab].some(x => String(x || '').toLowerCase().includes(q))).sort(byName);
     $('.vt-count').textContent = (T.vaultShared || 'Shared by every session · {n}').replace('{n}', q ? shown.length + ' / ' + data.entries.length : data.entries.length);
     list.innerHTML = '';
     if (!shown.length) {
@@ -15130,6 +15154,10 @@ async function openVault(paneEl) {
       pwc.onclick = ev => { ev.stopPropagation(); if (!pwVal) return; navigator.clipboard.writeText(pwVal).then(() => flashToast(T.vaultPwCopied || 'Copied'), () => {}); };
       pwr.append('🔒 ', pwt, pwb, pwc);
       meta.append(dom, usr, pwr);
+      // 추가 칸 — 탭·몰 아이디는 그대로, 자유 칸은 이름만 (값은 비밀번호처럼 숨김)
+      if (e.tab) { const x = document.createElement('span'); x.textContent = '🗂 ' + e.tab; x.title = T.vaultTabT || 'Login type (tab) PT clicks first'; meta.appendChild(x); }
+      if (e.shop) { const x = document.createElement('span'); x.textContent = '🏬 ' + e.shop; x.title = T.vaultShopT || 'Shop (store) ID'; meta.appendChild(x); }
+      if (e.extraKeys && e.extraKeys.length) { const x = document.createElement('span'); x.textContent = '➕ ' + e.extraKeys.join(', '); x.title = T.vaultExtraT || 'Extra fields (values hidden)'; meta.appendChild(x); }
       if (e.lastUsed) { const u = document.createElement('span'); u.className = 'vt-used'; u.textContent = (T.vaultUsed || 'last used') + ' ' + when(e.lastUsed); meta.appendChild(u); }
       const ed = document.createElement('button'); ed.className = 'pc-no'; ed.textContent = T.vaultEdit || 'Edit';
       ed.onclick = ev => {
@@ -15137,6 +15165,9 @@ async function openVault(paneEl) {
         editId = e.id;
         $('.vt-name').value = e.name; $('.vt-domain').value = [e.domain, ...(e.hosts || [])].join(', '); $('.vt-user').value = e.username;
         $('.vt-pw').value = ''; $('.vt-pw').placeholder = T.vaultPwKeep || 'Password (blank = keep)';
+        $('.vt-tab').value = e.tab || ''; $('.vt-shop').value = e.shop || ''; $('.vt-extra').value = ''; editKeys = e.extraKeys || [];
+        $('.vt-extra').placeholder = editKeys.length ? (T.vaultExtraKeep || 'Saved: {k} — blank = keep, a single - = remove').replace('{k}', editKeys.join(', ')) : (T.vaultExtra || 'Other fields — one per line: field name=value (e.g. Auth code=1234)');
+        $('.vt-more').open = !!(e.tab || e.shop || editKeys.length); moreSum(editKeys);
         $('.vt-add').textContent = T.vaultUpdate || 'Update';
         list.querySelectorAll('.vt-card.editing').forEach(n => n.classList.remove('editing'));
         row.classList.add('editing');
@@ -15193,7 +15224,8 @@ async function openVault(paneEl) {
   $('.vt-add').onclick = async ev => {
     ev.stopPropagation();
     const res = await api('POST', '/api/vault', { id: editId, name: $('.vt-name').value.trim(), domain: $('.vt-domain').value.trim(),
-                                                 username: $('.vt-user').value.trim(), password: $('.vt-pw').value });
+                                                 username: $('.vt-user').value.trim(), password: $('.vt-pw').value,
+                                                 tab: $('.vt-tab').value.trim(), shop: $('.vt-shop').value.trim(), extra: $('.vt-extra').value });
     if (res && Array.isArray(res.entries)) { paint(res); resetForm(); flashToast(T.vaultSaved || 'Saved'); }
     else flashToast('⚠ ' + ((res && T['vaultErr_' + res.error]) || (res && res.error) || 'save failed'));
   };
