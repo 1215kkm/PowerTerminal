@@ -2,6 +2,7 @@
 # tracked files. Untracked files (config.json, sessions.json, node_modules, ...)
 # are NOT in the ZIP, so your data/token are left untouched.
 $ErrorActionPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'   # Windows PowerShell 5.1 downloads many times slower while drawing its progress bar
 $root = $PSScriptRoot
 
 try { $loc = (Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version }

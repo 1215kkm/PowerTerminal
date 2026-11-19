@@ -621,7 +621,7 @@ let backTo = -1;
 let pf = null, pfPages = [], dimKey = '', turnPages = new Map(), blankPg = null;
 const liveBox = document.createElement('div');   // one live work window, moved to whichever page is last
 liveBox.className = 'work live';
-liveBox.innerHTML = '<div class="wh"><i class="dot"></i><b></b><span class="st"></span><span class="tz"><button type="button" data-z="-1">가－</button><i></i><button type="button" data-z="1">가＋</button></span><button type="button" class="bigbtn"></button></div><div class="termbox"><div class="tin"></div></div>';
+liveBox.innerHTML = '<div class="wh"><i class="dot"></i><b></b><span class="st"></span><span class="tz"><button type="button" data-z="-1">' + (KO ? '가－' : 'A－') + '</button><i></i><button type="button" data-z="1">' + (KO ? '가＋' : 'A＋') + '</button></span><button type="button" class="bigbtn"></button></div><div class="termbox"><div class="tin"></div></div>';
 liveBox.querySelector('.bigbtn').onclick = () => { liveBox.classList.toggle('big'); turnPages.clear(); fitTerm(); layout(true); };
 
 const fmtT = ts => { const d = new Date(ts), p = n => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };

@@ -83,6 +83,8 @@
   .pane.peer.bgrun:not(.busy) { border-color: var(--violet) !important; }
   .pane-head .bgBadge { display: none; align-items: center; gap: 3px; flex: 0 0 auto; font-size: 11px; font-weight: 700; color: #ca8a04; }
   .pane.bgrun:not(.busy) .pane-head .bgBadge { display: inline-flex; }
+  /* 🌐 한/영 두 벌로 쓴 안내문 — 화면 언어가 한국어면 .ko-only, 아니면 .en-only 만 보인다 */
+  html:not([lang="ko"]) .ko-only, html[lang="ko"] .en-only { display: none !important; }
   .pane.dragging { opacity: .4; }
   .pane.dragover { outline: 2px dashed var(--pink); }
   /* 파일 여러 개를 창 아무 곳에나 끌어올 때 — 창 전체가 드롭존임을 보여줌 */
@@ -1877,7 +1879,7 @@
     <span id="cmTitle">📝 Code</span>
     <span id="cmFile" title=""></span>
     <span id="cmDirty">●</span>
-    <span id="cmWrap" title="Alt+Z — 자동 줄바꿈">↩ off</span>
+    <span id="cmWrap" data-i18n-title="cmWrapT" title="Alt+Z — 자동 줄바꿈">↩ off</span>
     <span id="cmUsage" title="Claude usage"></span>
     <span class="sp"></span>
     <button id="cmGrepBtn" title="Find in files — Ctrl+Shift+F">🔎 <span data-i18n="cmGrep">Find in files</span></button>
@@ -1889,11 +1891,11 @@
   </div>
   <!-- 🔎 여러 파일에서 글자 찾기 — cmBar 아래 한 줄 (Ctrl+Shift+F 로 열고 닫음) -->
   <div id="cmGrepBar">
-    <input id="cmGrepInput" type="text" placeholder="여러 파일에서 찾기…  Enter로 검색 · Ctrl+Shift+F">
+    <input id="cmGrepInput" type="text" data-i18n-ph="cmGrepPh" placeholder="여러 파일에서 찾기…  Enter로 검색 · Ctrl+Shift+F">
     <label><input type="checkbox" id="cmGrepCase"> <span data-i18n="cmGrepCase">Aa 대소문자</span></label>
     <label><input type="checkbox" id="cmGrepRe"> <span data-i18n="cmGrepRe">.* 정규식</span></label>
     <span class="gp-stat" id="cmGrepStat"></span>
-    <span class="gp-x" id="cmGrepClose" title="닫기 (Esc)">✕</span>
+    <span class="gp-x" id="cmGrepClose" data-i18n-title="cmCloseT" title="닫기 (Esc)">✕</span>
   </div>
   <div id="cmBody">
     <div id="cmSessions" class="cmcol"></div>
@@ -1908,7 +1910,7 @@
           🖼 <span data-i18n="cmImgs">Images</span>
           <small data-i18n="cmImgsHint">— click to enlarge · drag into the code</small>
           <span class="cmi-sp"></span>
-          <input type="range" id="cmImgSize" min="24" max="240" step="2" title="썸네일 크기">
+          <input type="range" id="cmImgSize" min="24" max="240" step="2" data-i18n-title="cmThumbT" title="썸네일 크기">
           <output id="cmImgSizeV"></output>
           <span class="cmi-presets">
             <button data-sz="30">30</button><button data-sz="50">50</button><button data-sz="100">100</button><button data-sz="150">150</button>
@@ -1997,7 +1999,7 @@
     <div id="knownList" style="max-height:32vh;overflow:auto;margin-bottom:8px"></div>
     <div style="display:flex;gap:6px">
       <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
-      <button onclick="toggleBrowse()" title="폴더 찾아보기" style="white-space:nowrap">📂</button>
+      <button onclick="toggleBrowse()" data-i18n-title="browseT" title="폴더 찾아보기" style="white-space:nowrap">📂</button>
       <button class="primary" onclick="addManual()" data-i18n="add">Add</button>
     </div>
     <div id="browser" style="display:none;border:2px solid var(--sky);border-radius:8px;margin-top:8px">
@@ -2190,18 +2192,25 @@
   </label>
   <!-- 📆 구글 캘린더 연동 -->
   <div id="gcalBox" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">📆 <span id="gcalTitle">구글 캘린더 연동</span></div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">📆 <span id="gcalTitle" data-i18n="gcalTitle">구글 캘린더 연동</span></div>
     <div id="gcalStatus" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
     <div id="gcalConnected" style="display:none">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="small" id="gcalSyncBtn">↻ 지금 동기화</button>
-        <button class="small" id="gcalDisc" style="color:#f87171">연결 해제</button>
+        <button class="small" id="gcalSyncBtn"><span class="ko-only">↻ 지금 동기화</span><span class="en-only">↻ Sync now</span></button>
+        <button class="small" id="gcalDisc" style="color:#f87171"><span class="ko-only">연결 해제</span><span class="en-only">Disconnect</span></button>
       </div>
     </div>
     <div id="gcalSetup" style="display:none">
       <details style="font-size:12px;color:var(--muted);line-height:1.7">
-        <summary style="cursor:pointer;color:var(--fg)">최초 1회 설정 방법 (구글 클라우드 · 3분)</summary>
-        <ol style="padding-left:18px;margin:8px 0">
+        <summary style="cursor:pointer;color:var(--fg)"><span class="ko-only">최초 1회 설정 방법 (구글 클라우드 · 3분)</span><span class="en-only">One-time setup (Google Cloud · 3 minutes)</span></summary>
+        <ol class="en-only" style="padding-left:18px;margin:8px 0">
+          <li>Create a project in the <a href="https://console.cloud.google.com/projectcreate" target="_blank" style="color:#60a5fa">Cloud Console</a></li>
+          <li>Enable the <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" style="color:#60a5fa">Google Calendar API</a></li>
+          <li>OAuth consent screen → External → add <b>your Gmail</b> as a test user</li>
+          <li>Credentials → OAuth client ID → application type <b>Desktop app</b> → Create</li>
+          <li>Paste the <b>client ID and secret</b> below → Save → Connect</li>
+        </ol>
+        <ol class="ko-only" style="padding-left:18px;margin:8px 0">
           <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" style="color:#60a5fa">클라우드 콘솔</a>에서 프로젝트 생성</li>
           <li><a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" style="color:#60a5fa">Google Calendar API</a> 사용 설정</li>
           <li>OAuth 동의 화면 → 외부 → 테스트 사용자에 <b>내 Gmail 추가</b></li>
@@ -2209,15 +2218,15 @@
           <li>나온 <b>클라이언트 ID·비밀번호</b>를 아래에 붙여넣기 → 저장 → 연결</li>
         </ol>
       </details>
-      <label style="font-size:12px;color:var(--muted);margin-top:6px">클라이언트 ID</label>
+      <label style="font-size:12px;color:var(--muted);margin-top:6px"><span class="ko-only">클라이언트 ID</span><span class="en-only">Client ID</span></label>
       <input id="gcalCid" placeholder="…apps.googleusercontent.com" style="width:100%;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 10px;font-size:12px;font-family:monospace">
-      <label style="font-size:12px;color:var(--muted);margin-top:6px">클라이언트 비밀번호</label>
+      <label style="font-size:12px;color:var(--muted);margin-top:6px"><span class="ko-only">클라이언트 비밀번호</span><span class="en-only">Client secret</span></label>
       <input id="gcalSecret" placeholder="GOCSPX-…" style="width:100%;background:#111827;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 10px;font-size:12px;font-family:monospace">
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="small" id="gcalSaveBtn">💾 저장</button>
-        <button class="small primary" id="gcalConnectBtn" style="background:linear-gradient(90deg,var(--violet),var(--pink));color:#fff;font-weight:700">🔗 구글 계정 연결</button>
+        <button class="small" id="gcalSaveBtn"><span class="ko-only">💾 저장</span><span class="en-only">💾 Save</span></button>
+        <button class="small primary" id="gcalConnectBtn" style="background:linear-gradient(90deg,var(--violet),var(--pink));color:#fff;font-weight:700"><span class="ko-only">🔗 구글 계정 연결</span><span class="en-only">🔗 Connect Google account</span></button>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px"><span class="ko-only">※ 연결은 이 PC 브라우저(localhost)에서 진행하세요. 폰·외부주소에선 구글이 리디렉션을 막습니다.</span><span class="en-only">※ Connect from the browser on this PC (localhost). Google blocks the redirect on a phone or the external address.</span></div>
     </div>
   </div>
   <!-- 🔤 터미널 글꼴 — ①②③ 같은 기호가 글꼴에 따라 아주 작게 그려져 안 보이는 걸 바꿀 수 있게 -->
@@ -2723,6 +2732,7 @@ const I18N_MORE = {
     brRules: "Edit rules", brRulesSave: "Save", brRulesReset: "Restore defaults", brRulesSaved: "Browser rules saved",
     vault: "Login vault", vaultName: "Name (e.g. Toypang)", vaultDomain: "Login page address(es), comma-separated (e.g. eclogin.cafe24.com)", vaultUser: "Username", vaultPw: "Password",
     vaultAllow: "Allow {h}", vaultAllowed: "Allowed {h} for this login",
+    folderHintT: "Click: open the folder · right-click: change the folder", winMenuHint: "Right-click: open in a new window / move to another window", movedFolderT: "Folder changed — restarting in the new folder", micDrop: "Voice input stops right away", micDropHow: "On iPhone, turn on Settings → General → Keyboard → Enable Dictation, and open this in Safari rather than a Home Screen app", memT: "Memory (RAM) this session uses — the session plus {n} child process(es)", memSysT: "Whole computer", pickFolderH: "Find and pick the moved folder", upT: "Up", pickFolderNote: "The conversation history and memos move to the new folder and continue", pickThisT: "This folder", noSubFolders: "No subfolders", cloneToT: "Clone into", cloneToBtn: "Change", cloneToPickH: "Pick the folder to clone the repository into", cloneToNote: "A new folder named after the repository is created inside the folder you pick", winTookT: "This session moved to this window", winNewT: "Open in a new window", winNoneT: "No other PowerTerminal window is open", winMoveT: "Move to window {n}", winMainT: "Main", cmWrapT: "Alt+Z — word wrap", cmGrepPh: "Find in files…  Enter to search · Ctrl+Shift+F", cmCloseT: "Close (Esc)", cmThumbT: "Thumbnail size", browseT: "Browse for a folder", gcalTitle: "Google Calendar",
     vaultPwKeep: "Password (blank = keep)", vaultMore: "➕ Extra fields — for logins with 3+ boxes (e.g. cafe24 sub-admin)", vaultMoreN: "{n} field(s)", vaultTab: "Login type (tab), e.g. Sub-admin", vaultShop: "Shop (store) ID, e.g. myshop01", vaultExtra: "Other fields — one per line: field name=value (e.g. Auth code=1234)", vaultExtraKeep: "Saved: {k} — blank = keep, a single - = remove", vaultMoreTip: "Type the tab label exactly as on the page and PT clicks it first. The shop ID goes into the mall/store box (or the first box), the username into the next one. Other fields go into the box whose label contains the field name. Leave all blank for normal logins.", vaultTabT: "Login type (tab) PT clicks first", vaultShopT: "Shop (store) ID", vaultExtraT: "Extra fields (values hidden)", vaultAdd: "Save", vaultUpdate: "Update", vaultEdit: "Edit", vaultDel: "Delete", vaultDelSure: "Really delete?",
     vaultClose: "Close", vaultTitle: "🔑 Login vault", vaultShared: "Shared by every session · {n}", vaultFind: "Search name, site or username", vaultHow: "How it works", vaultNoHit: "No matching logins", vaultSaved: "Saved to the login vault", vaultEmpty: "No saved logins yet. Add one below.", vaultUsed: "last used",
     vaultLogHead: "Recent use (🖱 = by you)", vaultOpenTip: "Click: open in a new PT browser window, signed in", vaultOpening: "Opening {n} in a new window…", vaultOpened: "✓ Opened {n} and signed in", vaultOpenedNoForm: "✓ Opened {n} — no login form on that page (already signed in, or press its Log in button)", vaultOpenFail: "Could not open the PT browser window", vaultPwShow: "👁 Show", vaultPwHide: "Hide", vaultPwWait: "Answer the box on the desktop…", vaultPwAsk: "A confirm box opened on the desktop — press Yes to show it", vaultPwDenied: "Not shown (you pressed No)", vaultPwBusy: "Another confirm box is still open on the desktop", vaultPwCopy: "Copy", vaultPwCopied: "Password copied", vaultPwNoWin: "Showing passwords works on Windows only", vaultLocalOnly: "The login vault only opens on the PC running PowerTerminal (passwords never travel to your phone).",
@@ -2910,6 +2920,7 @@ const I18N_MORE = {
     brRules: "규칙 편집", brRulesSave: "저장", brRulesReset: "기본 규칙으로", brRulesSaved: "브라우저 규칙을 저장했어요",
     vault: "로그인 보관함", vaultName: "이름 (예: 토이팡)", vaultDomain: "로그인 화면 주소, 여러 개면 쉼표 (예: eclogin.cafe24.com)", vaultUser: "아이디", vaultPw: "비밀번호",
     vaultAllow: "{h} 허용", vaultAllowed: "{h} 도 이 로그인에 허용했어요",
+    cmWrapT: "Alt+Z — 자동 줄바꿈", cmGrepPh: "여러 파일에서 찾기…  Enter로 검색 · Ctrl+Shift+F", cmCloseT: "닫기 (Esc)", cmThumbT: "썸네일 크기", browseT: "폴더 찾아보기", gcalTitle: "구글 캘린더 연동",
     vaultPwKeep: "비밀번호 (빈칸 = 그대로)", vaultMore: "➕ 추가 칸 — 카페24 부운영자처럼 칸이 3개 이상인 로그인", vaultMoreN: "칸 {n}개", vaultTab: "로그인 종류(탭) 예) 부운영자", vaultShop: "쇼핑몰(상점) 아이디 예) myshop01", vaultExtra: "그 밖의 칸 — 한 줄에 하나: 칸 이름=값 (예: 인증코드=1234)", vaultExtraKeep: "저장된 칸: {k} — 비우면 그대로, - 한 글자면 지우기", vaultMoreTip: "탭 이름을 화면 글자 그대로 적으면 PT 가 그 탭을 먼저 누릅니다. 쇼핑몰 아이디는 몰·상점 칸(없으면 첫 칸)에, 아이디는 그다음 칸에 넣어요. 그 밖의 칸은 칸 이름이 들어간 입력칸에 넣습니다. 보통 로그인은 모두 비워 두세요.", vaultTabT: "PT 가 먼저 누르는 로그인 종류(탭)", vaultShopT: "쇼핑몰(상점) 아이디", vaultExtraT: "추가 칸 (값은 숨김)", vaultAdd: "저장", vaultUpdate: "수정", vaultEdit: "수정", vaultDel: "삭제", vaultDelSure: "정말 삭제?",
     micIos: "아이폰은 자판의 🎤(받아쓰기) 키를 눌러 말하세요", vaultClose: "닫기", vaultTitle: "🔑 로그인 보관함", vaultShared: "모든 세션이 같이 써요 · {n}개", vaultFind: "이름·주소·아이디로 찾기", vaultHow: "어떻게 작동하나요?", vaultNoHit: "찾는 로그인이 없어요", vaultSaved: "로그인 보관함에 저장했어요", vaultEmpty: "아직 저장된 로그인이 없어요. 아래에서 추가하세요.", vaultUsed: "마지막 사용",
     vaultLogHead: "최근 사용 기록 (🖱 = 내가 직접)", vaultOpenTip: "누르면 PT 브라우저에 새 창으로 열고 로그인까지 해요", vaultOpening: "{n} 새 창으로 여는 중…", vaultOpened: "✓ {n} 새 창에서 로그인했어요", vaultOpenedNoForm: "✓ {n} 새 창으로 열었어요 — 그 화면에 로그인 칸이 없어요 (이미 로그인됐거나, 사이트의 로그인 버튼을 눌러야 해요)", vaultOpenFail: "PT 브라우저 창을 띄우지 못했어요", vaultPwShow: "👁 보기", vaultPwHide: "숨기기", vaultPwWait: "바탕화면 확인창에 답해 주세요…", vaultPwAsk: "바탕화면에 확인창이 떴어요 — 「예」를 누르면 보여요", vaultPwDenied: "보이지 않았어요 (「아니요」를 눌렀어요)", vaultPwBusy: "바탕화면에 확인창이 이미 떠 있어요", vaultPwCopy: "복사", vaultPwCopied: "비밀번호를 복사했어요", vaultPwNoWin: "비밀번호 보기는 윈도우에서만 돼요", vaultLocalOnly: "로그인 보관함은 PowerTerminal 이 켜진 PC 에서만 열려요 (비밀번호가 폰으로 오가지 않게).",
@@ -8112,11 +8123,12 @@ function sendBlip() {
   } catch (e) {}
 }
 // 완료음이 왜 안 났는지 남겨두는 진단 기록 — ⚙ 설정의 '완료 소리 테스트'와 콘솔에서 확인.
-let soundDiag = '(아직 완료 이벤트 없음)';
+const _ko = (k, e) => LANG === 'ko' ? k : e;   // 진단 글 같은 짧은 문장용
+let soundDiag = _ko('(아직 완료 이벤트 없음)', '(no finished task yet)');
 function speakNum(n) {   // 띵동 후 "session two done"
-  if (!soundOn) { soundDiag = '소리 꺼짐 — 헤더 🔇 를 눌러 켜세요'; return; }
-  if (!n) { soundDiag = '세션 번호를 못 읽음'; return; }
-  soundDiag = '울림 (세션 ' + n + ') — ' + new Date().toLocaleTimeString();
+  if (!soundOn) { soundDiag = _ko('소리 꺼짐 — 헤더 🔇 를 눌러 켜세요', 'Sound is off — press 🔇 in the header'); return; }
+  if (!n) { soundDiag = _ko('세션 번호를 못 읽음', 'Could not read the session number'); return; }
+  soundDiag = _ko('울림 (세션 ' + n + ')', 'Played (session ' + n + ')') + ' — ' + new Date().toLocaleTimeString();
   chime();
   const w = NUMWORDS[n] || String(n);
   setTimeout(() => speak('session ' + w + ' done'), IS_REMOTE_VIEW ? 800 : 560);   // 3음 차임이 끝난 뒤 말하기
@@ -8124,11 +8136,11 @@ function speakNum(n) {   // 띵동 후 "session two done"
 // 지금 이 창에서 소리가 날 수 있는 상태인지 한 줄로. (콘솔에서 ptSoundDiag() 로도 호출 가능)
 function ptSoundDiag() {
   let ctx = '없음';
-  try { ctx = audioCtx ? audioCtx.state : '아직 안 만들어짐'; } catch (e) {}
+  try { ctx = audioCtx ? audioCtx.state : _ko('아직 안 만들어짐', 'not created yet'); } catch (e) {}
   let voices = -1;
   try { voices = (speechSynthesis.getVoices() || []).length; } catch (e) {}
-  return '소리켜짐=' + soundOn + ' · 오디오=' + ctx + ' · 음성엔진=' + (window.speechSynthesis ? voices + '개' : '없음')
-       + ' · 마지막 완료판정=' + soundDiag;
+  return _ko('소리켜짐=', 'sound=') + soundOn + _ko(' · 오디오=', ' · audio=') + ctx + _ko(' · 음성엔진=', ' · voices=') + (window.speechSynthesis ? voices + _ko('개', '') : _ko('없음', 'none'))
+       + _ko(' · 마지막 완료판정=', ' · last done check=') + soundDiag;
 }
 function updateSoundBtn() {
   const b = document.getElementById('btnSound'); if (!b) return;
@@ -8246,10 +8258,10 @@ function setState(el, done, busy, announce) {
       if (el.isConnected && el.classList.contains('done') && !el.classList.contains('busy')) flowHandoff(el.dataset.id);
     }, FLOW_SETTLE_MS);
   }
-  if (!!done && !wasDone && wasBusy && !announce) soundDiag = '완료는 왔지만 서버가 announce=false (요청 없이 끝난 완료로 판단)';
-  if (!!done && !wasDone && !wasBusy) soundDiag = '완료 직전에 작업중 상태를 못 봄 (busy→done 전환이 아님)';
+  if (!!done && !wasDone && wasBusy && !announce) soundDiag = _ko('완료는 왔지만 서버가 announce=false (요청 없이 끝난 완료로 판단)', 'Finished, but not from a request you sent (announce=false)');
+  if (!!done && !wasDone && !wasBusy) soundDiag = _ko('완료 직전에 작업중 상태를 못 봄 (busy→done 전환이 아님)', 'Did not see it working before it finished (not a busy→done change)');
   if (!!done && !wasDone && wasBusy && announce) {
-    soundDiag = '완료 감지됨 — 6초 뒤 울릴 예정…';
+    soundDiag = _ko('완료 감지됨 — 6초 뒤 울릴 예정…', 'Finished — playing in 6 seconds…');
     if (el._doneTimer) clearTimeout(el._doneTimer);
     el._doneTimer = setTimeout(() => {
       el._doneTimer = null;
@@ -8260,7 +8272,7 @@ function setState(el, done, busy, announce) {
         if (!el._lastAnn || annNow - el._lastAnn > 15000) {
           el._lastAnn = annNow;
           speakNum(parseInt((el.querySelector('.num') || {}).textContent, 10));
-        } else soundDiag = '15초 안에 이미 울려서 건너뜀';
+        } else soundDiag = _ko('15초 안에 이미 울려서 건너뜀', 'Skipped — already played within 15 seconds');
         markLastDone(el);   // 🕒 전송 버튼 옆 '최근완료' 시각 — 소리와 같은 판정(진짜 마무리)을 쓴다
         // ◎ 플로우 인계는 여기서 하지 않는다 — 아래에서 훨씬 길게 기다린 뒤에 (FLOW_SETTLE_MS)
         // 📝 요청 내역 '완료' 스탬프 — AI가 요약을 쓰는 게 아니라 상태신호로만 찍음 (토큰 0)
@@ -8280,7 +8292,7 @@ function setState(el, done, busy, announce) {
             if (last && memoDlg.open && pend.some(q => normPath(q.path) === normPath(memoPath))) { memoData = last; renderMemo(); }
           })();
         }
-      } else soundDiag = '6초 기다리는 사이 완료 상태가 풀림 (다시 작업중이 됨)';
+      } else soundDiag = _ko('6초 기다리는 사이 완료 상태가 풀림 (다시 작업중이 됨)', 'It started working again during the 6-second wait');
     }, 6000);
   }
 }
@@ -11838,10 +11850,10 @@ async function gcalRefresh() {
   if (s.connected) {
     conn.style.display = ''; setup.style.display = 'none';
     const last = s.last && s.last.at ? (s.last.ok ? '✓ ' : '⚠ ') + esc(s.last.msg || '') : '';
-    st.innerHTML = `연결됨 <b>${esc(s.email || '')}</b> · 동기화 대상 ${s.dated}건<br><span style="opacity:.8">${last}</span>`;
+    st.innerHTML = _ko('연결됨', 'Connected') + ` <b>${esc(s.email || '')}</b> · ` + _ko('동기화 대상 ' + s.dated + '건', s.dated + ' item(s) to sync') + `<br><span style="opacity:.8">${last}</span>`;
   } else {
     conn.style.display = 'none'; setup.style.display = '';
-    st.textContent = s.hasCreds ? '자격증명은 저장됨 — [구글 계정 연결]을 누르세요.' : 'PT 일정을 내 구글 캘린더에 직접 올립니다 (즉시 반영·양방향 아님). 최초 1회 설정이 필요합니다.';
+    st.textContent = s.hasCreds ? _ko('자격증명은 저장됨 — [구글 계정 연결]을 누르세요.', 'Credentials saved — press [Connect Google account].') : LANG !== 'ko' ? 'Puts your PT schedule on your own Google Calendar (one-way, applied right away). Needs a one-time setup.' : 'PT 일정을 내 구글 캘린더에 직접 올립니다 (즉시 반영·양방향 아님). 최초 1회 설정이 필요합니다.';
     const cid = document.getElementById('gcalCid'), sec = document.getElementById('gcalSecret');
     document.getElementById('gcalSaveBtn').onclick = async () => {
       await api('POST', '/api/gcal/creds', { clientId: cid.value.trim(), clientSecret: sec.value.trim() });

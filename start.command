@@ -91,6 +91,22 @@ if ! command -v claude >/dev/null 2>&1; then
   esac
 fi
 
+# --- desktop shortcut on first run (macOS) — the same thing start.bat does with PowerTerminal.lnk on Windows.
+#     A tiny PowerTerminal.command on the Desktop that runs this folder's launcher (double-click opens Terminal,
+#     like start.command itself). If this folder was moved and the shortcut points at a folder that no longer
+#     exists, repoint it here. A second copy elsewhere does not steal a working shortcut.
+if [ "$(uname)" = "Darwin" ] && [ -d "$HOME/Desktop" ]; then
+  SC="$HOME/Desktop/PowerTerminal.command"
+  SCT=""
+  [ -f "$SC" ] && SCT=$(sed -n 's/^exec "\(.*\)"$/\1/p' "$SC" 2>/dev/null | head -1)
+  if [ ! -f "$SC" ] || { [ -n "$SCT" ] && [ ! -f "$SCT" ]; }; then
+    if printf '#!/bin/bash\n# PowerTerminal shortcut - made by start.command. Runs:\nexec "%s"\n' "$PWD/start.command" > "$SC" 2>/dev/null && chmod +x "$SC" 2>/dev/null; then
+      echo "  Desktop shortcut ready: PowerTerminal.command"
+      log "  desktop shortcut -> $PWD"
+    fi
+  fi
+fi
+
 # Chrome in its own new window (a draggable tab), else default browser
 launch_ui() {
   url="http://localhost:7777/"

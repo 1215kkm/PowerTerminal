@@ -42,7 +42,8 @@ rem ZIP download + git present: wire up the repo once so it can git-pull from no
 echo   Enabling git auto-update (one-time setup)...
 git init -q
 git remote add origin https://github.com/1215kkm/PowerTerminal.git
-git fetch --depth 1 origin main
+rem a stalled connection gives up after 20s instead of leaving "Updating..." on screen forever
+git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=20 fetch --depth 1 origin main
 git reset --hard origin/main
 git branch -M main
 git branch --set-upstream-to=origin/main main >nul 2>nul
@@ -50,7 +51,9 @@ goto AFTERUP
 
 :GITPULL
 rem force-match remote so a dirty tree (autocrlf churn etc.) never blocks the update. gitignored data is untouched.
-git fetch --depth 1 origin main >nul 2>nul
+git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=20 fetch --depth 1 origin main >nul 2>nul
+if errorlevel 1 echo   (could not reach GitHub - starting the version already here)
+if errorlevel 1 >>"%PTLOG%" echo   git fetch failed
 git reset --hard FETCH_HEAD >nul 2>nul
 goto AFTERUP
 
@@ -73,8 +76,49 @@ echo.
 pause
 exit /b
 :NODEOK
+>>"%PTLOG%" echo   update step done %time%
 
-call npm install --silent >nul 2>nul
+rem --- Node version: the terminal part (node-pty) ships ready-made only for Node 20-26. Older or newer Node
+rem     makes npm try to compile it, which needs Visual Studio build tools and looks like a frozen "Updating...". ---
+set "NODEMAJ=0"
+for /f "usebackq delims=" %%m in (`node -p "process.versions.node.split('.')[0]" 2^>nul`) do set "NODEMAJ=%%m"
+>>"%PTLOG%" echo   node major %NODEMAJ%
+if %NODEMAJ% LSS 20 goto NODEBAD
+if %NODEMAJ% GTR 26 goto NODEBAD
+goto NODEVEROK
+:NODEBAD
+echo.
+echo   [!] This Node.js version (v%NODEMAJ%) is not supported. Install the LTS version (22 or 24)
+echo       from https://nodejs.org , then run this again.
+echo.
+set /p n="   Open the download page now? (Y/N): "
+if /i "%n%"=="Y" start "" "https://nodejs.org/en/download/prebuilt-installer"
+pause
+exit /b
+:NODEVEROK
+
+rem --- components. The first run downloads them (1-3 minutes) - show npm's own progress so it never looks frozen. ---
+if exist "node_modules\@homebridge\node-pty-prebuilt-multiarch" if exist "node_modules\express" goto NPMQUIET
+echo [PowerTerminal] Installing components - first run, this takes 1-3 minutes...
+>>"%PTLOG%" echo   npm install (first run) %time%
+call npm install --no-audit --no-fund --loglevel=error
+goto NPMCHECK
+:NPMQUIET
+echo [PowerTerminal] Checking components...
+call npm install --no-audit --no-fund --silent >nul 2>nul
+:NPMCHECK
+node -e "require('@homebridge/node-pty-prebuilt-multiarch');require('express')" >nul 2>nul
+if not errorlevel 1 goto NPMOK
+>>"%PTLOG%" echo   components missing after npm install %time%
+echo.
+echo   [!] Some components could not be installed (see the messages above).
+echo       Check the internet connection and run start.bat again.
+echo       If it keeps failing, send this file to the developer:  %PTLOG%
+echo.
+pause
+exit /b
+:NPMOK
+>>"%PTLOG%" echo   components ok %time%
 
 rem --- Claude Code check (can be installed via npm now that Node exists) ---
 where claude >nul 2>nul && goto CLAUDEOK

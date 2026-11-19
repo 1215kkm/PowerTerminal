@@ -1,3 +1,8 @@
 # Shell scripts must keep LF line endings or macOS/Linux bash will refuse to run them
 *.command text eol=lf
 *.sh text eol=lf
+
+# Windows batch files must keep CRLF - cmd.exe mis-jumps (goto/call :label) in LF-only .bat files,
+# and the release ZIP is made with git archive, which follows these rules
+*.bat text eol=crlf
+*.cmd text eol=crlf

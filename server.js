@@ -1901,8 +1901,11 @@ app.get('/api/ping', (req, res) => {
 // 다른 PC: 이 주소만 치고 폰에 뜬 4자리 코드 입력 → 아래 POST가 cc_token 쿠키를 심어줌 → 정식 접속.
 app.get('/pair', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  res.type('html').send(`<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>PowerTerminal · 연결</title>
+  const ko = /^ko/i.test(String(req.headers['accept-language'] || ''));   // 🌐 다른 나라 기기는 영어로
+  const P = ko ? { t: '연결', h: 'PowerTerminal 연결', p: '이 PC를 서버에 연결합니다.<br>서버 PC(또는 이미 접속된 폰) 화면에 뜬<br><b>4자리 코드</b>를 입력하세요.', chk: '확인 중…', ok: '연결됨 · 이동 중…', many: '시도 초과 — 잠시 후 다시.', bad: '코드가 틀렸어요. 다시 확인하세요.', err: '연결 오류 — 다시 시도하세요.' }
+               : { t: 'Connect', h: 'Connect to PowerTerminal', p: 'This connects this device to the PowerTerminal PC.<br>Enter the <b>4-digit code</b> shown on that PC<br>(or on a phone that is already connected).', chk: 'Checking…', ok: 'Connected · opening…', many: 'Too many tries — wait a moment.', bad: 'Wrong code. Check it and try again.', err: 'Connection error — try again.' };
+  res.type('html').send(`<!doctype html><html lang="${ko ? 'ko' : 'en'}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>PowerTerminal · ${P.t}</title>
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 .card{width:min(92vw,340px);text-align:center;padding:28px 22px;background:#111827;border:1px solid #1f2937;border-radius:16px}
 h1{font-size:18px;margin:0 0 4px}p{color:#9ca3af;font-size:13px;margin:0 0 18px;line-height:1.5}
@@ -1910,19 +1913,19 @@ input{width:100%;font-size:34px;letter-spacing:14px;text-align:center;padding:12
 input:focus{outline:none;border-color:#8a38f5}.msg{min-height:18px;font-size:13px;margin-top:12px;font-weight:700}
 .err{color:#f87171}.ok{color:#34d399}</style></head><body>
 <div class="card"><div style="font-size:34px;margin-bottom:8px">🔑</div>
-<h1>PowerTerminal 연결</h1><p>이 PC를 서버에 연결합니다.<br>서버 PC(또는 이미 접속된 폰) 화면에 뜬<br><b>4자리 코드</b>를 입력하세요.</p>
+<h1>${P.h}</h1><p>${P.p}</p>
 <input id="c" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="----">
 <div id="m" class="msg"></div></div>
 <script>
 var c=document.getElementById('c'),m=document.getElementById('m');c.focus();
 c.addEventListener('input',function(){c.value=c.value.replace(/[^0-9]/g,'').slice(0,4);if(c.value.length===4)submit();});
-async function submit(){c.blur();m.className='msg';m.textContent='확인 중…';
+async function submit(){c.blur();m.className='msg';m.textContent=${JSON.stringify(P.chk)};
  try{var r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:c.value})});
   var j=await r.json().catch(function(){return{};});
-  if(r.ok&&j.ok){m.className='msg ok';m.textContent='연결됨 · 이동 중…';location.href='/';return;}
-  if(r.status===429){m.className='msg err';m.textContent='시도 초과 — 잠시 후 다시.';return;}
-  m.className='msg err';m.textContent='코드가 틀렸어요. 다시 확인하세요.';c.value='';c.focus();
- }catch(e){m.className='msg err';m.textContent='연결 오류 — 다시 시도하세요.';c.focus();}}
+  if(r.ok&&j.ok){m.className='msg ok';m.textContent=${JSON.stringify(P.ok)};location.href='/';return;}
+  if(r.status===429){m.className='msg err';m.textContent=${JSON.stringify(P.many)};return;}
+  m.className='msg err';m.textContent=${JSON.stringify(P.bad)};c.value='';c.focus();
+ }catch(e){m.className='msg err';m.textContent=${JSON.stringify(P.err)};c.focus();}}
 </script></body></html>`);
 });
 app.post('/api/pair', (req, res) => {
