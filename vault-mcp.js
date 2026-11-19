@@ -9,18 +9,20 @@ const PROFILE = process.env.PT_PROFILE || '';
 const TOOLS = [
   {
     name: 'list_logins',
-    description: 'List the logins saved in the PowerTerminal login vault (name, domain, username). Passwords are never shown.',
+    description: 'List the logins saved in the PowerTerminal login vault (name, domain, username, and which ones allow a username override). Passwords are never shown.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   },
   {
     name: 'login',
     description: "Sign in with a saved login. Open the site's login page in the browser first. PowerTerminal checks that the open tab " +
       'is on the saved domain, then types the username and password into the form itself and presses Enter — you never see the password. ' +
-      'For two-step logins (username page, then password page) call it again once the password page is showing.',
+      'For two-step logins (username page, then password page) call it again once the password page is showing. ' +
+      'Logins marked "username override" in list_logins share one password across many usernames: pass username to pick the account (only usernames of the shown shape are accepted).',
     inputSchema: {
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Login name exactly as shown by list_logins' },
+        username: { type: 'string', description: 'Only for logins that list_logins marks "username override": the username to sign in as (must match the shape shown). The saved password is used. Leave out otherwise.' },
         page_url: { type: 'string', description: 'URL of the login tab — only needed when several tabs are open on that site' },
         submit: { type: 'boolean', description: 'Press Enter after filling (default true)' }
       },
@@ -47,13 +49,14 @@ async function runTool(name, args) {
     const list = (j && j.entries) || [];
     if (!list.length) return { text: 'No saved logins. Ask the user to add one in PowerTerminal (🌐 → 🔑 Login vault).', isError: false };
     // 추가 칸(로그인 종류 탭·쇼핑몰 아이디·그 밖의 칸 이름)도 알려 준다 — 값은 PT 가 채우므로 AI 는 login(name) 만 부르면 된다
-    return { text: list.map(e => '- ' + e.name + ' — ' + e.domain + ' — ' + e.username +
+    return { text: list.map(e => '- ' + e.name + ' — ' + e.domain + ' — ' + (e.username || '(no default username)') +
+      (e.userPattern ? ' — username override: ' + e.userPattern + ' (call login(name, username) with a username of that shape)' : '') +
       (e.tab ? ' — login type (tab): ' + e.tab : '') + (e.shop ? ' — shop ID: ' + e.shop : '') +
       (e.extraKeys && e.extraKeys.length ? ' — extra fields: ' + e.extraKeys.join(', ') : '')).join('\n') +
       '\n(login(name) clicks the tab and fills every field itself — do not type into the form yourself)', isError: false };
   }
   if (name === 'login') {
-    const j = await call('/api/vault/fill', { profile: PROFILE, name: String(args.name || ''), pageUrl: String(args.page_url || ''), submit: args.submit !== false });
+    const j = await call('/api/vault/fill', { profile: PROFILE, name: String(args.name || ''), username: String(args.username || ''), pageUrl: String(args.page_url || ''), submit: args.submit !== false });
     return { text: (j && j.msg) || 'failed', isError: !(j && j.ok) };
   }
   return { text: 'Unknown tool: ' + name, isError: true };

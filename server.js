@@ -924,10 +924,28 @@ function vaultSite(host) {
 }
 const vaultSameSite = (host, dom) => !!host && !!dom && vaultSite(host) === vaultSite(dom);
 const vaultPublic = e => ({ id: e.id, name: e.name, domain: e.domain, hosts: vaultDomains(e).slice(1), username: e.username, url: e.url || '', updatedAt: e.updatedAt || 0, lastUsed: e.lastUsed || 0,
-  tab: e.tab || '', shop: e.shop || '', extraKeys: Array.isArray(e.extraKeys) ? e.extraKeys : [] });
+  tab: e.tab || '', shop: e.shop || '', extraKeys: Array.isArray(e.extraKeys) ? e.extraKeys : [], userPattern: e.userPattern || '' });
 // 자유 칸 — 「칸 이름=값」 한 줄에 하나. 값은 비밀번호처럼 암호문으로만 둔다(AI·화면엔 이름만)
 const vaultExtraParse = t => String(t || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => { const i = l.indexOf('='); return i > 0 ? { k: l.slice(0, i).trim().slice(0, 60), v: l.slice(i + 1).trim().slice(0, 500) } : null; }).filter(x => x && x.k && x.v).slice(0, 8);
 const vaultExtras = e => { if (!e.extraSecret) return []; try { const a = JSON.parse(vaultOpen(e.extraSecret)); return Array.isArray(a) ? a : []; } catch (x) { return []; } };
+/* 🔀 아이디 바꿔 쓰기 — 허용할 아이디 모양. 「ecuwdemo*」(* = 아무 글자, ? = 한 글자, 쉼표로 여러 개) 또는 「/^ecuwdemo\d+$/」(정규식).
+   어느 쪽이든 아이디 전체가 맞아야 한다. 아무 아이디나 맞는 모양(별표 하나, 점별표 정규식)은 받지 않는다 — 비밀번호를 남의 계정에 시험하는 통로가 되므로. */
+function vaultUserRe(p) {
+  p = String(p || '').trim();
+  if (!p || p.length > 120) return null;
+  let re;
+  try {
+    const m = /^\/(.+)\/i?$/.exec(p);
+    if (m) re = new RegExp('^(?:' + m[1] + ')$', 'i');
+    else {
+      const parts = p.split(/[,\s]+/).filter(Boolean);
+      if (!parts.length || parts.some(x => x.replace(/[*?]/g, '').length < 2)) return null;
+      re = new RegExp('^(?:' + parts.map(x => x.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')).join('|') + ')$', 'i');
+    }
+  } catch (e) { return null; }
+  if (['', 'q', 'zq9xk7w3pv', 'Zx81-qw_7.k@j.kr'].some(t => re.test(t))) return null;
+  return re;
+}
 function vaultLog(o) {
   try {
     const line = JSON.stringify(Object.assign({ at: Date.now() }, o)) + '\n';
@@ -1048,12 +1066,31 @@ const VAULT_FOCUS_JS = (dom, which) => `(() => {
 })()`;
 // 넣은 뒤 확인 — 아이디류는 값, 비밀번호는 길이만 돌려받는다(비밀번호를 응답·기록에 남기지 않게)
 const VAULT_CHECK_JS = (which, secret) => `(() => { const e = document.querySelector('[data-pt-vault=${which}]'); if (!e) return null; return ${secret ? 'e.value.length' : 'e.value'}; })()`;
-async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
+async function vaultFill({ profile, name, pageUrl, targetId, submit, by, username }) {
   const list = vaultLoad();
   const want = String(name || '').trim().toLowerCase();
   const entry = list.find(e => e.name.toLowerCase() === want);
-  const done = (ok, msg, extra) => { vaultLog(Object.assign({ name: entry ? entry.name : String(name || ''), ok, msg }, by ? { by } : {}, extra || {})); return { ok, msg, form: !(extra && extra.noForm) }; };
+  let usedAs = '';   // 🔀 아이디를 바꿔 쓴 경우 그 아이디 (기록에 남긴다 — 아이디는 비밀이 아니다)
+  const done = (ok, msg, extra) => { vaultLog(Object.assign({ name: entry ? entry.name : String(name || ''), ok, msg }, by ? { by } : {}, usedAs ? { user: usedAs } : {}, extra || {})); return { ok, msg, form: !(extra && extra.noForm) }; };
   if (!entry) return done(false, 'No saved login named "' + name + '". Call list_logins to see the names.');
+  // 🔀 AI 가 아이디를 넘기면: 허용이 켜진 항목 + 모양이 맞을 때만. 도메인 확인은 아래 그대로 (세 겹)
+  let uname = entry.username || '';
+  const askU = String(username || '').trim();
+  if (askU && askU !== uname) {
+    if (!entry.userPattern) {
+      usedAs = askU;
+      return done(false, 'Refused: "' + entry.name + '" only signs in as its saved username' + (uname ? ' (' + uname + ')' : '') +
+        '. Using this password with another username is not allowed for this login. Call login without username, or ask the user to turn on ' +
+        '"Allow other usernames" for it in PowerTerminal (🌐 → 🔑 Login vault → Edit → ➕ Extra fields) if that is intended.');
+    }
+    const re = vaultUserRe(entry.userPattern);
+    if (!re || askU.length > 100 || !re.test(askU)) {
+      usedAs = askU;
+      return done(false, 'Refused: username "' + askU + '" does not match the allowed shape for "' + entry.name + '" (' + entry.userPattern +
+        '). Only usernames of that shape can be used with this password. Check the username, or ask the user.');
+    }
+    uname = usedAs = askU;
+  }
   const prof = browserProfile(profile);
   let pages = [];
   try {
@@ -1137,7 +1174,10 @@ async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
     };
     for (let i = 0; i < extras.length; i++) await put('x' + i, extras[i].v, true);
     if (v.shop) await put('s', entry.shop);
-    if (v.user) await put('u', entry.username);
+    if (v.user) {
+      if (!uname) throw new Error('this login has no saved username — call login again with username set (allowed shape: ' + (entry.userPattern || '-') + ')');
+      await put('u', uname);
+    }
     if (v.pw) await put('p', vaultOpen(entry.secret), true);
     if (submit !== false) {
       for (const type of ['keyDown', 'keyUp']) {
@@ -1156,7 +1196,7 @@ async function vaultFill({ profile, name, pageUrl, targetId, submit, by }) {
   const tail = v.pw
     ? (submit !== false ? ' and pressed Enter. Check the page to confirm you are signed in (if Enter did nothing, click the login button).' : '. Click the login button to continue.')
     : (submit !== false ? ' and pressed Enter. This site asks for the password on the next screen — call login again once it shows.' : '. Go to the next screen, then call login again for the password.');
-  return done(true, (entry.tab ? 'Chose the "' + entry.tab + '" tab and filled the ' : 'Filled the ') + what + ' for "' + entry.name + '" on ' + host + ' (checked that every field holds the saved value)' + tail, { host });
+  return done(true, (entry.tab ? 'Chose the "' + entry.tab + '" tab and filled the ' : 'Filled the ') + what + ' for "' + entry.name + '"' + (usedAs ? ' as ' + usedAs : '') + ' on ' + host + ' (checked that every field holds the ' + (usedAs ? 'given username and the saved' : 'saved') + ' value)' + tail, { host });
 }
 /* 🏷 PT 브라우저 탭 주인 표시 — 계정 창 하나를 여러 세션이 같이 쓰면, 크롬에 뜬 탭이 어느 세션 것인지 알 수 없었다.
    그래서 일반창 세션의 브라우저 도구는 크롬에 바로 붙지 않고 PT 중계(127.0.0.1 전용 포트 + 비밀 토큰 주소)를 거친다.
@@ -3208,13 +3248,18 @@ app.post('/api/vault', (req, res) => {
   const password = typeof b.password === 'string' ? b.password : '';
   if (!name) return res.status(400).json({ error: 'name' });
   if (!rawSites.length || sites.includes('') || sites.length > 20) return res.status(400).json({ error: 'domain' });
-  if (!username) return res.status(400).json({ error: 'username' });
   if (password.length > 500) return res.status(400).json({ error: 'password' });
   const list = vaultLoad();
   const cur = b.id ? list.find(e => e.id === b.id) : null;
   if (b.id && !cur) return res.status(404).json({ error: 'gone' });
   if (list.some(e => e !== cur && e.name.toLowerCase() === name.toLowerCase())) return res.status(400).json({ error: 'dup' });
   if (!cur && !password) return res.status(400).json({ error: 'password' });
+  // 🔀 아이디 바꿔 쓰기 — 켜면 모양이 꼭 있어야 한다. 켜 둔 항목은 기본 아이디를 비워도 된다(매번 AI 가 넘김)
+  const userAny = b.userAny === true ? true : b.userAny === false ? false : undefined;
+  const userPattern = typeof b.userPattern === 'string' ? b.userPattern.trim().slice(0, 120) : '';
+  if (userAny && !vaultUserRe(userPattern)) return res.status(400).json({ error: 'userPattern' });
+  const patAfter = userAny === true ? userPattern : userAny === false ? '' : (cur && cur.userPattern) || '';
+  if (!username && !patAfter) return res.status(400).json({ error: 'username' });
   // 추가 칸 — 빈칸이면 그대로(새 항목은 없음), 자유 칸에 「-」 한 글자면 지우기
   const tab = typeof b.tab === 'string' ? b.tab.trim().slice(0, 40) : undefined;
   const shop = typeof b.shop === 'string' ? b.shop.trim().slice(0, 200) : undefined;
@@ -3230,6 +3275,7 @@ app.post('/api/vault', (req, res) => {
     if (password) e.secret = vaultSeal(password);          // 수정 때 빈칸이면 기존 비밀번호 유지
     if (tab !== undefined) { if (tab) e.tab = tab; else delete e.tab; }
     if (shop !== undefined) { if (shop) e.shop = shop; else delete e.shop; }
+    if (patAfter) e.userPattern = patAfter; else delete e.userPattern;
     if (extraRaw === '-') { delete e.extraSecret; delete e.extraKeys; }
     else if (extraPairs) { e.extraSecret = vaultSeal(JSON.stringify(extraPairs)); e.extraKeys = extraPairs.map(x => x.k); }
     if (!cur) list.push(e);
@@ -3321,7 +3367,7 @@ function vaultTool(req, res) {
   return false;
 }
 app.get('/api/vault/ai-list', (req, res) => {
-  if (vaultTool(req, res)) res.json({ entries: vaultLoad().map(e => ({ name: e.name, domain: e.domain, username: e.username, tab: e.tab || '', shop: e.shop || '', extraKeys: e.extraKeys || [] })) });
+  if (vaultTool(req, res)) res.json({ entries: vaultLoad().map(e => ({ name: e.name, domain: e.domain, username: e.username, tab: e.tab || '', shop: e.shop || '', extraKeys: e.extraKeys || [], userPattern: e.userPattern || '' })) });
 });
 app.post('/api/vault/fill', async (req, res) => {
   if (!vaultTool(req, res)) return;
@@ -3329,7 +3375,7 @@ app.post('/api/vault/fill', async (req, res) => {
   const profile = String(b.profile || '');
   // 없는 창 이름이 오면 browserProfile() 이 새 창 설정을 만들어 버린다 → 여기서 거른다
   if (profile && !(config.browserProfiles || {})[profileSlug(profile)]) return res.json({ ok: false, msg: 'Unknown browser window: ' + profile });
-  try { res.json(await vaultFill({ profile, name: b.name, pageUrl: String(b.pageUrl || ''), submit: b.submit !== false })); }
+  try { res.json(await vaultFill({ profile, name: b.name, pageUrl: String(b.pageUrl || ''), submit: b.submit !== false, username: String(b.username || '').slice(0, 200) })); }
   catch (e) { res.json({ ok: false, msg: 'Vault error: ' + (e && e.message) }); }
 });
 /* 🔑 보관함 창에서 이름을 누르면 — PT 브라우저(기본 창)에 새 창으로 그 사이트를 열고, 로그인 칸이 보이면 PT 가 채워
