@@ -196,6 +196,7 @@ function readJson(file) {
 // ---------- 설정 (접속 토큰 + 관리자 비밀번호) ----------
 let config = {};
 try { config = readJson(CONFIG_FILE); } catch (e) {}
+const cfgFresh = !config.token;   // 처음 설치 = 설정 파일이 없었다 (업데이트 안내를 띄우지 않는다)
 let configDirty = false;
 if (!config.token) { config.token = crypto.randomBytes(4).toString('hex'); configDirty = true; }
 // 관리자 비밀번호: 이 PC(localhost)는 항상 무비번 통과, 원격(폰 등)에서 배너관리자를 열려면 필요.
@@ -2716,6 +2717,12 @@ app.post('/api/new-project', async (req, res) => {
 });
 
 const VERSION = (() => { try { return readJson(path.join(ROOT, 'package.json')).version; } catch (e) { return '0.0.0'; } })();
+/* 🆕 업데이트 안내 — 다른 버전으로 켜지면 「어느 버전에서 올라왔는지」를 적어 둔다. 화면이 public/whatsnew.json 에서
+   그 사이 버전들의 설명을 접속한 나라 말로 골라 창으로 보여 준다. 새로 설치한 PC 에는 띄우지 않는다. */
+if (config.ptVersion !== VERSION) {
+  if (!cfgFresh) config.whatsNew = { from: config.ptVersion || '', to: VERSION, at: Date.now() };
+  config.ptVersion = VERSION; saveConfig();
+}
 
 app.get('/api/info', (req, res) => {
   const ips = [];
@@ -2727,7 +2734,7 @@ app.get('/api/info', (req, res) => {
   // 윈도우 전용 명령을 맥에서도 그대로 실행해버렸다(zsh: command not found: winget).
   if (req.ptGuest) return res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, machineId: config.machineId || '', host: (() => { try { return os.hostname(); } catch (e) { return ''; } })(),
                                     pcName: peersApi.myName(), platform: process.platform, guestShare: req.ptGuest.share });   // 손님에게는 전권 열쇠·코드를 안 준다
-  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName, pcName: peersApi ? peersApi.myName() : '',
+  res.json({ port: PORT, ips, tunnelUrl: global.__tunnelUrl || '', version: VERSION, whatsNew: config.whatsNew || null, token: config.token, pairCode: PAIR_CODE, dataDir: DATA_DIR, userName, pcName: peersApi ? peersApi.myName() : '',
              host: (() => { try { return os.hostname(); } catch (e) { return ''; } })(), machineId: config.machineId || '',
              platform: process.platform, home: (() => { try { return os.homedir(); } catch (e) { return ''; } })(),
              // 화면이 "brew install ..." 같은 안내를 보여줄지 판단하려면 brew 유무를 알아야 한다

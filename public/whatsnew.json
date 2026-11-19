@@ -1,0 +1,96 @@
+{
+  "ui": {
+    "en": { "title": "What's new in PowerTerminal", "ok": "Got it", "badge": "See what changed in each update" },
+    "ko": { "title": "PowerTerminal 업데이트 내용", "ok": "확인", "badge": "업데이트마다 바뀐 내용 보기" },
+    "ja": { "title": "PowerTerminal の更新内容", "ok": "OK", "badge": "更新ごとの変更点を見る" },
+    "zh": { "title": "PowerTerminal 更新内容", "ok": "知道了", "badge": "查看每次更新的变化" },
+    "es": { "title": "Novedades de PowerTerminal", "ok": "Entendido", "badge": "Ver qué cambió en cada actualización" },
+    "de": { "title": "Neu in PowerTerminal", "ok": "Verstanden", "badge": "Änderungen jedes Updates ansehen" },
+    "fr": { "title": "Nouveautés de PowerTerminal", "ok": "Compris", "badge": "Voir ce qui a changé à chaque mise à jour" },
+    "pt": { "title": "Novidades do PowerTerminal", "ok": "Entendi", "badge": "Ver o que mudou em cada atualização" },
+    "ru": { "title": "Что нового в PowerTerminal", "ok": "Понятно", "badge": "Что изменилось в каждом обновлении" },
+    "hi": { "title": "PowerTerminal में नया क्या है", "ok": "ठीक है", "badge": "हर अपडेट में क्या बदला, देखें" }
+  },
+  "releases": [
+    {
+      "v": "1.90.66", "date": "2026-11-19",
+      "items": {
+        "en": ["After each update, this window shows what changed — in your language. Click the version number at the top left to see it again.",
+               "Add session: the folder path box is hidden until you press \"📁 Open another folder\", so it no longer gets confused with the session cards.",
+               "Turning a session on or off in the Add session window now shows a short one-line message."],
+        "ko": ["업데이트하면 이 창으로 무엇이 바뀌었는지 알려 드려요(접속한 나라 말로). 왼쪽 위 버전 번호를 누르면 다시 볼 수 있어요.",
+               "세션 추가: 폴더 경로 칸과 추가 버튼은 숨겨 두고 「📁 다른 폴더 열기」를 누를 때만 보여요 — 세션 카드와 헷갈리지 않게.",
+               "세션 추가 창에서 세션을 켜거나 끄면 「화면에 추가했어요」 한 줄이 잠깐 떠요."],
+        "ja": ["更新のたびに、このウィンドウで変更点をお知らせします(お使いの言語で)。左上のバージョン番号を押すと再表示できます。",
+               "セッション追加: フォルダのパス欄と追加ボタンは「📁 別のフォルダを開く」を押したときだけ表示され、セッションカードと紛らわしくなくなりました。",
+               "セッション追加画面でセッションをオン/オフすると、短い一行メッセージが出ます。"],
+        "zh": ["每次更新后，此窗口会用你的语言说明改了什么。点左上角的版本号可再次查看。",
+               "添加会话：文件夹路径框和添加按钮会先隐藏，按「📁 打开其他文件夹」时才显示，不再和会话卡片混淆。",
+               "在添加会话窗口开启或关闭会话时，会短暂显示一行提示。"],
+        "es": ["Tras cada actualización, esta ventana muestra qué cambió, en tu idioma. Haz clic en el número de versión (arriba a la izquierda) para verla de nuevo.",
+               "Añadir sesión: el cuadro de ruta de carpeta queda oculto hasta pulsar «📁 Abrir otra carpeta», para no confundirlo con las tarjetas de sesión.",
+               "Al activar o desactivar una sesión en la ventana Añadir sesión aparece un breve mensaje de una línea."],
+        "de": ["Nach jedem Update zeigt dieses Fenster, was sich geändert hat – in deiner Sprache. Klick oben links auf die Versionsnummer, um es erneut zu sehen.",
+               "Sitzung hinzufügen: Das Ordnerpfad-Feld bleibt verborgen, bis du „📁 Anderen Ordner öffnen“ drückst – keine Verwechslung mehr mit den Sitzungskarten.",
+               "Wenn du im Fenster „Sitzung hinzufügen“ eine Sitzung ein- oder ausschaltest, erscheint kurz eine einzeilige Meldung."],
+        "fr": ["Après chaque mise à jour, cette fenêtre indique ce qui a changé, dans votre langue. Cliquez sur le numéro de version en haut à gauche pour la revoir.",
+               "Ajouter une session : le champ du chemin de dossier reste caché jusqu’à « 📁 Ouvrir un autre dossier », pour ne plus le confondre avec les cartes de session.",
+               "Activer ou désactiver une session dans la fenêtre Ajouter une session affiche un court message d’une ligne."],
+        "pt": ["Depois de cada atualização, esta janela mostra o que mudou, no seu idioma. Clique no número da versão no canto superior esquerdo para ver de novo.",
+               "Adicionar sessão: a caixa do caminho da pasta fica oculta até você tocar em «📁 Abrir outra pasta», para não confundir com os cartões de sessão.",
+               "Ligar ou desligar uma sessão na janela Adicionar sessão agora mostra uma breve mensagem de uma linha."],
+        "ru": ["После каждого обновления это окно показывает, что изменилось, на вашем языке. Нажмите номер версии слева вверху, чтобы открыть его снова.",
+               "Добавление сессии: поле пути к папке скрыто, пока не нажмёте «📁 Открыть другую папку», — его больше не спутать с карточками сессий.",
+               "При включении или выключении сессии в окне добавления появляется короткое сообщение в одну строку."],
+        "hi": ["हर अपडेट के बाद यह विंडो आपकी भाषा में बताती है कि क्या बदला। बाएँ ऊपर संस्करण संख्या दबाकर इसे फिर देखें।",
+               "सत्र जोड़ें: फ़ोल्डर पथ बॉक्स तब तक छिपा रहता है जब तक आप «📁 दूसरा फ़ोल्डर खोलें» न दबाएँ — अब सत्र कार्ड से भ्रम नहीं।",
+               "सत्र जोड़ें विंडो में सत्र चालू या बंद करने पर एक छोटा एक-पंक्ति संदेश दिखता है।"]
+      }
+    },
+    {
+      "v": "1.90.65", "date": "2026-11-19",
+      "items": {
+        "en": ["Request box: Ctrl+Shift+V (⌘+Shift+V on Mac) pastes long text as-is instead of turning it into a [Text] chip or .txt file. Ctrl+V works as before."],
+        "ko": ["요청칸: Ctrl+Shift+V(맥은 ⌘+Shift+V)로 붙이면 긴 글도 [텍스트] 칩·txt 파일로 바뀌지 않고 그대로 들어가요. Ctrl+V 는 예전 그대로."],
+        "ja": ["依頼欄: Ctrl+Shift+V (Mac は ⌘+Shift+V) で長い文章も [テキスト] チップや .txt にせず、そのまま貼り付けます。Ctrl+V は従来どおり。"],
+        "zh": ["请求框：Ctrl+Shift+V（Mac 为 ⌘+Shift+V）可将长文本原样粘贴，不再变成 [文本] 标签或 .txt 文件。Ctrl+V 照旧。"],
+        "es": ["Cuadro de petición: Ctrl+Shift+V (⌘+Shift+V en Mac) pega el texto largo tal cual, sin convertirlo en una ficha [Texto] ni en un .txt. Ctrl+V sigue igual."],
+        "de": ["Eingabefeld: Strg+Umschalt+V (⌘+Umschalt+V am Mac) fügt langen Text unverändert ein, statt ihn in einen [Text]-Chip oder eine .txt-Datei zu verwandeln. Strg+V bleibt wie bisher."],
+        "fr": ["Zone de demande : Ctrl+Maj+V (⌘+Maj+V sur Mac) colle un long texte tel quel, sans le transformer en puce [Texte] ni en fichier .txt. Ctrl+V reste inchangé."],
+        "pt": ["Caixa de pedido: Ctrl+Shift+V (⌘+Shift+V no Mac) cola texto longo como está, sem virar chip [Texto] ou arquivo .txt. Ctrl+V continua igual."],
+        "ru": ["Поле запроса: Ctrl+Shift+V (⌘+Shift+V на Mac) вставляет длинный текст как есть, без превращения в метку [Текст] или .txt-файл. Ctrl+V — как раньше."],
+        "hi": ["अनुरोध बॉक्स: Ctrl+Shift+V (Mac पर ⌘+Shift+V) लंबा टेक्स्ट जैसा है वैसा चिपकाता है, [टेक्स्ट] चिप या .txt फ़ाइल नहीं बनाता। Ctrl+V पहले जैसा।"]
+      }
+    },
+    {
+      "v": "1.90.64", "date": "2026-11-19",
+      "items": {
+        "en": ["Login vault: \"Allow other usernames\" — one saved password for many accounts (e.g. ecuwdemo*). The AI picks the username, but only ones of the shape you allow, and only on the saved site."],
+        "ko": ["로그인 보관함: 「아이디 바꿔 쓰기 허용」 — 비밀번호 하나로 여러 계정(예: ecuwdemo*). AI 가 아이디를 정하되 허용한 모양의 아이디만, 저장한 사이트에서만 채워요."],
+        "ja": ["ログイン保管庫: 「別のIDを許可」— 1つのパスワードで複数アカウント(例: ecuwdemo*)。AI がIDを選びますが、許可した形のIDだけ、保存したサイトでだけ入力します。"],
+        "zh": ["登录保险箱：「允许其他用户名」——一个密码对应多个账号（如 ecuwdemo*）。AI 选择用户名，但只限你允许的格式，且只在保存的网站上填写。"],
+        "es": ["Bóveda de accesos: «Permitir otros usuarios» — una contraseña para muchas cuentas (p. ej. ecuwdemo*). La IA elige el usuario, pero solo con el formato permitido y solo en el sitio guardado."],
+        "de": ["Login-Tresor: „Andere Benutzernamen erlauben“ – ein Passwort für viele Konten (z. B. ecuwdemo*). Die KI wählt den Namen, aber nur im erlaubten Muster und nur auf der gespeicherten Seite."],
+        "fr": ["Coffre de connexions : « Autoriser d’autres identifiants » — un mot de passe pour plusieurs comptes (ex. ecuwdemo*). L’IA choisit l’identifiant, mais seulement selon le modèle autorisé et sur le site enregistré."],
+        "pt": ["Cofre de logins: «Permitir outros usuários» — uma senha para várias contas (ex.: ecuwdemo*). A IA escolhe o usuário, mas só no formato permitido e só no site salvo."],
+        "ru": ["Хранилище входов: «Разрешить другие логины» — один пароль для многих аккаунтов (напр. ecuwdemo*). ИИ выбирает логин, но только разрешённого вида и только на сохранённом сайте."],
+        "hi": ["लॉगिन तिजोरी: «दूसरे यूज़रनेम की अनुमति» — कई खातों के लिए एक पासवर्ड (जैसे ecuwdemo*)। AI यूज़रनेम चुनता है, पर केवल अनुमत रूप वाला और केवल सहेजी साइट पर।"]
+      }
+    },
+    {
+      "v": "1.90.63", "date": "2026-11-19",
+      "items": {
+        "en": ["New project no longer fails with \"Author identity unknown\" on PCs where git has no name/email yet — PowerTerminal sets them for that project only."],
+        "ko": ["git 이름·이메일이 없는 PC 에서 새 프로젝트가 「Author identity unknown」으로 실패하던 문제를 고쳤어요 — 그 프로젝트에만 정해 줘요."],
+        "ja": ["git の名前・メールが未設定の PC で新規プロジェクトが「Author identity unknown」で失敗する問題を修正 — そのプロジェクトだけに設定します。"],
+        "zh": ["修复：在未设置 git 姓名/邮箱的电脑上新建项目报「Author identity unknown」失败——现在只为该项目设置。"],
+        "es": ["Nuevo proyecto ya no falla con «Author identity unknown» en equipos sin nombre/correo de git: PowerTerminal los pone solo para ese proyecto."],
+        "de": ["„Neues Projekt“ scheitert nicht mehr mit „Author identity unknown“ auf PCs ohne git-Name/E-Mail – PowerTerminal setzt sie nur für dieses Projekt."],
+        "fr": ["Nouveau projet n’échoue plus avec « Author identity unknown » sur les PC sans nom/e-mail git : PowerTerminal les définit pour ce projet seulement."],
+        "pt": ["Novo projeto não falha mais com «Author identity unknown» em PCs sem nome/e-mail do git — o PowerTerminal define só para esse projeto."],
+        "ru": ["«Новый проект» больше не падает с «Author identity unknown» на ПК без имени/почты git — PowerTerminal задаёт их только для этого проекта."],
+        "hi": ["जिन PC पर git नाम/ईमेल नहीं है, वहाँ नया प्रोजेक्ट अब «Author identity unknown» से विफल नहीं होता — PowerTerminal केवल उस प्रोजेक्ट के लिए सेट करता है।"]
+      }
+    }
+  ]
+}

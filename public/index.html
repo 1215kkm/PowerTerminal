@@ -1390,6 +1390,17 @@
   html.light .card-icons button { background: #000; color: #fff; }   /* 카드 아이콘은 라이트에서도 검정 배경 유지 */
   html.light .termCancel { background: rgba(59,29,36,.92); color: #fca5a5; }   /* 중단 버튼 색 유지 */
   html.light #hverBadge, html.light #verBadge { background: #e5e7eb; }
+  #wnDlg { width: min(560px, calc(100vw - 32px)); padding: 0; border-radius: 14px; }
+  #wnDlg .wn-head { display: flex; align-items: center; gap: 8px; padding: 16px 18px 8px; }
+  #wnDlg .wn-title { flex: 1; font-size: 17px; }
+  #wnDlg .wn-x { padding: 4px 10px; font-weight: 700; }
+  #wnDlg .wn-body { padding: 4px 18px; max-height: 60vh; overflow: auto; }
+  #wnDlg section + section { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 6px; }
+  #wnDlg h4 { margin: 8px 0 4px; font-size: 15px; font-weight: 800; display: flex; align-items: baseline; gap: 8px; }
+  #wnDlg h4 small { font-size: 12px; font-weight: 400; color: var(--muted); }
+  #wnDlg ul { margin: 0; padding-left: 20px; }
+  #wnDlg li { font-size: 14px; line-height: 1.6; margin: 4px 0; overflow-wrap: anywhere; }
+  #wnDlg .wn-foot { padding: 12px 18px 16px; text-align: right; }
 
   dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
            border-radius: 12px; max-width: 92vw; width: 460px; }
@@ -1572,6 +1583,8 @@
   #winNo:empty { display: none; }
   @media (max-width: 768px) { #winNo { min-width: 24px; height: 24px; font-size: 15px; padding: 0 7px; } }
   .atab { background: #374151; }
+  .addPathOpen { background: none; border: 1px dashed var(--line); color: var(--muted); padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .addPathOpen:hover { color: var(--fg); border-color: var(--sky); }
   .atab.on { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
   #brList { grid-auto-rows: max-content; }   /* 아이폰 사파리: 칸 높이가 0 으로 눌려 납작하게 겹치던 것 */
   .brfolder { flex: 0 0 auto; min-height: 34px; box-sizing: border-box; }
@@ -1692,7 +1705,8 @@
        PC용 묶음(#hdrBtns/#usageCol)은 폰에선 자리를 없애서 그 안의 버튼·막대가
        다시 헤더의 직계 flex 항목처럼 줄배치에 참여하게 한다. */
     #hdrBtns, #usageCol { display: contents; }
-    #usageGpt { order: 10; flex: 1 1 100%; }
+    #usageGpt { order: 10; flex: 1 1 100%; flex-wrap: wrap; row-gap: 2px; white-space: normal; min-width: 0; }   /* 폰: 줄을 넘기지 않으면 화면 밖으로 13px 삐져나와 가로 스크롤이 생겼다 */
+    #usageGpt > span { white-space: nowrap; }
     #usageAcc { order: 9; flex: 1 1 100%; }
     #usageAcc .ua-row { flex-wrap: wrap; row-gap: 4px; }
     #usage > .ua-tag { order: 6; flex: 1 1 100%; }   /* #usage 가 display:contents 라 순서를 안 주면 로고 옆으로 튄다 */   /* GPT 줄은 맨 아랫줄 하나를 차지 */
@@ -2001,7 +2015,9 @@
   <!-- 로컬 폴더: 최근 프로젝트 + 폴더 탐색기(격자). 폴더 선택=즉시 추가 -->
   <div id="tab-folder">
     <div id="knownList" style="max-height:32vh;overflow:auto;margin-bottom:8px"></div>
-    <div style="display:flex;gap:6px">
+    <!-- 폴더 경로 줄은 접어 둔다 — 카드 아래 [추가] 버튼이 카드를 추가하는 버튼처럼 보여 헷갈렸다(2026-11-19) -->
+    <button id="addPathOpen" class="addPathOpen" type="button" onclick="openPathRow()" data-i18n="addOtherFolder">📁 Open another folder…</button>
+    <div id="addPathRow" style="display:none;gap:6px">
       <input id="addPath" data-i18n-ph="pathPh" style="flex:1">
       <button onclick="toggleBrowse()" data-i18n-title="browseT" title="폴더 찾아보기" style="white-space:nowrap">📂</button>
       <button class="primary" onclick="addManual()" data-i18n="add">Add</button>
@@ -2351,7 +2367,7 @@ const I18N = {
     pairTitle:'Connect another PC — no long link to type', pairStep1:'On the other PC open', pairStep2:'and enter this code:',
     copyImg:'📋 Copy', saveImg:'💾 Save', close:'Close', cancel:'Cancel', add:'Add',
     addTitleH:'Add Session', orManual:'Or enter a folder path directly:', pathPh:'D:\\projects\\folder', titlePh:'Title (folder name if empty)',
-    sessionAdded:'Session added',
+    sessionAdded:'Session added', addOtherFolder:"📁 Open another folder…", sessOnT:"Added to the screen", sessOffT:"Removed from the screen",
     agClaude:'🟣 Claude Code (default)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell only (no AI)', agCustom:'⚙ Custom command',
     npTitle:'🆕 New Project + GitHub', npDesc:'Create folder + git + private GitHub repo in one go', npPh:'project-name (letters/numbers/-)', npGo:'Create & Start', npCreating:'Creating...',
     curSession:'Claude session', weeklyAll:'Claude weekly', weeklyPfx:'Weekly ', resets:'resets',
@@ -2450,7 +2466,7 @@ const I18N = {
     pairTitle:'다른 PC 연결 — 긴 링크 타이핑 없이', pairStep1:'다른 PC에서', pairStep2:'접속 후 이 코드 입력:',
     copyImg:'📋 이미지 복사', saveImg:'💾 저장', close:'닫기', cancel:'취소', add:'추가',
     addTitleH:'세션 추가', orManual:'또는 폴더 경로 직접 입력:', pathPh:'D:\\프로젝트\\폴더경로', titlePh:'제목 (비우면 폴더명)',
-    sessionAdded:'세션이 추가됐어요',
+    sessionAdded:'세션이 추가됐어요', addOtherFolder:"📁 다른 폴더 열기…", sessOnT:"화면에 추가했어요", sessOffT:"화면에서 뺐어요",
     agClaude:'🟣 Claude Code (기본)', agCodex:'🟢 Codex (OpenAI)', agShell:'🔷 PowerShell만 (AI 없이)', agCustom:'⚙ 직접 명령 입력',
     npTitle:'🆕 새 프로젝트 + GitHub', npDesc:'폴더 생성 + git + GitHub 비공개 저장소 연결까지 한 번에', npPh:'프로젝트 이름 (영문/숫자/-)', npGo:'만들고 시작', npCreating:'생성 중...',
     curSession:'클로드 세션', weeklyAll:'클로드 주간', weeklyPfx:'주간 ', resets:'재설정',
@@ -3187,7 +3203,7 @@ const I18N_MORE = {
     soundBtn: '終了時にセッション番号を読み上げる (オン/オフ)',
     pairTitle: '別のPCをつなぐ — 長いリンクを打つ必要なし',
     pairStep1: '別のPCで次を開き', pairStep2: 'このコードを入力:',
-    sessionAdded: 'セッションを追加しました', zoomT: 'このセッションを全画面に', zoomExit: '✕ 全画面を終了',
+    sessionAdded: 'セッションを追加しました', addOtherFolder:"📁 別のフォルダを開く…", sessOnT:"画面に追加しました", sessOffT:"画面から外しました", zoomT: 'このセッションを全画面に', zoomExit: '✕ 全画面を終了',
     memoT: 'このセッションのメモ帳', memoTitle: '📝 メモ',
     memoNewPh: '何でも書けます… Enterで保存 · Shift+Enterで改行',
     memoSaveBtn: '保存', memoSaveTip: 'このメモを保存 (Enter)',
@@ -3471,7 +3487,7 @@ const I18N_MORE = {
     soundBtn: '完成时朗读会话编号 (开/关)',
     pairTitle: '连接另一台电脑 — 不用手打长链接',
     pairStep1: '在另一台电脑上打开', pairStep2: '并输入这个代码:',
-    sessionAdded: '已添加会话', zoomT: '把这个会话全屏', zoomExit: '✕ 退出全屏',
+    sessionAdded: '已添加会话', addOtherFolder:"📁 打开其他文件夹…", sessOnT:"已添加到屏幕", sessOffT:"已从屏幕移除", zoomT: '把这个会话全屏', zoomExit: '✕ 退出全屏',
     memoT: '这个会话的记事本', memoTitle: '📝 记事',
     memoNewPh: '随便写… Enter 保存 · Shift+Enter 换行',
     memoSaveBtn: '保存', memoSaveTip: '保存这条记事 (Enter)',
@@ -3756,7 +3772,7 @@ const I18N_MORE = {
     soundBtn: 'Decir en voz alta el número de sesión al terminar (sí/no)',
     pairTitle: 'Conectar otro PC — sin escribir enlaces largos',
     pairStep1: 'En el otro PC abre', pairStep2: 'y escribe este código:',
-    sessionAdded: 'Sesión añadida', zoomT: 'Poner esta sesión a pantalla completa', zoomExit: '✕ Salir de pantalla completa',
+    sessionAdded: 'Sesión añadida', addOtherFolder:"📁 Abrir otra carpeta…", sessOnT:"Añadida a la pantalla", sessOffT:"Quitada de la pantalla", zoomT: 'Poner esta sesión a pantalla completa', zoomExit: '✕ Salir de pantalla completa',
     memoT: 'Bloc de notas de esta sesión', memoTitle: '📝 Nota',
     memoNewPh: 'Escribe lo que quieras… Enter para guardar · Shift+Enter para otra línea',
     memoSaveBtn: 'Guardar', memoSaveTip: 'Guardar esta nota (Enter)',
@@ -4046,7 +4062,7 @@ const I18N_MORE = {
     soundBtn: 'Sitzungsnummer beim Fertigwerden vorlesen (ein/aus)',
     pairTitle: 'Anderen PC verbinden — ohne langen Link zu tippen',
     pairStep1: 'Öffne am anderen PC', pairStep2: 'und gib diesen Code ein:',
-    sessionAdded: 'Sitzung hinzugefügt', zoomT: 'Diese Sitzung im Vollbild', zoomExit: '✕ Vollbild verlassen',
+    sessionAdded: 'Sitzung hinzugefügt', addOtherFolder:"📁 Anderen Ordner öffnen…", sessOnT:"Zum Bildschirm hinzugefügt", sessOffT:"Vom Bildschirm entfernt", zoomT: 'Diese Sitzung im Vollbild', zoomExit: '✕ Vollbild verlassen',
     memoT: 'Notizblock für diese Sitzung', memoTitle: '📝 Notiz',
     memoNewPh: 'Schreib irgendwas… Enter speichert · Shift+Enter für eine neue Zeile',
     memoSaveBtn: 'Speichern', memoSaveTip: 'Diese Notiz speichern (Enter)',
@@ -4330,7 +4346,7 @@ const I18N_MORE = {
     soundBtn: 'Annoncer le numéro de session à la fin (activé/désactivé)',
     pairTitle: 'Connecter un autre PC — sans taper de long lien',
     pairStep1: 'Sur l’autre PC, ouvre', pairStep2: 'et saisis ce code :',
-    sessionAdded: 'Session ajoutée', zoomT: 'Mettre cette session en plein écran', zoomExit: '✕ Quitter le plein écran',
+    sessionAdded: 'Session ajoutée', addOtherFolder:"📁 Ouvrir un autre dossier…", sessOnT:"Ajoutée à l’écran", sessOffT:"Retirée de l’écran", zoomT: 'Mettre cette session en plein écran', zoomExit: '✕ Quitter le plein écran',
     memoT: 'Bloc-notes de cette session', memoTitle: '📝 Note',
     memoNewPh: 'Écris ce que tu veux… Entrée pour enregistrer · Maj+Entrée pour une nouvelle ligne',
     memoSaveBtn: 'Enregistrer', memoSaveTip: 'Enregistrer cette note (Entrée)',
@@ -4616,7 +4632,7 @@ const I18N_MORE = {
     soundBtn: 'Falar o número da sessão quando terminar (liga/desliga)',
     pairTitle: 'Conectar outro PC — sem digitar link comprido',
     pairStep1: 'No outro PC abra', pairStep2: 'e digite este código:',
-    sessionAdded: 'Sessão adicionada', zoomT: 'Deixar esta sessão em tela cheia', zoomExit: '✕ Sair da tela cheia',
+    sessionAdded: 'Sessão adicionada', addOtherFolder:"📁 Abrir outra pasta…", sessOnT:"Adicionada à tela", sessOffT:"Removida da tela", zoomT: 'Deixar esta sessão em tela cheia', zoomExit: '✕ Sair da tela cheia',
     memoT: 'Bloco de notas desta sessão', memoTitle: '📝 Nota',
     memoNewPh: 'Escreva o que quiser… Enter salva · Shift+Enter quebra linha',
     memoSaveBtn: 'Salvar', memoSaveTip: 'Salvar esta nota (Enter)',
@@ -4901,7 +4917,7 @@ const I18N_MORE = {
     soundBtn: 'Произносить номер сессии по завершении (вкл/выкл)',
     pairTitle: 'Подключить другой ПК — без длинных ссылок',
     pairStep1: 'На другом ПК откройте', pairStep2: 'и введите этот код:',
-    sessionAdded: 'Сессия добавлена', zoomT: 'Развернуть эту сессию на весь экран', zoomExit: '✕ Выйти из полноэкранного режима',
+    sessionAdded: 'Сессия добавлена', addOtherFolder:"📁 Открыть другую папку…", sessOnT:"Добавлена на экран", sessOffT:"Убрана с экрана", zoomT: 'Развернуть эту сессию на весь экран', zoomExit: '✕ Выйти из полноэкранного режима',
     memoT: 'Блокнот этой сессии', memoTitle: '📝 Заметка',
     memoNewPh: 'Пишите что угодно… Enter сохраняет · Shift+Enter — новая строка',
     memoSaveBtn: 'Сохранить', memoSaveTip: 'Сохранить эту заметку (Enter)',
@@ -5186,7 +5202,7 @@ const I18N_MORE = {
     soundBtn: 'काम पूरा होने पर सेशन नंबर बोलकर बताएँ (चालू/बंद)',
     pairTitle: 'दूसरा PC जोड़ें — लंबा लिंक टाइप किए बिना',
     pairStep1: 'दूसरे PC पर यह खोलें', pairStep2: 'और यह कोड डालें:',
-    sessionAdded: 'सेशन जुड़ गया', zoomT: 'इस सेशन को पूरी स्क्रीन पर', zoomExit: '✕ पूरी स्क्रीन से बाहर',
+    sessionAdded: 'सेशन जुड़ गया', addOtherFolder:"📁 दूसरा फ़ोल्डर खोलें…", sessOnT:"स्क्रीन पर जोड़ा", sessOffT:"स्क्रीन से हटाया", zoomT: 'इस सेशन को पूरी स्क्रीन पर', zoomExit: '✕ पूरी स्क्रीन से बाहर',
     memoT: 'इस सेशन की नोटबुक', memoTitle: '📝 नोट',
     memoNewPh: 'कुछ भी लिखें… Enter से सेव · Shift+Enter से नई लाइन',
     memoSaveBtn: 'सेव', memoSaveTip: 'यह नोट सेव करें (Enter)',
@@ -9638,6 +9654,67 @@ function copySelExec(text) {
   flashToast(ok ? (T.copied || 'Copied') : (T.copyFail || 'Copy failed'));
 }
 let _toastTimer;
+/* 🆕 업데이트 안내 — public/whatsnew.json (버전마다 10개 언어 설명). 서버가 「어느 버전에서 올라왔는지」 알려 주면
+   그 사이 버전들을 접속한 나라 말(LANG)로 보여 준다. 이 브라우저에서 한 번 보면 그 버전은 다시 안 띄운다.
+   왼쪽 위 버전 번호를 누르면 언제든 최근 내용을 다시 본다. */
+const verNum = v => String(v || '').split('.').map(n => parseInt(n, 10) || 0);
+function verGt(a, b) { const x = verNum(a), y = verNum(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; }
+let _wnData = null;
+async function wnLoad() {
+  if (_wnData) return _wnData;
+  try { _wnData = await (await fetch('/whatsnew.json', { cache: 'no-store' })).json(); } catch (e) { _wnData = null; }
+  return _wnData;
+}
+const wnPick = o => (o && (o[LANG] || o.en)) || null;
+async function showWhatsNew(opt) {
+  opt = opt || {};
+  const j = await wnLoad(); if (!j) return false;
+  const rel = (j.releases || []).filter(r => r && r.v && !verGt(r.v, opt.to || '9999'));
+  let list = opt.from ? rel.filter(r => verGt(r.v, opt.from)) : [];
+  if (!list.length) list = rel.slice(0, opt.all ? 6 : 1);
+  list = list.slice(0, 8);
+  if (!list.length) return false;
+  const ui = wnPick(j.ui) || {};
+  let d = document.getElementById('wnDlg');
+  if (!d) { d = document.createElement('dialog'); d.id = 'wnDlg'; document.body.appendChild(d); }
+  d.innerHTML = '<div class="wn-head"><b class="wn-title"></b><button class="wn-x" type="button">✕</button></div><div class="wn-body"></div><div class="wn-foot"><button class="primary wn-ok" type="button"></button></div>';
+  d.querySelector('.wn-title').textContent = '🆕 ' + (ui.title || "What's new");
+  d.querySelector('.wn-ok').textContent = ui.ok || 'OK';
+  const body = d.querySelector('.wn-body');
+  for (const r of list) {
+    const sec = document.createElement('section');
+    const h = document.createElement('h4'); h.textContent = 'v' + r.v; if (r.date) { const sm = document.createElement('small'); sm.textContent = r.date; h.appendChild(sm); }
+    const ul = document.createElement('ul');
+    (wnPick(r.items) || []).forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    sec.append(h, ul); body.appendChild(sec);
+  }
+  const done = () => { if (opt.mark) { try { localStorage.setItem('pt_wnSeen', opt.to || ''); } catch (e) {} } d.close(); };
+  d.querySelector('.wn-ok').onclick = done; d.querySelector('.wn-x').onclick = done;
+  d.onclose = () => { if (opt.mark) { try { localStorage.setItem('pt_wnSeen', opt.to || ''); } catch (e) {} } };
+  if (!d.open) d.showModal();
+  return true;
+}
+// 다른 창(세션 고르기 등)이 열려 있으면 닫힐 때까지 기다렸다가 띄운다 — 창 위에 창을 겹치지 않게
+function wnWhenFree(fn, tries) {
+  tries = tries || 0;
+  if (document.querySelector('dialog[open]') && tries < 180) return setTimeout(() => wnWhenFree(fn, tries + 1), 1000);
+  setTimeout(fn, 600);
+}
+function initWhatsNew(inf) {
+  const b = document.getElementById('hverBadge');
+  if (b && !b._wn) {
+    b._wn = true; b.style.cursor = 'pointer';
+    b.onclick = () => showWhatsNew({ all: true, to: inf.version });
+    wnLoad().then(j => { const ui = j && wnPick(j.ui); if (ui && ui.badge) b.title = ui.badge; });
+  }
+  const w = inf.whatsNew;
+  if (!IS_MAIN || !w || w.to !== inf.version || !(Date.now() - (w.at || 0) < 14 * 864e5)) return;
+  let seen = ''; try { seen = localStorage.getItem('pt_wnSeen') || ''; } catch (e) {}
+  if (seen === inf.version) return;
+  // 이 브라우저가 마지막으로 본 버전이 더 오래됐으면 거기서부터 (중간 업데이트 설명을 놓치지 않게)
+  const from = seen && w.from && verGt(w.from, seen) ? seen : w.from;
+  wnWhenFree(() => showWhatsNew({ from, to: inf.version, mark: true }));
+}
 function flashToast(msg) {
   let t = document.getElementById('ptToast');
   if (!t) {
@@ -9647,6 +9724,7 @@ function flashToast(msg) {
       'font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.4);opacity:0;transition:opacity .15s;pointer-events:none';
     document.body.appendChild(t);
   }
+  { const host = [...document.querySelectorAll('dialog[open]')].pop() || document.body; if (t.parentNode !== host) host.appendChild(t); }
   t.textContent = msg; t.style.opacity = '1';
   clearTimeout(_toastTimer); _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
@@ -10437,6 +10515,17 @@ function pickFolderDlg(cur, anchorEl, opts) {
 
 // ---------- 폴더 탐색기 (📂 찾아보기) — 격자 표시, 폴더 선택 시 즉시 추가 ----------
 let brDir = '';
+// 📁 폴더 경로 줄 보이기/숨기기 — 세션 카드가 하나도 없으면(처음 쓰는 사람) 처음부터 보인다
+function setPathRow(on) {
+  const r = document.getElementById('addPathRow'), b = document.getElementById('addPathOpen');
+  if (r) r.style.display = on ? 'flex' : 'none';
+  if (b) b.style.display = on ? 'none' : '';
+}
+async function openPathRow() {
+  setPathRow(true);
+  if (document.getElementById('browser').style.display === 'none') await toggleBrowse();
+  try { document.getElementById('addPath').focus(); } catch (e) {}
+}
 async function toggleBrowse() {
   clearAddMsg();   // 폴더찾기 시작 = 새 작업 → 이전 '추가됨' 확인글 숨김
   const b = document.getElementById('browser');
@@ -10623,8 +10712,10 @@ async function renderAddCards() {
           await api('DELETE', '/api/sessions/' + s.id);
         }
         if (!server.some(s => _norm(s.path) === _norm(k.path))) removePaneLocal(paneEl.dataset.id);
+        flashToast('➖ ' + nm + ' — ' + (T.sessOffT || 'Removed from the screen'));
       } else {
-        await addSession(k.path, nm, k.agent, '', true);   // 다시 켜기 (claude --continue로 대화 이어짐)
+        const s = await addSession(k.path, nm, k.agent, '', true);   // 다시 켜기 (claude --continue로 대화 이어짐)
+        if (s) flashToast('✅ ' + nm + ' — ' + (T.sessOnT || 'Added to the screen'));
       }
       applyLayout(); renumber(); renderAddCards();
     };
@@ -10662,6 +10753,7 @@ async function openAdd() {
   try { addState.known = await api('GET', '/api/known-projects'); } catch (e) { addState.known = []; }
   await renderAddCards();
   document.getElementById('browser').style.display = 'none';
+  setPathRow(!(addState.known && addState.known.length));
   clearAddMsg();
   onAddAgentChange();   // 모델 선택칸 표시 상태를 현재 AI에 맞춤
   switchTab('folder');
@@ -11432,7 +11524,7 @@ function renderGptUsage(g) {
   let html = bar(g.plan ? ' (' + esc(g.plan) + ')' : '', g.percent, g.windowMinutes);
   if (g.secondPercent != null) html += bar('', g.secondPercent, g.secondWindowMinutes);
   if (g.resetsAt) html += `<span class="gpt-when">⏳${fmtLeft(g.resetsAt - Date.now())}</span>`;
-  if (g.seenAt) html += `<span class="gpt-when">(${new Date(g.seenAt).toLocaleString(T.locale, { hour: 'numeric', minute: '2-digit' })} 기준)</span>`;
+  if (g.seenAt) { const at = new Date(g.seenAt).toLocaleString(T.locale, { hour: 'numeric', minute: '2-digit' }); html += '<span class="gpt-when">(' + (LANG === 'ko' ? at + ' 기준' : 'as of ' + at) + ')</span>'; }
   el.innerHTML = html;
 }
 // 코드 편집 모드 상단 바의 간단 사용량 (막대 대신 % 텍스트) — 메인 사용량과 같은 데이터
@@ -15875,6 +15967,7 @@ applyStatic();
   try {
     const inf = await api('GET', '/api/info');
     document.getElementById('hverBadge').textContent = 'v' + inf.version;
+    initWhatsNew(inf);   // 🆕 업데이트했으면 바뀐 내용 창
     applyServerPlatform(inf);   // 서버가 맥/리눅스면 화면의 윈도우 전용 안내(winget·D:\경로)를 바꿔 끼움
   } catch (e) {}
   const list0 = await api('GET', '/api/sessions');
