@@ -2261,6 +2261,29 @@ app.post('/api/mkdir', (req, res) => {
 // ⚠ gh/git 실행은 전부 비동기 — 동기로 돌리면 그 동안 서버 전체(모든 세션 터미널·API)가 멈춘다
 const execFileA = (bin, args, opts) => new Promise((resolve, reject) =>
   execFile(bin, args, opts, (err, so, se) => err ? reject(Object.assign(err, { stderr: se })) : resolve(String(so || ''))));
+/* 🪪 git 작성자 정보 — git 을 처음 깐 PC 는 user.name·user.email 이 없어 커밋이 "Author identity unknown" 으로 실패한다
+   (2026-11-19 새 노트북: 새 프로젝트 만들기가 첫 커밋에서 멈춤). 그 저장소에만(--local) 정해 준다 — 전역 설정은 사용자 것이라
+   건드리지 않는다. 이름·메일은 로그인된 GitHub 계정(메일은 GitHub 이 주는 비공개 noreply 주소), gh 가 없으면 PowerTerminal. */
+let ghIdentCache = null;
+async function ensureGitIdentity(dir) {
+  try {
+    const has = k => execFileA('git', ['config', k], { cwd: dir, timeout: 5000, windowsHide: true }).then(v => !!v.trim(), () => false);
+    const [hn, he] = await Promise.all([has('user.name'), has('user.email')]);
+    if (hn && he) return false;
+    if (!ghIdentCache) {
+      ghIdentCache = { name: 'PowerTerminal', email: 'powerterminal@localhost' };
+      try {
+        const u = JSON.parse(await execFileA(ghBin(), ['api', 'user'], { timeout: 10000, windowsHide: true }));
+        if (u && u.login) ghIdentCache = { name: u.name || u.login, email: (u.id ? u.id + '+' : '') + u.login + '@users.noreply.github.com' };
+      } catch (e) { ghIdentCache.temp = true; }   // gh 없음·미로그인 — 다음에 다시 물어본다
+    }
+    const id = ghIdentCache; if (id.temp) ghIdentCache = null;
+    if (!hn) await execFileA('git', ['config', '--local', 'user.name', id.name], { cwd: dir, timeout: 5000, windowsHide: true });
+    if (!he) await execFileA('git', ['config', '--local', 'user.email', id.email], { cwd: dir, timeout: 5000, windowsHide: true });
+    console.log('  🪪 git 작성자 정보가 없어 이 저장소에만 정함: ' + id.name + ' <' + id.email + '> — ' + dir);
+    return true;
+  } catch (e) { return false; }
+}
 function ghInstalled() {
   return execFileA(ghBin(), ['--version'], { timeout: 6000, windowsHide: true }).then(() => true, () => false);
 }
@@ -2412,6 +2435,7 @@ app.post('/api/clone', (req, res) => {
                 : '';
       return res.status(500).json({ error: 'clone 실패' + (why ? ' — ' + why : '') + '\n받을 위치: ' + dir + (tail ? '\n' + tail : '') });
     }
+    ensureGitIdentity(dir).catch(() => {});   // 🪪 이 저장소에서 AI 가 커밋할 때 작성자 정보 없음으로 막히지 않게
     proceed();
   });
 });
@@ -2629,6 +2653,7 @@ app.post('/api/new-project', async (req, res) => {
     await execFileA('git', ['init', '-b', 'main'], { cwd: dir, windowsHide: true });
     fs.writeFileSync(path.join(dir, 'README.md'), '# ' + name + '\n');
     await execFileA('git', ['add', '-A'], { cwd: dir, windowsHide: true });
+    await ensureGitIdentity(dir);   // 🪪 git 을 처음 깐 PC — 작성자 정보가 없으면 첫 커밋이 실패한다
     await execFileA('git', ['commit', '-m', 'init: ' + name], { cwd: dir, windowsHide: true });
     try {
       const out = await execFileA(ghBin(), ['repo', 'create', name, '--private', '--source', '.', '--remote', 'origin', '--push'],
@@ -5114,6 +5139,7 @@ app.post('/api/sessions/:id/pr-upload', async (req, res) => {
     if (st.files.length) {
       setProg(s.id, { cur: 'commit', pct: 0 });
       await git(s.path, ['add', '-A'], 60000);
+      await ensureGitIdentity(s.path);
       await git(s.path, ['commit', '-m', title], 60000);
     }
     setProg(s.id, { cur: 'push', pct: 0 });
