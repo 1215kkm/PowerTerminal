@@ -59,6 +59,7 @@
   button.primary { background: linear-gradient(90deg, var(--violet), var(--pink)); font-weight: 700; }
   button.small { padding: 4px 8px; font-size: 12px; }
 
+  html.pt-mpan, html.pt-mpan * { cursor: grabbing !important; user-select: none !important; }   /* 가운데 버튼으로 화면 끄는 중 */
   #grid { display: grid; gap: 10px; padding: 10px;
           grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); }
   /* grid-template-columns 트랜지션은 CSS로 안 검 — fr 값 애니메이션이 균등폭으로 굳는 버그가 있어서.
@@ -5407,6 +5408,40 @@ function isMobileNow() {   // 아이패드 미니 세로(≤768) 이하 = 폰과
 }
 
 const grid = document.getElementById('grid');
+// 🖱 가운데(휠) 버튼을 누른 채 끌면 화면 전체가 손을 따라 움직임 — 세션 창이 여러 줄이면 휠을 굴릴 빈틈(세션 사이)을 찾아야 했다.
+// 터미널 안에서 눌러도 됨(터미널에는 가운데 버튼을 넘기지 않음). 창(dialog)·마인드맵(자기 팬이 있음)·입력칸·고정 오버레이는 제외.
+(() => {
+  let pan = null;
+  const skip = t => {
+    if (!(t instanceof Element)) return true;
+    if (t.closest('dialog, .mind-canvas, input, textarea, select, [contenteditable="true"], .cm-editor')) return true;
+    for (let e = t; e && e !== document.body; e = e.parentElement) if (getComputedStyle(e).position === 'fixed') return true;
+    return false;
+  };
+  window.addEventListener('mousedown', ev => {
+    if (ev.button !== 1 || skip(ev.target)) return;
+    ev.preventDefault(); ev.stopPropagation();   // 크롬 자동스크롤 아이콘·터미널 마우스 보고 막기
+    pan = { x: ev.clientX, y: ev.clientY, moved: false };
+    document.documentElement.classList.add('pt-mpan');
+  }, true);
+  window.addEventListener('mousemove', ev => {
+    if (!pan) return;
+    if (!(ev.buttons & 4)) { endPan(); return; }   // 창 밖에서 뗀 경우
+    const dx = ev.clientX - pan.x, dy = ev.clientY - pan.y;
+    if (!dx && !dy) return;
+    pan.x = ev.clientX; pan.y = ev.clientY; pan.moved = true;
+    window.scrollBy(-dx, -dy);
+    ev.preventDefault(); ev.stopPropagation();
+  }, true);
+  const endPan = () => { pan = null; document.documentElement.classList.remove('pt-mpan'); };
+  window.addEventListener('mouseup', ev => {
+    if (!pan || ev.button !== 1) return;
+    const moved = pan.moved; endPan();
+    ev.preventDefault(); ev.stopPropagation();
+    if (moved) window.addEventListener('auxclick', e => { e.preventDefault(); e.stopPropagation(); }, { capture: true, once: true });   // 끈 뒤 링크 새 탭 열림 막기
+  }, true);
+  window.addEventListener('blur', () => { if (pan) endPan(); });
+})();
 const addDlg = document.getElementById('addDlg');
 // 모델 드롭다운 표시 이름 — 값(alias)은 claude가 항상 최신으로 자동 연결하고, 숫자는 '지금 최신 버전'을 보여줄 뿐.
 // 새 버전(예: Opus 4.9)이 나오면 여기 한 줄만 바꾸면 세션 헤더·[+세션] 창 둘 다 반영됨. (2026-07 기준)

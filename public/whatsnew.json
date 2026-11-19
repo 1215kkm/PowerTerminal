@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.67", "date": "2026-11-20",
+      "items": {
+        "en": ["Hold the mouse wheel button and drag anywhere — even over a terminal — to move the whole screen. No more hunting for a gap between sessions to scroll."],
+        "ko": ["마우스 휠 버튼을 누른 채 끌면 어디서든(터미널 위에서도) 화면 전체가 움직여요. 세션이 여러 줄일 때 세션 사이 빈틈을 찾아 휠을 굴리지 않아도 돼요."],
+        "ja": ["マウスのホイールボタンを押したままドラッグすると、どこでも(ターミナルの上でも)画面全体を動かせます。セッションの隙間を探してスクロールする必要はありません。"],
+        "zh": ["按住鼠标滚轮键拖动，在任何地方(包括终端上)都能移动整个画面，不用再找会话之间的空隙来滚动。"],
+        "es": ["Mantén pulsado el botón de la rueda del ratón y arrastra en cualquier parte (incluso sobre una terminal) para mover toda la pantalla. Ya no hace falta buscar un hueco entre sesiones para desplazarte."],
+        "de": ["Mausrad-Taste gedrückt halten und ziehen – überall, auch über einem Terminal –, um den ganzen Bildschirm zu verschieben. Keine Lücke zwischen Sitzungen mehr suchen, um zu scrollen."],
+        "fr": ["Maintenez le bouton de la molette et faites glisser n’importe où (même sur un terminal) pour déplacer tout l’écran. Plus besoin de chercher un espace entre les sessions pour défiler."],
+        "pt": ["Segure o botão da roda do mouse e arraste em qualquer lugar (até sobre um terminal) para mover a tela inteira. Não é mais preciso procurar um espaço entre as sessões para rolar."],
+        "ru": ["Зажмите колёсико мыши и тяните в любом месте (даже над терминалом), чтобы двигать весь экран. Больше не нужно искать промежуток между сессиями для прокрутки."],
+        "hi": ["माउस व्हील बटन दबाकर कहीं भी (टर्मिनल के ऊपर भी) खींचें, पूरी स्क्रीन खिसक जाएगी। स्क्रॉल करने के लिए सेशनों के बीच खाली जगह ढूँढने की ज़रूरत नहीं।"]
+      }
+    },
+    {
       "v": "1.90.66", "date": "2026-11-19",
       "items": {
         "en": ["After each update, this window shows what changed — in your language. Click the version number at the top left to see it again.",
