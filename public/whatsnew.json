@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.68", "date": "2026-11-20",
+      "items": {
+        "en": ["Fixed: clicking a URL in a terminal with the wheel button opens it again. Click = open the link, drag = move the screen."],
+        "ko": ["고침: 터미널의 주소(URL)를 휠 버튼으로 누르면 다시 열려요. 누르기만 하면 링크 열기, 누른 채 끌면 화면 이동이에요."],
+        "ja": ["修正: ターミナル内のURLをホイールボタンで押すと、また開くようになりました。押すだけならリンクを開き、押したままドラッグなら画面移動です。"],
+        "zh": ["修复：用滚轮键点击终端里的网址又能打开了。只点击 = 打开链接，按住拖动 = 移动画面。"],
+        "es": ["Corregido: al pulsar una URL de la terminal con el botón de la rueda se vuelve a abrir. Pulsar = abrir el enlace, arrastrar = mover la pantalla."],
+        "de": ["Behoben: Ein Klick mit der Mausrad-Taste auf eine URL im Terminal öffnet sie wieder. Klicken = Link öffnen, Ziehen = Bildschirm verschieben."],
+        "fr": ["Corrigé : cliquer sur une URL du terminal avec le bouton de la molette l’ouvre à nouveau. Clic = ouvrir le lien, glisser = déplacer l’écran."],
+        "pt": ["Corrigido: clicar numa URL do terminal com o botão da roda volta a abri-la. Clicar = abrir o link, arrastar = mover a tela."],
+        "ru": ["Исправлено: нажатие колёсиком на URL в терминале снова открывает ссылку. Нажать = открыть ссылку, тянуть = двигать экран."],
+        "hi": ["ठीक किया: टर्मिनल में URL पर व्हील बटन से क्लिक करने पर वह फिर से खुलता है। सिर्फ़ क्लिक = लिंक खोलें, दबाकर खींचें = स्क्रीन खिसकाएँ।"]
+      }
+    },
+    {
       "v": "1.90.67", "date": "2026-11-20",
       "items": {
         "en": ["Hold the mouse wheel button and drag anywhere — even over a terminal — to move the whole screen. No more hunting for a gap between sessions to scroll."],

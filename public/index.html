@@ -5421,7 +5421,8 @@ const grid = document.getElementById('grid');
   window.addEventListener('mousedown', ev => {
     if (ev.button !== 1 || skip(ev.target)) return;
     ev.preventDefault(); ev.stopPropagation();   // 크롬 자동스크롤 아이콘·터미널 마우스 보고 막기
-    pan = { x: ev.clientX, y: ev.clientY, moved: false };
+    const te = ev.target.closest('.term'), hl = te && te.__ptHovLink && te.__ptHovLink();
+    pan = { x: ev.clientX, y: ev.clientY, moved: false, link: hl ? { te, hl } : null };   // 링크 위에서 눌렀으면 기억 — 안 끌고 떼면 연다(가운데 클릭 = 링크 열기)
     document.documentElement.classList.add('pt-mpan');
   }, true);
   window.addEventListener('mousemove', ev => {
@@ -5429,6 +5430,7 @@ const grid = document.getElementById('grid');
     if (!(ev.buttons & 4)) { endPan(); return; }   // 창 밖에서 뗀 경우
     const dx = ev.clientX - pan.x, dy = ev.clientY - pan.y;
     if (!dx && !dy) return;
+    if (!pan.moved && pan.link && Math.abs(dx) + Math.abs(dy) < 4) return;   // 링크 클릭 중 손떨림은 끌기로 안 침
     pan.x = ev.clientX; pan.y = ev.clientY; pan.moved = true;
     window.scrollBy(-dx, -dy);
     ev.preventDefault(); ev.stopPropagation();
@@ -5436,8 +5438,9 @@ const grid = document.getElementById('grid');
   const endPan = () => { pan = null; document.documentElement.classList.remove('pt-mpan'); };
   window.addEventListener('mouseup', ev => {
     if (!pan || ev.button !== 1) return;
-    const moved = pan.moved; endPan();
+    const moved = pan.moved, link = pan.link; endPan();
     ev.preventDefault(); ev.stopPropagation();
+    if (!moved && link) { try { link.te.__ptOpenLink(link.hl); } catch (e) {} }
     if (moved) window.addEventListener('auxclick', e => { e.preventDefault(); e.stopPropagation(); }, { capture: true, once: true });   // 끈 뒤 링크 새 탭 열림 막기
   }, true);
   window.addEventListener('blur', () => { if (pan) endPan(); });
@@ -5992,12 +5995,18 @@ function buildPane(sess, idx) {
       { hover: (event, uri) => { hovLink = { url: uri }; showLinkTip(event); }, leave: () => { hovLink = null; hideLinkTip(); } }));
   } catch (e) {}
   term.open(el.querySelector('.term'));
-  el.querySelector('.term').addEventListener('mousedown', ev => {
-    if (ev.button !== 1 || !hovLink) return;
-    ev.preventDefault(); ev.stopPropagation();
-    const l = hovLink; hideLinkTip();
+  const openHov = l => {
+    hideLinkTip();
     if (l.url) window.open(l.url, '_blank', 'noopener,noreferrer,width=1200,height=820');
     else if (l.open) l.open();
+  };
+  // 가운데 버튼 화면 이동(window 캡처)이 먼저 받는다 — 안 움직이고 떼면 이걸로 링크를 연다
+  el.querySelector('.term').__ptHovLink = () => hovLink;
+  el.querySelector('.term').__ptOpenLink = openHov;
+  el.querySelector('.term').addEventListener('mousedown', ev => {   // 화면 이동이 빠지는 경우(예외 화면)의 예비
+    if (ev.button !== 1 || !hovLink) return;
+    ev.preventDefault(); ev.stopPropagation();
+    openHov(hovLink);
   }, true);
   // 드래그로 글자 선택 후 놓으면 자동 복사 (터미널은 Ctrl+C가 '중단'이라 복사가 안 됨)
   el.querySelector('.term').addEventListener('mouseup', () => {
