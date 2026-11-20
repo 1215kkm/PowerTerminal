@@ -1410,6 +1410,17 @@
   html.light .termCancel { background: rgba(59,29,36,.92); color: #fca5a5; }   /* 중단 버튼 색 유지 */
   html.light #hverBadge, html.light #verBadge { background: #e5e7eb; }
   #wnDlg { width: min(560px, calc(100vw - 32px)); padding: 0; border-radius: 14px; }
+  /* 🔁 루틴 안내 */
+  #rtIntroDlg { width: min(560px, calc(100vw - 32px)); padding: 0; border-radius: 14px; }
+  #rtIntroDlg .ri-head { display: flex; align-items: center; gap: 8px; padding: 16px 18px 6px; }
+  #rtIntroDlg .ri-title { flex: 1; font-size: 17px; }
+  #rtIntroDlg .ri-body { padding: 0 18px; max-height: 64vh; overflow: auto; }
+  #rtIntroDlg ol { margin: 6px 0 10px; padding-left: 22px; }
+  #rtIntroDlg li { font-size: 14px; line-height: 1.65; margin: 6px 0; overflow-wrap: anywhere; }
+  #rtIntroDlg .ri-ex { border: 1px solid #7c3aed; background: rgba(124,58,237,.12); border-radius: 10px; padding: 10px 14px; }
+  #rtIntroDlg .ri-ex small { color: #c4b5fd; font-weight: 700; font-size: 12px; }
+  #rtIntroDlg .ri-prompt { margin: 4px 0 0; font-size: 14.5px; line-height: 1.65; overflow-wrap: anywhere; }
+  #rtIntroDlg .ri-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 18px 16px; }
   #wnDlg .wn-head { display: flex; align-items: center; gap: 8px; padding: 16px 18px 8px; }
   #wnDlg .wn-title { flex: 1; font-size: 17px; }
   #wnDlg .wn-x { padding: 4px 10px; font-weight: 700; }
@@ -1898,7 +1909,7 @@
   <button id="btnQuit" onclick="quitAll()" data-i18n-title="quitBtn" title="Quit — shut down the server" style="color:#ef4444"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></button>
   <button id="btnSched" onclick="window.open('/scheduler.html', '_blank', 'noopener')" title="세션별 시각·반복·한도 초기화 예약" data-i18n="schedBtn" data-i18n-title="schedT">⏱ 자동 실행</button>
   <!-- 🔁 루틴 — 실험 기능(⚙ 설정에서 켬). 켜면 ⏱ 자동 실행 자리를 이 단추가 대신한다 -->
-  <button id="btnRoutines" onclick="window.open('/routines.html', '_blank', 'noopener')" data-i18n="routBtn" data-i18n-title="routT" style="display:none">🔁 루틴</button>
+  <button id="btnRoutines" onclick="openRoutinesIntro()" data-i18n="routBtn" data-i18n-title="routT" style="display:none">🔁 루틴</button>
   <button id="btnAdd" class="primary" onclick="openAdd()"><span class="plusBig">＋</span><span data-i18n="addSession">Session</span></button>
   </span>
 </header>
@@ -5426,6 +5437,30 @@ function isMobileNow() {   // 아이패드 미니 세로(≤768) 이하 = 폰과
 }
 
 const grid = document.getElementById('grid');
+// 🔁 루틴 단추 → 바로 루틴 창 대신 안내부터: 번호 눌러 복사본 세션(tree) 만들기 + 세션끼리 일을 주고받는 프롬프트 예시 (2026-11-20 CEO)
+const RT_INTRO = {"en":{"title":"🔁 Routines — try it like this","s1":"Click the <b>number</b> at the top left of a session — a copy session (tree) opens on the same folder.","s2":"In one of them, ask something like the example below. The sessions then pass work to each other on the schedule.","ex":"Prompt example","prompt":"Every 3 hours, ask the tree2 session for the images needed for the work, take them back when it is done, apply them to what you were making, and finish the piece.","copy":"📋 Copy example","open":"🔁 Open routines","close":"Close"},"ko":{"title":"🔁 루틴 — 이렇게 써 보세요","s1":"세션 왼쪽 위 <b>번호</b>를 누르면 같은 폴더로 복사본 세션(tree)이 하나 더 생겨요.","s2":"그중 한 세션에 아래 예시처럼 요청하면, 정한 시간마다 세션끼리 일을 주고받아요.","ex":"프롬프트 예시","prompt":"매일 3시간마다 tree2 세션에게 제작에 필요한 이미지를 요청해서 완료되면 너가 다시 받도록 하고, 너가 만들던 거에 적용해서 제작물을 완성해줘","copy":"📋 예시 복사","open":"🔁 루틴 창 열기","close":"닫기"},"ja":{"title":"🔁 ルーティン — こう使ってみてください","s1":"セッション左上の<b>番号</b>を押すと、同じフォルダでコピーのセッション(tree)がもう1つ開きます。","s2":"そのうち1つに下の例のように頼むと、決めた時間ごとにセッション同士で作業をやり取りします。","ex":"プロンプト例","prompt":"毎日3時間ごとに tree2 セッションへ制作に必要な画像を頼み、完成したら受け取って、あなたが作っていたものに反映して制作物を仕上げてください","copy":"📋 例をコピー","open":"🔁 ルーティンを開く","close":"閉じる"},"zh":{"title":"🔁 例程 — 可以这样用","s1":"点击会话左上角的<b>编号</b>，会在同一文件夹再开一个副本会话(tree)。","s2":"在其中一个会话里像下面的示例这样请求，会话之间就会按设定的时间互相传递工作。","ex":"提示词示例","prompt":"每天每隔 3 小时向 tree2 会话索要制作需要的图片，完成后由你收回，应用到你正在做的东西上，把作品完成","copy":"📋 复制示例","open":"🔁 打开例程","close":"关闭"},"es":{"title":"🔁 Rutinas — pruébalo así","s1":"Haz clic en el <b>número</b> arriba a la izquierda de una sesión: se abre una sesión copia (tree) en la misma carpeta.","s2":"En una de ellas, pide algo como el ejemplo de abajo. Las sesiones se pasarán el trabajo según el horario.","ex":"Ejemplo de prompt","prompt":"Cada 3 horas, pide a la sesión tree2 las imágenes necesarias para el trabajo, recógelas cuando termine, aplícalas a lo que estabas haciendo y termina la pieza.","copy":"📋 Copiar ejemplo","open":"🔁 Abrir rutinas","close":"Cerrar"},"de":{"title":"🔁 Routinen — so probierst du es aus","s1":"Klick oben links in einer Sitzung auf die <b>Nummer</b> — eine Kopie-Sitzung (tree) öffnet sich im selben Ordner.","s2":"Bitte in einer davon um etwas wie im Beispiel unten. Die Sitzungen reichen sich die Arbeit dann nach Zeitplan weiter.","ex":"Prompt-Beispiel","prompt":"Bitte alle 3 Stunden die Sitzung tree2 um die Bilder, die für die Arbeit nötig sind, hol sie zurück, wenn sie fertig sind, setze sie in das ein, woran du gearbeitet hast, und stelle das Werk fertig.","copy":"📋 Beispiel kopieren","open":"🔁 Routinen öffnen","close":"Schließen"},"fr":{"title":"🔁 Routines — essayez comme ceci","s1":"Cliquez sur le <b>numéro</b> en haut à gauche d’une session : une session copie (tree) s’ouvre sur le même dossier.","s2":"Dans l’une d’elles, demandez quelque chose comme l’exemple ci-dessous. Les sessions se passeront alors le travail selon l’horaire.","ex":"Exemple de prompt","prompt":"Toutes les 3 heures, demande à la session tree2 les images nécessaires au travail, récupère-les quand c’est fini, applique-les à ce que tu étais en train de faire et termine la réalisation.","copy":"📋 Copier l’exemple","open":"🔁 Ouvrir les routines","close":"Fermer"},"pt":{"title":"🔁 Rotinas — experimente assim","s1":"Clique no <b>número</b> no canto superior esquerdo de uma sessão — abre-se uma sessão cópia (tree) na mesma pasta.","s2":"Em uma delas, peça algo como o exemplo abaixo. As sessões passam o trabalho entre si conforme o horário.","ex":"Exemplo de prompt","prompt":"A cada 3 horas, peça à sessão tree2 as imagens necessárias para o trabalho, pegue-as de volta quando terminar, aplique-as ao que você estava fazendo e finalize a peça.","copy":"📋 Copiar exemplo","open":"🔁 Abrir rotinas","close":"Fechar"},"ru":{"title":"🔁 Рутины — попробуйте так","s1":"Нажмите <b>номер</b> в левом верхнем углу сессии — в той же папке откроется сессия-копия (tree).","s2":"В одной из них попросите что-то вроде примера ниже. Сессии будут передавать друг другу работу по расписанию.","ex":"Пример запроса","prompt":"Каждые 3 часа проси у сессии tree2 изображения, нужные для работы, забирай их, когда будут готовы, применяй к тому, что ты делал, и доведи работу до конца.","copy":"📋 Копировать пример","open":"🔁 Открыть рутины","close":"Закрыть"},"hi":{"title":"🔁 रूटीन — ऐसे आज़माएँ","s1":"किसी सेशन के ऊपर-बाएँ <b>नंबर</b> पर क्लिक करें — उसी फ़ोल्डर पर एक कॉपी सेशन (tree) खुल जाएगा।","s2":"उनमें से एक में नीचे दिए उदाहरण जैसा अनुरोध करें। फिर सेशन तय समय पर एक-दूसरे को काम सौंपते रहेंगे।","ex":"प्रॉम्प्ट उदाहरण","prompt":"हर 3 घंटे में tree2 सेशन से काम के लिए ज़रूरी इमेज माँगो, पूरा होने पर उन्हें वापस लो, जो तुम बना रहे थे उसमें लगाओ और काम पूरा करो।","copy":"📋 उदाहरण कॉपी करें","open":"🔁 रूटीन खोलें","close":"बंद करें"}};
+function openRoutinesIntro() {
+  const t = Object.assign({}, RT_INTRO.en, RT_INTRO[LANG] || {});
+  let d = document.getElementById('rtIntroDlg');
+  if (!d) { d = document.createElement('dialog'); d.id = 'rtIntroDlg'; document.body.appendChild(d); d.addEventListener('click', ev => { if (ev.target === d) d.close(); }); }
+  d.innerHTML = '<div class="ri-head"><b class="ri-title"></b><button type="button" class="small ri-x" aria-label="close">✕</button></div>'
+    + '<div class="ri-body"><ol><li class="ri-s1"></li><li class="ri-s2"></li></ol>'
+    + '<div class="ri-ex"><small></small><p class="ri-prompt"></p></div></div>'
+    + '<div class="ri-foot"><button type="button" class="small ri-copy"></button><span style="flex:1"></span><button type="button" class="small ri-close"></button><button type="button" class="primary ri-open"></button></div>';
+  d.querySelector('.ri-title').textContent = t.title;
+  d.querySelector('.ri-s1').innerHTML = t.s1;   // 고정 글(사용자 입력 아님) — <b>번호</b> 강조만
+  d.querySelector('.ri-s2').textContent = t.s2;
+  d.querySelector('.ri-ex small').textContent = t.ex;
+  d.querySelector('.ri-prompt').textContent = '“' + t.prompt + '”';
+  d.querySelector('.ri-copy').textContent = t.copy;
+  d.querySelector('.ri-close').textContent = t.close;
+  d.querySelector('.ri-open').textContent = t.open;
+  d.querySelector('.ri-x').onclick = d.querySelector('.ri-close').onclick = () => d.close();
+  d.querySelector('.ri-copy').onclick = () => copyTxt(t.prompt);
+  d.querySelector('.ri-open').onclick = () => { d.close(); window.open('/routines.html', '_blank', 'noopener'); };
+  if (!d.open) d.showModal();
+  d.querySelector('.ri-open').focus();
+}
 // 🔒 모달 창(📂 파일·세션 추가 등)이 떠 있는 동안 뒤 화면은 안 움직인다 — 창 밖(어두운 바탕)에서 휠을 굴리거나,
 // 창 안 목록이 끝까지 내려간 뒤 더 굴리면 뒤 PT 화면이 같이 스크롤됐다. 창 안에서 스크롤할 수 있는 칸만 움직이게 한다.
 // (html 에 overflow:hidden 을 걸면 스크롤바가 사라져 폭이 바뀌고 모든 터미널이 다시 맞춰지므로 그 방법은 안 씀)

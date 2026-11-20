@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.70", "date": "2026-11-20",
+      "items": {
+        "en": ["🔁 Routines button: first shows how to use it — click a session number to make a copy session, then a prompt example for having sessions pass work to each other on a schedule."],
+        "ko": ["🔁 루틴 단추: 바로 루틴 창을 열지 않고 쓰는 법부터 보여 줘요 — 세션 번호를 눌러 복사본 세션 만들기, 세션끼리 정한 시간마다 일을 주고받는 프롬프트 예시."],
+        "ja": ["🔁 ルーティンボタン: まず使い方を表示します — セッション番号を押してコピーのセッションを作り、決めた時間ごとにセッション同士で作業をやり取りするプロンプト例。"],
+        "zh": ["🔁 例程按钮：先显示用法——点会话编号创建副本会话，以及让会话按时间互相传递工作的提示词示例。"],
+        "es": ["🔁 Botón Rutinas: primero muestra cómo usarlo — haz clic en el número de una sesión para crear una copia, y un ejemplo de prompt para que las sesiones se pasen el trabajo según un horario."],
+        "de": ["🔁 Routinen-Knopf: zeigt zuerst, wie es geht — Sitzungsnummer klicken für eine Kopie-Sitzung, dazu ein Prompt-Beispiel, mit dem Sitzungen sich nach Zeitplan Arbeit weiterreichen."],
+        "fr": ["🔁 Bouton Routines : montre d’abord comment l’utiliser — cliquez sur le numéro d’une session pour créer une copie, puis un exemple de prompt pour que les sessions se passent le travail selon un horaire."],
+        "pt": ["🔁 Botão Rotinas: primeiro mostra como usar — clique no número de uma sessão para criar uma cópia, e um exemplo de prompt para as sessões passarem trabalho entre si num horário."],
+        "ru": ["🔁 Кнопка «Рутины»: сначала показывает, как пользоваться — нажмите номер сессии, чтобы создать копию, и пример запроса, чтобы сессии передавали друг другу работу по расписанию."],
+        "hi": ["🔁 रूटीन बटन: पहले इस्तेमाल का तरीका दिखाता है — कॉपी सेशन बनाने के लिए सेशन नंबर पर क्लिक करें, और तय समय पर सेशनों के बीच काम सौंपने का प्रॉम्प्ट उदाहरण।"]
+      }
+    },
+    {
       "v": "1.90.69", "date": "2026-11-20",
       "items": {
         "en": ["📂 Files window: sort by name, newest or size (press again to reverse), and drag down the list to tick many files at once.",
