@@ -1,17 +1,436 @@
 {
   "ui": {
-    "en": { "title": "What's new in PowerTerminal", "ok": "Got it", "badge": "See what changed in each update" },
-    "ko": { "title": "PowerTerminal 업데이트 내용", "ok": "확인", "badge": "업데이트마다 바뀐 내용 보기" },
-    "ja": { "title": "PowerTerminal の更新内容", "ok": "OK", "badge": "更新ごとの変更点を見る" },
-    "zh": { "title": "PowerTerminal 更新内容", "ok": "知道了", "badge": "查看每次更新的变化" },
-    "es": { "title": "Novedades de PowerTerminal", "ok": "Entendido", "badge": "Ver qué cambió en cada actualización" },
-    "de": { "title": "Neu in PowerTerminal", "ok": "Verstanden", "badge": "Änderungen jedes Updates ansehen" },
-    "fr": { "title": "Nouveautés de PowerTerminal", "ok": "Compris", "badge": "Voir ce qui a changé à chaque mise à jour" },
-    "pt": { "title": "Novidades do PowerTerminal", "ok": "Entendi", "badge": "Ver o que mudou em cada atualização" },
-    "ru": { "title": "Что нового в PowerTerminal", "ok": "Понятно", "badge": "Что изменилось в каждом обновлении" },
-    "hi": { "title": "PowerTerminal में नया क्या है", "ok": "ठीक है", "badge": "हर अपडेट में क्या बदला, देखें" }
+    "en": {
+      "title": "What's new in PowerTerminal",
+      "ok": "Got it",
+      "badge": "See what changed in each update",
+      "tabNew": "🆕 This update",
+      "tabAll": "📜 All updates",
+      "tabFeat": "📋 All features",
+      "featIntro": "Everything PowerTerminal can do, one line each.",
+      "older": "Older updates (English): GitHub releases"
+    },
+    "ko": {
+      "title": "PowerTerminal 업데이트 내용",
+      "ok": "확인",
+      "badge": "업데이트마다 바뀐 내용 보기",
+      "tabNew": "🆕 이번 업데이트",
+      "tabAll": "📜 지난 업데이트 모두",
+      "tabFeat": "📋 기능 한눈에",
+      "featIntro": "PowerTerminal 로 할 수 있는 것을 한 줄씩 모았어요.",
+      "older": "더 이전 기록(영어): GitHub 릴리스"
+    },
+    "ja": {
+      "title": "PowerTerminal の更新内容",
+      "ok": "OK",
+      "badge": "更新ごとの変更点を見る",
+      "tabNew": "🆕 今回の更新",
+      "tabAll": "📜 過去の更新すべて",
+      "tabFeat": "📋 機能一覧",
+      "featIntro": "PowerTerminal でできることを1行ずつまとめました。",
+      "older": "さらに前の記録(英語): GitHub リリース"
+    },
+    "zh": {
+      "title": "PowerTerminal 更新内容",
+      "ok": "知道了",
+      "badge": "查看每次更新的变化",
+      "tabNew": "🆕 本次更新",
+      "tabAll": "📜 全部更新记录",
+      "tabFeat": "📋 功能一览",
+      "featIntro": "PowerTerminal 能做的事，一行一条。",
+      "older": "更早的记录(英文)：GitHub 发布页"
+    },
+    "es": {
+      "title": "Novedades de PowerTerminal",
+      "ok": "Entendido",
+      "badge": "Ver qué cambió en cada actualización",
+      "tabNew": "🆕 Esta actualización",
+      "tabAll": "📜 Todas las actualizaciones",
+      "tabFeat": "📋 Todas las funciones",
+      "featIntro": "Todo lo que PowerTerminal puede hacer, una línea por función.",
+      "older": "Actualizaciones anteriores (inglés): GitHub releases"
+    },
+    "de": {
+      "title": "Neu in PowerTerminal",
+      "ok": "Verstanden",
+      "badge": "Änderungen jedes Updates ansehen",
+      "tabNew": "🆕 Dieses Update",
+      "tabAll": "📜 Alle Updates",
+      "tabFeat": "📋 Alle Funktionen",
+      "featIntro": "Alles, was PowerTerminal kann – je eine Zeile.",
+      "older": "Ältere Updates (Englisch): GitHub-Releases"
+    },
+    "fr": {
+      "title": "Nouveautés de PowerTerminal",
+      "ok": "Compris",
+      "badge": "Voir ce qui a changé à chaque mise à jour",
+      "tabNew": "🆕 Cette mise à jour",
+      "tabAll": "📜 Toutes les mises à jour",
+      "tabFeat": "📋 Toutes les fonctions",
+      "featIntro": "Tout ce que PowerTerminal sait faire, une ligne chacun.",
+      "older": "Mises à jour plus anciennes (anglais) : GitHub releases"
+    },
+    "pt": {
+      "title": "Novidades do PowerTerminal",
+      "ok": "Entendi",
+      "badge": "Ver o que mudou em cada atualização",
+      "tabNew": "🆕 Esta atualização",
+      "tabAll": "📜 Todas as atualizações",
+      "tabFeat": "📋 Todas as funções",
+      "featIntro": "Tudo o que o PowerTerminal faz, uma linha cada.",
+      "older": "Atualizações mais antigas (inglês): GitHub releases"
+    },
+    "ru": {
+      "title": "Что нового в PowerTerminal",
+      "ok": "Понятно",
+      "badge": "Что изменилось в каждом обновлении",
+      "tabNew": "🆕 Это обновление",
+      "tabAll": "📜 Все обновления",
+      "tabFeat": "📋 Все возможности",
+      "featIntro": "Всё, что умеет PowerTerminal, по одной строке.",
+      "older": "Более ранние обновления (англ.): GitHub releases"
+    },
+    "hi": {
+      "title": "PowerTerminal में नया क्या है",
+      "ok": "ठीक है",
+      "badge": "हर अपडेट में क्या बदला, देखें",
+      "tabNew": "🆕 यह अपडेट",
+      "tabAll": "📜 सभी अपडेट",
+      "tabFeat": "📋 सभी सुविधाएँ",
+      "featIntro": "PowerTerminal जो कुछ कर सकता है, एक-एक पंक्ति में।",
+      "older": "पुराने अपडेट (अंग्रेज़ी): GitHub रिलीज़"
+    }
   },
+  "features": [
+    {
+      "cat": {
+        "en": "🖥 Sessions",
+        "ko": "🖥 세션",
+        "ja": "🖥 セッション",
+        "zh": "🖥 会话",
+        "es": "🖥 Sesiones",
+        "de": "🖥 Sitzungen",
+        "fr": "🖥 Sessions",
+        "pt": "🖥 Sessões",
+        "ru": "🖥 Сессии",
+        "hi": "🖥 सेशन"
+      },
+      "items": [
+        {
+          "en": "Run several AI sessions (Claude, GPT, shell) side by side on one screen.",
+          "ko": "여러 AI 세션(Claude·GPT·셸)을 한 화면에 나란히 띄워 동시에 일을 시켜요.",
+          "ja": "複数のAIセッション(Claude・GPT・シェル)を1画面に並べて同時に動かせます。",
+          "zh": "在一个屏幕上并排运行多个 AI 会话(Claude、GPT、命令行)。",
+          "es": "Varias sesiones de IA (Claude, GPT, terminal) lado a lado en una pantalla.",
+          "de": "Mehrere KI-Sitzungen (Claude, GPT, Shell) nebeneinander auf einem Bildschirm.",
+          "fr": "Plusieurs sessions IA (Claude, GPT, terminal) côte à côte sur un écran.",
+          "pt": "Várias sessões de IA (Claude, GPT, terminal) lado a lado numa tela.",
+          "ru": "Несколько ИИ-сессий (Claude, GPT, терминал) рядом на одном экране.",
+          "hi": "कई AI सेशन (Claude, GPT, शेल) एक स्क्रीन पर साथ-साथ चलाएँ।"
+        },
+        {
+          "en": "Click a session number to open a copy session (tree) on the same folder — they never clash.",
+          "ko": "세션 번호를 누르면 같은 폴더로 복사본 세션(tree)이 생겨요 — 서로 겹치지 않아요.",
+          "ja": "セッション番号を押すと同じフォルダでコピーのセッション(tree)が開き、互いに衝突しません。",
+          "zh": "点会话编号即可在同一文件夹开一个副本会话(tree)，互不冲突。",
+          "es": "Clic en el número de una sesión abre una sesión copia (tree) en la misma carpeta, sin choques.",
+          "de": "Klick auf die Sitzungsnummer öffnet eine Kopie-Sitzung (tree) im selben Ordner – ohne Konflikte.",
+          "fr": "Cliquez sur le numéro d’une session pour ouvrir une copie (tree) sur le même dossier, sans conflit.",
+          "pt": "Clique no número da sessão para abrir uma cópia (tree) na mesma pasta, sem conflitos.",
+          "ru": "Нажмите номер сессии — откроется сессия-копия (tree) в той же папке, без конфликтов.",
+          "hi": "सेशन नंबर पर क्लिक करें — उसी फ़ोल्डर पर कॉपी सेशन (tree) खुलेगा, टकराव नहीं।"
+        },
+        {
+          "en": "Request box with quick phrases, earlier requests (Ctrl+↑), and long pastes saved as a file (Ctrl+Shift+V pastes as is).",
+          "ko": "요청칸: 자주 쓰는 말 단추, 이전 요청(Ctrl+↑), 긴 글은 파일로 붙여넣기(Ctrl+Shift+V는 그대로).",
+          "ja": "依頼欄: よく使う言葉ボタン、前の依頼(Ctrl+↑)、長文はファイルで貼り付け(Ctrl+Shift+V はそのまま)。",
+          "zh": "请求框：常用语按钮、之前的请求(Ctrl+↑)、长文本以文件粘贴(Ctrl+Shift+V 原样粘贴)。",
+          "es": "Cuadro de petición con frases rápidas, peticiones anteriores (Ctrl+↑) y textos largos como archivo (Ctrl+Shift+V pega tal cual).",
+          "de": "Eingabefeld mit Schnellsätzen, früheren Anfragen (Strg+↑) und langen Texten als Datei (Strg+Umschalt+V fügt direkt ein).",
+          "fr": "Zone de demande avec phrases rapides, demandes précédentes (Ctrl+↑) et longs textes en fichier (Ctrl+Maj+V colle tel quel).",
+          "pt": "Caixa de pedido com frases rápidas, pedidos anteriores (Ctrl+↑) e textos longos como arquivo (Ctrl+Shift+V cola como está).",
+          "ru": "Поле запроса: быстрые фразы, прошлые запросы (Ctrl+↑), длинный текст вставляется файлом (Ctrl+Shift+V — как есть).",
+          "hi": "अनुरोध बॉक्स: त्वरित वाक्य, पिछले अनुरोध (Ctrl+↑), लंबा टेक्स्ट फ़ाइल के रूप में (Ctrl+Shift+V जैसा है)।"
+        },
+        {
+          "en": "Shows which sessions are working or done, with a sound when work finishes.",
+          "ko": "어느 세션이 일하는 중·끝났는지 보여 주고, 끝나면 소리로 알려 줘요.",
+          "ja": "どのセッションが作業中・完了かを表示し、終わると音で知らせます。",
+          "zh": "显示哪些会话正在工作或已完成，完成时有提示音。",
+          "es": "Muestra qué sesiones trabajan o han terminado, con un sonido al acabar.",
+          "de": "Zeigt, welche Sitzungen arbeiten oder fertig sind – mit Ton am Ende.",
+          "fr": "Indique quelles sessions travaillent ou ont fini, avec un son à la fin.",
+          "pt": "Mostra quais sessões estão trabalhando ou terminaram, com som ao acabar.",
+          "ru": "Показывает, какие сессии работают или закончили, со звуком по завершении.",
+          "hi": "दिखाता है कौन-से सेशन काम कर रहे हैं या पूरे हुए, खत्म होने पर आवाज़।"
+        },
+        {
+          "en": "Hold the wheel button and drag to move the screen; make one session big.",
+          "ko": "휠 버튼을 누른 채 끌면 화면 이동, 세션 하나를 크게 보기.",
+          "ja": "ホイールボタンを押したままドラッグで画面移動、1つのセッションを大きく表示。",
+          "zh": "按住滚轮拖动即可移动画面；可放大单个会话。",
+          "es": "Mantén la rueda y arrastra para mover la pantalla; amplía una sesión.",
+          "de": "Mausrad gedrückt halten und ziehen verschiebt den Bildschirm; eine Sitzung groß anzeigen.",
+          "fr": "Molette enfoncée + glisser pour déplacer l’écran ; agrandir une session.",
+          "pt": "Segure a roda e arraste para mover a tela; amplie uma sessão.",
+          "ru": "Зажмите колёсико и тяните, чтобы двигать экран; увеличьте одну сессию.",
+          "hi": "व्हील दबाकर खींचें तो स्क्रीन खिसके; एक सेशन बड़ा देखें।"
+        }
+      ]
+    },
+    {
+      "cat": {
+        "en": "📖 Note mode",
+        "ko": "📖 노트 모드",
+        "ja": "📖 ノートモード",
+        "zh": "📖 笔记模式",
+        "es": "📖 Modo nota",
+        "de": "📖 Notizmodus",
+        "fr": "📖 Mode note",
+        "pt": "📖 Modo nota",
+        "ru": "📖 Режим заметок",
+        "hi": "📖 नोट मोड"
+      },
+      "items": [
+        {
+          "en": "Read a session’s conversation like a book — pages, a contents page per day, read aloud.",
+          "ko": "세션 대화를 책처럼 넘겨 읽어요 — 날짜별 차례, 소리 내어 읽기.",
+          "ja": "セッションの会話を本のようにめくって読めます — 日付ごとの目次、読み上げ。",
+          "zh": "像翻书一样阅读会话对话——按日期的目录、朗读。",
+          "es": "Lee la conversación de una sesión como un libro: páginas, índice por día, lectura en voz alta.",
+          "de": "Die Unterhaltung einer Sitzung wie ein Buch lesen – Seiten, Tagesinhalt, Vorlesen.",
+          "fr": "Lisez la conversation d’une session comme un livre : pages, sommaire par jour, lecture à voix haute.",
+          "pt": "Leia a conversa de uma sessão como um livro: páginas, índice por dia, leitura em voz alta.",
+          "ru": "Читайте разговор сессии как книгу — страницы, оглавление по дням, чтение вслух.",
+          "hi": "सेशन की बातचीत किताब की तरह पढ़ें — पन्ने, दिन-वार सूची, आवाज़ में पढ़ना।"
+        },
+        {
+          "en": "Search this session or all sessions; answer the AI’s pick-one questions with buttons.",
+          "ko": "이 세션·모든 세션에서 검색, AI 가 고르라고 물으면 버튼으로 답해요.",
+          "ja": "このセッション・全セッションを検索、AIの選択質問にボタンで答えられます。",
+          "zh": "搜索当前或所有会话；AI 让你选择时用按钮回答。",
+          "es": "Busca en esta sesión o en todas; responde con botones cuando la IA te pide elegir.",
+          "de": "Diese oder alle Sitzungen durchsuchen; Auswahlfragen der KI per Knopf beantworten.",
+          "fr": "Cherchez dans cette session ou toutes ; répondez aux choix de l’IA par des boutons.",
+          "pt": "Pesquise nesta sessão ou em todas; responda às escolhas da IA com botões.",
+          "ru": "Поиск в этой или во всех сессиях; ответы на вопросы ИИ с выбором — кнопками.",
+          "hi": "इस या सभी सेशन में खोजें; AI के चुनने वाले सवालों का जवाब बटन से दें।"
+        },
+        {
+          "en": "File paths and pictures in answers open with a click — even files on another PC.",
+          "ko": "답에 적힌 파일 경로·그림을 누르면 바로 열려요 — 다른 PC 파일도.",
+          "ja": "回答内のファイルパスや画像はクリックで開きます — 別のPCのファイルも。",
+          "zh": "回答里的文件路径和图片点一下就能打开——其他电脑上的文件也行。",
+          "es": "Las rutas e imágenes de las respuestas se abren con un clic, incluso de otro PC.",
+          "de": "Dateipfade und Bilder in Antworten öffnen per Klick – auch von einem anderen PC.",
+          "fr": "Les chemins de fichiers et images des réponses s’ouvrent d’un clic, même sur un autre PC.",
+          "pt": "Caminhos de arquivos e imagens nas respostas abrem com um clique, até de outro PC.",
+          "ru": "Пути к файлам и картинки в ответах открываются щелчком — даже с другого ПК.",
+          "hi": "जवाबों में लिखे फ़ाइल पथ और चित्र एक क्लिक से खुलते हैं — दूसरे PC की फ़ाइलें भी।"
+        }
+      ]
+    },
+    {
+      "cat": {
+        "en": "📱 Phone & other PCs",
+        "ko": "📱 폰·다른 PC",
+        "ja": "📱 スマホ・他のPC",
+        "zh": "📱 手机和其他电脑",
+        "es": "📱 Móvil y otros PC",
+        "de": "📱 Handy & andere PCs",
+        "fr": "📱 Téléphone et autres PC",
+        "pt": "📱 Celular e outros PCs",
+        "ru": "📱 Телефон и другие ПК",
+        "hi": "📱 फ़ोन और दूसरे PC"
+      },
+      "items": [
+        {
+          "en": "Use it from your phone or anywhere (QR code / outside address); get the new address by email or Telegram.",
+          "ko": "폰이나 밖에서도 접속(QR·외부 주소), 새 접속 주소를 메일·텔레그램으로 받기.",
+          "ja": "スマホや外からも接続(QR・外部アドレス)、新しいアドレスをメール・Telegramで受け取り。",
+          "zh": "手机或外面也能连接(二维码/外部地址)，新地址可通过邮件或 Telegram 接收。",
+          "es": "Úsalo desde el móvil o desde fuera (QR / dirección externa); recibe la nueva dirección por correo o Telegram.",
+          "de": "Vom Handy oder unterwegs nutzen (QR / externe Adresse); neue Adresse per E-Mail oder Telegram.",
+          "fr": "Utilisable depuis le téléphone ou l’extérieur (QR / adresse externe) ; nouvelle adresse par e-mail ou Telegram.",
+          "pt": "Use pelo celular ou de fora (QR / endereço externo); receba o novo endereço por e-mail ou Telegram.",
+          "ru": "Доступ с телефона или извне (QR / внешний адрес); новый адрес — по почте или в Telegram.",
+          "hi": "फ़ोन या बाहर से इस्तेमाल करें (QR / बाहरी पता); नया पता ईमेल या Telegram पर पाएँ।"
+        },
+        {
+          "en": "Link several PCs: see their sessions here, send work as a tree and merge it back, share only chosen sessions.",
+          "ko": "여러 PC 연결: 다른 PC 세션을 이 화면에서, 일을 tree 로 보내고 다시 합치기, 고른 세션만 나눠 쓰기.",
+          "ja": "複数PCを接続: 他のPCのセッションをこの画面で、作業をtreeで送って統合、選んだセッションだけ共有。",
+          "zh": "连接多台电脑：在这里看其他电脑的会话、以 tree 发送工作再合并、只共享选定会话。",
+          "es": "Conecta varios PC: ve sus sesiones aquí, envía trabajo como tree y únelo, comparte solo las sesiones elegidas.",
+          "de": "Mehrere PCs verbinden: deren Sitzungen hier sehen, Arbeit als tree senden und zusammenführen, nur gewählte Sitzungen teilen.",
+          "fr": "Reliez plusieurs PC : voyez leurs sessions ici, envoyez du travail en tree et fusionnez-le, ne partagez que les sessions choisies.",
+          "pt": "Conecte vários PCs: veja as sessões deles aqui, envie trabalho como tree e junte, compartilhe só as sessões escolhidas.",
+          "ru": "Свяжите несколько ПК: их сессии здесь, отправка работы как tree и слияние, общий доступ только к выбранным сессиям.",
+          "hi": "कई PC जोड़ें: उनके सेशन यहाँ देखें, काम tree के रूप में भेजें और वापस मिलाएँ, सिर्फ़ चुने सेशन साझा करें।"
+        },
+        {
+          "en": "📂 Files window: view, download, zip, upload, sort, drag to tick, copy / cut / paste with a % bar — any folder on the PC.",
+          "ko": "📂 파일 창: 보기·받기·zip·올리기·정렬·끌어 체크, 복사·잘라내기·붙여넣기(% 게이지) — PC 의 모든 폴더.",
+          "ja": "📂 ファイル画面: 表示・ダウンロード・zip・アップロード・並べ替え・ドラッグでチェック、コピー・切り取り・貼り付け(%ゲージ) — PCのすべてのフォルダ。",
+          "zh": "📂 文件窗口：查看、下载、zip、上传、排序、拖动勾选、复制/剪切/粘贴(% 进度)——电脑上任何文件夹。",
+          "es": "📂 Ventana de archivos: ver, descargar, zip, subir, ordenar, marcar arrastrando, copiar / cortar / pegar con barra % — cualquier carpeta.",
+          "de": "📂 Dateifenster: ansehen, herunterladen, zip, hochladen, sortieren, per Ziehen anhaken, kopieren / ausschneiden / einfügen mit %-Balken – jeder Ordner.",
+          "fr": "📂 Fenêtre Fichiers : voir, télécharger, zip, envoyer, trier, cocher en glissant, copier / couper / coller avec barre % — tout dossier.",
+          "pt": "📂 Janela de arquivos: ver, baixar, zip, enviar, ordenar, marcar arrastando, copiar / recortar / colar com barra % — qualquer pasta.",
+          "ru": "📂 Окно файлов: просмотр, загрузка, zip, отправка, сортировка, отметка протягиванием, копировать / вырезать / вставить с %-шкалой — любая папка.",
+          "hi": "📂 फ़ाइल विंडो: देखें, डाउनलोड, zip, अपलोड, क्रम, खींचकर चुनें, कॉपी / कट / पेस्ट % पट्टी के साथ — कोई भी फ़ोल्डर।"
+        }
+      ]
+    },
+    {
+      "cat": {
+        "en": "🌐 Browser & logins",
+        "ko": "🌐 브라우저·로그인",
+        "ja": "🌐 ブラウザ・ログイン",
+        "zh": "🌐 浏览器与登录",
+        "es": "🌐 Navegador e inicios de sesión",
+        "de": "🌐 Browser & Logins",
+        "fr": "🌐 Navigateur et connexions",
+        "pt": "🌐 Navegador e logins",
+        "ru": "🌐 Браузер и входы",
+        "hi": "🌐 ब्राउज़र और लॉगिन"
+      },
+      "items": [
+        {
+          "en": "PT browser: the AI works in a real Chrome window; each tab shows which session owns it.",
+          "ko": "PT 브라우저: AI 가 진짜 크롬 창을 직접 다뤄요, 탭마다 어느 세션 것인지 표시.",
+          "ja": "PTブラウザ: AIが本物のChromeを操作、タブごとにどのセッションのものか表示。",
+          "zh": "PT 浏览器：AI 直接操作真实的 Chrome 窗口，每个标签显示属于哪个会话。",
+          "es": "Navegador PT: la IA usa una ventana real de Chrome; cada pestaña muestra su sesión.",
+          "de": "PT-Browser: Die KI arbeitet in einem echten Chrome-Fenster; jeder Tab zeigt seine Sitzung.",
+          "fr": "Navigateur PT : l’IA travaille dans une vraie fenêtre Chrome ; chaque onglet indique sa session.",
+          "pt": "Navegador PT: a IA usa uma janela real do Chrome; cada aba mostra a sua sessão.",
+          "ru": "Браузер PT: ИИ работает в настоящем окне Chrome; на каждой вкладке видно, чья она.",
+          "hi": "PT ब्राउज़र: AI असली Chrome विंडो में काम करता है; हर टैब बताता है वह किस सेशन का है।"
+        },
+        {
+          "en": "🔑 Login vault: the AI signs in without ever seeing passwords; edit it from any device.",
+          "ko": "🔑 로그인 보관함: AI 가 비밀번호를 보지 않고 로그인해요, 다른 기기에서도 수정 가능.",
+          "ja": "🔑 ログイン保管庫: AIはパスワードを見ずにログイン、他の端末からも編集可。",
+          "zh": "🔑 登录保管箱：AI 不看密码就能登录，其他设备上也能修改。",
+          "es": "🔑 Almacén de inicios de sesión: la IA entra sin ver las contraseñas; edítalo desde cualquier equipo.",
+          "de": "🔑 Login-Tresor: Die KI meldet sich an, ohne Passwörter zu sehen; von jedem Gerät bearbeitbar.",
+          "fr": "🔑 Coffre de connexions : l’IA se connecte sans voir les mots de passe ; modifiable depuis tout appareil.",
+          "pt": "🔑 Cofre de logins: a IA entra sem ver as senhas; edite de qualquer aparelho.",
+          "ru": "🔑 Хранилище входов: ИИ входит, не видя паролей; править можно с любого устройства.",
+          "hi": "🔑 लॉगिन वॉल्ट: AI पासवर्ड देखे बिना लॉगिन करता है; किसी भी डिवाइस से बदलें।"
+        }
+      ]
+    },
+    {
+      "cat": {
+        "en": "⏱ Automation",
+        "ko": "⏱ 자동화",
+        "ja": "⏱ 自動化",
+        "zh": "⏱ 自动化",
+        "es": "⏱ Automatización",
+        "de": "⏱ Automatisierung",
+        "fr": "⏱ Automatisation",
+        "pt": "⏱ Automação",
+        "ru": "⏱ Автоматизация",
+        "hi": "⏱ स्वचालन"
+      },
+      "items": [
+        {
+          "en": "⏱ Auto-run: send a request at a set time, on repeat, or when the usage limit resets.",
+          "ko": "⏱ 자동 실행: 정한 시각·반복·사용 한도가 풀릴 때 요청을 보내요.",
+          "ja": "⏱ 自動実行: 決めた時刻・繰り返し・使用上限リセット時に依頼を送ります。",
+          "zh": "⏱ 自动执行：在设定时间、重复或用量限制重置时发送请求。",
+          "es": "⏱ Autoejecución: envía una petición a una hora, repetida o cuando se reinicia el límite.",
+          "de": "⏱ Auto-Ausführung: Anfrage zu einer Zeit, wiederholt oder beim Zurücksetzen des Limits senden.",
+          "fr": "⏱ Exécution auto : envoie une demande à une heure fixe, en boucle ou à la réinitialisation de la limite.",
+          "pt": "⏱ Execução automática: envia um pedido num horário, em repetição ou quando o limite reinicia.",
+          "ru": "⏱ Автозапуск: запрос в заданное время, по повтору или при сбросе лимита.",
+          "hi": "⏱ ऑटो-रन: तय समय पर, दोहराकर या उपयोग सीमा रीसेट होने पर अनुरोध भेजें।"
+        },
+        {
+          "en": "🔁 Routines (experimental): run steps in order, a fresh session per step — or just ask a session in words.",
+          "ko": "🔁 루틴(실험): 단계마다 새 세션으로 차례로 진행 — 또는 세션에게 말로 맡기기만 해도 돼요.",
+          "ja": "🔁 ルーティン(実験): 段階ごとに新しいセッションで順に実行 — セッションに言葉で頼むだけでもOK。",
+          "zh": "🔁 例程(实验)：按步骤依次执行、每步新会话——或直接用文字交给会话。",
+          "es": "🔁 Rutinas (experimental): pasos en orden con una sesión nueva por paso, o simplemente pídeselo a una sesión.",
+          "de": "🔁 Routinen (experimentell): Schritte nacheinander mit neuer Sitzung pro Schritt – oder einfach eine Sitzung bitten.",
+          "fr": "🔁 Routines (expérimental) : étapes dans l’ordre, une nouvelle session par étape — ou demandez-le simplement à une session.",
+          "pt": "🔁 Rotinas (experimental): passos em ordem, uma sessão nova por passo — ou só peça a uma sessão.",
+          "ru": "🔁 Рутины (эксперимент): шаги по порядку, новая сессия на шаг — или просто попросите сессию словами.",
+          "hi": "🔁 रूटीन (प्रयोग): क्रम से कदम, हर कदम नया सेशन — या बस सेशन से शब्दों में कहें।"
+        }
+      ]
+    },
+    {
+      "cat": {
+        "en": "🧰 More",
+        "ko": "🧰 그 밖에",
+        "ja": "🧰 その他",
+        "zh": "🧰 其他",
+        "es": "🧰 Más",
+        "de": "🧰 Weiteres",
+        "fr": "🧰 Autres",
+        "pt": "🧰 Mais",
+        "ru": "🧰 Ещё",
+        "hi": "🧰 और भी"
+      },
+      "items": [
+        {
+          "en": "Usage bars for Claude and GPT limits, and several GPT accounts.",
+          "ko": "Claude·GPT 사용 한도 막대, GPT 여러 계정.",
+          "ja": "Claude・GPTの使用上限バー、GPTの複数アカウント。",
+          "zh": "Claude 和 GPT 用量条，多个 GPT 账号。",
+          "es": "Barras de uso de los límites de Claude y GPT, y varias cuentas de GPT.",
+          "de": "Nutzungsbalken für Claude- und GPT-Limits, mehrere GPT-Konten.",
+          "fr": "Barres d’utilisation des limites Claude et GPT, plusieurs comptes GPT.",
+          "pt": "Barras de uso dos limites de Claude e GPT, e várias contas de GPT.",
+          "ru": "Шкалы лимитов Claude и GPT, несколько аккаунтов GPT.",
+          "hi": "Claude और GPT सीमा की उपयोग पट्टियाँ, कई GPT खाते।"
+        },
+        {
+          "en": "Memo, request history, a mind map for to-dos, and Google Calendar link.",
+          "ko": "메모장·요청 내역, 할 일 마인드맵, 구글 캘린더 연동.",
+          "ja": "メモ・依頼履歴、やることマインドマップ、Googleカレンダー連携。",
+          "zh": "备忘录、请求记录、待办思维导图、Google 日历联动。",
+          "es": "Notas, historial de peticiones, mapa mental de tareas y Google Calendar.",
+          "de": "Notizen, Anfrageverlauf, Mindmap für Aufgaben und Google-Kalender-Anbindung.",
+          "fr": "Mémo, historique des demandes, carte mentale des tâches et Google Agenda.",
+          "pt": "Notas, histórico de pedidos, mapa mental de tarefas e Google Agenda.",
+          "ru": "Заметки, история запросов, майнд-карта задач, Google Календарь.",
+          "hi": "मेमो, अनुरोध इतिहास, कामों का माइंड मैप, Google कैलेंडर जोड़।"
+        },
+        {
+          "en": "10 languages, updates itself, and shows what changed after each update.",
+          "ko": "10개 언어, 스스로 업데이트하고 업데이트마다 바뀐 내용을 보여 줘요.",
+          "ja": "10言語、自動で更新し、更新ごとに変更点を表示します。",
+          "zh": "10 种语言，自动更新，并在每次更新后显示变化。",
+          "es": "10 idiomas, se actualiza solo y muestra qué cambió tras cada actualización.",
+          "de": "10 Sprachen, aktualisiert sich selbst und zeigt nach jedem Update die Änderungen.",
+          "fr": "10 langues, se met à jour seul et montre les nouveautés après chaque mise à jour.",
+          "pt": "10 idiomas, atualiza sozinho e mostra o que mudou a cada atualização.",
+          "ru": "10 языков, обновляется сам и показывает изменения после каждого обновления.",
+          "hi": "10 भाषाएँ, खुद अपडेट होता है और हर अपडेट के बाद बदलाव दिखाता है।"
+        }
+      ]
+    }
+  ],
   "releases": [
+    {
+      "v": "1.90.78", "date": "2026-11-20",
+      "items": {
+        "en": ["This window now has tabs: This update · All updates · All features (everything PT can do, one line each). Also in ⚙ Settings → \"Everything PowerTerminal can do\"."],
+        "ko": ["이 창에 탭이 생겼어요: 이번 업데이트 · 지난 업데이트 모두 · 기능 한눈에(PT 로 할 수 있는 것을 한 줄씩). ⚙ 설정 → 「PowerTerminal 기능 모두 보기」에서도 볼 수 있어요."],
+        "ja": ["この画面にタブができました: 今回の更新・過去の更新すべて・機能一覧(PTでできることを1行ずつ)。⚙ 設定 →「PowerTerminal の機能をすべて見る」からも見られます。"],
+        "zh": ["此窗口新增标签：本次更新 · 全部更新记录 · 功能一览(PT 能做的事，一行一条)。也可在 ⚙ 设置 →「查看 PowerTerminal 全部功能」中查看。"],
+        "es": ["Esta ventana ahora tiene pestañas: Esta actualización · Todas las actualizaciones · Todas las funciones (todo lo que hace PT, una línea cada una). También en ⚙ Ajustes."],
+        "de": ["Dieses Fenster hat jetzt Tabs: Dieses Update · Alle Updates · Alle Funktionen (alles, was PT kann, je eine Zeile). Auch unter ⚙ Einstellungen."],
+        "fr": ["Cette fenêtre a maintenant des onglets : Cette mise à jour · Toutes les mises à jour · Toutes les fonctions (tout ce que fait PT, une ligne chacune). Aussi dans ⚙ Réglages."],
+        "pt": ["Esta janela agora tem abas: Esta atualização · Todas as atualizações · Todas as funções (tudo o que o PT faz, uma linha cada). Também em ⚙ Configurações."],
+        "ru": ["В этом окне появились вкладки: Это обновление · Все обновления · Все возможности (всё, что умеет PT, по строке). Также в ⚙ Настройках."],
+        "hi": ["इस विंडो में अब टैब हैं: यह अपडेट · सभी अपडेट · सभी सुविधाएँ (PT जो कर सकता है, एक-एक पंक्ति)। ⚙ सेटिंग्स में भी।"]
+      }
+    },
     {
       "v": "1.90.77", "date": "2026-11-20",
       "items": {
