@@ -2242,6 +2242,11 @@
     </span>
   </label>
   <!-- 📆 구글 캘린더 연동 -->
+  <div id="setNotifyBox" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1 1 240px;min-width:0"><div style="font-size:14px;font-weight:700;margin-bottom:4px" data-i18n="setNotifyL">📨 접속 주소를 메일·텔레그램으로 받기</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6" data-i18n="setNotifyH">PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.</div></div>
+    <button type="button" class="small" onclick="openNotifyDlg()" data-i18n="setNotifyBtn">설정하기</button>
+  </div>
   <div id="gcalBox" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
     <div style="font-size:14px;font-weight:700;margin-bottom:4px">📆 <span id="gcalTitle" data-i18n="gcalTitle">구글 캘린더 연동</span></div>
     <div id="gcalStatus" style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px"></div>
@@ -2668,8 +2673,8 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
-  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
   ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
   zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
   es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
@@ -12067,6 +12072,12 @@ function codeTargetSess() {
   sb.onclick = openSettings;
   hdrInsert(sb);
 }
+// ⚙ 설정 창 바깥(어두운 바탕)을 누르면 닫힌다 — 창 안 여백을 누른 것과 구별하려고 좌표로 본다
+document.getElementById('setDlg').addEventListener('click', ev => {
+  const d = ev.currentTarget; if (ev.target !== d) return;
+  const r = d.getBoundingClientRect();
+  if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) d.close();
+});
 async function openSettings() {
   document.getElementById('setTitle').textContent = T.setTitle || '⚙ Settings';
   document.getElementById('setSub').textContent = T.setSub || '';

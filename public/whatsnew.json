@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.76", "date": "2026-11-20",
+      "items": {
+        "en": ["⚙ Settings: click outside the window to close it. New row \"📨 Outside address by email / Telegram\" — get the new address sent to you each time PT starts."],
+        "ko": ["⚙ 설정 창: 창 바깥을 누르면 닫혀요. 「📨 접속 주소를 메일·텔레그램으로 받기」 줄이 생겼어요 — PT 를 켤 때마다 새 주소를 보내 줘요."],
+        "ja": ["⚙ 設定画面: 外側を押すと閉じます。「📨 接続アドレスをメール・Telegramで受け取る」を追加 — PT起動のたびに新しいアドレスが届きます。"],
+        "zh": ["⚙ 设置窗口：点击窗口外即可关闭。新增「📨 用邮件或 Telegram 接收访问地址」——每次启动 PT 都会发送新地址。"],
+        "es": ["⚙ Ajustes: haz clic fuera de la ventana para cerrarla. Nueva fila «📨 Dirección externa por correo / Telegram»: recibe la nueva dirección cada vez que PT arranca."],
+        "de": ["⚙ Einstellungen: Klick außerhalb schließt das Fenster. Neue Zeile „📨 Externe Adresse per E-Mail / Telegram“ – bei jedem PT-Start kommt die neue Adresse zu dir."],
+        "fr": ["⚙ Réglages : cliquez hors de la fenêtre pour la fermer. Nouvelle ligne « 📨 Adresse externe par e-mail / Telegram » — la nouvelle adresse vous est envoyée à chaque démarrage de PT."],
+        "pt": ["⚙ Configurações: clique fora da janela para fechar. Nova linha «📨 Endereço externo por e-mail / Telegram» — receba o novo endereço sempre que o PT iniciar."],
+        "ru": ["⚙ Настройки: щелчок вне окна закрывает его. Новая строка «📨 Внешний адрес по почте / Telegram» — новый адрес приходит при каждом запуске PT."],
+        "hi": ["⚙ सेटिंग्स: विंडो के बाहर क्लिक करने पर बंद हो जाती है। नई पंक्ति «📨 बाहरी पता ईमेल / Telegram पर» — हर बार PT शुरू होने पर नया पता भेजा जाता है।"]
+      }
+    },
+    {
       "v": "1.90.75", "date": "2026-11-20",
       "items": {
         "en": ["🔁 Routines popup now says it up front: before using the manual routines window, you can simply ask a session in words and it runs on its own."],
