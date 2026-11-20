@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.71", "date": "2026-11-20",
+      "items": {
+        "en": ["📂 Files window: ⬆ now keeps going past the session folder — to any folder and drive on this PC (🏠 returns). Copy and paste to another drive works."],
+        "ko": ["📂 파일 창: ⬆ 를 누르면 세션 폴더 위로도 계속 올라가 이 PC 의 모든 폴더·드라이브로 갈 수 있어요(🏠 = 세션 폴더로). 다른 드라이브로 복사·붙여넣기도 돼요."],
+        "ja": ["📂 ファイル画面: ⬆ でセッションフォルダより上にも進め、このPCのすべてのフォルダ・ドライブへ行けます(🏠 で戻る)。別ドライブへのコピー・貼り付けもできます。"],
+        "zh": ["📂 文件窗口：⬆ 可以越过会话文件夹继续向上，进入这台电脑的任何文件夹和驱动器(🏠 返回)。也能复制粘贴到其他驱动器。"],
+        "es": ["📂 Ventana de archivos: ⬆ ahora sigue más allá de la carpeta de la sesión, hasta cualquier carpeta y unidad de este PC (🏠 vuelve). Copiar y pegar en otra unidad funciona."],
+        "de": ["📂 Dateifenster: ⬆ geht jetzt über den Sitzungsordner hinaus – zu jedem Ordner und Laufwerk dieses PCs (🏠 zurück). Kopieren und Einfügen auf ein anderes Laufwerk funktioniert."],
+        "fr": ["📂 Fenêtre Fichiers : ⬆ remonte maintenant au-delà du dossier de la session, jusqu’à n’importe quel dossier et lecteur de ce PC (🏠 pour revenir). Copier-coller vers un autre lecteur fonctionne."],
+        "pt": ["📂 Janela de arquivos: ⬆ agora vai além da pasta da sessão, até qualquer pasta e unidade deste PC (🏠 volta). Copiar e colar em outra unidade funciona."],
+        "ru": ["📂 Окно файлов: ⬆ теперь поднимается выше папки сессии — к любой папке и диску этого ПК (🏠 — назад). Копирование и вставка на другой диск работают."],
+        "hi": ["📂 फ़ाइल विंडो: ⬆ अब सेशन फ़ोल्डर से ऊपर भी जाता है — इस PC के किसी भी फ़ोल्डर और ड्राइव तक (🏠 वापस)। दूसरी ड्राइव पर कॉपी-पेस्ट भी होता है।"]
+      }
+    },
+    {
       "v": "1.90.70", "date": "2026-11-20",
       "items": {
         "en": ["🔁 Routines button: first shows how to use it — click a session number to make a copy session, then a prompt example for having sessions pass work to each other on a schedule."],

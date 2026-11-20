@@ -582,26 +582,43 @@ module.exports = function peersModule(app, ctx) {
   const CRC_T = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
   const crc32 = (buf, prev) => { let c = ~(prev || 0); for (let i = 0; i < buf.length; i++) c = CRC_T[(c ^ buf[i]) & 0xff] ^ (c >>> 8); return ~c; };
   const inside = (root, rel) => {   // 작업 폴더 밖이면 null
+    if (root === '') {   // 💽 PC 전체(sid '*') — 절대경로만. 빈 값 = 드라이브 목록(여기엔 파일을 못 둔다)
+      let r = String(rel || '').trim(); if (!r) return '';
+      if (/^[A-Za-z]:$/.test(r)) r += '/';
+      return (path.isAbsolute(r) && (process.platform !== 'win32' || /^[A-Za-z]:[\\/]/.test(r))) ? path.resolve(r) : null;
+    }
     const full = path.resolve(root, String(rel || '').replace(/^[\\/]+/, ''));
     const r = path.resolve(root);
     return (full === r || full.startsWith(r + path.sep)) ? full : null;
   };
-  const sessOf = sid => getSessions().find(x => x.id === sid);
+  /* sid '*' = 이 PC 전체(2026-11-20 CEO: 「메인컴퓨터 폴더 모두 갈 수 있게」). 주인 열쇠·「전부」 준 PC 만 —
+     고른 세션만 받은 PC 는 server.js 의 guestAllowed 가 canSess('*') 거짓으로 막는다(세션 폴더 안만 그대로). */
+  const ALL_PC = { id: '*', path: '' };
+  const sessOf = sid => sid === '*' ? ALL_PC : getSessions().find(x => x.id === sid);
   // 그 PC: 폴더 목록(최근 바뀐 것부터). recursive=1 이면 아래 파일 전부(폴더 통째로 가져올 때)
   app.get('/api/files/list', (req2, res) => {
     const s = sessOf(req2.query.sid); if (!s) return res.status(404).json({ error: 'no session' });
+    const all = s.id === '*', canAbs = !req2.ptGuest || req2.ptGuest.share === 'all';
+    if (all && !(req2.query.dir || '') && req2.query.recursive !== '1') {   // 💽 드라이브 목록 (맥·리눅스는 / 부터)
+      if (process.platform === 'win32') {
+        const items = [];
+        for (const L of 'CDEFGHIJKLMNOPQRSTUVWXYZAB') { const d = L + ':\\'; try { fs.readdirSync(d); items.push({ name: L + ':', rel: L + ':/', dir: true, drive: true, size: 0, mtime: 0 }); } catch (e) {} }
+        return res.json({ root: '', dir: '', all: true, canAbs, items });
+      }
+      req2.query.dir = '/';
+    }
     const dir = inside(s.path, req2.query.dir || ''); if (!dir) return res.status(400).json({ error: 'outside' });
-    const rel = f => path.relative(s.path, f).split(path.sep).join('/');
+    const rel = f => all ? f.split(path.sep).join('/') : path.relative(s.path, f).split(path.sep).join('/');
     try {
       if (req2.query.recursive === '1') {
         const out = [], walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (SKIP_DIRS.has(e.name)) continue; const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.isFile()) { const st = fs.statSync(f); out.push({ rel: rel(f), size: st.size, mtime: st.mtimeMs, secret: SECRET_RE.test(e.name) }); } if (out.length > 20000) return; } };
         walk(dir); return res.json({ files: out });
       }
-      const items = fs.readdirSync(dir, { withFileTypes: true }).filter(e => !SKIP_DIRS.has(e.name) && (e.isDirectory() || e.isFile())).map(e => {
+      const items = fs.readdirSync(dir, { withFileTypes: true }).filter(e => !SKIP_DIRS.has(e.name) && (e.isDirectory() || e.isFile()) && !(all && /^(\$|System Volume Information$)/i.test(e.name))).map(e => {
         const f = path.join(dir, e.name); let st = null; try { st = fs.statSync(f); } catch (x) {}
         return { name: e.name, rel: rel(f), dir: e.isDirectory(), size: st && !e.isDirectory() ? st.size : 0, mtime: st ? st.mtimeMs : 0, secret: !e.isDirectory() && SECRET_RE.test(e.name) };
       }).sort((a, b) => b.mtime - a.mtime);
-      res.json({ root: s.path, dir: rel(dir), items });
+      res.json({ root: s.path, dir: rel(dir), all, canAbs, items });
     } catch (e) { res.json({ error: errOf(e) }); }
   });
   // 그 PC: 파일 내주기 (start 부터 — 이어 받기)
