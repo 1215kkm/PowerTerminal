@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.77", "date": "2026-11-20",
+      "items": {
+        "en": ["📖 Note mode search: choose \"This session\" or \"All sessions\". All sessions searches every session's conversation (the first search takes a little while, then it is quick)."],
+        "ko": ["📖 노트 모드 검색: 「이 세션 / 모든 세션」을 고를 수 있어요. 모든 세션은 모든 세션의 대화에서 찾아요(처음 한 번만 조금 걸리고 그다음은 빨라요)."],
+        "ja": ["📖 ノートモード検索: 「このセッション / すべてのセッション」を選べます。すべてのセッションは全セッションの会話から探します(初回だけ少し時間がかかります)。"],
+        "zh": ["📖 笔记模式搜索：可以选择「当前会话 / 所有会话」。所有会话会在每个会话的对话中查找(只有第一次稍慢，之后很快)。"],
+        "es": ["📖 Búsqueda en modo nota: elige «Esta sesión» o «Todas las sesiones». Todas busca en la conversación de cada sesión (la primera vez tarda un poco, luego es rápido)."],
+        "de": ["📖 Suche im Notizmodus: „Diese Sitzung“ oder „Alle Sitzungen“ wählen. Alle durchsucht die Unterhaltung jeder Sitzung (nur beim ersten Mal etwas langsamer)."],
+        "fr": ["📖 Recherche en mode note : choisissez « Cette session » ou « Toutes les sessions ». Toutes cherche dans la conversation de chaque session (la première fois prend un peu de temps)."],
+        "pt": ["📖 Pesquisa no modo nota: escolha «Esta sessão» ou «Todas as sessões». Todas procura na conversa de cada sessão (só a primeira vez demora um pouco)."],
+        "ru": ["📖 Поиск в режиме заметок: выберите «Эта сессия» или «Все сессии». «Все» ищет в разговорах всех сессий (только первый раз чуть дольше)."],
+        "hi": ["📖 नोट मोड खोज: «यह सेशन / सभी सेशन» चुनें। सभी सेशन हर सेशन की बातचीत में खोजता है (सिर्फ़ पहली बार थोड़ा समय लगता है)।"]
+      }
+    },
+    {
       "v": "1.90.76", "date": "2026-11-20",
       "items": {
         "en": ["⚙ Settings: click outside the window to close it. New row \"📨 Outside address by email / Telegram\" — get the new address sent to you each time PT starts."],

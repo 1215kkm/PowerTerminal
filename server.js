@@ -3192,6 +3192,46 @@ async function bookTurns(sess) {
   await c.busy;
   return c.turns;
 }
+/* 🔍 모든 세션에서 찾기 (노트 모드 검색의 「모든 세션」) — 세션마다 책(대화)을 읽어(처음 한 번만 느리고 그 뒤는 기억) 맞는 요청만 돌려준다.
+   같은 폴더를 쓰는 세션은 같은 대화 파일이라 한 번만. 새것부터 최대 150개. 이 PC 세션만(다른 PC 세션은 그 PC 에 있다). */
+app.get('/api/book-search', async (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  if (q.length < 2) return res.json({ hits: [], sessions: 0 });
+  const t0 = Date.now(), seen = new Set(), hits = [];
+  let n = 0;
+  for (const s of sessions) {
+    const ag = s.agent || 'claude';
+    if (ag !== 'claude' && ag !== 'codex') continue;
+    const f = bookFile(s); if (!f || seen.has(f.p)) continue; seen.add(f.p); n++;
+    let all = []; try { all = await bookTurns(s); } catch (e) { continue; }
+    for (let i = 0; i < all.length; i++) {
+      const t = all[i];
+      if ((t.req + '\n' + t.ans).toLowerCase().includes(q)) hits.push({ sid: s.id, title: s.title || path.basename(s.path), i, ts: t.ts, req: String(t.req).slice(0, 4000), ans: String(t.ans).slice(0, 30000) });
+    }
+  }
+  hits.sort((a, b) => b.ts - a.ts);
+  res.json({ hits: hits.slice(0, 150), total: hits.length, sessions: n, ms: Date.now() - t0 });
+});
+/* 🔍 모든 세션에서 찾기 (노트 모드 검색의 「모든 세션」) — 세션마다 책(대화)을 읽어(처음 한 번만 느리고 그 뒤는 기억) 맞는 요청만 돌려준다.
+   같은 폴더를 쓰는 세션은 같은 대화 파일이라 한 번만. 새것부터 최대 150개. 이 PC 세션만(다른 PC 세션은 그 PC 에 있다). */
+app.get('/api/book-search', async (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  if (q.length < 2) return res.json({ hits: [], sessions: 0 });
+  const t0 = Date.now(), seen = new Set(), hits = [];
+  let n = 0;
+  for (const s of sessions) {
+    const ag = s.agent || 'claude';
+    if (ag !== 'claude' && ag !== 'codex') continue;
+    const f = bookFile(s); if (!f || seen.has(f.p)) continue; seen.add(f.p); n++;
+    let all = []; try { all = await bookTurns(s); } catch (e) { continue; }
+    for (let i = 0; i < all.length; i++) {
+      const t = all[i];
+      if ((t.req + '\n' + t.ans).toLowerCase().includes(q)) hits.push({ sid: s.id, title: s.title || path.basename(s.path), i, ts: t.ts, req: String(t.req).slice(0, 4000), ans: String(t.ans).slice(0, 30000) });
+    }
+  }
+  hits.sort((a, b) => b.ts - a.ts);
+  res.json({ hits: hits.slice(0, 150), total: hits.length, sessions: n, ms: Date.now() - t0 });
+});
 // 책을 펴는 동안 얼마나 읽었는지 — 대화 기록이 크면 처음 한 번은 몇 초 걸린다
 app.get('/api/sessions/:id/book-progress', (req, res) => {
   const sess = sessions.find(x => x.id === req.params.id);

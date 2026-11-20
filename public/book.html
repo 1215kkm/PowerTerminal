@@ -398,6 +398,10 @@
   .findbar input { flex: 1 1 auto; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #3a3d46; background: #14161b; color: #fff; font: 15px var(--ui); outline: none; }
   .findbar input:focus { border-color: var(--accent); }
   .findn { flex: 0 0 auto; color: #9aa0ad; font-size: 12px; white-space: nowrap; }
+  .findscope { flex: 0 0 auto; display: inline-flex; border: 1px solid #3a3d46; border-radius: 10px; overflow: hidden; }
+  .findscope button { border: 0; background: #14161b; color: #9aa0ad; font: 600 13px var(--ui); padding: 0 12px; height: 42px; cursor: pointer; white-space: nowrap; }
+  .findscope button.on { background: var(--accent); color: #fff; }
+  .findsess { color: var(--accent); font-weight: 700; }
   .findx { flex: 0 0 auto; width: 42px; height: 42px; border: 0; border-radius: 10px; background: #2a2d34; color: #fff; font-size: 16px; cursor: pointer; }
   /* 결과 칸은 찾을 말을 입력해야 펼쳐지고(.has), 닫을 땐 먼저 접힌 뒤 검색칸이 올라간다 */
   .findbody { flex: 0 0 auto; height: 0; overflow: hidden; display: flex; transition: height .35s cubic-bezier(.22,.8,.3,1); }
@@ -1926,16 +1930,21 @@ askForm.addEventListener('submit', e => {
 }
 
 { // 🔍 search the whole session: a bar that slides down from the top (phone: swipe down on the page). Left = matching requests, right = the one picked.
-  const F = KO ? { ph:'이 세션에서 찾을 말', btn:'🔍 검색', close:'닫기', go:'이 쪽으로 가기', loading:'대화 전체를 읽는 중…', none:'찾는 말이 없습니다', type:'찾을 말을 입력하세요', count:'{n}개 요청에서 찾음', req:'요청', pick:'왼쪽 목록에서 고르면 여기에 내용이 나옵니다', fail:'대화를 읽지 못했습니다' }
-               : { ph:'Search this session', btn:'🔍 Search', close:'Close', go:'Go to this page', loading:'Reading the whole conversation…', none:'Nothing found', type:'Type what to look for', count:'found in {n} requests', req:'Request', pick:'Pick one on the left to read it here', fail:'Could not read the conversation' };
+  const F = KO ? { ph:'이 세션에서 찾을 말', btn:'🔍 검색', close:'닫기', go:'이 쪽으로 가기', loading:'대화 전체를 읽는 중…', none:'찾는 말이 없습니다', type:'찾을 말을 입력하세요', count:'{n}개 요청에서 찾음', req:'요청', pick:'왼쪽 목록에서 고르면 여기에 내용이 나옵니다', fail:'대화를 읽지 못했습니다', one:'이 세션', all:'모든 세션', phAll:'모든 세션에서 찾을 말 (2글자 이상)', loadingAll:'모든 세션의 대화를 읽는 중… (처음 한 번은 오래 걸려요)', countAll:'{s}개 세션 · {n}개 요청에서 찾음', more:' (새것 {n}개만)', min2:'2글자 이상 입력하세요' }
+               : { ph:'Search this session', btn:'🔍 Search', close:'Close', go:'Go to this page', loading:'Reading the whole conversation…', none:'Nothing found', type:'Type what to look for', count:'found in {n} requests', req:'Request', pick:'Pick one on the left to read it here', fail:'Could not read the conversation', one:'This session', all:'All sessions', phAll:'Search all sessions (2+ letters)', loadingAll:'Reading every session… (slow only the first time)', countAll:'found in {n} requests · {s} sessions', more:' (newest {n} shown)', min2:'Type at least 2 letters' };
   const box = document.createElement('div'); box.className = 'find'; box.setAttribute('role', 'dialog');
-  box.innerHTML = '<div class="findbar"><input id="findIn" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="findn" id="findN"></span><button type="button" class="findx" id="findX" aria-label="close">✕</button></div>'
+  box.innerHTML = '<div class="findbar"><span class="findscope"><button type="button" data-sc="one"></button><button type="button" data-sc="all"></button></span><input id="findIn" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="findn" id="findN"></span><button type="button" class="findx" id="findX" aria-label="close">✕</button></div>'
     + '<div class="findbody"><div class="findlist" id="findList"></div><div class="findview" id="findView"></div></div>';
   const bg = document.createElement('div'); bg.className = 'findbg'; document.body.append(bg, box);
   const fin = box.querySelector('#findIn'), list = box.querySelector('#findList'), view = box.querySelector('#findView'), cnt = box.querySelector('#findN');
   fin.placeholder = F.ph; box.querySelector('#findX').title = F.close;
   const sb = document.createElement('button'); sb.className = 'sbtn'; sb.id = 'findBtn'; sb.textContent = F.btn; $('toEnd').before(sb);
   let cache = null, hits = [], sel = -1, seq = 0;
+  // 🔍 범위: 이 세션(이 화면이 대화를 받아 찾음) / 모든 세션(서버가 찾아 맞는 것만 보냄). 고른 것은 기억
+  let scope = 'one'; try { if (localStorage.getItem('pt_book_findscope') === 'all') scope = 'all'; } catch (e) {}
+  const paintScope = () => { box.querySelectorAll('.findscope button').forEach(b => { b.textContent = F[b.dataset.sc]; b.classList.toggle('on', b.dataset.sc === scope); }); fin.placeholder = scope === 'all' ? F.phAll : F.ph; };
+  box.querySelectorAll('.findscope button').forEach(b => b.onclick = () => { scope = b.dataset.sc; try { localStorage.setItem('pt_book_findscope', scope); } catch (e) {} paintScope(); run(); fin.focus(); });
+  paintScope();
   // every request of the session (the page itself only holds the latest ones)
   async function all() {
     if (!cur) return [];
@@ -1954,13 +1963,32 @@ askForm.addEventListener('submit', e => {
   function show(k) {
     sel = k; list.querySelectorAll('.findit').forEach((b, i) => b.classList.toggle('on', i === k));
     const h = hits[k]; if (!h) { view.innerHTML = '<div class="findmsg">' + esc(hits.length ? F.pick : '') + '</div>'; return; }
-    view.innerHTML = '<div class="findgo"><button type="button" id="findGo">' + esc(F.go) + '</button></div><div class="findpaper"><div class="q"><small>' + esc(F.req + ' · ' + fmtT(h.t.ts)) + '</small><span>' + reqHtml(h.t.req) + '</span></div><div class="a">' + md(h.t.ans) + '</div></div>';
+    view.innerHTML = '<div class="findgo"><button type="button" id="findGo">' + esc(F.go) + '</button></div><div class="findpaper"><div class="q"><small>' + (h.sid ? '<b class="findsess">' + esc(h.title) + '</b> · ' : '') + esc(F.req + ' · ' + fmtT(h.t.ts)) + '</small><span>' + reqHtml(h.t.req) + '</span></div><div class="a">' + md(h.t.ans) + '</div></div>';
     markIn(view.querySelector('.findpaper'), h.q);
     const m = view.querySelector('mark'); view.scrollTop = 0; if (m) view.scrollTop = Math.max(0, m.getBoundingClientRect().top - view.getBoundingClientRect().top - 90);
-    view.querySelector('#findGo').onclick = () => jump(h.t.i);
+    view.querySelector('#findGo').onclick = () => goHit(h);
+  }
+  async function goHit(h) {   // 다른 세션의 결과면 그 세션 책을 먼저 연다
+    if (h.sid && (!cur || cur.id !== h.sid)) { close(); await openBook(h.sid); for (let n = 0; n < 50 && !(cur && cur.id === h.sid && cur._loaded); n++) await new Promise(r => setTimeout(r, 100)); }
+    jump(h.t.i);
+  }
+  async function runAll(q, me) {
+    if (q.length < 2) { hits = []; list.innerHTML = ''; cnt.textContent = ''; view.innerHTML = '<div class="findmsg">' + esc(F.min2) + '</div>'; return; }
+    cnt.textContent = F.loadingAll;
+    const r = await api('GET', '/api/book-search?q=' + encodeURIComponent(q));
+    if (me !== seq) return;
+    if (!r || !Array.isArray(r.hits)) { cnt.textContent = ''; view.innerHTML = '<div class="findmsg">' + esc(F.fail) + '</div>'; return; }
+    const ql = q.toLowerCase();
+    hits = r.hits.map(x => ({ t: { i: x.i, ts: x.ts, req: x.req, ans: x.ans }, q, sid: x.sid, title: x.title }));
+    cnt.textContent = hits.length ? F.countAll.replace('{n}', r.total).replace('{s}', new Set(r.hits.map(x => x.sid)).size) + (r.total > hits.length ? F.more.replace('{n}', hits.length) : '') : '';
+    list.innerHTML = hits.map((h, i) => { const inReq = h.t.req.toLowerCase().includes(ql), one = h.t.req.replace(/\s+/g, ' ').trim();
+      return '<button type="button" class="findit" data-k="' + i + '"><small><b class="findsess">' + esc(h.title) + '</b> · ' + esc(fmtT(h.t.ts)) + '</small><b>' + (inReq ? hl(one.slice(0, 60), q) : esc(one.slice(0, 60))) + '</b><span>' + hl(snip(inReq && !h.t.ans.toLowerCase().includes(ql) ? h.t.req : h.t.ans, q) || snip(h.t.req, q), q) + '</span></button>'; }).join('');
+    if (!hits.length) { view.innerHTML = '<div class="findmsg">' + esc(F.none) + '</div>'; sel = -1; return; }
+    show(0);
   }
   async function run() {
     const q = fin.value.trim(), me = ++seq;
+    if (scope === 'all' && q) return runAll(q, me);
     if (!q) { hits = []; list.innerHTML = ''; cnt.textContent = ''; view.innerHTML = '<div class="findmsg">' + esc(F.type) + '</div>'; return; }
     if (!cache || !cur || cache.id !== cur.id || cache.total !== total) { cnt.textContent = F.loading; }
     let ts; try { ts = await all(); } catch (e) { if (me === seq) { cnt.textContent = ''; view.innerHTML = '<div class="findmsg">' + esc(F.fail) + '</div>'; } return; }
@@ -1986,8 +2014,8 @@ askForm.addEventListener('submit', e => {
   }
   let rt;
   const setHas = () => box.classList.toggle('has', !!fin.value.trim());
-  fin.addEventListener('input', () => { setHas(); clearTimeout(rt); rt = setTimeout(run, 220); });
-  fin.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') close(); else if (e.key === 'Enter') { e.preventDefault(); if (hits[sel]) jump(hits[sel].t.i); }
+  fin.addEventListener('input', () => { setHas(); clearTimeout(rt); rt = setTimeout(run, scope === 'all' ? 400 : 220); });
+  fin.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') close(); else if (e.key === 'Enter') { e.preventDefault(); if (hits[sel]) goHit(hits[sel]); }
     else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && hits.length) { e.preventDefault(); show(Math.max(0, Math.min(hits.length - 1, sel + (e.key === 'ArrowDown' ? 1 : -1)))); const b = list.children[sel]; if (b) b.scrollIntoView({ block: 'nearest' }); } });
   list.addEventListener('click', e => { const b = e.target.closest('.findit'); if (b) show(+b.dataset.k); });
   // open: only the bar comes down; the results unfold once there is something typed (an earlier word unfolds after the bar lands)
