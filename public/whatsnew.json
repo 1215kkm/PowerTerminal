@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.75", "date": "2026-11-20",
+      "items": {
+        "en": ["🔁 Routines popup now says it up front: before using the manual routines window, you can simply ask a session in words and it runs on its own."],
+        "ko": ["🔁 루틴 안내 창이 먼저 알려 줘요: 수동 루틴 창을 쓰기 전에, 세션에게 말로 맡기면 자동으로 하는 방식도 있어요."],
+        "ja": ["🔁 ルーティン案内で最初にお知らせ: 手動のルーティン画面を使う前に、セッションに言葉で頼めば自動で進む方法もあります。"],
+        "zh": ["🔁 例程提示窗口会先说明：使用手动例程窗口之前，也可以直接用文字交给会话自动进行。"],
+        "es": ["🔁 El aviso de Rutinas lo dice primero: antes de usar la ventana manual, puedes pedírselo a una sesión con palabras y funciona sola."],
+        "de": ["🔁 Der Routinen-Hinweis sagt es jetzt zuerst: Vor dem manuellen Routinen-Fenster kannst du eine Sitzung einfach in Worten bitten – das läuft von selbst."],
+        "fr": ["🔁 L’aide des Routines le dit d’abord : avant la fenêtre manuelle, vous pouvez simplement le demander à une session, et cela tourne tout seul."],
+        "pt": ["🔁 O aviso de Rotinas diz logo de início: antes da janela manual, basta pedir a uma sessão com palavras e funciona sozinho."],
+        "ru": ["🔁 Подсказка о рутинах сразу говорит: прежде чем открывать ручное окно, можно просто попросить сессию словами — всё пойдёт само."],
+        "hi": ["🔁 रूटीन सूचना अब पहले ही बताती है: मैनुअल रूटीन विंडो से पहले, बस सेशन से शब्दों में कह दें और काम अपने-आप चलेगा।"]
+      }
+    },
+    {
       "v": "1.90.74", "date": "2026-11-20",
       "items": {
         "en": ["📖 Note mode: when the AI asks you to pick (1. Yes / 2. No …), the question and its choices appear as buttons above the request box — tap one to answer."],
