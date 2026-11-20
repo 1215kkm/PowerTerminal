@@ -13,6 +13,41 @@
   },
   "releases": [
     {
+      "v": "1.90.69", "date": "2026-11-20",
+      "items": {
+        "en": ["📂 Files window: sort by name, newest or size (press again to reverse), and drag down the list to tick many files at once.",
+               "📂 Files window: Copy / Cut / Paste inside the same PC — go to any folder and paste, with a % progress bar. \"New folder\" too.",
+               "While a window is open, the PowerTerminal screen behind it no longer scrolls."],
+        "ko": ["📂 파일 창: 이름순·최신순·용량순 정렬(한 번 더 누르면 반대로), 목록을 끌어내리면 여러 개가 이어서 체크돼요.",
+               "📂 파일 창: 같은 PC 안에서 복사·잘라내기·붙여넣기 — 원하는 폴더로 가서 붙여넣으면 % 게이지로 진행이 보여요. 「새 폴더」도 있어요.",
+               "창이 떠 있는 동안 뒤의 PT 화면이 스크롤되지 않아요."],
+        "ja": ["📂 ファイル画面: 名前順・新しい順・サイズ順で並べ替え(もう一度押すと逆順)。リストをドラッグすると複数をまとめてチェックできます。",
+               "📂 ファイル画面: 同じPC内でコピー・切り取り・貼り付け。好きなフォルダで貼り付けると%ゲージで進行が見えます。「新しいフォルダ」もあります。",
+               "ウィンドウを開いている間、後ろのPT画面がスクロールしなくなりました。"],
+        "zh": ["📂 文件窗口：可按名称、最新、大小排序(再按一次反向)，在列表上拖动可连续勾选多个文件。",
+               "📂 文件窗口：在同一台电脑内复制、剪切、粘贴——到想要的文件夹粘贴，用 % 进度条显示进度。还可以「新建文件夹」。",
+               "窗口打开时，后面的 PT 画面不再跟着滚动。"],
+        "es": ["📂 Ventana de archivos: ordena por nombre, más reciente o tamaño (pulsa otra vez para invertir) y arrastra por la lista para marcar varios a la vez.",
+               "📂 Ventana de archivos: Copiar / Cortar / Pegar dentro del mismo PC: ve a cualquier carpeta y pega, con barra de progreso en %. También «Nueva carpeta».",
+               "Mientras hay una ventana abierta, la pantalla de PowerTerminal de detrás ya no se desplaza."],
+        "de": ["📂 Dateifenster: nach Name, Neueste oder Größe sortieren (nochmal drücken = umgekehrt) und über die Liste ziehen, um viele Dateien auf einmal anzuhaken.",
+               "📂 Dateifenster: Kopieren / Ausschneiden / Einfügen auf demselben PC – in einen beliebigen Ordner einfügen, mit %-Fortschrittsbalken. Auch „Neuer Ordner“.",
+               "Solange ein Fenster offen ist, scrollt der PowerTerminal-Bildschirm dahinter nicht mehr."],
+        "fr": ["📂 Fenêtre Fichiers : tri par nom, plus récent ou taille (appuyez à nouveau pour inverser), et glissez sur la liste pour cocher plusieurs fichiers d’un coup.",
+               "📂 Fenêtre Fichiers : Copier / Couper / Coller sur le même PC — allez dans le dossier voulu et collez, avec une barre de progression en %. « Nouveau dossier » aussi.",
+               "Quand une fenêtre est ouverte, l’écran PowerTerminal derrière ne défile plus."],
+        "pt": ["📂 Janela de arquivos: ordene por nome, mais recente ou tamanho (pressione de novo para inverter) e arraste pela lista para marcar vários de uma vez.",
+               "📂 Janela de arquivos: Copiar / Recortar / Colar no mesmo PC — vá a qualquer pasta e cole, com barra de progresso em %. Também «Nova pasta».",
+               "Enquanto uma janela está aberta, a tela do PowerTerminal atrás dela não rola mais."],
+        "ru": ["📂 Окно файлов: сортировка по имени, новизне или размеру (повторное нажатие — обратный порядок); протяните по списку, чтобы отметить сразу несколько файлов.",
+               "📂 Окно файлов: копировать / вырезать / вставить на том же ПК — откройте нужную папку и вставьте, прогресс показывается в %. Есть и «Новая папка».",
+               "Пока открыто окно, экран PowerTerminal позади него больше не прокручивается."],
+        "hi": ["📂 फ़ाइल विंडो: नाम, नवीनतम या आकार के अनुसार क्रम (दोबारा दबाएँ तो उल्टा), और सूची पर खींचकर कई फ़ाइलें एक साथ चुनें।",
+               "📂 फ़ाइल विंडो: उसी PC में कॉपी / कट / पेस्ट — किसी भी फ़ोल्डर में जाकर पेस्ट करें, % प्रगति पट्टी के साथ। «नया फ़ोल्डर» भी।",
+               "विंडो खुली रहने पर पीछे की PowerTerminal स्क्रीन अब स्क्रॉल नहीं होती।"]
+      }
+    },
+    {
       "v": "1.90.68", "date": "2026-11-20",
       "items": {
         "en": ["Fixed: clicking a URL in a terminal with the wheel button opens it again. Click = open the link, drag = move the screen."],

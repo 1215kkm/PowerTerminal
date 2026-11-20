@@ -372,6 +372,7 @@ module.exports = function peersModule(app, ctx) {
     res.status(r.status);
     if (/json/.test(ct)) { try { return res.json(prefixIds(JSON.parse(r.body.toString('utf8')), pid)); } catch (e) {} }
     if (ct) res.setHeader('Content-Type', ct);
+    for (const h of ['content-disposition', 'content-security-policy', 'x-content-type-options']) if (r.headers[h]) res.setHeader(h, r.headers[h]);   // 받을 때 파일 이름·미리보기 보호
     res.send(r.body);
   }
   // /peer/<PC>/api/... = 그 PC 의 API 를 그대로 (폴더 고르기 등). 세션을 새로 만드는 것도 여기로
@@ -685,6 +686,96 @@ module.exports = function peersModule(app, ctx) {
     })().catch(() => { try { res.destroy(); } catch (e) {} });
   });
   // 그 PC: 파일 받기 (📤 메인 → 그 PC)
+  /* 📋 같은 PC 안에서 복사·잘라내기 → 붙여넣기 (2026-11-20 CEO). 세션 폴더 안끼리만(다른 세션 폴더로도 됨).
+     plan=1 이면 개수·크기·겹치는 이름만 알려 준다. 진행률은 /api/files/paste-progress. 같은 드라이브 잘라내기는 이름만 바꿔 바로 끝난다. */
+  const pjobs = new Map();
+  const rk = p => process.platform === 'win32' ? p.toLowerCase() : p;
+  const uniqName = (dir, name) => {
+    if (!fs.existsSync(path.join(dir, name))) return name;
+    const i = name.lastIndexOf('.'), b = i > 0 ? name.slice(0, i) : name, e = i > 0 ? name.slice(i) : '';
+    for (let k = 2; k < 10000; k++) { const n = b + ' (' + k + ')' + e; if (!fs.existsSync(path.join(dir, n))) return n; }
+    return b + ' (' + Date.now() + ')' + e;
+  };
+  const walkAll = (p, out) => {
+    const st = fs.lstatSync(p);
+    if (st.isDirectory()) { out.push({ p, dir: true }); for (const n of fs.readdirSync(p)) { walkAll(path.join(p, n), out); if (out.length > 200000) throw new Error('too many files'); } }
+    else if (st.isFile()) out.push({ p, size: st.size });
+    return out;
+  };
+  const copyOne = (src, dst, onBytes) => new Promise((ok, no) => {
+    const r = fs.createReadStream(src), w = fs.createWriteStream(dst);
+    r.on('data', c => onBytes(c.length)); r.on('error', no); w.on('error', no); w.on('finish', ok); r.pipe(w);
+  });
+  app.post('/api/files/paste', (req2, res) => {
+    const b = req2.body || {};
+    const to = sessOf(b.sid), from = sessOf(b.from);
+    if (!to || !from) return res.status(404).json({ error: 'no session' });
+    if (req2.ptGuest && !canSess(req2.ptGuest, from.id)) return res.status(403).json({ error: 'not_shared' });   // 손님은 받은 세션끼리만
+    const destDir = inside(to.path, b.dir || ''), srcDir = inside(from.path, b.fromDir || '');
+    if (!destDir || !srcDir) return res.status(400).json({ error: 'outside' });
+    const names = (Array.isArray(b.names) ? b.names : []).map(String).filter(n => n && !/[\\/]/.test(n) && n !== '.' && n !== '..');
+    const srcs = names.map(n => path.join(srcDir, n)).filter(p => fs.existsSync(p));
+    if (!srcs.length) return res.json({ error: 'gone' });
+    const move = b.mode === 'move', samePlace = rk(srcDir) === rk(destDir);
+    for (const s of srcs) if (rk(destDir) === rk(s) || rk(destDir).startsWith(rk(s) + path.sep)) return res.json({ error: 'into_self' });
+    if (move && samePlace) return res.json({ error: 'same_place' });
+    const exists = samePlace ? [] : srcs.map(s => path.basename(s)).filter(n => fs.existsSync(path.join(destDir, n)));
+    if (b.plan) {
+      let total = 0, count = 0;
+      try { for (const s of srcs) for (const x of walkAll(s, [])) if (!x.dir) { total += x.size; count++; } } catch (e) { return res.json({ error: errOf(e) }); }
+      return res.json({ ok: true, count, total, exists });
+    }
+    const conflict = ['overwrite', 'rename', 'skip'].includes(b.conflict) ? b.conflict : 'rename';
+    const job = crypto.randomBytes(6).toString('hex');
+    const st = { done: 0, total: 0, n: 0, count: 0, cur: '', finished: false, error: '', made: [], move };
+    pjobs.set(job, st); res.json({ ok: true, job });
+    (async () => {
+      try {
+        const plan = [];
+        for (const s of srcs) {
+          let dst = path.join(destDir, path.basename(s));
+          if (fs.existsSync(dst)) {
+            if (samePlace || conflict === 'rename') dst = path.join(destDir, uniqName(destDir, path.basename(s)));
+            else if (conflict === 'skip') continue;
+            else if (fs.statSync(s).isDirectory() !== fs.statSync(dst).isDirectory()) fs.rmSync(dst, { recursive: true, force: true });   // 파일↔폴더 덮어쓰기
+          }
+          const list = walkAll(s, []);
+          for (const x of list) if (!x.dir) { st.total += x.size; st.count++; }
+          plan.push({ s, dst, list });
+        }
+        for (const it of plan) {
+          if (move && !fs.existsSync(it.dst)) {   // 같은 드라이브면 이름만 바꿔 바로
+            try { fs.renameSync(it.s, it.dst); for (const x of it.list) if (!x.dir) { st.done += x.size; st.n++; } st.made.push(path.basename(it.dst)); continue; }
+            catch (e) { if (!['EXDEV', 'EPERM', 'EACCES', 'EBUSY'].includes(e.code)) throw e; }
+          }
+          for (const x of it.list) {
+            const target = path.join(it.dst, path.relative(it.s, x.p));
+            if (x.dir) { fs.mkdirSync(target, { recursive: true }); continue; }
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            st.cur = path.basename(x.p);
+            await copyOne(x.p, target, n => { st.done += n; });
+            try { const ss = fs.statSync(x.p); fs.utimesSync(target, ss.atime, ss.mtime); } catch (e) {}
+            st.n++;
+          }
+          if (move) fs.rmSync(it.s, { recursive: true, force: true });
+          st.made.push(path.basename(it.dst));
+        }
+      } catch (e) { st.error = errOf(e); }
+      st.finished = true; st.cur = '';
+      setTimeout(() => pjobs.delete(job), 10 * 60000);
+    })();
+  });
+  app.get('/api/files/paste-progress', (req2, res) => res.json(pjobs.get(String(req2.query.job || '')) || { error: 'no job' }));
+  // 📁＋ 새 폴더 (붙여넣을 곳 만들기)
+  app.post('/api/files/mkdir', (req2, res) => {
+    const b = req2.body || {}, s = sessOf(b.sid); if (!s) return res.status(404).json({ error: 'no session' });
+    const name = String(b.name || '').trim();
+    if (!name || /[\\/:*?"<>|]/.test(name) || name === '.' || name === '..' || name.length > 200) return res.json({ error: 'bad_name' });
+    const d = inside(s.path, (b.dir ? b.dir + '/' : '') + name); if (!d) return res.status(400).json({ error: 'outside' });
+    if (fs.existsSync(d)) return res.json({ error: 'exists' });
+    try { fs.mkdirSync(d); res.json({ ok: true }); } catch (e) { res.json({ error: errOf(e) }); }
+  });
+
   app.post('/api/files/put', (req2, res) => {
     const s = sessOf(req2.query.sid); if (!s) return res.status(404).json({ error: 'no session' });
     const f = inside(s.path, req2.query.rel); if (!f || f === path.resolve(s.path)) return res.status(400).json({ error: 'outside' });

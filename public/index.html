@@ -586,12 +586,30 @@
   .pfBtn:hover { background: #0e7490; color: #fff; }
   /* 📥📤 다른 PC 파일 창 */
   #pfDlg { width: min(760px, 96vw); max-height: 88vh; padding: 0; border: 1px solid #0e7490; border-radius: 12px; background: var(--panel, #1f2937); color: var(--fg); }
-  #pfDlg .pf-in { display: flex; flex-direction: column; max-height: 88vh; }
+  #pfDlg { overflow: hidden; }   /* 창 자체는 안 스크롤 — 목록만 */
+  #pfDlg .pf-in { display: flex; flex-direction: column; max-height: calc(88vh - 2px); }
+  #pfDlg .pf-dest:empty, #pfDlg .pf-msg:empty { display: none; }
   #pfDlg .pf-hd { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; }
   #pfDlg .pf-hd h3 { margin: 0; flex: 1; font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #pfDlg .pf-path { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; font-size: 12px; color: var(--muted); }
   #pfDlg .pf-path span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
-  #pfDlg .pf-list { flex: 1; min-height: 160px; overflow: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  #pfDlg .pf-list { flex: 1; min-height: 120px; overflow: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overscroll-behavior: contain; }
+  #pfDlg .pf-sort { display: flex; gap: 6px; padding: 0 16px 8px; flex-wrap: wrap; }
+  #pfDlg .pf-sort { align-items: center; }
+  #pfDlg .pf-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 16px 0; }
+  #pfDlg .pf-clip { flex: 1 1 200px; min-width: 0; font-size: 12px; color: #fde68a; display: flex; align-items: center; gap: 6px; }
+  #pfDlg .pf-clip span { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pfDlg .pf-clip .pf-clipx { padding: 0 6px; flex: none; }
+  #pfDlg .pf-row.cut { opacity: .45; }
+  #pfDlg .pf-row.pasted { animation: pfPasted 2.4s ease-out; }
+  @keyframes pfPasted { 0%, 40% { background: rgba(250,204,21,.25); } 100% { background: transparent; } }
+  #pfDlg .pf-sort button { border-radius: 999px; padding: 3px 12px; }
+  #pfDlg .pf-hint { margin-left: auto; font-size: 11px; color: var(--muted); }
+  #pfDlg .pf-sort button.on { background: #0e7490; border-color: #22d3ee; color: #fff; font-weight: 700; }
+  #pfDlg .pf-row { user-select: none; -webkit-user-select: none; }
+  #pfDlg .pf-row.on { background: rgba(34,211,238,.13); }
+  #pfDlg .pf-row input { touch-action: none; }
+  #pfDlg.pf-dragging .pf-row { cursor: ns-resize; }
   #pfDlg .pf-row { display: grid; grid-template-columns: 26px 1fr 84px 112px; align-items: center; gap: 8px; padding: 7px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; }
   #pfDlg .pf-row:hover { background: rgba(34,211,238,.08); }
   #pfDlg .pf-row .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2406,7 +2424,7 @@ const I18N = {
     pvStarting:'Starting dev server…', pvFail:'That script is not a web dev server (no address found). Pick a page or open the folder instead:',
     dropPick:'Same-named folders found — enter the number to open:', dropMiss:"Couldn't locate this folder's real path — use [+ Session] → 📂 Browse.",
     ghCopyOpen:'Copy code → open GitHub', ghCopyOpenT:'Copies the code and opens the GitHub approval page',
-    fileOpened:'Opened', modeSwitched:'mode switched (Shift+Tab)',
+    fileOpened:'Opened', pathFetchView: '👁 Opened in a new tab', pathFetchDl: '📥 Downloading {n} — check the browser downloads', pathOutside: 'This file is outside the session folder, so it can only be opened on that PC', modeSwitched:'mode switched (Shift+Tab)',
     gbDirty:'uncommitted changes', gbAhead:'commits to push', gbBehind:'commits to pull',
     gbPrT:'Open this branch on GitHub (its pull request, or a new one)',
     gbLocal:'local', gbLocalT:'This folder is not connected to GitHub',
@@ -2505,7 +2523,7 @@ const I18N = {
     pvStarting:'개발서버 시작 중…', pvFail:'이 스크립트는 웹 개발서버가 아니에요(주소 없음). 대신 아래에서 페이지를 고르거나 폴더를 여세요:',
     dropPick:'같은 이름의 폴더가 여러 개예요 — 열 번호를 입력하세요:', dropMiss:'이 폴더의 실제 경로를 찾지 못했어요 — [+세션] → 📂 찾아보기로 열어주세요.',
     ghCopyOpen:'코드 복사 → GitHub 열기', ghCopyOpenT:'코드를 복사하고 GitHub 승인 페이지를 엽니다',
-    fileOpened:'열었어요', modeSwitched:'모드 전환 (Shift+Tab)',
+    fileOpened:'열었어요', pathFetchView: '👁 새 탭에서 열었어요', pathFetchDl: '📥 {n} 받는 중 — 브라우저 다운로드를 확인하세요', pathOutside: '세션 폴더 밖 파일이라 그 PC 에서만 열 수 있어요', modeSwitched:'모드 전환 (Shift+Tab)',
     gbDirty:'커밋 안 된 변경', gbAhead:'push할 커밋', gbBehind:'pull할 커밋',
     gbPrT:'이 브랜치의 GitHub PR 페이지 열기 (열린 PR이 있으면 그것, 없으면 새 PR)',
     gbLocal:'로컬', gbLocalT:'GitHub에 연결되지 않은 폴더예요',
@@ -2735,7 +2753,7 @@ const I18N_MORE = {
     cdMemOk: "Free memory was fine at those moments (avg {m}), so memory is probably not the cause.",
     cdAdvBg: "{n} drop(s) while the screen was off are normal and not counted.",
     lfBtnT: "Files in this session folder — download to this device, or upload files into it", lfPull: "Download", lfZip: "Download as zip", lfPush: "Upload here", lfView: "Preview in a new tab", lfViewS: "View", lfYes: "Download it", lfStarted: "Download started — check the browser downloads", lfZipStarted: "Zipping {n} file(s) · {s} — the download starts in the browser", lfTooBig: "Too big for one zip (over 4GB or 65,000 files) — pick fewer",
-    pfBtn: "Files", pfBtnT: "Files on {n} — bring results to this PC, or send files there", pfTitle: "{n} · {t}", pfPush: "Send files here", pfPull: "Bring to this PC", pfAll: "Select all", pfNone: "Select none", pfEmpty: "Empty folder", pfSecret: "secret",
+    pfBtn: "Files", pfBtnT: "Files on {n} — bring results to this PC, or send files there", pfTitle: "{n} · {t}", pfPush: "Send files here", pfPull: "Bring to this PC", pfAll: "Select all", pfNone: "Select none", pfEmpty: "Empty folder", pfSecret: "secret", pfSortName: "Name", pfSortTime: "Newest", pfSortSize: "Size", pfSortT: "Sort — press again to reverse", pfDragT: "Drag down the list to tick several files at once", pfCopy: "Copy", pfCut: "Cut", pfPaste: "Paste", pfMkdir: "New folder", pfMkdirQ: "New folder name", pfCopied: "📋 {n} copied", pfCutDone: "✂ {n} cut", pfClipHint: "go to the folder you want and press Paste", pfPasted: "Pasted {n} file(s)", pfMoved: "Moved {n} file(s)", pfIntoSelf: "A folder can't go inside itself", pfSamePlace: "It's already here — open another folder, then paste", pfSkipSame: "Skip those", pfBadName: "That name can't be used", pfExistsName: "There is already one with that name", pfGone: "The copied files are no longer there", pfOldPC: "That PC needs a PowerTerminal update for this",
     pfPlanning: "Checking…", pfDest: "Save to", pfSecretQ: "Includes secret files ({f}). Bring them too?", pfYes: "Bring them", pfSkip: "Leave them out", pfExistsQ: "{n} file(s) with the same name are already there.", pfOverwrite: "Overwrite", pfRename: "Save with a new name",
     pfFail: "Stopped", pfDone: "Saved {n} file(s)", pfDoneT: "Saved {n} file(s) to {d}", pfSent: "Sent {n} file(s)",
     rtWhere: "Where should the new tree run?", rtSending: "Sending to {n}… (code + conversation)", rtSent: "Made a tree on {n} — it shows up here", rtSentConv: "Made a tree on {n} and carried the conversation — it shows up here",
@@ -2906,7 +2924,7 @@ const I18N_MORE = {
     peerMe: "이 PC: {n}", peerMeAddr: "주소(같은 곳)", peerMeFar: "주소(다른 곳)", peerMeCode: "연결 코드", peerOff: "연결 안 됨", peerDel: "연결 끊기", peerDelQ: "{n} 연결을 끊을까요? 그 PC 세션이 이 화면에서 빠집니다(그 PC 에서는 계속 돕니다).", peerDeleted: "연결을 끊었어요",
     peerAddrPh: "그 PC 주소 (예: 192.168.0.5:7777)", peerCodePh: "코드", peerNamePh: "이름 (예: 작업실 PC)", peerGo: "연결", peerNeed: "그 PC 의 주소와 4자리 코드를 넣으세요", peerBadCode: "코드가 틀렸어요 — 그 PC 의 ⚙ 설정에서 코드를 확인하세요", peerUnreach: "그 주소에 닿지 않아요 — 그 PC 에서 PowerTerminal 이 켜져 있나요?", peerSelf: "그 주소는 이 PC 예요", peerTooMany: "시도가 너무 많아요 — 잠시 뒤에", peerLinked: "{n} 연결됨 — 그 PC 세션이 이 화면에 나옵니다",
     lfBtnT: "이 세션 폴더의 파일 — 지금 이 기기로 받거나, 이 기기 파일을 그 폴더에 올립니다", lfPull: "이 기기로 받기", lfZip: "zip으로 받기", lfPush: "여기에 올리기", lfView: "새 탭에서 미리 보기", lfViewS: "보기", lfYes: "받기", lfStarted: "받기 시작 — 브라우저 다운로드를 확인하세요", lfZipStarted: "{n}개 · {s} 묶는 중 — 브라우저에서 받기가 시작됩니다", lfTooBig: "zip 하나로 묶기엔 너무 큽니다 (4GB · 6만5천 개 초과) — 나눠서 고르세요",
-    pfBtn: "파일", pfBtnT: "{n}의 파일 — 결과물을 이 PC 로 가져오거나, 이 PC 파일을 그쪽으로 보냅니다", pfTitle: "{n} · {t}", pfPush: "여기로 파일 보내기", pfPull: "이 PC 로 가져오기", pfAll: "모두 고르기", pfNone: "모두 풀기", pfEmpty: "빈 폴더", pfSecret: "비밀",
+    pfBtn: "파일", pfBtnT: "{n}의 파일 — 결과물을 이 PC 로 가져오거나, 이 PC 파일을 그쪽으로 보냅니다", pfTitle: "{n} · {t}", pfPush: "여기로 파일 보내기", pfPull: "이 PC 로 가져오기", pfAll: "모두 고르기", pfNone: "모두 풀기", pfEmpty: "빈 폴더", pfSecret: "비밀", pfSortName: "이름순", pfSortTime: "최신순", pfSortSize: "용량순", pfSortT: "정렬 — 한 번 더 누르면 반대로", pfDragT: "목록을 끌어내리면 여러 개가 이어서 체크돼요", pfCopy: "복사", pfCut: "잘라내기", pfPaste: "붙여넣기", pfMkdir: "새 폴더", pfMkdirQ: "새 폴더 이름", pfCopied: "📋 {n}개 복사됨", pfCutDone: "✂ {n}개 잘라냄", pfClipHint: "원하는 폴더로 가서 「붙여넣기」를 누르세요", pfPasted: "{n}개 붙여넣었어요", pfMoved: "{n}개 옮겼어요", pfIntoSelf: "폴더를 자기 안으로는 옮길 수 없어요", pfSamePlace: "이미 여기 있어요 — 다른 폴더로 가서 붙여넣으세요", pfSkipSame: "그건 건너뛰기", pfBadName: "그 이름은 쓸 수 없어요", pfExistsName: "같은 이름이 이미 있어요", pfGone: "복사해 둔 파일이 이제 없어요", pfOldPC: "그 PC 의 PowerTerminal 을 업데이트해야 돼요",
     pfPlanning: "확인 중…", pfDest: "저장 위치", pfSecretQ: "비밀 파일이 들어 있어요({f}). 같이 가져올까요?", pfYes: "같이 가져오기", pfSkip: "빼고 가져오기", pfExistsQ: "같은 이름의 파일이 {n}개 이미 있어요.", pfOverwrite: "덮어쓰기", pfRename: "이름 바꿔 저장",
     cbH: "🔌 끊김 기록", cbOpen: "기록 보기", cbLoading: "불러오는 중…", cbFail: "기록을 불러오지 못했어요.", cbNone: "최근 7일 동안 끊긴 적이 없어요. 끊기면 저절로 기록됩니다.",
     cbSum: "최근 7일 <em>{n}번</em> 끊김 — {parts}", cdTitle: "🔌 끊김 기록", cdOk: "확인 · 닫기",
@@ -5408,6 +5426,40 @@ function isMobileNow() {   // 아이패드 미니 세로(≤768) 이하 = 폰과
 }
 
 const grid = document.getElementById('grid');
+// 🔒 모달 창(📂 파일·세션 추가 등)이 떠 있는 동안 뒤 화면은 안 움직인다 — 창 밖(어두운 바탕)에서 휠을 굴리거나,
+// 창 안 목록이 끝까지 내려간 뒤 더 굴리면 뒤 PT 화면이 같이 스크롤됐다. 창 안에서 스크롤할 수 있는 칸만 움직이게 한다.
+// (html 에 overflow:hidden 을 걸면 스크롤바가 사라져 폭이 바뀌고 모든 터미널이 다시 맞춰지므로 그 방법은 안 씀)
+(() => {
+  const modalOpen = () => { for (const d of document.querySelectorAll('dialog[open]')) { try { if (d.matches(':modal')) return d; } catch (e) {} } return null; };
+  const canScroll = (t, d, dx, dy) => {
+    for (let e = t; e && e !== d.parentElement; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (dy && /(auto|scroll)/.test(cs.overflowY) && e.scrollHeight > e.clientHeight + 1) {
+        if (dy < 0 ? e.scrollTop > 0 : e.scrollTop + e.clientHeight < e.scrollHeight - 1) return true;
+      }
+      if (dx && /(auto|scroll)/.test(cs.overflowX) && e.scrollWidth > e.clientWidth + 1) {
+        if (dx < 0 ? e.scrollLeft > 0 : e.scrollLeft + e.clientWidth < e.scrollWidth - 1) return true;
+      }
+      if (e === d) break;
+    }
+    return false;
+  };
+  window.addEventListener('wheel', ev => {
+    const d = modalOpen(); if (!d || ev.ctrlKey) return;   // Ctrl+휠(확대)은 그대로
+    const t = ev.target instanceof Element ? ev.target : null;
+    if (t && d.contains(t) && t !== d && canScroll(t, d, ev.deltaX, ev.deltaY)) return;
+    ev.preventDefault();
+  }, { capture: true, passive: false });
+  let ty = 0, tx = 0;
+  window.addEventListener('touchstart', ev => { const p = ev.touches[0]; if (p) { ty = p.clientY; tx = p.clientX; } }, { capture: true, passive: true });
+  window.addEventListener('touchmove', ev => {
+    const d = modalOpen(); if (!d || ev.touches.length !== 1) return;
+    const p = ev.touches[0], dy = ty - p.clientY, dx = tx - p.clientX;
+    const t = ev.target instanceof Element ? ev.target : null;
+    if (t && d.contains(t) && t !== d && canScroll(t, d, dx, dy)) return;
+    if (ev.cancelable) ev.preventDefault();
+  }, { capture: true, passive: false });
+})();
 // 🖱 가운데(휠) 버튼을 누른 채 끌면 화면 전체가 손을 따라 움직임 — 세션 창이 여러 줄이면 휠을 굴릴 빈틈(세션 사이)을 찾아야 했다.
 // 터미널 안에서 눌러도 됨(터미널에는 가운데 버튼을 넘기지 않음). 창(dialog)·마인드맵(자기 팬이 있음)·입력칸·고정 오버레이는 제외.
 (() => {
@@ -5864,6 +5916,11 @@ function buildPane(sess, idx) {
   try {
     // 후보를 긴 것부터 차례로 — 서버는 실제로 있는 파일만 연다(없으면 오류) → 줄을 잘못 이었어도 맞는 후보가 열린다
     const openPath = async cands => {
+      // 다른 PC 세션이거나 PT 가 도는 PC 앞이 아니면(밖에서 접속) — 그 PC 탐색기를 여는 대신 지금 이 기기로 보기·받기
+      if (sess.peer || IS_REMOTE_VIEW) {
+        for (const t of cands) { const u = ptFileUrl(sess.id, sess.path, t); if (u) { ptFetchFile(u); return; } }
+        if (sess.peer) { flashToast('⚠ ' + (T.pathOutside || 'This file is outside the session folder')); return; }
+      }
       let r = null;
       for (const t of cands) { r = await api('POST', '/api/open-path', { path: t, base: sess.path }); if (r && !r.error) break; }
       flashToast(r && r.error ? '⚠ ' + r.error : '📂 ' + (T.fileOpened || 'Opened'));
@@ -11146,6 +11203,32 @@ async function renderPeers() {
 /* 📂 다른 PC 세션 파일 창 — 그 PC 작업 폴더를 최근 바뀐 순으로. 체크해서 [📥 가져오기] = 이 PC 로 받기
    (그 PC 에 보낸 tree 면 원래 폴더 같은 자리에, 아니면 다운로드\PT-<PC>\<세션>), [📤 보내기] = 이 기기에서 고른 파일을 지금 보는 폴더로.
    같은 이름이 있으면 덮어쓰기/이름 바꿔 저장을 고르고, 비밀 파일(.env·키)은 한 번 더 묻는다. 큰 파일은 진행 막대로. */
+/* 📥 세션이 만든 파일 경로 → 이 기기로 보기·받기 주소. 세션 폴더 안(절대경로가 세션 폴더로 시작하거나 상대경로)만.
+   다른 PC 세션("<PC>~<세션>")이면 메인이 그 PC 에서 받아 넘긴다(/peer/<PC>/api/files/get). */
+function ptRelIn(root, p) {
+  p = String(p || '').trim().replace(/^["'`]+|["'`.,;:)]+$/g, '').replace(/\\/g, '/');
+  root = String(root || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  if (!p) return null;
+  let rel;
+  if (/^[A-Za-z]:\//.test(p) || p.startsWith('/')) { if (!root || !p.toLowerCase().startsWith(root.toLowerCase() + '/')) return null; rel = p.slice(root.length + 1); }
+  else if (/^~\//.test(p)) return null;
+  else rel = p.replace(/^\.\//, '');
+  if (!rel || rel.split('/').includes('..')) return null;
+  return rel;
+}
+function ptFileUrl(sessId, root, p) {
+  const rel = ptRelIn(root, p); if (rel == null) return null;
+  const id = String(sessId), i = id.indexOf('~');
+  const base = i > 0 ? '/peer/' + id.slice(0, i) : '', sid = i > 0 ? id.slice(i + 1) : id;
+  const view = PF_VIEW.test(rel);
+  return { view, name: rel.split('/').pop(), url: base + '/api/files/get?sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + (view ? '&inline=1' : '&dl=1') + '&token=' + encodeURIComponent(TOKEN || '') };
+}
+function ptFetchFile(u) {
+  if (u.view) window.open(u.url, '_blank', 'noopener');
+  else { const a = document.createElement('a'); a.href = u.url; a.download = u.name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+  flashToast(u.view ? (T.pathFetchView || '👁 Opened in a new tab') : (T.pathFetchDl || '📥 Downloading {n} — check the browser downloads').replace('{n}', u.name));
+}
+let pfClip = null;   // 📋 복사·✂ 잘라내기 해 둔 것 { base, sid, dir, names, mode:'copy'|'move', n } — 창을 닫거나 다른 세션 창을 열어도 남는다
 const PF_VIEW = /\.(png|jpe?g|gif|webp|bmp|svg|ico|pdf|mp4|webm|mov|mp3|wav|ogg|m4a|txt|md|json|js|mjs|ts|css|html?|xml|csv|log|ya?ml|py|sh|bat|ps1|sql)$/i;
 function openPeerFiles(sess) {
   let dlg = document.getElementById('pfDlg');
@@ -11157,7 +11240,9 @@ function openPeerFiles(sess) {
   let cur = '', items = [], busy = false;
   dlg.innerHTML = '<div class="pf-in"><div class="pf-hd"><h3>📂 ' + esc(local ? (sess.title || '') : (T.pfTitle || '{n} · {t}').replace('{n}', sess.peerName || 'PC').replace('{t}', sess.title || '')) + '</h3><button class="small pf-x">✕</button></div>'
     + '<div class="pf-path"><button class="small pf-up">⬆</button><span class="pf-cur"></span><button class="small pf-all"></button></div>'
+    + '<div class="pf-sort"><button class="small" data-k="name"></button><button class="small" data-k="time"></button><button class="small" data-k="size"></button><span class="pf-hint">' + esc(T.pfDragT || 'Drag down the list to tick several files at once') + '</span></div>'
     + '<div class="pf-list"></div>'
+    + '<div class="pf-ops"><button class="small pf-copy">📋 ' + esc(T.pfCopy || 'Copy') + '</button><button class="small pf-cut">✂ ' + esc(T.pfCut || 'Cut') + '</button><button class="small pf-paste">📌 ' + esc(T.pfPaste || 'Paste') + '</button><button class="small pf-mk">📁＋ ' + esc(T.pfMkdir || 'New folder') + '</button><span class="pf-clip"></span></div>'
     + '<div class="pf-ft"><div class="pf-dest"></div><div class="pf-ask"></div><div class="pf-bar"><i></i></div><span class="pf-msg"></span>'
     + '<input type="file" class="pf-file" multiple hidden><button class="small pf-push">📤 ' + esc(local ? (T.lfPush || 'Upload here') : (T.pfPush || 'Send files here')) + '</button><button class="primary pf-pull" disabled>📥 ' + esc(local ? (T.lfPull || 'Download') : (T.pfPull || 'Bring to this PC')) + '</button></div></div>';
   const $ = q => dlg.querySelector(q);
@@ -11169,6 +11254,105 @@ function openPeerFiles(sess) {
     const b = $('.pf-pull'); b.disabled = !on.length || busy;
     b.textContent = '📥 ' + (local ? (on.length > 1 || on.some(x => x.dir) ? (T.lfZip || 'Download as zip') : (T.lfPull || 'Download')) : (T.pfPull || 'Bring to this PC')) + (on.length ? ' (' + on.length + (files.length === on.length ? ' · ' + fmtB(files.reduce((a, x) => a + x.size, 0)) : '') + ')' : '');
     $('.pf-all').textContent = items.length && on.length === items.length ? (T.pfNone || 'Select none') : (T.pfAll || 'Select all');
+    updOps();
+  };
+  // 📋 ✂ 📌 — 같은 PC 안에서 옮기기 (다른 PC 칸이면 그 PC 안에서)
+  const base = local ? '' : '/peer/' + peer;
+  function updOps() {
+    const on = items.filter(it => it._on).length;
+    $('.pf-copy').disabled = $('.pf-cut').disabled = !on || busy;
+    const can = pfClip && pfClip.base === base;
+    $('.pf-paste').disabled = !can || busy;
+    $('.pf-paste').textContent = '📌 ' + (T.pfPaste || 'Paste') + (can ? ' (' + pfClip.n + ')' : '');
+    $('.pf-mk').disabled = busy;
+    const c = $('.pf-clip');
+    if (pfClip) {
+      c.innerHTML = '<b></b> <span></span> <button class="small pf-clipx" title="✕">✕</button>';
+      c.querySelector('b').textContent = (pfClip.mode === 'move' ? (T.pfCutDone || '✂ {n} cut') : (T.pfCopied || '📋 {n} copied')).replace('{n}', pfClip.n);
+      c.querySelector('span').textContent = can ? '· ' + (T.pfClipHint || 'go to the folder you want and press Paste') : '';
+      c.querySelector('.pf-clipx').onclick = () => { pfClip = null; markCut(); updOps(); };
+    } else c.textContent = '';
+  }
+  const markCut = () => dlg.querySelectorAll('.pf-row').forEach(r => r.classList.toggle('cut', !!(pfClip && pfClip.mode === 'move' && pfClip.base === base && pfClip.sid === sid && pfClip.dir === cur && pfClip.names.includes(r._it.name))));
+  const clip = mode => {
+    const on = items.filter(it => it._on); if (!on.length || busy) return;
+    pfClip = { base, sid, dir: cur, names: on.map(x => x.name), mode, n: on.length };
+    const t = (mode === 'move' ? (T.pfCutDone || '✂ {n} cut') : (T.pfCopied || '📋 {n} copied')).replace('{n}', on.length);
+    flashToast(t); msg('');
+    items.forEach(it => it._on = false); dlg.querySelectorAll('.pf-row').forEach(r => { r.querySelector('input').checked = false; r.classList.remove('on'); });
+    markCut(); updPull();
+  };
+  const errText = r => { const e = r && r.error; return ({ into_self: T.pfIntoSelf, same_place: T.pfSamePlace, bad_name: T.pfBadName, exists: T.pfExistsName, gone: T.pfGone, 'no session': T.pfGone })[e] || (r && r.status === 404 ? T.pfOldPC : '') || e || 'error'; };
+  const doPaste = async () => {
+    if (!pfClip || pfClip.base !== base || busy) return;
+    const c = pfClip, body = { sid, dir: cur, from: c.sid, fromDir: c.dir, names: c.names, mode: c.mode };
+    busy = true; updPull(); msg(T.pfPlanning || 'Checking…');
+    const bar = $('.pf-bar');
+    try {
+      const plan = await api('POST', base + '/api/files/paste', Object.assign({ plan: 1 }, body));
+      if (!plan || plan.error || !plan.ok) { msg(errText(plan)); return; }
+      let conflict = 'rename';
+      if (plan.exists.length) {
+        const ch = await ask((T.pfExistsQ || '{n} file(s) with the same name are already there.').replace('{n}', plan.exists.length) + ' (' + plan.exists.slice(0, 3).join(', ') + (plan.exists.length > 3 ? ' …' : '') + ')',
+          [['overwrite', T.pfOverwrite || 'Overwrite'], ['rename', T.pfRename || 'Save with a new name'], ['skip', T.pfSkipSame || 'Skip those'], ['no', T.cancel || 'Cancel']]);
+        if (ch === 'no') { msg(''); return; }
+        conflict = ch;
+      }
+      const st = await api('POST', base + '/api/files/paste', Object.assign({ conflict }, body));
+      if (!st || st.error || !st.job) { msg(errText(st)); return; }
+      bar.style.display = 'block'; bar.querySelector('i').style.width = '0%';
+      let pg = null;
+      for (;;) {
+        await new Promise(r => setTimeout(r, 300));
+        pg = await api('GET', base + '/api/files/paste-progress?sid=' + encodeURIComponent(sid) + '&job=' + st.job);
+        if (!pg || pg.error === 'no job') { msg('error'); break; }
+        const pct = pg.total ? Math.min(100, Math.floor(pg.done / pg.total * 100)) : (pg.finished ? 100 : 0);
+        bar.querySelector('i').style.width = pct + '%';
+        msg(pct + '% · ' + pg.n + '/' + pg.count + ' · ' + fmtB(pg.done) + ' / ' + fmtB(pg.total) + (pg.cur ? ' · ' + pg.cur : ''));
+        if (pg.finished) break;
+      }
+      if (pg && pg.finished) {
+        const done = (c.mode === 'move' ? (T.pfMoved || 'Moved {n} file(s)') : (T.pfPasted || 'Pasted {n} file(s)')).replace('{n}', pg.n);
+        if (pg.error) { await load(cur); msg((T.pfFail || 'Stopped') + ' — ' + pg.error); }
+        else {
+          if (c.mode === 'move') pfClip = null;
+          await load(cur);
+          items.forEach(it => { if (pg.made.includes(it.name)) it._on = false; });
+          dlg.querySelectorAll('.pf-row').forEach(r => r.classList.toggle('pasted', pg.made.includes(r._it.name)));
+          msg('✅ 100% · ' + done); flashToast('✅ ' + done);
+        }
+      }
+    } finally { busy = false; updPull(); setTimeout(() => { if (!busy) bar.style.display = 'none'; }, 2500); }
+  };
+  const doMkdir = async () => {
+    if (busy) return;
+    const a = $('.pf-ask'); a.style.display = 'flex';
+    a.innerHTML = '<span>' + esc(T.pfMkdirQ || 'New folder name') + '</span><input class="pf-mkname" maxlength="200" style="flex:1;min-width:120px"><button class="small primary pf-mkok">OK</button><button class="small pf-mkno">' + esc(T.cancel || 'Cancel') + '</button>';
+    const inp = a.querySelector('.pf-mkname'); inp.focus();
+    const close = () => { a.style.display = 'none'; a.innerHTML = ''; };
+    const go = async () => {
+      const name = inp.value.trim(); if (!name) return;
+      const r = await api('POST', base + '/api/files/mkdir', { sid, dir: cur, name });
+      if (!r || !r.ok) { msg(errText(r)); return; }
+      close(); await load(cur);
+      const row = [...dlg.querySelectorAll('.pf-row')].find(x => x._it.name === name); if (row) { row.classList.add('pasted'); row.scrollIntoView({ block: 'nearest' }); }
+    };
+    a.querySelector('.pf-mkok').onclick = go; a.querySelector('.pf-mkno').onclick = close;
+    inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); go(); } else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(); } };
+  };
+  $('.pf-copy').onclick = () => clip('copy');
+  $('.pf-cut').onclick = () => clip('move');
+  $('.pf-paste').onclick = doPaste;
+  $('.pf-mk').onclick = doMkdir;
+  // Ctrl+C / Ctrl+X / Ctrl+V (글자 칸에 있을 때는 그대로)
+  dlg.onkeydown = ev => {
+    if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey) return;
+    const t = ev.target; if (t && ((t.tagName === 'INPUT' && t.type !== 'checkbox') || t.tagName === 'TEXTAREA')) return;
+    if (String(getSelection() || '').trim()) return;
+    const k = ev.key.toLowerCase();
+    if (k === 'c' && items.some(it => it._on)) { ev.preventDefault(); clip('copy'); }
+    else if (k === 'x' && items.some(it => it._on)) { ev.preventDefault(); clip('move'); }
+    else if (k === 'v' && pfClip && pfClip.base === base) { ev.preventDefault(); doPaste(); }
   };
   const load = async dir => {
     msg('…');
@@ -11177,6 +11361,34 @@ function openPeerFiles(sess) {
     cur = r.dir || ''; items = r.items || [];
     $('.pf-cur').textContent = '‎' + (r.root || '') + (cur ? '\\' + cur.replace(/\//g, '\\') : '') + '‎';
     $('.pf-up').disabled = !cur;
+    $('.pf-list').scrollTop = 0;
+    render();
+    msg(''); updPull();
+  };
+  // ↕ 정렬 — 폴더는 늘 위, 같은 단추를 다시 누르면 반대로. 고른 정렬은 이 기기에 기억
+  let sortK = 'time', sortDesc = true;
+  try { const v = JSON.parse(localStorage.getItem('pt_pfSort') || 'null'); if (v && ['name', 'time', 'size'].includes(v.k)) { sortK = v.k; sortDesc = !!v.d; } } catch (e) {}
+  const nameCmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
+  const sortItems = () => {
+    const m = sortDesc ? -1 : 1;
+    items.sort((a, b) => (b.dir - a.dir)
+      || (sortK === 'name' ? m * nameCmp(a.name, b.name) : sortK === 'size' ? m * ((a.size || 0) - (b.size || 0)) : m * ((a.mtime || 0) - (b.mtime || 0)))
+      || nameCmp(a.name, b.name));
+  };
+  const paintSort = () => dlg.querySelectorAll('.pf-sort button').forEach(b => {
+    const k = b.dataset.k, on = k === sortK;
+    b.textContent = (T[{ name: 'pfSortName', time: 'pfSortTime', size: 'pfSortSize' }[k]] || { name: 'Name', time: 'Newest', size: 'Size' }[k]) + (on ? (sortDesc ? ' ↓' : ' ↑') : '');
+    b.classList.toggle('on', on); b.title = T.pfSortT || 'Sort — press again to reverse';
+  });
+  dlg.querySelectorAll('.pf-sort button').forEach(b => b.onclick = () => {
+    const k = b.dataset.k;
+    if (k === sortK) sortDesc = !sortDesc; else { sortK = k; sortDesc = k !== 'name'; }   // 이름은 가나다(↑), 최신·용량은 큰 것부터(↓)
+    try { localStorage.setItem('pt_pfSort', JSON.stringify({ k: sortK, d: sortDesc })); } catch (e) {}
+    paintSort(); render();
+  });
+  paintSort();
+  const render = () => {
+    sortItems();
     const list = $('.pf-list');
     list.innerHTML = items.length ? '' : '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">' + esc(T.pfEmpty || 'Empty folder') + '</div>';
     items.forEach(it => {
@@ -11184,15 +11396,75 @@ function openPeerFiles(sess) {
       row.innerHTML = '<input type="checkbox"><span class="nm">' + (it.dir ? '📁 ' : '📄 ') + esc(it.name) + (it.secret ? '<span class="sec">🔒 ' + esc(T.pfSecret || 'secret') + '</span>' : '') + '</span><small>' + (it.dir ? '' : fmtB(it.size)) + '</small><small class="t">' + fmtD(it.mtime) + '</small>';
       // 👁 미리보기 (내 세션 — 사진·PDF·영상·소리·글자 파일은 새 탭에서 바로 보기)
       if (local && !it.dir && PF_VIEW.test(it.name)) { const pv = document.createElement('a'); pv.className = 'pf-pv'; pv.textContent = '👁 ' + (T.lfViewS || 'View'); pv.title = T.lfView || 'Preview in a new tab'; pv.target = '_blank'; pv.rel = 'noopener'; pv.href = '/api/files/get?' + qs({ sid, rel: it.rel, inline: 1, token: TOKEN }); pv.onclick = ev => ev.stopPropagation(); row.querySelector('.nm').appendChild(pv); }
-      const cb = row.querySelector('input');
-      cb.onclick = ev => { ev.stopPropagation(); it._on = cb.checked; updPull(); };
-      row.onclick = () => { if (it.dir) load(it.rel); else { cb.checked = !cb.checked; it._on = cb.checked; updPull(); } };
+      const cb = row.querySelector('input'); cb.checked = !!it._on; row.classList.toggle('on', !!it._on);
+      row._it = it;
+      cb.onclick = ev => { ev.stopPropagation(); if (dragJustEnded()) { ev.preventDefault(); return; } it._on = cb.checked; row.classList.toggle('on', cb.checked); updPull(); };
+      row.onclick = () => { if (dragJustEnded()) return; if (it.dir) load(it.rel); else { cb.checked = !cb.checked; it._on = cb.checked; row.classList.toggle('on', cb.checked); updPull(); } };
       list.appendChild(row);
     });
-    msg(''); updPull();
+    markCut(); updPull();
+  };
+  // ✅ 끌어서 이어 체크 — 한 줄에서 누르고 다른 줄로 끌면, 처음 줄과 반대 상태로 지나간 줄을 모두 맞춘다(되돌아오면 원래대로).
+  // 마우스는 줄 어디서나, 손가락은 체크칸에서 시작할 때만(그 외엔 목록 스크롤). 목록 끝에 가까이 끌면 저절로 스크롤.
+  let drag = null, swallow = false;
+  const dragJustEnded = () => { if (!swallow) return false; swallow = false; return true; };   // 끌기 끝에 따라오는 클릭 하나만 무시
+  const rowsNow = () => [...$('.pf-list').querySelectorAll('.pf-row')];
+  const rowAt = (x, y) => { const e = document.elementFromPoint(x, y); return e && e.closest && e.closest('#pfDlg .pf-row'); };
+  const applyDrag = () => {
+    const rows = rowsNow(), a = Math.min(drag.start, drag.cur), b = Math.max(drag.start, drag.cur);
+    rows.forEach((r, i) => { const on = i >= a && i <= b ? drag.state : drag.orig[i]; r._it._on = on; r.querySelector('input').checked = on; r.classList.toggle('on', on); });
+    updPull();
+  };
+  const dragTo = (x, y) => {
+    const list = $('.pf-list'), lr = list.getBoundingClientRect();
+    const r = rowAt(Math.min(Math.max(x, lr.left + 4), lr.right - 4), Math.min(Math.max(y, lr.top + 2), lr.bottom - 2));
+    if (!r) return;
+    const i = rowsNow().indexOf(r); if (i < 0) return;
+    if (!drag.active) {
+      const nearEdge = y < lr.top + 36 || y > lr.bottom - 36;
+      if (i === drag.start && !(nearEdge && Math.abs(y - drag.y0) > 6)) return;   // 같은 줄이면 목록 끝에 대고 끌 때만 시작
+      drag.active = true; dlg.classList.add('pf-dragging'); applyDrag();
+      drag.raf = requestAnimationFrame(autoScroll);   // 목록 끝에 대고 있으면 저절로 스크롤
+    }
+    if (i !== drag.cur) { drag.cur = i; applyDrag(); }
+  };
+  const autoScroll = () => {
+    if (!drag || !drag.active) return;
+    const list = $('.pf-list'), lr = list.getBoundingClientRect(), edge = 36;
+    const v = drag.y < lr.top + edge ? -Math.ceil((lr.top + edge - drag.y) / 3) : drag.y > lr.bottom - edge ? Math.ceil((drag.y - lr.bottom + edge) / 3) : 0;
+    if (v) { list.scrollTop += v; dragTo(drag.x, drag.y); }
+    drag.raf = requestAnimationFrame(autoScroll);
+  };
+  $('.pf-list').addEventListener('pointerdown', ev => {
+    if (ev.button !== 0 || busy) return;
+    const r = ev.target.closest('.pf-row'); if (!r || ev.target.closest('a')) return;
+    if (ev.pointerType === 'touch' && ev.target.tagName !== 'INPUT') return;
+    const rows = rowsNow(), i = rows.indexOf(r);
+    swallow = false;
+    drag = { id: ev.pointerId, start: i, cur: i, state: !r._it._on, orig: rows.map(x => !!x._it._on), active: false, x: ev.clientX, y: ev.clientY, y0: ev.clientY, raf: 0 };
+    if (ev.pointerType !== 'mouse') ev.preventDefault();
+    // 포인터를 잡지(setPointerCapture) 않고 끄는 동안만 창 전체에서 따라간다 — 잡으면 그냥 클릭이 줄 대신 목록에 떨어져 체크가 안 됐다
+    window.addEventListener('pointermove', dragMove, true);
+    window.addEventListener('pointerup', dragEnd, true);
+    window.addEventListener('pointercancel', dragEnd, true);
+  });
+  const dragMove = ev => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    if (ev.pointerType === 'mouse' && !(ev.buttons & 1)) { dragEnd(); return; }   // 창 밖에서 뗐다
+    drag.x = ev.clientX; drag.y = ev.clientY; dragTo(ev.clientX, ev.clientY);
+    if (drag.active) ev.preventDefault();
+  };
+  const dragEnd = ev => {
+    if (!drag || (ev && ev.pointerId !== drag.id)) return;
+    window.removeEventListener('pointermove', dragMove, true);
+    window.removeEventListener('pointerup', dragEnd, true);
+    window.removeEventListener('pointercancel', dragEnd, true);
+    cancelAnimationFrame(drag.raf);
+    if (drag.active) { swallow = true; setTimeout(() => { swallow = false; }, 600); dlg.classList.remove('pf-dragging'); }
+    drag = null;
   };
   $('.pf-up').onclick = () => load(cur.split('/').slice(0, -1).join('/'));
-  $('.pf-all').onclick = () => { const all = !(items.length && sel().length === items.length); items.forEach(it => it._on = all); dlg.querySelectorAll('.pf-row input').forEach(c => c.checked = all); updPull(); };
+  $('.pf-all').onclick = () => { const all = !(items.length && sel().length === items.length); items.forEach(it => it._on = all); dlg.querySelectorAll('.pf-row').forEach(r => { r.querySelector('input').checked = all; r.classList.toggle('on', all); }); updPull(); };
   const ask = (text, choices) => new Promise(resolve => {
     const a = $('.pf-ask'); a.style.display = 'flex'; a.innerHTML = '<span style="flex:1 1 100%">' + esc(text) + '</span>';
     choices.forEach(([v, l, cls]) => { const b = document.createElement('button'); b.className = 'small' + (cls ? ' ' + cls : ''); b.textContent = l; b.onclick = () => { a.style.display = 'none'; resolve(v); }; a.appendChild(b); });

@@ -73,6 +73,10 @@
   .a code { font:12.5px Consolas, "D2Coding", monospace; background:#f0ede4; padding:1px 4px; border-radius:3px; word-break:break-all; }
   .a pre { font:12px/1.5 Consolas, "D2Coding", monospace; background:#f3f0e7; border-radius:6px; padding:9px 11px; margin:0 0 10px; overflow:auto; max-height:55vh; white-space:pre; break-inside:avoid; }
   .a pre code { background:none; padding:0; word-break:normal; }
+  .a a.fpath { color: inherit; text-decoration: none; }
+  .a a.fpath code { text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+  .a a.fpath:hover code { background: #e3dcc8; }
+  .a img.fimg { display: block; max-width: 100%; max-height: 60vh; margin: 6px 0; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); cursor: zoom-in; }
   /* 코드 상자 아래 [복사] [▶ 실행] — AI 가 "이 명령을 실행해 주세요" 할 때 손으로 긁어 붙이지 않게 */
   .a pre:has(+ .cbar) { margin-bottom:0; border-radius:6px 6px 0 0; }
   .cbar { display:flex; justify-content:flex-end; gap:6px; background:#f3f0e7; border-radius:0 0 6px 6px; padding:2px 6px 6px; margin:0 0 10px; break-inside:avoid; }
@@ -557,6 +561,25 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '
    ending (crownyclass.com/go/x). An address stops at Korean text, so "https://a.com/x에서" links only the address.
    Not after = ' " > / @ . - or a letter, so href="…", link text and e-mail addresses are left alone. */
 const URL_RX = /(^|[^"'=\w>\/@.\-])((?:https?:\/\/|www\.)[^\s<>)*ㄱ-ㆎ가-힣]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|kr|dev|app|ai|me|co|xyz|site|shop|link|page)(?:\/[^\s<>)*ㄱ-ㆎ가-힣]*)?(?![\w-]|\.\w))/gi;
+/* 📥 세션 폴더 안 파일 경로 → 보기(새 탭)·받기 주소 (다른 PC 세션이면 메인이 중계) */
+const BK_VIEW = /\.(png|jpe?g|gif|webp|bmp|svg|ico|pdf|mp4|webm|mov|mp3|wav|ogg|m4a|txt|md|json|js|mjs|ts|css|html?|xml|csv|log|ya?ml|py|sh|bat|ps1|sql)$/i;
+const unesc = s => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+function fileUrl(p) {
+  if (!cur || !cur.path) return null;
+  p = unesc(String(p || '')).trim().replace(/\\/g, '/');
+  if (!/\.[A-Za-z0-9]{1,6}$/.test(p) || /\s{2}|^https?:/i.test(p)) return null;
+  const root = String(cur.path).replace(/\\/g, '/').replace(/\/+$/, '');
+  let rel;
+  if (/^[A-Za-z]:\//.test(p) || p.startsWith('/')) { if (!p.toLowerCase().startsWith(root.toLowerCase() + '/')) return null; rel = p.slice(root.length + 1); }
+  else if (/^[\w가-힣.\-][^:*?"<>|]*$/.test(p) && p.includes('/')) rel = p.replace(/^\.\//, '');
+  else return null;
+  if (!rel || rel.split('/').includes('..')) return null;
+  const id = String(cur.id), i = id.indexOf('~');
+  const base = i > 0 ? '/peer/' + id.slice(0, i) : '', sid = i > 0 ? id.slice(i + 1) : id;
+  const view = BK_VIEW.test(rel);
+  return { view, img: /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(rel), name: rel.split('/').pop(), url: base + '/api/files/get?sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + (view ? '&inline=1' : '&dl=1') + '&token=' + encodeURIComponent(TOKEN || '') };
+}
+const fileA = (u, inner) => '<a class="fpath" href="' + u.url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener"' + (u.view ? '' : ' download="' + esc(u.name) + '"') + ' title="' + (u.view ? '👁' : '📥') + ' ' + esc(u.name) + '">' + inner + '</a>';
 function linkify(h) {
   return h.replace(URL_RX, (m, p, u) => {
     const t = (u.match(/(?:[.,;:!?'\]]|&quot;|&#39;)+$/) || [''])[0]; if (t) u = u.slice(0, -t.length);
@@ -567,7 +590,11 @@ function linkify(h) {
 // ── small markdown renderer (headings, lists, tables, code, quotes, links) — enough for assistant answers
 function inline(s) {
   const keep = [];
-  s = esc(s).replace(/`([^`]+)`/g, (m, c) => { keep.push(/^https?:\/\/[^\s<]+$/.test(c) ? '<a href="' + c + '" target="_blank" rel="noopener"><code>' + c + '</code></a>' : '<code>' + linkify(c) + '</code>'); /* an address written as code is still a link, also one inside a command */ return '\u0001' + (keep.length - 1) + '\u0001'; });
+  s = esc(s).replace(/!?\[([^\]]*)\]\(([^)\s][^)]*)\)/g, (m, x, p) => {   // ![그림](D:\…\a.png) · [파일](경로) — 세션 폴더 안이면 그림은 바로, 파일은 받기 링크
+    const u = /^https?:/i.test(p) ? null : fileUrl(p); if (!u) return m;
+    keep.push(m[0] === '!' && u.img ? fileA(u, '<img class="fimg" src="' + u.url.replace(/"/g, '&quot;') + '" alt="' + x + '" loading="lazy">') : fileA(u, (u.view ? '👁 ' : '📥 ') + (x || esc(u.name))));
+    return '\u0001' + (keep.length - 1) + '\u0001';
+  }).replace(/`([^`]+)`/g, (m, c) => { const fu = fileUrl(c); keep.push(/^https?:\/\/[^\s<]+$/.test(c) ? '<a href="' + c + '" target="_blank" rel="noopener"><code>' + c + '</code></a>' : fu ? fileA(fu, '<code>' + c + '</code>') : '<code>' + linkify(c) + '</code>'); /* an address written as code is still a link, also one inside a command */ return '\u0001' + (keep.length - 1) + '\u0001'; });
   s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, (m, x, u) => { keep.push('<a href="' + u + '" target="_blank" rel="noopener">' + x + '</a>'); return '\u0001' + (keep.length - 1) + '\u0001'; });   // kept aside so an address in the link text is not linked again
   s = linkify(s)   // bare address anywhere (also inside **bold**), trailing punctuation left out
        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
