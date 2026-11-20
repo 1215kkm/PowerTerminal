@@ -3244,9 +3244,13 @@ app.put('/api/browser-rules', (req, res) => {
 // 🔑 로그인 보관함 — 목록·추가·수정·삭제는 이 PC 에서만(비밀번호가 원격으로 오가지 않게). 비밀번호는 절대 돌려주지 않는다.
 const vaultView = () => ({ entries: vaultLoad().map(vaultPublic).sort((a, b) => a.name.localeCompare(b.name)), log: vaultRecent(30) });
 function vaultLocal(req, res) { if (isLocal(req.socket)) return true; res.status(403).json({ error: 'local_only' }); return false; }
-app.get('/api/vault', (req, res) => { if (vaultLocal(req, res)) res.json(vaultView()); });
+/* 보기·추가·수정·삭제·허용·PT 브라우저로 열기는 다른 컴퓨터(토큰으로 들어온 주인 · 「전부」 준 PC)에서도 된다 (2026-11-20 CEO).
+   서버는 원래 비밀번호를 돌려주지 않으므로(vaultPublic 에 없음) 화면에 비밀번호가 오가지 않는다. 새 비밀번호를 적어 저장하는 것만 들어온다.
+   비밀번호 보기(reveal)·한꺼번에 들여오기(import)·크롬 열기는 여전히 이 PC 에서만(vaultLocal). 접속 검사는 앞의 토큰 검사가 이미 했다. */
+function vaultRemoteOk(req, res) { if (isLocal(req.socket) || !req.ptGuest || req.ptGuest.share === 'all') return true; res.status(403).json({ error: 'local_only' }); return false; }
+app.get('/api/vault', (req, res) => { if (vaultRemoteOk(req, res)) res.json(Object.assign(vaultView(), { remote: !isLocal(req.socket) })); });
 app.post('/api/vault', (req, res) => {
-  if (!vaultLocal(req, res)) return;
+  if (!vaultRemoteOk(req, res)) return;
   const b = req.body || {};
   const name = String(b.name || '').trim().slice(0, 40), username = String(b.username || '').trim().slice(0, 200);
   // 사이트 칸은 쉼표·공백으로 여러 주소 — 한 사이트에 접속 주소가 여럿인 곳(쇼핑몰 주소와 로그인 화면 주소가 다른 곳)
@@ -3293,7 +3297,7 @@ app.post('/api/vault', (req, res) => {
 // 보관함 창의 거절 기록 옆 [허용] — 그 로그인에 주소 하나를 더한다. 같은 회사 주소만 받는다
 // (다른 회사 주소를 더하려면 수정 칸에 직접 적어야 한다 — 버튼 한 번으로 엉뚱한 사이트가 열리지 않게).
 app.post('/api/vault/allow', (req, res) => {
-  if (!vaultLocal(req, res)) return;
+  if (!vaultRemoteOk(req, res)) return;
   const b = req.body || {};
   const host = vaultDomain(b.host);
   const list = vaultLoad();
@@ -3308,7 +3312,7 @@ app.post('/api/vault/allow', (req, res) => {
   res.json(vaultView());
 });
 app.delete('/api/vault/:id', (req, res) => {
-  if (!vaultLocal(req, res)) return;
+  if (!vaultRemoteOk(req, res)) return;
   try { vaultSave(vaultLoad().filter(e => e.id !== req.params.id)); } catch (err) { return res.status(500).json({ error: String(err && err.message) }); }
   res.json(vaultView());
 });
@@ -3388,7 +3392,7 @@ app.post('/api/vault/fill', async (req, res) => {
 /* 🔑 보관함 창에서 이름을 누르면 — PT 브라우저(기본 창)에 새 창으로 그 사이트를 열고, 로그인 칸이 보이면 PT 가 채워
    Enter 까지 누른다. 칸이 없으면(이미 로그인돼 있거나 로그인 버튼 뒤에 있는 사이트) 연 채로 둔다. 이 PC 에서만. */
 app.post('/api/vault/open', async (req, res) => {
-  if (!vaultLocal(req, res)) return;
+  if (!vaultRemoteOk(req, res)) return;
   const entry = vaultLoad().find(e => e.id === String((req.body || {}).id || ''));
   if (!entry) return res.status(404).json({ error: 'gone' });
   const prof = browserProfile('');

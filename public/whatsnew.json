@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.73", "date": "2026-11-20",
+      "items": {
+        "en": ["🔑 Login vault now opens from other computers too — view, add, edit and delete. Passwords are never shown there (👁 Show works only on the main PC)."],
+        "ko": ["🔑 로그인 보관함을 다른 컴퓨터에서도 열 수 있어요 — 보기·추가·수정·삭제. 비밀번호는 거기서 절대 안 보여요(👁 보기는 메인 PC 에서만)."],
+        "ja": ["🔑 ログイン保管庫を他のパソコンからも開けます — 表示・追加・編集・削除。パスワードはそこでは表示されません(👁 表示はメインPCのみ)。"],
+        "zh": ["🔑 登录保管箱现在也能从其他电脑打开——查看、添加、修改、删除。密码在那里绝不显示(👁 查看只能在主电脑上)。"],
+        "es": ["🔑 El almacén de inicios de sesión ahora se abre también desde otros equipos: ver, añadir, editar y borrar. Las contraseñas nunca se muestran allí (👁 Ver solo en el PC principal)."],
+        "de": ["🔑 Der Login-Tresor öffnet sich jetzt auch auf anderen Computern – ansehen, hinzufügen, bearbeiten, löschen. Passwörter werden dort nie angezeigt (👁 Anzeigen nur am Haupt-PC)."],
+        "fr": ["🔑 Le coffre de connexions s’ouvre maintenant aussi depuis d’autres ordinateurs — voir, ajouter, modifier, supprimer. Les mots de passe n’y sont jamais affichés (👁 Voir seulement sur le PC principal)."],
+        "pt": ["🔑 O cofre de logins agora abre também em outros computadores — ver, adicionar, editar e excluir. As senhas nunca aparecem lá (👁 Ver só no PC principal)."],
+        "ru": ["🔑 Хранилище входов теперь открывается и с других компьютеров — просмотр, добавление, изменение, удаление. Пароли там никогда не показываются (👁 «Показать» только на главном ПК)."],
+        "hi": ["🔑 लॉगिन वॉल्ट अब दूसरे कंप्यूटर से भी खुलता है — देखें, जोड़ें, बदलें, हटाएँ। वहाँ पासवर्ड कभी नहीं दिखते (👁 देखें केवल मुख्य PC पर)।"]
+      }
+    },
+    {
       "v": "1.90.72", "date": "2026-11-20",
       "items": {
         "en": ["📂 Files window: 👁 View on an .html file now shows the page itself, not its source."],
