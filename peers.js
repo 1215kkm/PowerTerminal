@@ -163,6 +163,8 @@ module.exports = function peersModule(app, ctx) {
     if (g.share === 'all') return true;
     if (m === 'GET' && (p === '/api/info' || p === '/api/sessions' || p === '/api/sessions-mem')) return true;
     if (g.share !== 'some') return false;
+    const pv = p.match(/^\/preview\/([^/]+)/);   // 🌐 세션 폴더 미리보기(html 화면) — 준 세션만
+    if (pv) return canSess(g, decodeURIComponent(pv[1]));
     const sm = p.match(/^\/api\/sessions\/([^/]+)(\/.*)?$/);
     if (sm) return !(m === 'DELETE' && !sm[2]) && canSess(g, decodeURIComponent(sm[1]));   // 세션 지우기는 주인만
     if (/^\/api\/(sessions|rtree\/(receive|start))\/?$/.test(p) && m !== 'GET') return false;   // 새 세션 만들기도 주인(또는 「전부」)만 — 고른 세션 폴더로 새로 여는 것까지 막는다
@@ -377,6 +379,8 @@ module.exports = function peersModule(app, ctx) {
   }
   // /peer/<PC>/api/... = 그 PC 의 API 를 그대로 (폴더 고르기 등). 세션을 새로 만드는 것도 여기로
   app.all(/^\/peer\/([a-z0-9]+)(\/api\/.*)$/i, (req2, res) => proxy(req2, res, req2.params[0], req2.url.replace(/^\/peer\/[a-z0-9]+/i, '')));
+  // 🌐 그 PC 세션 폴더의 html 을 화면으로 (노트 모드·터미널에서 .html 경로를 눌렀을 때). 상대경로 그림·css 도 같은 앞머리로 따라온다
+  app.get(/^\/peer\/([a-z0-9]+)(\/preview\/.*)$/i, (req2, res) => proxy(req2, res, req2.params[0], req2.url.replace(/^\/peer\/[a-z0-9]+/i, '')));
   // 그 밖의 /api/ 요청 중 "<PC>~" 가 든 것
   app.use((req2, res, next) => {
     if (!peers.length || !req2.path.startsWith('/api/')) return next();

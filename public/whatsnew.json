@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.72", "date": "2026-11-20",
+      "items": {
+        "en": ["📂 Files window: 👁 View on an .html file now shows the page itself, not its source."],
+        "ko": ["📂 파일 창: .html 파일의 👁 보기를 누르면 소스 대신 화면이 그대로 보여요."],
+        "ja": ["📂 ファイル画面: .html ファイルの 👁 表示で、ソースではなくページそのものが表示されます。"],
+        "zh": ["📂 文件窗口：点 .html 文件的 👁 查看，显示的是页面本身而不是源代码。"],
+        "es": ["📂 Ventana de archivos: 👁 Ver en un archivo .html ahora muestra la página, no su código fuente."],
+        "de": ["📂 Dateifenster: 👁 Ansehen bei einer .html-Datei zeigt jetzt die Seite selbst statt des Quelltexts."],
+        "fr": ["📂 Fenêtre Fichiers : 👁 Voir sur un fichier .html affiche maintenant la page elle-même, pas son code source."],
+        "pt": ["📂 Janela de arquivos: 👁 Ver num arquivo .html agora mostra a página, não o código-fonte."],
+        "ru": ["📂 Окно файлов: 👁 «Просмотр» для файла .html теперь показывает саму страницу, а не исходный код."],
+        "hi": ["📂 फ़ाइल विंडो: .html फ़ाइल पर 👁 देखें अब सोर्स कोड नहीं, पेज ही दिखाता है।"]
+      }
+    },
+    {
       "v": "1.90.71", "date": "2026-11-20",
       "items": {
         "en": ["📂 Files window: ⬆ now keeps going past the session folder — to any folder and drive on this PC (🏠 returns). Copy and paste to another drive works."],

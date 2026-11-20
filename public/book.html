@@ -576,6 +576,7 @@ function fileUrl(p) {
   if (!rel || rel.split('/').includes('..')) return null;
   const id = String(cur.id), i = id.indexOf('~');
   const base = i > 0 ? '/peer/' + id.slice(0, i) : '', sid = i > 0 ? id.slice(i + 1) : id;
+  if (/\.html?$/i.test(rel)) return { view: true, img: false, name: rel.split('/').pop(), url: base + '/preview/' + encodeURIComponent(sid) + '/' + rel.split('/').map(encodeURIComponent).join('/') + '?token=' + encodeURIComponent(TOKEN || '') };   // 🌐 html 은 소스 대신 화면으로
   const view = BK_VIEW.test(rel);
   return { view, img: /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(rel), name: rel.split('/').pop(), url: base + '/api/files/get?sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + (view ? '&inline=1' : '&dl=1') + '&token=' + encodeURIComponent(TOKEN || '') };
 }

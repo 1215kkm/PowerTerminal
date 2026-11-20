@@ -11255,6 +11255,7 @@ function ptFileUrl(sessId, root, p) {
   const rel = ptRelIn(root, p); if (rel == null) return null;
   const id = String(sessId), i = id.indexOf('~');
   const base = i > 0 ? '/peer/' + id.slice(0, i) : '', sid = i > 0 ? id.slice(i + 1) : id;
+  if (/\.html?$/i.test(rel)) return { view: true, name: rel.split('/').pop(), url: base + '/preview/' + encodeURIComponent(sid) + '/' + rel.split('/').map(encodeURIComponent).join('/') + '?token=' + encodeURIComponent(TOKEN || '') };   // 🌐 html 은 소스 대신 화면으로
   const view = PF_VIEW.test(rel);
   return { view, name: rel.split('/').pop(), url: base + '/api/files/get?sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + (view ? '&inline=1' : '&dl=1') + '&token=' + encodeURIComponent(TOKEN || '') };
 }
@@ -11434,7 +11435,7 @@ function openPeerFiles(sess) {
       const row = document.createElement('div'); row.className = 'pf-row';
       row.innerHTML = '<input type="checkbox"><span class="nm">' + (it.dir ? '📁 ' : '📄 ') + esc(it.name) + (it.secret ? '<span class="sec">🔒 ' + esc(T.pfSecret || 'secret') + '</span>' : '') + '</span><small>' + (it.dir ? '' : fmtB(it.size)) + '</small><small class="t">' + fmtD(it.mtime) + '</small>';
       // 👁 미리보기 (내 세션 — 사진·PDF·영상·소리·글자 파일은 새 탭에서 바로 보기)
-      if (local && !it.dir && PF_VIEW.test(it.name)) { const pv = document.createElement('a'); pv.className = 'pf-pv'; pv.textContent = '👁 ' + (T.lfViewS || 'View'); pv.title = T.lfView || 'Preview in a new tab'; pv.target = '_blank'; pv.rel = 'noopener'; pv.href = '/api/files/get?' + qs({ sid, rel: it.rel, inline: 1, token: TOKEN }); pv.onclick = ev => ev.stopPropagation(); row.querySelector('.nm').appendChild(pv); }
+      if (local && !it.dir && PF_VIEW.test(it.name)) { const pv = document.createElement('a'); pv.className = 'pf-pv'; pv.textContent = '👁 ' + (T.lfViewS || 'View'); pv.title = T.lfView || 'Preview in a new tab'; pv.target = '_blank'; pv.rel = 'noopener'; pv.href = (sid !== '*' && /\.html?$/i.test(it.name)) ? '/preview/' + encodeURIComponent(sid) + '/' + it.rel.split('/').map(encodeURIComponent).join('/') + '?token=' + encodeURIComponent(TOKEN || '') : '/api/files/get?' + qs({ sid, rel: it.rel, inline: 1, token: TOKEN }); pv.onclick = ev => ev.stopPropagation(); row.querySelector('.nm').appendChild(pv); }
       const cb = row.querySelector('input'); cb.checked = !!it._on; row.classList.toggle('on', !!it._on);
       if (it.drive) { it._on = false; cb.checked = false; cb.disabled = true; cb.style.visibility = 'hidden'; row.querySelector('.nm').firstChild.textContent = '💽 ' + it.name; }
       row._it = it;
