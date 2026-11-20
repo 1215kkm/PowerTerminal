@@ -13,6 +13,21 @@
   },
   "releases": [
     {
+      "v": "1.90.74", "date": "2026-11-20",
+      "items": {
+        "en": ["📖 Note mode: when the AI asks you to pick (1. Yes / 2. No …), the question and its choices appear as buttons above the request box — tap one to answer."],
+        "ko": ["📖 노트 모드: AI 가 고르라고 물으면(1. 예 / 2. 아니요 …) 요청칸 위에 질문과 선택지가 버튼으로 떠요 — 눌러서 답하면 돼요."],
+        "ja": ["📖 ノートモード: AIが選択を求めると(1. はい / 2. いいえ …)、質問と選択肢が入力欄の上にボタンで表示されます — 押して答えてください。"],
+        "zh": ["📖 笔记模式：AI 让你选择时(1. 是 / 2. 否 …)，问题和选项会以按钮显示在请求框上方——点一下即可回答。"],
+        "es": ["📖 Modo nota: cuando la IA te pide elegir (1. Sí / 2. No …), la pregunta y sus opciones aparecen como botones sobre el cuadro de petición; toca una para responder."],
+        "de": ["📖 Notizmodus: Wenn die KI dich wählen lässt (1. Ja / 2. Nein …), erscheinen Frage und Optionen als Knöpfe über dem Eingabefeld – tippe eine an."],
+        "fr": ["📖 Mode note : quand l’IA vous demande de choisir (1. Oui / 2. Non …), la question et ses choix apparaissent en boutons au-dessus de la zone de demande — touchez-en un pour répondre."],
+        "pt": ["📖 Modo nota: quando a IA pede para escolher (1. Sim / 2. Não …), a pergunta e as opções aparecem como botões acima da caixa de pedido — toque numa para responder."],
+        "ru": ["📖 Режим заметок: когда ИИ просит выбрать (1. Да / 2. Нет …), вопрос и варианты появляются кнопками над полем запроса — нажмите, чтобы ответить."],
+        "hi": ["📖 नोट मोड: जब AI चुनने को कहे (1. हाँ / 2. नहीं …), सवाल और विकल्प अनुरोध बॉक्स के ऊपर बटन बनकर दिखते हैं — जवाब के लिए एक दबाएँ।"]
+      }
+    },
+    {
       "v": "1.90.73", "date": "2026-11-20",
       "items": {
         "en": ["🔑 Login vault now opens from other computers too — view, add, edit and delete. Passwords are never shown there (👁 Show works only on the main PC)."],
