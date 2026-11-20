@@ -2115,7 +2115,7 @@ function readProcTable() {
   return new Promise(resolve => {
     if (IS_WIN) {
       execFile('powershell', ['-NoProfile', '-Command',
-        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize),$($_.Name)" }; '
+        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId),$($_.ParentProcessId),$($_.WorkingSetSize),$([uint64]$_.KernelModeTime + [uint64]$_.UserModeTime),$($_.Name)" }; '
         + '$o = Get-CimInstance Win32_OperatingSystem; "OS,$($o.TotalVisibleMemorySize),$($o.FreePhysicalMemory),$($o.TotalVirtualMemorySize),$($o.FreeVirtualMemory)"'],
         { windowsHide: true, timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
           const rows = [];
@@ -2123,30 +2123,46 @@ function readProcTable() {
             const [a, b, c, d, e2, ...more] = l.trim().split(',');
             // 가상 메모리 = 실제 RAM + 페이징 파일(커밋 한도). KB 단위로 온다
             if (a === 'OS') { osVirt = { total: (+d || 0) * 1024, free: (+e2 || 0) * 1024, at: Date.now() }; return; }
-            if (a) rows.push([+a, +b, +c || 0, [d, e2, ...more].filter(x => x != null).join(',')]);   // 넷째 = 프로그램 이름(쉼표가 들어 있을 수 있다)
+            if (a) rows.push([+a, +b, +c || 0, [e2, ...more].filter(x => x != null).join(','), +d || 0]);   // 넷째 = 프로그램 이름(쉼표가 들어 있을 수 있다), 다섯째 = CPU 시간(100ns)
           });
           resolve(rows);
         });
     } else {
       execFile('ps', ['-A', '-o', 'pid=,ppid=,rss=,comm='], { timeout: 15000, maxBuffer: 8 * 1024 * 1024 }, (e, so) => {
         const rows = [];
-        String(so || '').split('\n').forEach(l => { const [a, b, c, ...nm] = l.trim().split(/\s+/); if (a) rows.push([+a, +b, (+c || 0) * 1024, path.basename(nm.join(' '))]); });
+        String(so || '').split('\n').forEach(l => { const [a, b, c, ...nm] = l.trim().split(/\s+/); if (a) rows.push([+a, +b, (+c || 0) * 1024, path.basename(nm.join(' ')), 0]); });
         resolve(rows);
       });
     }
   });
 }
+/* ⚙ CPU — 2초마다 전체 사용률을 재서 10초 평균(막대)·1분 평균(색) 을 낸다. 잠깐 100% 는 정상이라 순간값으로는 겁주지 않는다. */
+let cpuPrev = null; const cpuHist = [];
+function cpuSample() {
+  let idle = 0, tot = 0;
+  for (const c of os.cpus()) { const t = c.times; idle += t.idle; tot += t.user + t.nice + t.sys + t.idle + t.irq; }
+  if (cpuPrev) { const di = idle - cpuPrev.idle, dt = tot - cpuPrev.tot; if (dt > 0) { cpuHist.push(Math.max(0, Math.min(100, (1 - di / dt) * 100))); if (cpuHist.length > 30) cpuHist.shift(); } }
+  cpuPrev = { idle, tot };
+}
+cpuSample(); setInterval(cpuSample, 2000).unref();
+const cpuAvg = n => { const a = cpuHist.slice(-n); return a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0; };
+let cpuProcPrev = null;   // { at, t: Map(pid → CPU 시간 100ns) } — 지난번 프로세스 목록
 async function sessionMem() {
   if (memCache.data && Date.now() - memCache.at < 8000) return memCache.data;
   if (memCache.busy) return memCache.busy;
   memCache.busy = (async () => {
     const rows = await readProcTable();
-    const kids = new Map(), ws = new Map(), names = new Map();
-    for (const [pid, ppid, w, nm] of rows) { ws.set(pid, w); names.set(pid, nm || ''); if (!kids.has(ppid)) kids.set(ppid, []); kids.get(ppid).push(pid); }
+    const kids = new Map(), ws = new Map(), names = new Map(), cpuT = new Map(), cpuPct = new Map();
+    for (const [pid, ppid, w, nm, ct] of rows) { ws.set(pid, w); names.set(pid, nm || ''); cpuT.set(pid, ct || 0); if (!kids.has(ppid)) kids.set(ppid, []); kids.get(ppid).push(pid); }
+    // 프로세스별 CPU % (전체 CPU 기준) = 지난 목록 이후 쓴 CPU 시간 ÷ (흐른 시간 × 코어 수)
+    { const now = Date.now(), cores = os.cpus().length || 1;
+      if (cpuProcPrev && now - cpuProcPrev.at > 1500) { const span = (now - cpuProcPrev.at) * 1e4 * cores; for (const [pid, t] of cpuT) { const p0 = cpuProcPrev.t.get(pid); if (p0 != null && t >= p0) cpuPct.set(pid, (t - p0) / span * 100); } }
+      cpuProcPrev = { at: now, t: cpuT }; }
     const sumTree = (root, keep) => {
-      let total = 0, n = 0; const seen = new Set(), st = [root];
-      while (st.length) { const p = st.pop(); if (seen.has(p) || !ws.has(p)) continue; seen.add(p); total += ws.get(p); n++; (kids.get(p) || []).forEach(c => st.push(c)); }
-      return keep ? { bytes: total, procs: n, pids: seen } : { bytes: total, procs: n };
+      let total = 0, n = 0, cpu = 0; const seen = new Set(), st = [root];
+      while (st.length) { const p = st.pop(); if (seen.has(p) || !ws.has(p)) continue; seen.add(p); total += ws.get(p); cpu += cpuPct.get(p) || 0; n++; (kids.get(p) || []).forEach(c => st.push(c)); }
+      cpu = Math.round(cpu * 10) / 10;
+      return keep ? { bytes: total, procs: n, cpu, pids: seen } : { bytes: total, procs: n, cpu };
     };
     // 메모리 막대 말풍선 — PT 밖에서 메모리를 많이 쓰는 프로그램(이름별 합계, 위 8개). PT 와 세션들은 따로 보인다
     const ptTree = sumTree(process.pid, true), byName = new Map();
@@ -2154,15 +2170,16 @@ async function sessionMem() {
       if (ptTree.pids.has(pid) || !w) continue;
       const nm = String(names.get(pid) || '').replace(/\.exe$/i, '');
       if (!nm || /^(System Idle Process|Idle)$/i.test(nm)) continue;
-      const g = byName.get(nm) || { name: nm, bytes: 0, n: 0 }; g.bytes += w; g.n++; byName.set(nm, g);
+      const g = byName.get(nm) || { name: nm, bytes: 0, n: 0, cpu: 0 }; g.bytes += w; g.n++; g.cpu += cpuPct.get(pid) || 0; byName.set(nm, g);
     }
     const top = [...byName.values()].sort((a, b) => b.bytes - a.bytes).slice(0, 8);
+    const topCpu = [...byName.values()].filter(g => g.cpu >= 0.5).sort((a, b) => b.cpu - a.cpu).slice(0, 6).map(g => ({ name: g.name, cpu: Math.round(g.cpu * 10) / 10, n: g.n }));
     const out = {};
     for (const s of sessions) { const p = ptys.get(s.id); if (p && !p.dead && p.proc && p.proc.pid) out[s.id] = sumTree(p.proc.pid); }
     // 세션이 지금 실제로 쓰는 모델(「자동」 세션의 머리에 이름으로 보여 주려고 같이 실어 보낸다)
     const models = {};
     for (const s of sessions) { try { const m = sessionModelNow(s); if (m) models[s.id] = m; } catch (e) {} }
-    const data = { at: Date.now(), sessions: out, server: ptTree.bytes, top, totalMem: os.totalmem(), freeMem: os.freemem(),
+    const data = { at: Date.now(), sessions: out, server: ptTree.bytes, serverCpu: ptTree.cpu, top, topCpu, totalMem: os.totalmem(), freeMem: os.freemem(),
       virtTotal: osVirt ? osVirt.total : 0, virtFree: osVirt ? osVirt.free : 0, models };
     memCache = { at: Date.now(), data, busy: null };
     return data;
@@ -2170,7 +2187,7 @@ async function sessionMem() {
   return memCache.busy;
 }
 app.get('/api/sessions-mem', async (req, res) => {
-  const m = await sessionMem();
+  const m = Object.assign({}, await sessionMem(), { cpuNow: cpuAvg(5), cpu1m: cpuAvg(30), cores: os.cpus().length });   // CPU 평균은 캐시 없이 지금 값
   if (req.ptGuest) { const ss = {}; for (const [k, v] of Object.entries(m.sessions || {})) if (peersApi.canSess(req.ptGuest, k)) ss[k] = v; return res.json(Object.assign({}, m, { sessions: ss })); }
   if (peersApi && !req.headers['x-pt-token']) { try { const more = await peersApi.peerMem(); if (Object.keys(more).length) return res.json(Object.assign({}, m, { sessions: Object.assign({}, m.sessions, more) })); } catch (e) {} }
   res.json(m);

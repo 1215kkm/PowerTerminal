@@ -29,29 +29,33 @@
               background: linear-gradient(90deg, var(--violet), var(--pink));
               -webkit-background-clip: text; background-clip: text; color: transparent; }
   header .sp { flex: 1; }
-  .logo-wrap { position: relative; display: inline-flex; align-items: center; gap: 10px; }
+  .logo-wrap { position: relative; display: inline-flex; flex-direction: column; align-items: stretch; gap: 3px; min-width: 150px; }
+  .logo-row { display: flex; align-items: center; gap: 8px; }
+  header h1 { white-space: nowrap; }
   /* 🧠 로고 바로 밑: 컴퓨터 전체 메모리 사용률(가상 메모리 포함) — 버벅일 때 한눈에. 70% 넘으면 주황, 85% 넘으면 빨강 */
-  #ramBar { position: absolute; left: 0; top: calc(100% + 1px); width: 100%; min-width: 150px; display: flex; align-items: center; gap: 5px;
-            font-size: 9.5px; line-height: 1; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; cursor: default; }
-  #ramBar .rb-track { flex: 1 1 auto; height: 4px; border-radius: 2px; background: #374151; overflow: hidden; }
-  #ramBar .rb-fill { display: block; height: 100%; width: 0; border-radius: 2px; background: #22c55e; transition: width .6s, background .3s; }
-  #ramBar.warm .rb-fill { background: #f59e0b; } #ramBar.hot .rb-fill { background: #ef4444; }
-  #ramBar.hot .rb-txt { color: #ef4444; font-weight: 700; }
-  html.light #ramBar .rb-track { background: #d1d5db; }
-  #ramBar .rb-lbl { font-weight: 700; color: var(--muted); }
-  #ramBar { cursor: help; }
+  /* ⚙ CPU · 🧠 메모리 막대 — 로고 밑에 두 줄 */
+  .sysbar { width: 100%; display: flex; align-items: center; gap: 5px;
+            font-size: 9.5px; line-height: 1; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; cursor: help; }
+  .sysbar .rb-track { flex: 1 1 auto; height: 4px; border-radius: 2px; background: #374151; overflow: hidden; }
+  .sysbar .rb-fill { display: block; height: 100%; width: 0; border-radius: 2px; background: #22c55e; transition: width .6s, background .3s; }
+  #cpuBar .rb-fill { background: #38bdf8; }
+  .sysbar.warm .rb-fill, #cpuBar.warm .rb-fill { background: #f59e0b; } .sysbar.hot .rb-fill, #cpuBar.hot .rb-fill { background: #ef4444; }   /* id 규칙이 색을 덮지 않게 */
+  .logo-wrap .sysbar { margin-top: 2px; }   /* 폰은 logo-wrap 이 inline-block 이라 gap 이 안 먹는다 */
+  .sysbar.hot .rb-txt { color: #ef4444; font-weight: 700; }
+  html.light .sysbar .rb-track { background: #d1d5db; }
+  .sysbar .rb-lbl { font-weight: 700; color: var(--muted); min-width: 34px; }
   /* 메모리 막대에 마우스를 올리면 바로 — 어디서 쓰고 있는지(PT 세션별 · 이 PC 의 다른 프로그램) */
-  #ramTip { position: fixed; z-index: 9999; display: none; min-width: 250px; max-width: 340px; padding: 10px 12px; border-radius: 10px;
+  :is(#ramTip, #cpuTip) { position: fixed; z-index: 9999; display: none; min-width: 250px; max-width: 340px; padding: 10px 12px; border-radius: 10px;
             background: #111827; color: #e5e7eb; border: 1px solid #374151; box-shadow: 0 10px 28px rgba(0,0,0,.45);
             font-size: 12px; line-height: 1.45; pointer-events: none; }
-  #ramTip.on { display: block; }
-  #ramTip .rt-h { font-weight: 800; font-size: 12.5px; margin-bottom: 2px; }
-  #ramTip .rt-sub { color: #9ca3af; font-size: 11px; margin-bottom: 6px; }
-  #ramTip .rt-g { color: #c4b5fd; font-weight: 700; font-size: 11px; margin: 7px 0 3px; }
-  #ramTip .rt-r { display: flex; gap: 10px; justify-content: space-between; padding: 1px 0; }
-  #ramTip .rt-r span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #ramTip .rt-r b { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  #ramTip .rt-r.hot b { color: #f87171; } #ramTip .rt-r.warm b { color: #fbbf24; }
+  :is(#ramTip, #cpuTip).on { display: block; }
+  :is(#ramTip, #cpuTip) .rt-h { font-weight: 800; font-size: 12.5px; margin-bottom: 2px; }
+  :is(#ramTip, #cpuTip) .rt-sub { color: #9ca3af; font-size: 11px; margin-bottom: 6px; }
+  :is(#ramTip, #cpuTip) .rt-g { color: #c4b5fd; font-weight: 700; font-size: 11px; margin: 7px 0 3px; }
+  :is(#ramTip, #cpuTip) .rt-r { display: flex; gap: 10px; justify-content: space-between; padding: 1px 0; }
+  :is(#ramTip, #cpuTip) .rt-r span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(#ramTip, #cpuTip) .rt-r b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  :is(#ramTip, #cpuTip) .rt-r.hot b { color: #f87171; } #ramTip .rt-r.warm b { color: #fbbf24; }
   html.light #ramTip { background: #fff; color: #1f2937; border-color: #d1d5db; box-shadow: 0 10px 28px rgba(0,0,0,.15); }
   html.light #ramTip .rt-g { color: #7c3aed; }
   button { border: 0; border-radius: 8px; background: #374151; color: var(--fg);
@@ -1877,7 +1881,7 @@
 <body>
 <header>
   <span id="winNo" title=""></span>
-  <span class="logo-wrap"><h1>🚀 PowerTerminal</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span><span id="ramBar" style="display:none"><span class="rb-lbl" data-i18n="ramLbl">메모리</span><span class="rb-track"><span class="rb-fill"></span></span><span class="rb-txt"></span></span></span>
+  <span class="logo-wrap"><span class="logo-row"><h1>🚀 Pominal.com</h1><span id="hverBadge" style="font-size:10px;color:var(--muted);background:#374151;padding:1px 7px;border-radius:99px"></span></span><span id="cpuBar" class="sysbar" style="display:none"><span class="rb-lbl">CPU</span><span class="rb-track"><span class="rb-fill"></span></span><span class="rb-txt"></span></span><span id="ramBar" class="sysbar" style="display:none"><span class="rb-lbl" data-i18n="ramLbl">메모리</span><span class="rb-track"><span class="rb-fill"></span></span><span class="rb-txt"></span></span></span>
   <a id="banner" target="_blank" rel="noopener"
      style="display:none;font-size:12px;font-weight:700;color:#fff;text-decoration:none;
             padding:5px 12px;border-radius:99px;white-space:nowrap;overflow:hidden;
@@ -2684,8 +2688,8 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
-  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
   ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
   zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
   es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
@@ -8625,7 +8629,17 @@ function afTitle(el, sess) {
   const b = el && el.querySelector('.afBtn'); if (!b) return;
   b.title = (T.afT || '') + (sess.autoFreedAt ? '\n' + (T.afLast || '').replace('{when}', new Date(sess.autoFreedAt).toLocaleString()).replace('{mb}', fmtMem((sess.autoFreedMB || 0) * 1048576)) : '');
 }
-let ramTipHtml = '';
+let ramTipHtml = '', cpuTipHtml = '';
+// ⚙ CPU 막대 말풍선 — 메모리 막대와 같은 방식(마우스 올리면 바로, 폰은 눌러서)
+(() => {
+  const cb = document.getElementById('cpuBar'); if (!cb) return;
+  const tip = document.createElement('div'); tip.id = 'cpuTip'; tip.className = 'sysTip'; document.body.appendChild(tip);
+  const show = () => { if (!cpuTipHtml) return; tip.innerHTML = cpuTipHtml; tip.classList.add('on'); const r = cb.getBoundingClientRect(), w = tip.offsetWidth; tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px'; tip.style.top = (r.bottom + 6) + 'px'; };
+  const hide = () => tip.classList.remove('on');
+  cb.addEventListener('mouseenter', show); cb.addEventListener('mouseleave', hide);
+  cb.addEventListener('click', ev => { ev.stopPropagation(); tip.classList.contains('on') ? hide() : show(); });
+  document.addEventListener('click', hide);
+})();
 // 메모리 막대 말풍선 — 마우스를 올리면 바로(브라우저 기본 말풍선은 1초쯤 늦게 뜬다), 폰에서는 눌러서 열고 닫는다
 (() => {
   const rb = document.getElementById('ramBar'); if (!rb) return;
@@ -8656,6 +8670,25 @@ async function refreshMem() {
     if (document.activeElement !== sel && sel._autoCollapse) sel._autoCollapse();   // 펼쳐 보는 중이면 건드리지 않는다
     if (real) sel.title = (T.modelTip || '') + '\n' + (T.mDefault || 'Auto') + ' → ' + real;
   }
+  // ⚙ CPU 막대 — 길이 = 10초 평균, 색 = 1분 평균(계속 높을 때만 주황·빨강)
+  { const cb = document.getElementById('cpuBar');
+    if (cb && r.cpuNow != null) {
+      const now = Math.max(0, Math.min(100, r.cpuNow)), m1 = r.cpu1m || 0;
+      cb.style.display = 'flex';
+      cb.querySelector('.rb-fill').style.width = now + '%';
+      cb.querySelector('.rb-txt').textContent = now + '%';
+      cb.classList.toggle('hot', m1 >= 90); cb.classList.toggle('warm', m1 >= 70 && m1 < 90);
+      const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      const row = (name, v, extra) => '<div class="rt-r' + (v >= 50 ? ' hot' : v >= 20 ? ' warm' : '') + '"><span>' + e(name) + (extra ? ' <small style="opacity:.6">' + e(extra) + '</small>' : '') + '</span><b>' + v + '%</b></div>';
+      const ses = []; for (const [id, p] of panes) { const s = r.sessions && r.sessions[id]; if (s && s.cpu >= 0.5) ses.push([p.sess.title || p.sess.path, s.cpu]); }
+      ses.sort((a, b) => b[1] - a[1]);
+      cpuTipHtml = '<div class="rt-h">CPU ' + now + '% · ' + e(T.cpu1mL || '1-minute average') + ' ' + m1 + '%</div>'
+        + '<div class="rt-sub">' + e(T.cpuNowL || 'now') + ' ' + now + '% · ' + e(T.cpu1mL || '1-minute average') + ' ' + m1 + '% · ' + e((T.cpuCoresL || '{n} cores').replace('{n}', r.cores || '?')) + '<br>' + e(T.cpuNote || '') + '</div>'
+        + '<div class="rt-g">' + e(T.cpuPtL || 'PowerTerminal sessions') + (r.serverCpu != null ? ' · ' + r.serverCpu + '%' : '') + '</div>'
+        + (ses.length ? ses.slice(0, 8).map(x => row(x[0], x[1])).join('') : '<div class="rt-r"><span>—</span></div>')
+        + (r.topCpu && r.topCpu.length ? '<div class="rt-g">' + e(T.cpuTopL || 'Programs using the CPU now') + '</div>' + r.topCpu.map(t => row(t.name, t.cpu, t.n > 1 ? '×' + t.n : '')).join('') : '');
+      const tip = document.getElementById('cpuTip'); if (tip && tip.classList.contains('on')) tip.innerHTML = cpuTipHtml;
+    } }
   // 로고 밑 전체 메모리 막대 — 가상 메모리(실제 RAM + 페이징 파일)를 알면 그 기준으로, 모르면 실제 RAM 기준
   { const rb = document.getElementById('ramBar');
     if (rb && r.totalMem) {

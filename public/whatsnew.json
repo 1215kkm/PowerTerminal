@@ -417,6 +417,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.79", "date": "2026-11-21",
+      "items": {
+        "en": ["The logo now reads \"Pominal.com\", with a CPU bar under it next to the memory bar. Its length is the 10-second average; it turns orange / red only when the 1-minute average stays high. Hover it to see which programs use the CPU."],
+        "ko": ["로고가 「Pominal.com」으로 바뀌고, 그 밑에 메모리 막대와 함께 CPU 막대가 생겼어요. 길이는 10초 평균, 1분 평균이 계속 높을 때만 주황·빨강이 돼요. 마우스를 올리면 CPU 를 쓰는 프로그램이 보여요."],
+        "ja": ["ロゴが「Pominal.com」になり、その下にメモリバーと並んでCPUバーができました。長さは10秒平均、1分平均が高いままのときだけオレンジ・赤になります。マウスを乗せるとCPUを使うプログラムが見えます。"],
+        "zh": ["标志改为「Pominal.com」，下方在内存条旁新增 CPU 条。长度为 10 秒平均，只有 1 分钟平均持续偏高时才变橙/红。鼠标悬停可查看占用 CPU 的程序。"],
+        "es": ["El logo ahora dice «Pominal.com», con una barra de CPU bajo él junto a la de memoria. Su largo es el promedio de 10 s; se vuelve naranja / roja solo si el promedio de 1 minuto sigue alto. Pasa el ratón para ver qué programas usan la CPU."],
+        "de": ["Das Logo heißt jetzt „Pominal.com“, darunter neben dem Speicherbalken ein CPU-Balken. Länge = 10-Sekunden-Mittel; orange / rot nur, wenn das 1-Minuten-Mittel hoch bleibt. Maus darüber zeigt, welche Programme die CPU nutzen."],
+        "fr": ["Le logo indique maintenant « Pominal.com », avec une barre CPU dessous à côté de celle de la mémoire. Sa longueur = moyenne sur 10 s ; orange / rouge seulement si la moyenne sur 1 minute reste élevée. Survolez-la pour voir les programmes qui utilisent le CPU."],
+        "pt": ["O logo agora diz «Pominal.com», com uma barra de CPU abaixo, ao lado da de memória. O comprimento é a média de 10 s; fica laranja / vermelha só se a média de 1 minuto continuar alta. Passe o mouse para ver quais programas usam a CPU."],
+        "ru": ["Логотип теперь «Pominal.com», под ним рядом со шкалой памяти — шкала ЦП. Длина — среднее за 10 секунд; оранжевая / красная только если среднее за минуту остаётся высоким. Наведите, чтобы увидеть, какие программы грузят ЦП."],
+        "hi": ["लोगो अब «Pominal.com» है, उसके नीचे मेमोरी पट्टी के साथ CPU पट्टी। लंबाई 10 सेकंड का औसत; 1 मिनट का औसत लगातार ऊँचा रहे तभी नारंगी / लाल। माउस ले जाएँ तो CPU इस्तेमाल करने वाले प्रोग्राम दिखेंगे।"]
+      }
+    },
+    {
       "v": "1.90.78", "date": "2026-11-20",
       "items": {
         "en": ["This window now has tabs: This update · All updates · All features (everything PT can do, one line each). Also in ⚙ Settings → \"Everything PowerTerminal can do\"."],
