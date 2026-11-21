@@ -1810,6 +1810,9 @@
     .scrollzone.touching { background: rgba(56,189,248,.35); }
     /* 페이지 스크롤 중이면 모든 세션의 가운데 존을 하늘색으로 잠깐 표시 */
     html.pt-scrolling .scrollzone { background: rgba(56,189,248,.2); }
+    /* 🔍 크게 본 세션(두 번 탭)은 어디를 쓸어도 그 세션 스크롤 — 가운데 1/3 만 되면 답답했다(2026-11-21 CEO). 양옆 페이지 스크롤 판은 뺀다 */
+    #grid.maxmode .pane.maxed .scrollzone { left: 0; width: 100%; }
+    #grid.maxmode .pane.maxed .pgzone { display: none; }
   }
 
   /* 폰 전용 미니맵: 번호 붙은 제목 탭 — 탭하면 그 작업창으로 이동 (스크롤 고정) */

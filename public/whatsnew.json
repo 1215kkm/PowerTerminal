@@ -417,6 +417,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.82", "date": "2026-11-21",
+      "items": {
+        "en": ["📱 Phone: in a session you enlarged (double tap), you can now swipe anywhere — not just the middle strip — to scroll that session."],
+        "ko": ["📱 폰: 두 번 눌러 크게 본 세션은 가운데 줄만이 아니라 어디를 쓸어도 그 세션이 스크롤돼요."],
+        "ja": ["📱 スマホ: ダブルタップで大きくしたセッションは、真ん中だけでなくどこをスワイプしてもそのセッションがスクロールします。"],
+        "zh": ["📱 手机：双击放大的会话，不只中间一列，任何地方滑动都能滚动该会话。"],
+        "es": ["📱 Móvil: en una sesión ampliada (doble toque) ahora puedes deslizar en cualquier parte, no solo en el centro, para desplazarla."],
+        "de": ["📱 Handy: In einer vergrößerten Sitzung (Doppeltipp) scrollt jetzt Wischen überall – nicht nur in der Mitte – diese Sitzung."],
+        "fr": ["📱 Téléphone : dans une session agrandie (double toucher), glisser n’importe où — pas seulement au centre — fait défiler cette session."],
+        "pt": ["📱 Celular: numa sessão ampliada (toque duplo), deslizar em qualquer lugar — não só no meio — rola essa sessão."],
+        "ru": ["📱 Телефон: в увеличенной сессии (двойное касание) теперь можно листать в любом месте, а не только посередине."],
+        "hi": ["📱 फ़ोन: दो बार टैप करके बड़े किए सेशन में अब बीच ही नहीं, कहीं भी स्वाइप करने पर वह सेशन स्क्रॉल होता है।"]
+      }
+    },
+    {
       "v": "1.90.81", "date": "2026-11-21",
       "items": {
         "en": ["📱 Android: after scrolling down, a very thin blue bar appears at the top of the screen — tap it to jump back to the top (iPhone already does this by tapping the status bar)."],
