@@ -417,6 +417,31 @@
   ],
   "releases": [
     {
+      "v": "1.90.80", "date": "2026-11-21",
+      "items": {
+        "en": ["📱 Phone: the session title strip shows one and a half rows by default; a big ▼ More / ▲ Fold button sits in the space on its right.",
+               "📱 Phone: the session name shown above the request box is now full width, twice as tall, bigger and blue."],
+        "ko": ["📱 폰: 세션 제목 줄이 기본으로 한 줄 반만 보이고, 오른쪽 빈자리의 큰 「▼ 펼치기 / ▲ 접기」 단추로 다 볼 수 있어요.",
+               "📱 폰: 요청칸을 누르면 뜨는 세션 이름이 폭 가득, 두 배 높이, 큰 글씨, 파랑으로 바뀌었어요."],
+        "ja": ["📱 スマホ: セッション名の列は最初1行半だけ表示、右の空きにある大きな「▼ 広げる / ▲ 畳む」ボタンで全部見られます。",
+               "📱 スマホ: 依頼欄を押すと出るセッション名が、全幅・2倍の高さ・大きな文字・青になりました。"],
+        "zh": ["📱 手机：会话标题栏默认只显示一行半，右侧空白处的大按钮「▼ 展开 / ▲ 收起」可查看全部。",
+               "📱 手机：点请求框时显示的会话名改为全宽、两倍高、大字、蓝色。"],
+        "es": ["📱 Móvil: la franja de títulos muestra fila y media por defecto; un botón grande ▼ Más / ▲ Plegar está en el hueco de la derecha.",
+               "📱 Móvil: el nombre de la sesión sobre el cuadro de petición ahora ocupa todo el ancho, es el doble de alto, más grande y azul."],
+        "de": ["📱 Handy: Die Sitzungsleiste zeigt standardmäßig anderthalb Reihen; ein großer Knopf ▼ Mehr / ▲ Einklappen sitzt rechts im freien Platz.",
+               "📱 Handy: Der Sitzungsname über dem Eingabefeld ist jetzt volle Breite, doppelt so hoch, größer und blau."],
+        "fr": ["📱 Téléphone : la bande des titres affiche une rangée et demie par défaut ; un grand bouton ▼ Plus / ▲ Replier occupe l’espace à droite.",
+               "📱 Téléphone : le nom de la session au-dessus de la zone de demande est maintenant pleine largeur, deux fois plus haut, plus grand et bleu."],
+        "pt": ["📱 Celular: a faixa de títulos mostra uma fileira e meia por padrão; um botão grande ▼ Mais / ▲ Recolher fica no espaço à direita.",
+               "📱 Celular: o nome da sessão acima da caixa de pedido agora ocupa toda a largura, com o dobro da altura, maior e azul."],
+        "ru": ["📱 Телефон: полоса названий сессий по умолчанию показывает полтора ряда; большая кнопка ▼ Ещё / ▲ Свернуть — в пустом месте справа.",
+               "📱 Телефон: название сессии над полем запроса теперь на всю ширину, вдвое выше, крупнее и синее."],
+        "hi": ["📱 फ़ोन: सेशन शीर्षक पट्टी शुरू में डेढ़ पंक्ति दिखाती है; दाईं खाली जगह में बड़ा ▼ और / ▲ समेटें बटन।",
+               "📱 फ़ोन: अनुरोध बॉक्स के ऊपर सेशन का नाम अब पूरी चौड़ाई, दोगुनी ऊँचाई, बड़े अक्षर और नीला है।"]
+      }
+    },
+    {
       "v": "1.90.79", "date": "2026-11-21",
       "items": {
         "en": ["The logo now reads \"Pominal.com\", with a CPU bar under it next to the memory bar. Its length is the 10-second average; it turns orange / red only when the 1-minute average stays high. Hover it to see which programs use the CPU."],
