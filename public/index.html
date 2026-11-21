@@ -5680,6 +5680,22 @@ document.addEventListener('mouseup', () => {
 });
 const isMobile = isMobileNow();
 const isTouch = matchMedia('(pointer: coarse)').matches;   // 터치 기기(폰·아이패드 등) — 스크롤 오버레이용 (레이아웃과 별개)
+/* ⬆ 안드로이드 전용 「맨 위로」 — 화면 맨 위의 아주 얇은 막대(보이는 건 3px, 누르는 자리는 10px — 바로 밑 세션 제목 탭을 덜 가리게). 조금 내려가면 나타나고, 누르면 맨 위로.
+   아이폰은 상태줄을 누르면 되므로 안 띄운다 (2026-11-21 CEO) */
+if (/Android/i.test(navigator.userAgent)) {
+  const tb = document.createElement('button'); tb.type = 'button'; tb.id = 'toTopBar'; tb.setAttribute('aria-label', 'top');
+  tb.innerHTML = '<i></i>';
+  const st = document.createElement('style');
+  st.textContent = '#toTopBar{position:fixed;left:0;right:0;top:0;height:10px;padding:0;margin:0;border:0;background:transparent;z-index:70;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s;-webkit-tap-highlight-color:transparent}'
+    + '#toTopBar i{position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#1d4ed8,#0ea5e9,#1d4ed8);box-shadow:0 0 6px rgba(14,165,233,.7)}'
+    + '#toTopBar.on{opacity:1;pointer-events:auto}#toTopBar:active i{height:5px}';
+  document.head.appendChild(st);
+  const add = () => document.body.appendChild(tb);
+  if (document.body) add(); else addEventListener('DOMContentLoaded', add);
+  const sync = () => tb.classList.toggle('on', window.scrollY > 240);
+  addEventListener('scroll', sync, { passive: true });
+  tb.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
 let maxedId = null;        // 확대(포커스) 중인 세션 id — null이면 일반 격자
 let zoomedId = null;       // 🔍 전체화면 모달에 올라간 세션 id (폰)
 let _zoomSlot = null;      // 원래 자리로 되돌릴 위치 표시자

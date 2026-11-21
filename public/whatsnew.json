@@ -417,6 +417,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.81", "date": "2026-11-21",
+      "items": {
+        "en": ["📱 Android: after scrolling down, a very thin blue bar appears at the top of the screen — tap it to jump back to the top (iPhone already does this by tapping the status bar)."],
+        "ko": ["📱 안드로이드: 스크롤을 내리면 화면 맨 위에 아주 얇은 파란 막대가 생겨요 — 누르면 맨 위로 올라가요(아이폰은 상태줄을 누르면 돼요)."],
+        "ja": ["📱 Android: 下にスクロールすると画面の一番上にとても細い青いバーが出ます — 押すと一番上に戻ります(iPhoneはステータスバーを押せばOK)。"],
+        "zh": ["📱 安卓：向下滚动后，屏幕最上方会出现一条很细的蓝条——点一下回到顶部(iPhone 点状态栏即可)。"],
+        "es": ["📱 Android: al desplazarte hacia abajo aparece una barra azul muy fina arriba; tócala para volver al principio (en iPhone basta tocar la barra de estado)."],
+        "de": ["📱 Android: Nach dem Herunterscrollen erscheint oben ein sehr dünner blauer Balken – antippen springt nach oben (beim iPhone tippt man auf die Statusleiste)."],
+        "fr": ["📱 Android : après avoir défilé, une barre bleue très fine apparaît en haut — touchez-la pour revenir en haut (sur iPhone, touchez la barre d’état)."],
+        "pt": ["📱 Android: ao rolar para baixo, aparece uma barra azul bem fina no topo — toque para voltar ao início (no iPhone basta tocar na barra de status)."],
+        "ru": ["📱 Android: после прокрутки вниз вверху экрана появляется очень тонкая синяя полоска — нажмите, чтобы вернуться наверх (на iPhone достаточно нажать на строку состояния)."],
+        "hi": ["📱 Android: नीचे स्क्रॉल करने पर स्क्रीन के सबसे ऊपर बहुत पतली नीली पट्टी आती है — दबाएँ तो ऊपर पहुँचें (iPhone में स्टेटस बार दबाना काफ़ी है)।"]
+      }
+    },
+    {
       "v": "1.90.80", "date": "2026-11-21",
       "items": {
         "en": ["📱 Phone: the session title strip shows one and a half rows by default; a big ▼ More / ▲ Fold button sits in the space on its right.",
