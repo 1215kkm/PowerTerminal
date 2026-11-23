@@ -2239,18 +2239,18 @@ function askOf(p) {
     const t = p.vt.t, buf = t.buffer.active, end = buf.baseY + t.rows, L = [];
     for (let i = Math.max(0, Math.min(end - 30, buf.baseY)); i < end; i++) { const l = buf.getLine(i); L.push(l ? l.translateToString(true) : ''); }
     const re = /^\s*([❯›>▶])?\s*(\d{1,2})[.)]\s+(\S.*?)\s*$/;
-    let opts = [], q = '';
+    let opts = [], q = '', tail = 0;
     for (let i = L.length - 1; i >= 0; i--) {
       const m = L[i].match(re);
       if (m) { opts.unshift({ n: +m[2], cur: !!m[1] }); continue; }
-      if (!opts.length) continue;
+      if (!opts.length) { if (L[i].trim() && ++tail > 3) break; continue; }   // 선택지 밑에 글이 많다 = 지난 선택창 흔적
       if (/^\s{3,}\S/.test(L[i])) continue;
       q = L[i].trim(); break;
     }
     const tidy = x => (/^[─━-]+$/.test(x) ? '' : x).slice(0, 160) || '…';
     if (opts.length >= 2 && opts.filter(o => o.cur).length === 1 && !opts.some((o, k) => o.n !== k + 1)) return tidy(q);
     const hi = L.map(l => /enter to (confirm|select|continue|submit)|press enter|to change\b/i.test(l)).lastIndexOf(true);
-    if (hi < 0) return '';
+    if (hi < 0 || L.slice(hi + 1).filter(x => x.trim()).length > 2) return '';
     let j = hi - 1; while (j >= 0 && !L[j].trim()) j--;
     let n = 0, cur = 0;
     for (; j >= 0; j--) {

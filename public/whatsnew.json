@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.85", "date": "2026-11-23",
+      "items": {
+        "en": ["🙋 Fixed: the “waiting for your choice” button stayed after you answered (leftovers of the old prompt on screen were still counted)."],
+        "ko": ["🙋 고침: 선택에 답했는데도 「선택 기다림」 단추가 안 사라지던 것(화면에 남은 옛 선택창 흔적까지 기다림으로 봤어요)."],
+        "ja": ["🙋 修正: 選択に答えても「選択待ち」ボタンが消えなかった問題(画面に残った古い選択欄の跡まで数えていました)。"],
+        "zh": ["🙋 修复：回答后“等待选择”按钮仍不消失的问题(屏幕上残留的旧选项也被算进去了)。"],
+        "es": ["🙋 Corregido: el botón “esperando tu elección” seguía tras responder (contaba restos del aviso anterior en pantalla)."],
+        "de": ["🙋 Behoben: Der „Wartet auf dich“-Knopf blieb nach der Antwort stehen (Reste der alten Abfrage auf dem Bildschirm wurden mitgezählt)."],
+        "fr": ["🙋 Corrigé : le bouton « en attente de votre choix » restait après la réponse (les restes de l’ancienne invite étaient comptés)."],
+        "pt": ["🙋 Corrigido: o botão “esperando sua escolha” continuava depois de responder (restos do aviso antigo na tela eram contados)."],
+        "ru": ["🙋 Исправлено: кнопка «ждёт вашего выбора» не исчезала после ответа (учитывались остатки старого запроса на экране)."],
+        "hi": ["🙋 ठीक किया: जवाब देने के बाद भी “चुनाव का इंतज़ार” बटन नहीं हटता था (स्क्रीन पर बचे पुराने प्रॉम्प्ट को भी गिना जा रहा था)।"]
+      }
+    },
+    {
       "v": "1.90.84", "date": "2026-11-23",
       "items": {
         "en": ["🙋 Sessions waiting for your choice (allow or not, 1/2…) now stand out: a floating box on the right of the terminal screen lists them, one button each — press it to jump to that session. Phones too. In note mode the waiting session is marked on the shelf on the left."],

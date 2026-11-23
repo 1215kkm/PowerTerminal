@@ -7697,11 +7697,11 @@ function buildPane(sess, idx) {
     const buf = term.buffer.active, end = buf.baseY + term.rows, L = [];
     for (let i = Math.max(0, Math.min(end - 30, buf.baseY)); i < end; i++) { const l = buf.getLine(i); L.push(l ? l.translateToString(true) : ''); }
     const re = /^\s*([❯›>▶])?\s*(\d{1,2})[.)]\s+(\S.*?)\s*$/;
-    let opts = [], q = '';
+    let opts = [], q = '', tail = 0;
     for (let i = L.length - 1; i >= 0; i--) {
       const m = L[i].match(re);
       if (m) { opts.unshift({ n: +m[2], text: m[3], cur: !!m[1] }); continue; }
-      if (!opts.length) continue;
+      if (!opts.length) { if (L[i].trim() && ++tail > 3) break; continue; }   // 선택지 밑에 글이 많다 = 지난 선택창 흔적
       if (/^\s{3,}\S/.test(L[i]) && !/^\s*$/.test(L[i])) continue;      // 긴 선택지의 둘째 줄
       q = L[i].trim(); break;                                            // 선택지 위 = 질문
     }
@@ -7710,7 +7710,7 @@ function buildPane(sess, idx) {
     /* 번호 없는 선택창 — 클로드 「폴더 신뢰」 창처럼 「❯ No, exit / Yes, I trust…」 로만 그리는 것.
        입력칸(「❯ 글」 한 줄)과 헷갈리지 않게 바로 밑에 「Enter to confirm」 같은 안내가 있을 때만 본다. */
     const hi = L.map(l => /enter to (confirm|select|continue|submit)|press enter|to change\b/i.test(l)).lastIndexOf(true);
-    if (hi < 0) return null;
+    if (hi < 0 || L.slice(hi + 1).filter(x => x.trim()).length > 2) return null;
     /* 줄을 못 읽는 설정 창(「/auto-mode-setup」 의 「항목  true/false · ←/→ to change · Enter to continue」 등)은
        선택지 버튼 없이 방향키 줄만 띄운다 — 그게 없으면 폰에서는 다음으로 넘어갈 방법이 없다. */
     const keysOnly = { opts: [], q: '' };
