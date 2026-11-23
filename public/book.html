@@ -80,6 +80,16 @@
   .a a.fpath { color: inherit; text-decoration: none; }
   .a a.fpath code { text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
   .a a.fpath:hover code { background: #e3dcc8; }
+  /* 🎬 그 자리 플레이어 — 동영상·소리 경로를 누르면 새 탭 대신 여기서 튼다 */
+  .mplay { position: fixed; inset: 0; z-index: 130; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.72); }
+  .mplay .mp-in { width: min(960px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 10px; background: #1f2126; color: #e8e9ee; border: 1px solid #3a3d46; border-radius: 14px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.6); font: 14px var(--ui); }
+  .mplay .mp-hd { display: flex; align-items: center; gap: 8px; } .mplay .mp-hd b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mplay video, .mplay audio { width: 100%; max-height: 70vh; background: #000; border-radius: 8px; }
+  .mplay audio { background: transparent; }
+  .mplay .mp-msg { color: #fbbf24; font-weight: 700; line-height: 1.5; } .mplay .mp-msg:empty { display: none; }
+  .mplay .mp-bt { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .mplay .mp-bt a, .mplay .mp-bt button { all: unset; cursor: pointer; padding: 9px 14px; border-radius: 10px; background: #2c2f37; border: 1px solid #3a3d46; color: #fff; font-weight: 700; font-size: 13.5px; }
+  .mplay .mp-bt .mp-x { background: #3b82f6; border-color: #3b82f6; }
   .a img.fimg { display: block; max-width: 100%; max-height: 60vh; margin: 6px 0; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); cursor: zoom-in; }
   /* 코드 상자 아래 [복사] [▶ 실행] — AI 가 "이 명령을 실행해 주세요" 할 때 손으로 긁어 붙이지 않게 */
   .a pre:has(+ .cbar) { margin-bottom:0; border-radius:6px 6px 0 0; }
@@ -600,6 +610,40 @@ function fileUrl(p) {
   const view = BK_VIEW.test(rel);
   return { view, img: /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(rel), name: rel.split('/').pop(), url: base + '/api/files/get?sid=' + encodeURIComponent(sid) + '&rel=' + encodeURIComponent(rel) + (view ? '&inline=1' : '&dl=1') + '&token=' + encodeURIComponent(TOKEN || '') };
 }
+/* 🎬 동영상·소리 경로 → 새 탭 대신 그 자리 플레이어. 폰(특히 아이폰)은 새 탭이 뒤에 열리거나, 열쇠가 빠지면 아무 일도 없는 것처럼 보였다.
+   못 틀면 왜 못 트는지 확인해서 글로 알려 준다 (열쇠 없음 · 파일 없음 · 이 브라우저가 못 트는 형식) */
+const MEDIA_RX = /\.(mp4|m4v|webm|mov|mp3|m4a|wav|ogg|oga|aac)(?=[?&]|$)/i;
+function openMedia(href, name) {
+  document.querySelectorAll('.mplay').forEach(x => x.remove());
+  const isA = /\.(mp3|m4a|wav|ogg|oga|aac)$/i.test(name), M = KO
+    ? { dl: '📥 받기', tab: '↗ 새 탭', x: '닫기', e401: '🔒 열쇠가 없어서 못 열어요 — PT 메인 화면에서 노트 모드를 다시 열어 주세요.', e404: '📭 그 파일이 PC 에 없어요 (지워졌거나 옮겨졌어요).', efmt: '🎞 이 브라우저가 이 동영상 형식을 못 틀어요 — 「받기」로 내려받아 보세요.', enet: '📶 PC 와 연결이 안 돼요 — 잠시 뒤 다시 눌러 주세요.' }
+    : { dl: '📥 Download', tab: '↗ New tab', x: 'Close', e401: '🔒 No access key — reopen note mode from the PT main screen.', e404: '📭 That file is not on the PC (deleted or moved).', efmt: '🎞 This browser cannot play this format — try Download.', enet: '📶 Cannot reach the PC — try again shortly.' };
+  const box = document.createElement('div'); box.className = 'mplay';
+  const dl = href.replace(/([?&])inline=1/, '$1dl=1');
+  box.innerHTML = '<div class="mp-in"><div class="mp-hd">' + (isA ? '🎵' : '🎬') + ' <b></b></div>' + (isA ? '<audio controls autoplay playsinline preload="auto"></audio>' : '<video controls autoplay playsinline preload="metadata"></video>')
+    + '<div class="mp-msg"></div><div class="mp-bt"><a class="mp-dl" download></a><a class="mp-tab" target="_blank" rel="noopener"></a><button type="button" class="mp-x"></button></div></div>';
+  box.querySelector('b').textContent = name;
+  const md = box.querySelector('video, audio'), msg = box.querySelector('.mp-msg');
+  const a1 = box.querySelector('.mp-dl'); a1.href = dl; a1.setAttribute('download', name); a1.textContent = M.dl;
+  const a2 = box.querySelector('.mp-tab'); a2.href = href; a2.textContent = M.tab;
+  const close = () => { try { md.pause(); md.removeAttribute('src'); md.load(); } catch (e) {} box.remove(); removeEventListener('keydown', esc, true); };
+  const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  box.querySelector('.mp-x').textContent = M.x; box.querySelector('.mp-x').onclick = close;
+  box.addEventListener('click', e => { if (e.target === box) close(); });
+  addEventListener('keydown', esc, true);
+  md.addEventListener('error', async () => {
+    let st = 0; try { const r = await fetch(href, { headers: { range: 'bytes=0-1' } }); st = r.status; try { await r.body.cancel(); } catch (e) {} } catch (e) { st = -1; }
+    msg.textContent = st === 401 || st === 403 ? M.e401 : st === 404 ? M.e404 : st === -1 ? M.enet : M.efmt;
+  });
+  md.src = href;
+  document.body.appendChild(box);
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a.fpath'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const href = a.getAttribute('href') || ''; if (!MEDIA_RX.test(href.split('?')[1] ? decodeURIComponent((href.match(/[?&]rel=([^&]*)/) || [])[1] || '') : href)) return;
+  e.preventDefault(); e.stopPropagation();
+  openMedia(href, (a.title || '').replace(/^\S+\s/, '') || 'media');
+}, true);
 const fileA = (u, inner) => '<a class="fpath" href="' + u.url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener"' + (u.view ? '' : ' download="' + esc(u.name) + '"') + ' title="' + (u.view ? '👁' : '📥') + ' ' + esc(u.name) + '">' + inner + '</a>';
 function linkify(h) {
   return h.replace(URL_RX, (m, p, u) => {

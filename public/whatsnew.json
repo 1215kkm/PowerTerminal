@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.89", "date": "2026-11-24",
+      "items": {
+        "en": ["🎬 Note mode: tapping a video or audio path (mp4, mov, mp3…) now plays it right there in a player over the note, instead of opening a new tab. If it cannot play, it says why (no access key, file missing, or a format the browser cannot play), with Download and New tab buttons."],
+        "ko": ["🎬 노트 모드: 동영상·소리 경로(mp4·mov·mp3 등)를 누르면 새 탭 대신 노트 위에 플레이어가 떠서 바로 재생돼요. 못 틀면 이유(열쇠 없음 · 파일 없음 · 브라우저가 못 트는 형식)를 알려 주고, 「받기」·「새 탭」 단추도 있어요."],
+        "ja": ["🎬 ノートモード: 動画・音声のパス(mp4・mov・mp3など)を押すと、新しいタブではなくノートの上にプレーヤーが出てすぐ再生します。再生できないときは理由(キーなし・ファイルなし・再生できない形式)を表示し、「ダウンロード」「新しいタブ」ボタンもあります。"],
+        "zh": ["🎬 笔记模式：点视频或音频路径(mp4、mov、mp3 等)会在笔记上方弹出播放器直接播放，不再打开新标签。无法播放时会说明原因(没有访问密钥、文件不存在、浏览器不支持的格式)，并提供下载和新标签按钮。"],
+        "es": ["🎬 Modo nota: tocar la ruta de un vídeo o audio (mp4, mov, mp3…) lo reproduce ahí mismo en un reproductor sobre la nota, sin abrir otra pestaña. Si no puede, dice por qué (sin clave, archivo inexistente o formato no compatible) y ofrece Descargar y Nueva pestaña."],
+        "de": ["🎬 Notizmodus: Ein Tipp auf einen Video- oder Audiopfad (mp4, mov, mp3…) spielt ihn direkt in einem Player über der Notiz ab statt in einem neuen Tab. Klappt es nicht, steht der Grund da (kein Zugangsschlüssel, Datei fehlt, Format nicht abspielbar) – mit Download- und Neuer-Tab-Knopf."],
+        "fr": ["🎬 Mode note : toucher le chemin d’une vidéo ou d’un son (mp4, mov, mp3…) le lit directement dans un lecteur au-dessus de la note, sans nouvel onglet. Sinon, la raison s’affiche (pas de clé d’accès, fichier absent, format non lisible), avec Télécharger et Nouvel onglet."],
+        "pt": ["🎬 Modo nota: tocar no caminho de um vídeo ou áudio (mp4, mov, mp3…) toca ali mesmo num player sobre a nota, sem abrir outra aba. Se não der, diz o motivo (sem chave de acesso, arquivo ausente ou formato não suportado), com botões Baixar e Nova aba."],
+        "ru": ["🎬 Режим заметок: нажатие на путь к видео или аудио (mp4, mov, mp3…) теперь воспроизводит его прямо в плеере поверх заметки, без новой вкладки. Если не получается, показана причина (нет ключа доступа, файла нет, формат не поддерживается) и кнопки «Скачать» и «Новая вкладка»."],
+        "hi": ["🎬 नोट मोड: वीडियो या ऑडियो पाथ (mp4, mov, mp3…) दबाने पर नई टैब की जगह नोट के ऊपर प्लेयर में वहीं चलता है। न चले तो कारण बताता है (ऐक्सेस की नहीं, फ़ाइल नहीं, ब्राउज़र यह फ़ॉर्मैट नहीं चला सकता), साथ में डाउनलोड और नई टैब बटन।"]
+      }
+    },
+    {
       "v": "1.90.88", "date": "2026-11-24",
       "items": {
         "en": ["🎬 Videos and audio open on iPhone: tapping a video path (mp4 etc.) in note mode or the files window now plays it in Safari — the PC now sends files in parts, which iPhone needs. PDFs open in the browser viewer too."],
