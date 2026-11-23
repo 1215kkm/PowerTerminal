@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.88", "date": "2026-11-24",
+      "items": {
+        "en": ["🎬 Videos and audio open on iPhone: tapping a video path (mp4 etc.) in note mode or the files window now plays it in Safari — the PC now sends files in parts, which iPhone needs. PDFs open in the browser viewer too."],
+        "ko": ["🎬 아이폰에서도 동영상·소리가 열려요: 노트 모드나 파일 창에서 동영상 경로(mp4 등)를 누르면 사파리에서 바로 재생돼요 (아이폰이 꼭 쓰는 「나눠 받기」를 PC 가 지원하게 했어요). PDF 도 브라우저 보기로 열려요."],
+        "ja": ["🎬 iPhoneでも動画・音声が開きます: ノートモードやファイル窓で動画のパス(mp4など)を押すとSafariで再生されます(iPhoneに必要な分割受信にPCが対応)。PDFもブラウザで開きます。"],
+        "zh": ["🎬 iPhone 上也能打开视频和音频：在笔记模式或文件窗口点视频路径(mp4 等)即可在 Safari 播放(PC 现在支持 iPhone 必需的分段传输)。PDF 也能在浏览器里查看。"],
+        "es": ["🎬 Vídeos y audio se abren en iPhone: tocar la ruta de un vídeo (mp4, etc.) en el modo nota o en la ventana de archivos lo reproduce en Safari: el PC ahora envía por partes, como necesita el iPhone. Los PDF también se abren en el visor."],
+        "de": ["🎬 Videos und Audio öffnen sich am iPhone: Ein Tipp auf einen Videopfad (mp4 usw.) im Notizmodus oder Dateifenster spielt ihn in Safari ab – der PC sendet jetzt in Teilen, wie das iPhone es braucht. PDFs öffnen sich ebenfalls im Browser."],
+        "fr": ["🎬 Vidéos et sons s’ouvrent sur iPhone : toucher le chemin d’une vidéo (mp4…) en mode note ou dans la fenêtre fichiers la lit dans Safari — le PC envoie désormais par morceaux, comme l’exige l’iPhone. Les PDF s’ouvrent aussi dans le navigateur."],
+        "pt": ["🎬 Vídeos e áudio abrem no iPhone: tocar no caminho de um vídeo (mp4 etc.) no modo nota ou na janela de arquivos toca no Safari — o PC agora envia em partes, como o iPhone precisa. PDFs também abrem no navegador."],
+        "ru": ["🎬 Видео и звук открываются на iPhone: нажатие на путь к видео (mp4 и др.) в режиме заметок или окне файлов воспроизводит его в Safari — ПК теперь отдаёт файл частями, как нужно iPhone. PDF тоже открываются в браузере."],
+        "hi": ["🎬 iPhone पर भी वीडियो और ऑडियो खुलते हैं: नोट मोड या फ़ाइल विंडो में वीडियो पाथ (mp4 आदि) दबाने पर Safari में चलता है — PC अब फ़ाइल हिस्सों में भेजता है, जैसा iPhone को चाहिए। PDF भी ब्राउज़र में खुलते हैं।"]
+      }
+    },
+    {
       "v": "1.90.87", "date": "2026-11-24",
       "items": {
         "en": ["📎 Attach bigger files: files are now sent as they are (no conversion), up to 100MB from outside (tunnel limit) and 512MB at home — before it was about 22MB. A % gauge fills the request box while sending.","📱 iPhone photos (HEIC) are turned into JPG before sending, so the AI can read them."],

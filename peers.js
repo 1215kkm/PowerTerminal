@@ -365,6 +365,7 @@ module.exports = function peersModule(app, ctx) {
     if (body) body = Buffer.from(body.toString('utf8').replace(new RegExp('\\b' + pid + '~', 'g'), ''), 'utf8');
     const headers = { 'x-pt-token': p.token };
     if (req2.headers['content-type']) headers['content-type'] = req2.headers['content-type'];
+    if (req2.headers.range) headers.range = req2.headers.range;   // 🎬 나눠 받기(폰 동영상)
     if (body) headers['content-length'] = body.length;
     let r;
     try { r = await req(b, req2.method, pathAndQuery, { headers, body, timeout: 60000 }); }
@@ -374,7 +375,7 @@ module.exports = function peersModule(app, ctx) {
     res.status(r.status);
     if (/json/.test(ct)) { try { return res.json(prefixIds(JSON.parse(r.body.toString('utf8')), pid)); } catch (e) {} }
     if (ct) res.setHeader('Content-Type', ct);
-    for (const h of ['content-disposition', 'content-security-policy', 'x-content-type-options']) if (r.headers[h]) res.setHeader(h, r.headers[h]);   // 받을 때 파일 이름·미리보기 보호
+    for (const h of ['content-disposition', 'content-security-policy', 'x-content-type-options', 'content-range', 'accept-ranges', 'x-pt-size']) if (r.headers[h]) res.setHeader(h, r.headers[h]);   // 받을 때 파일 이름·미리보기 보호
     res.send(r.body);
   }
   // /peer/<PC>/api/... = 그 PC 의 API 를 그대로 (폴더 고르기 등). 세션을 새로 만드는 것도 여기로
@@ -638,15 +639,26 @@ module.exports = function peersModule(app, ctx) {
       const ext = path.extname(nm).slice(1).toLowerCase();
       const type = MIME[ext] || (TEXT_EXT.has(ext) ? 'text/plain; charset=utf-8' : 'application/octet-stream');
       res.setHeader('Content-Type', type); res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");   // 받은 HTML·SVG 가 PT 화면의 열쇠로 무언가 하지 못하게
+      // 받은 HTML·SVG 가 PT 화면의 열쇠로 무언가 하지 못하게 — 글자를 품을 수 있는 종류에만. 동영상·PDF 에 걸면 브라우저가 플레이어·PDF 보기를 막는다
+      if (!/^(image\/(png|jpe?g|gif|webp|bmp|x-icon|vnd\.microsoft\.icon)|video\/|audio\/|application\/pdf)/.test(type)) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");
       res.setHeader('Content-Disposition', "inline; filename*=UTF-8''" + q8);
     } else {
       res.setHeader('Content-Type', 'application/octet-stream');
       if (req2.query.dl === '1') res.setHeader('Content-Disposition', 'attachment; filename="' + nm.replace(/[^\x20-\x7e]|"/g, '_') + "\"; filename*=UTF-8''" + q8);
     }
-    res.setHeader('Content-Length', st.size - start); res.setHeader('x-pt-size', st.size);
-    if (start >= st.size) return res.end();
-    fs.createReadStream(f, { start }).pipe(res);
+    /* 나눠 받기 — 「Range: bytes=시작-끝」 이면 그 부분만 206 으로. 아이폰 사파리는 동영상·소리를 꼭 이렇게 받는다(없으면 재생 안 됨) */
+    let s0 = start, e0 = st.size - 1;
+    const rg = !req2.query.start && /^bytes=(\d*)-(\d*)$/.exec(String(req2.headers.range || '').trim());
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (rg && (rg[1] !== '' || rg[2] !== '')) {
+      if (rg[1] === '') s0 = Math.max(0, st.size - Number(rg[2]));
+      else { s0 = Number(rg[1]); if (rg[2] !== '') e0 = Math.min(st.size - 1, Number(rg[2])); }
+      if (s0 >= st.size || s0 > e0) { res.setHeader('Content-Range', 'bytes */' + st.size); return res.status(416).end(); }
+      res.status(206); res.setHeader('Content-Range', 'bytes ' + s0 + '-' + e0 + '/' + st.size);
+    }
+    res.setHeader('Content-Length', Math.max(0, e0 - s0 + 1)); res.setHeader('x-pt-size', st.size);
+    if (s0 >= st.size || req2.method === 'HEAD') return res.end();
+    fs.createReadStream(f, { start: s0, end: e0 }).pipe(res);
   });
   /* 📦 여러 개·폴더를 zip 하나로 (브라우저로 받기) — 라이브러리 없이 흘려 쓴다: 파일마다 deflate 로 눌러 바로 보내고
      크기·CRC 는 뒤(데이터 설명자)에 적는다. 4GB·6만5천 개를 넘으면 zip64 가 필요해 미리 막는다.
