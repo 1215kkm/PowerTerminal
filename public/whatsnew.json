@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.86", "date": "2026-11-23",
+      "items": {
+        "en": ["📖 Note mode (phone): when the search box is open, swiping up anywhere on the screen closes it — not only on the search bar."],
+        "ko": ["📖 노트 모드(폰): 검색칸이 떠 있을 때 화면 어디서나 위로 쓸면 닫혀요 (예전엔 검색칸 막대 위에서만 닫혔어요)."],
+        "ja": ["📖 ノートモード(スマホ): 検索欄が開いているとき、画面のどこでも上にスワイプすると閉じます(以前は検索バーの上だけ)。"],
+        "zh": ["📖 笔记模式(手机)：搜索框打开时，在屏幕任意处上滑即可关闭(以前只能在搜索栏上)。"],
+        "es": ["📖 Modo nota (móvil): con el buscador abierto, deslizar hacia arriba en cualquier parte lo cierra, no solo en la barra."],
+        "de": ["📖 Notizmodus (Handy): Bei offener Suche schließt ein Wisch nach oben überall auf dem Bildschirm sie – nicht nur auf der Suchleiste."],
+        "fr": ["📖 Mode note (téléphone) : quand la recherche est ouverte, glisser vers le haut n’importe où la ferme, pas seulement sur la barre."],
+        "pt": ["📖 Modo nota (celular): com a busca aberta, deslizar para cima em qualquer lugar a fecha, não só na barra."],
+        "ru": ["📖 Режим заметок (телефон): открытый поиск закрывается свайпом вверх в любом месте экрана, а не только на строке поиска."],
+        "hi": ["📖 नोट मोड (फ़ोन): खोज बॉक्स खुला हो तो स्क्रीन पर कहीं भी ऊपर स्वाइप करने से बंद हो जाता है, सिर्फ़ खोज पट्टी पर नहीं।"]
+      }
+    },
+    {
       "v": "1.90.85", "date": "2026-11-23",
       "items": {
         "en": ["🙋 Fixed: the “waiting for your choice” button stayed after you answered (leftovers of the old prompt on screen were still counted)."],

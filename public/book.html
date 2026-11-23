@@ -2058,6 +2058,24 @@ askForm.addEventListener('submit', e => {
   bar.addEventListener('touchmove', e => { const dy = e.touches[0].clientY - by; if (!bdrag && dy < -10) { bdrag = true; clearTimeout(ht); box.classList.remove('has'); box.classList.add('drag'); } if (bdrag) setFy(Math.min(0, dy + 10)); }, { passive: true });
   bar.addEventListener('touchend', e => { const dy = e.changedTouches[0].clientY - by; if (!bdrag) return; bdrag = false; box.classList.remove('drag'); setFy(0);
     if (dy < -50 || (dy < -25 && Date.now() - bt < 300)) close(); else setHas(); }, { passive: true });
+  /* ⬆ 검색칸이 떠 있을 때 화면 어디서나 위로 쓸면 닫힌다 — 막대 위에서만 닫혀서, 아래로 쓸어 연 뒤 다시 쓸어올려도 안 사라졌다 (2026-11-23 CEO).
+     결과 목록 위에서는 목록을 읽는 스크롤과 겹치지 않게, 목록이 짧거나 끝까지 내려가 있을 때만 */
+  const upClose = (el, ok) => { let y0 = 0, t0 = 0, on = false, d = false;
+    el.addEventListener('touchstart', e => { on = e.touches.length === 1 && box.classList.contains('on') && !ct && ok(e); y0 = e.touches[0].clientY; t0 = Date.now(); d = false; }, { passive: true });
+    el.addEventListener('touchmove', e => { if (!on || e.touches.length !== 1) return; const dy = e.touches[0].clientY - y0;
+      if (!d && dy < -12) { d = true; clearTimeout(ht); box.classList.remove('has'); box.classList.add('drag'); fin.blur(); }
+      if (d) setFy(Math.min(0, dy + 12)); }, { passive: true });
+    const end = e => { if (!on) return; on = false; if (!d) return; d = false; const dy = (e.changedTouches[0] || {}).clientY - y0; box.classList.remove('drag'); setFy(0);
+      if (e.type === 'touchend' && (dy < -50 || (dy < -25 && Date.now() - t0 < 300))) close(); else setHas(); };
+    el.addEventListener('touchend', end, { passive: true }); el.addEventListener('touchcancel', end, { passive: true }); };
+  upClose(bg, () => true);
+  upClose(box.querySelector('.findbody'), e => {
+    for (let n = e.target; n && n !== box; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 2) return n.scrollTop + n.clientHeight >= n.scrollHeight - 2;   // 끝까지 내려가 있을 때만
+    }
+    return true;   // 스크롤할 게 없는 짧은 목록
+  });
 }
 (async () => {
   await loadSessions();
