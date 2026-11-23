@@ -417,6 +417,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.83", "date": "2026-11-23",
+      "items": {
+        "en": ["📱 Phone: while you type, the session name above the request box blinks for a few seconds, so you always see which session you are writing to.","📱 Phone: the request box no longer bobs up and down when you scroll with the keyboard open.","✅ Add session: picking a session you used before now shows a big, clear “Added” notice in the middle of the screen."],
+        "ko": ["📱 폰: 요청칸에 글을 쓸 때 위에 뜨는 세션 이름이 몇 초 동안 깜빡여, 어느 세션에 쓰는지 바로 눈에 띄어요.","📱 폰: 자판이 떠 있을 때 스크롤하면 요청칸이 위아래로 출렁이던 것을 고쳤어요.","✅ 세션 추가: 예전에 쓰던 세션을 고르면 「추가했어요」 알림이 화면 가운데 크게 떠요."],
+        "ja": ["📱 スマホ: 依頼欄に入力中、上に出るセッション名が数秒点滅し、どのセッションに書いているかすぐ分かります。","📱 スマホ: キーボード表示中にスクロールすると依頼欄が上下に揺れる問題を直しました。","✅ セッション追加: 以前使ったセッションを選ぶと「追加しました」の通知が画面中央に大きく出ます。"],
+        "zh": ["📱 手机：在请求框输入时，上方显示的会话名称会闪烁几秒，一眼就知道在给哪个会话写。","📱 手机：修复了键盘打开时滚动导致请求框上下晃动的问题。","✅ 添加会话：选择以前用过的会话时，屏幕中央会大大地显示“已添加”提示。"],
+        "es": ["📱 Móvil: mientras escribes, el nombre de la sesión sobre la caja de petición parpadea unos segundos para que veas a qué sesión escribes.","📱 Móvil: la caja de petición ya no se balancea al desplazarte con el teclado abierto.","✅ Añadir sesión: al elegir una sesión usada antes aparece un aviso grande de “Añadida” en el centro de la pantalla."],
+        "de": ["📱 Handy: Beim Tippen blinkt der Sitzungsname über dem Anfragefeld einige Sekunden – so siehst du sofort, an welche Sitzung du schreibst.","📱 Handy: Das Anfragefeld wippt beim Scrollen mit offener Tastatur nicht mehr auf und ab.","✅ Sitzung hinzufügen: Wählst du eine früher genutzte Sitzung, erscheint ein großer „Hinzugefügt“-Hinweis in der Bildschirmmitte."],
+        "fr": ["📱 Téléphone : pendant la saisie, le nom de la session au-dessus de la zone de requête clignote quelques secondes pour voir à quelle session vous écrivez.","📱 Téléphone : la zone de requête ne tangue plus quand vous faites défiler avec le clavier ouvert.","✅ Ajouter une session : choisir une session déjà utilisée affiche un grand avis « Ajoutée » au centre de l’écran."],
+        "pt": ["📱 Celular: ao digitar, o nome da sessão acima da caixa de pedido pisca por alguns segundos, para você ver em qual sessão está escrevendo.","📱 Celular: a caixa de pedido não balança mais ao rolar com o teclado aberto.","✅ Adicionar sessão: ao escolher uma sessão usada antes, aparece um aviso grande de “Adicionada” no centro da tela."],
+        "ru": ["📱 Телефон: при вводе название сессии над полем запроса мигает несколько секунд — сразу видно, в какую сессию вы пишете.","📱 Телефон: поле запроса больше не качается вверх-вниз при прокрутке с открытой клавиатурой.","✅ Добавление сессии: при выборе ранее использованной сессии в центре экрана появляется крупное уведомление «Добавлена»."],
+        "hi": ["📱 फ़ोन: लिखते समय रिक्वेस्ट बॉक्स के ऊपर सेशन का नाम कुछ सेकंड झपकता है, ताकि तुरंत दिखे कि आप किस सेशन में लिख रहे हैं।","📱 फ़ोन: कीबोर्ड खुला होने पर स्क्रॉल करने से रिक्वेस्ट बॉक्स का ऊपर-नीचे हिलना ठीक किया।","✅ सेशन जोड़ें: पहले इस्तेमाल किया सेशन चुनने पर स्क्रीन के बीच में बड़ा “जुड़ गया” नोटिस दिखता है।"]
+      }
+    },
+    {
       "v": "1.90.82", "date": "2026-11-21",
       "items": {
         "en": ["📱 Phone: in a session you enlarged (double tap), you can now swipe anywhere — not just the middle strip — to scroll that session."],

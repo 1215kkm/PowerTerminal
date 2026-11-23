@@ -583,6 +583,16 @@
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 14px rgba(0,0,0,.45);
               opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .15s, transform .15s; }
   .stickTtl.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  /* 🔔 큰 알림 (flashToast big) — 화면 가운데, 초록, 톡 튀어나옴 */
+  #ptToast.big { bottom: auto !important; top: 42% !important; transform: translate(-50%, -50%) !important;
+                 width: max-content; max-width: min(90vw, 560px); word-break: keep-all; padding: 16px 26px !important; border-radius: 14px !important;
+                 border: 2px solid #4ade80 !important; background: linear-gradient(135deg, #15803d, #22c55e) !important;
+                 font-size: 18px !important; font-weight: 800; text-align: center; line-height: 1.35;
+                 box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 0 6px rgba(34,197,94,.25) !important; }
+  #ptToast.big.off { border-color: #9ca3af !important; background: linear-gradient(135deg, #374151, #4b5563) !important;
+                     box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 0 6px rgba(156,163,175,.2) !important; }
+  #ptToast.pop { animation: ptToastPop .38s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes ptToastPop { from { scale: .6; } to { scale: 1; } }
   /* 🖥 다른 PC 에서 도는 세션 표시 — 제목 옆. 연결이 끊기면 회색 */
   .peerTag { flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: #0e7490; color: #fff; white-space: nowrap; }
   .peerTag.off { background: #4b5563; color: #d1d5db; }
@@ -735,7 +745,9 @@
   .quick.kb-pin { position: fixed; left: 0; right: 0; z-index: 60;
                   /* 키보드 높이(--kb-gap) 위로 + 아이폰 하단 홈인디케이터(safe-area)만큼 + 최소 여유 → 전송버튼이 안 가리게 */
                   bottom: calc(var(--kb-gap, 0px) + max(env(safe-area-inset-bottom, 0px), 10px));
-                  box-shadow: 0 -6px 20px rgba(0,0,0,.4); transition: bottom .16s ease; }
+                  box-shadow: 0 -6px 20px rgba(0,0,0,.4); }
+  /* ⚠ bottom 에 transition 을 주면 안 된다 — 자판이 떠 있을 때 스크롤하면 보이는 화면이 움직이며 bottom 이 계속 바뀌는데,
+     0.16초씩 늦게 따라가 요청칸이 위아래로 출렁였다 (2026-11-23 CEO "스크롤 내릴 때 이상하게 움직인다") */
   /* ---------- 📝 코드 편집 모드 (4분할 전체화면) ---------- */
   #codeModal { display: none; position: fixed; inset: 0; z-index: 210; background: var(--bg);
                flex-direction: column; }
@@ -1863,6 +1875,9 @@
     .quick .qWho { left: 0; right: 0; max-width: none; padding: 14px 16px; font-size: 18px; line-height: 1.3; text-align: center;
                    border-radius: 12px; background: linear-gradient(135deg, #1d4ed8, #0ea5e9); }
     .quick .qWho::after { left: 50%; margin-left: -8px; border-width: 8px; border-top-color: #0ea5e9; }
+    /* 제목 글자가 깜빡여 눈에 띄게 — 누를 때마다 처음 몇 초만 (계속 깜빡이면 쓰는 동안 거슬린다) (2026-11-23 CEO) */
+    .quick.typing .qWho b { animation: qWhoBlink .7s ease-in-out 5; }
+    @keyframes qWhoBlink { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
     .mm-cell.grp-first { border-left: 3px solid #22c55e; }
     /* 📱 화살표는 탭줄에만 — 세션창 위에 그으면 터미널을 가린다 */
     #mmFlow { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; display: none; }
@@ -7223,7 +7238,7 @@ function buildPane(sess, idx) {
     const quick = el.querySelector('.quick'), who = el.querySelector('.qWho');
     const showWho = () => {
       const t = (el.querySelector('.pane-head .title') || {}).textContent || sess.title || '';
-      who.textContent = t.trim();
+      who.innerHTML = '<b>' + esc(t.trim()) + '</b>';   // <b> = 깜빡이는 글자 (폰)
       who.title = t.trim();
       quick.classList.add('typing');
     };
@@ -9955,7 +9970,7 @@ function initWhatsNew(inf) {
   const from = seen && w.from && verGt(w.from, seen) ? seen : w.from;
   wnWhenFree(() => showWhatsNew({ from, to: inf.version, mark: true }));
 }
-function flashToast(msg) {
+function flashToast(msg, opt) {
   let t = document.getElementById('ptToast');
   if (!t) {
     t = document.createElement('div'); t.id = 'ptToast';
@@ -9966,7 +9981,11 @@ function flashToast(msg) {
   }
   { const host = [...document.querySelectorAll('dialog[open]')].pop() || document.body; if (t.parentNode !== host) host.appendChild(t); }
   t.textContent = msg; t.style.opacity = '1';
-  clearTimeout(_toastTimer); _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  /* big: 화면 가운데 크게 (초록, off 면 회색) — 세션 추가처럼 "됐다"를 꼭 봐야 하는 알림 */
+  const big = !!(opt && opt.big);
+  t.classList.toggle('big', big); t.classList.toggle('off', !!(opt && opt.off));
+  t.classList.remove('pop'); if (big) { void t.offsetWidth; t.classList.add('pop'); }
+  clearTimeout(_toastTimer); _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, big ? 3200 : 3000);
 }
 
 // 연결 끊김 크게 표시: 모든 세션 소켓이 끊기면(서버 종료·네트워크·폰 잠금 등) 상단 빨강 배너 + 화면 흐리게.
@@ -10974,10 +10993,10 @@ async function renderAddCards() {
           await api('DELETE', '/api/sessions/' + s.id);
         }
         if (!server.some(s => _norm(s.path) === _norm(k.path))) removePaneLocal(paneEl.dataset.id);
-        flashToast('➖ ' + nm + ' — ' + (T.sessOffT || 'Removed from the screen'));
+        flashToast('➖ ' + nm + ' — ' + (T.sessOffT || 'Removed from the screen'), { big: true, off: true });
       } else {
         const s = await addSession(k.path, nm, k.agent, '', true);   // 다시 켜기 (claude --continue로 대화 이어짐)
-        if (s) flashToast('✅ ' + nm + ' — ' + (T.sessOnT || 'Added to the screen'));
+        if (s) flashToast('✅ ' + nm + ' — ' + (T.sessOnT || 'Added to the screen'), { big: true });
       }
       applyLayout(); renumber(); renderAddCards();
     };
@@ -11207,6 +11226,7 @@ function showAddMsg(name) {
   const m = document.getElementById('addMsg'); if (!m) return;
   m.textContent = '✅ ' + (T.sessionAdded || 'Session added') + (name ? ' — ' + name : '');
   m.style.color = ''; m.style.display = 'block';
+  flashToast(m.textContent, { big: true });   // 창 아래 작은 글만으론 잘 안 보였다 — 가운데 크게도
 }
 // 성공이 아닌 안내(입력 누락 등) — 위 함수는 "✅ 세션이 추가됐어요"를 앞에 붙이므로 여기선 쓰면 안 된다
 function showAddWarn(msg) {
