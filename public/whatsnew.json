@@ -117,6 +117,18 @@
       },
       "items": [
         {
+          "en": "Sessions waiting for your choice show up in a floating box on the right (one button each, press to jump there); note mode marks them on the shelf.",
+          "ko": "선택을 기다리는 세션은 화면 오른쪽 떠 있는 상자에 단추로 모여요(누르면 그 세션으로) · 노트 모드는 책장에 표시.",
+          "ja": "選択待ちのセッションは画面右の浮かぶ箱にボタンで集まります(押すと移動)・ノートモードは本棚に表示。",
+          "zh": "等待选择的会话汇集在右侧浮动框里(每个一个按钮，点即跳转)；笔记模式在书架上标出。",
+          "es": "Las sesiones que esperan tu elección aparecen en un cuadro flotante a la derecha (un botón cada una); el modo nota las marca en la estantería.",
+          "de": "Auf deine Auswahl wartende Sitzungen erscheinen rechts in einem schwebenden Kasten (je ein Knopf); der Notizmodus markiert sie im Regal.",
+          "fr": "Les sessions qui attendent votre choix apparaissent dans une boîte flottante à droite (un bouton chacune) ; le mode note les marque sur l’étagère.",
+          "pt": "Sessões esperando sua escolha aparecem numa caixa flutuante à direita (um botão cada); o modo nota as marca na estante.",
+          "ru": "Сессии, ждущие выбора, собраны в плавающем блоке справа (по кнопке на каждую); режим заметок отмечает их на полке.",
+          "hi": "चुनाव का इंतज़ार कर रहे सेशन दाईं ओर तैरते बॉक्स में बटन बनकर दिखते हैं (दबाएँ तो वहीं पहुँचें); नोट मोड शेल्फ़ पर निशान लगाता है।"
+        },
+        {
           "en": "Run several AI sessions (Claude, GPT, shell) side by side on one screen.",
           "ko": "여러 AI 세션(Claude·GPT·셸)을 한 화면에 나란히 띄워 동시에 일을 시켜요.",
           "ja": "複数のAIセッション(Claude・GPT・シェル)を1画面に並べて同時に動かせます。",
@@ -416,6 +428,21 @@
     }
   ],
   "releases": [
+    {
+      "v": "1.90.84", "date": "2026-11-23",
+      "items": {
+        "en": ["🙋 Sessions waiting for your choice (allow or not, 1/2…) now stand out: a floating box on the right of the terminal screen lists them, one button each — press it to jump to that session. Phones too. In note mode the waiting session is marked on the shelf on the left."],
+        "ko": ["🙋 허용 여부처럼 선택을 기다리는 세션이 한눈에 보여요. 터미널 화면 오른쪽에 떠 있는 상자에 기다리는 세션마다 단추가 생기고, 누르면 그 세션으로 가요(폰도 같아요). 노트 모드는 왼쪽 책장에 「선택 기다림」 표시가 붙어요."],
+        "ja": ["🙋 許可するかなど選択を待っているセッションが一目で分かります。ターミナル画面の右に浮かぶ箱に待っているセッションごとのボタンが出て、押すとそのセッションへ移動します(スマホも同じ)。ノートモードでは左の本棚に「選択待ち」が付きます。"],
+        "zh": ["🙋 等待你选择(是否允许、1/2…)的会话一目了然：终端界面右侧浮动框为每个等待的会话显示一个按钮，点击即跳到该会话(手机也一样)。笔记模式在左侧书架上标出“等待选择”。"],
+        "es": ["🙋 Las sesiones que esperan tu elección (permitir o no, 1/2…) ahora destacan: un cuadro flotante a la derecha de la pantalla de terminal muestra un botón por sesión y te lleva a ella. También en móvil. En el modo nota se marcan en la estantería de la izquierda."],
+        "de": ["🙋 Sitzungen, die auf deine Auswahl warten (erlauben oder nicht, 1/2…), fallen jetzt auf: Ein schwebender Kasten rechts im Terminal zeigt je Sitzung einen Knopf, der dorthin springt. Auch am Handy. Im Notizmodus werden sie im Regal links markiert."],
+        "fr": ["🙋 Les sessions qui attendent votre choix (autoriser ou non, 1/2…) ressortent : une boîte flottante à droite de l’écran terminal affiche un bouton par session, qui y mène. Aussi sur téléphone. En mode note, elles sont marquées sur l’étagère à gauche."],
+        "pt": ["🙋 Sessões esperando sua escolha (permitir ou não, 1/2…) agora se destacam: uma caixa flutuante à direita da tela do terminal mostra um botão por sessão que leva até ela. No celular também. No modo nota, aparecem marcadas na estante à esquerda."],
+        "ru": ["🙋 Сессии, ждущие вашего выбора (разрешить или нет, 1/2…), теперь сразу видны: плавающий блок справа в режиме терминала показывает по кнопке на сессию — нажмите, чтобы перейти к ней. На телефоне тоже. В режиме заметок они отмечены на полке слева."],
+        "hi": ["🙋 आपके चुनाव (अनुमति दें या नहीं, 1/2…) का इंतज़ार कर रहे सेशन अब तुरंत दिखते हैं: टर्मिनल स्क्रीन के दाईं ओर तैरते बॉक्स में हर सेशन का बटन, दबाएँ तो उसी सेशन पर पहुँचें। फ़ोन पर भी। नोट मोड में बाईं शेल्फ़ पर निशान लगता है।"]
+      }
+    },
     {
       "v": "1.90.83", "date": "2026-11-23",
       "items": {

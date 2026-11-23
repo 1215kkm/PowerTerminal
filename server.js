@@ -2231,10 +2231,40 @@ setInterval(async () => {
   }
 }, AF_TEST ? 5000 : 60000);
 
+/* 🙋 AI 가 선택창(「❯ 1. Yes / 2. No」 · 「Enter to confirm」 위 묶음)을 띄우고 기다리는지 — 화면(메인 PT 의 qMenu ·
+   노트 모드 qcard)과 같은 규칙. 기다리면 질문 글(없으면 '…'), 아니면 ''. 노트 모드 왼쪽 책장에 표시한다 (2026-11-23 CEO) */
+function askOf(p) {
+  if (!p || !p.vt || p.dead) return '';
+  try {
+    const t = p.vt.t, buf = t.buffer.active, end = buf.baseY + t.rows, L = [];
+    for (let i = Math.max(0, Math.min(end - 30, buf.baseY)); i < end; i++) { const l = buf.getLine(i); L.push(l ? l.translateToString(true) : ''); }
+    const re = /^\s*([❯›>▶])?\s*(\d{1,2})[.)]\s+(\S.*?)\s*$/;
+    let opts = [], q = '';
+    for (let i = L.length - 1; i >= 0; i--) {
+      const m = L[i].match(re);
+      if (m) { opts.unshift({ n: +m[2], cur: !!m[1] }); continue; }
+      if (!opts.length) continue;
+      if (/^\s{3,}\S/.test(L[i])) continue;
+      q = L[i].trim(); break;
+    }
+    const tidy = x => (/^[─━-]+$/.test(x) ? '' : x).slice(0, 160) || '…';
+    if (opts.length >= 2 && opts.filter(o => o.cur).length === 1 && !opts.some((o, k) => o.n !== k + 1)) return tidy(q);
+    const hi = L.map(l => /enter to (confirm|select|continue|submit)|press enter|to change\b/i.test(l)).lastIndexOf(true);
+    if (hi < 0) return '';
+    let j = hi - 1; while (j >= 0 && !L[j].trim()) j--;
+    let n = 0, cur = 0;
+    for (; j >= 0; j--) {
+      if (/^\s*[❯›>▶]\s+\S/.test(L[j])) { n++; cur++; } else if (/^\s{2,}\S/.test(L[j])) n++; else break;
+    }
+    if (n < 2 || n > 9 || cur !== 1) return '';
+    return tidy(j >= 0 ? L[j].trim() : '');
+  } catch (e) { return ''; }
+}
 app.get('/api/sessions', async (req, res) => {
   const mine = sessions.map(s => {
     const p = ptys.get(s.id);
     return { ...s, alive: !!(p && !p.dead), done: p ? p.done : false, busy: p ? p.busy : false, bg: !!(p && p.bg), doneSince: p ? (p.doneSince || 0) : 0,
+             ask: askOf(p) || undefined,   // 🙋 선택 기다림 (질문 글)
              usedBy: peersApi && !req.ptGuest ? peersApi.usedBy(s.id) : undefined };   // 👥 다른 PC 가 지금 쓰는 중
   });
   if (req.ptGuest) return res.json(peersApi.filterSessions(req.ptGuest, mine));   // 손님: 이 PC 가 준 세션만

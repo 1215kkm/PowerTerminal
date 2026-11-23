@@ -583,6 +583,34 @@
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 14px rgba(0,0,0,.45);
               opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .15s, transform .15s; }
   .stickTtl.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  /* 🙋 선택 기다리는 세션 — 오른쪽 떠 있는 단추 묶음 */
+  #askFloat { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); z-index: 66; display: flex; flex-direction: column; gap: 6px;
+              width: max-content; max-width: 240px; max-height: 70vh; overflow-y: auto; padding: 8px; border-radius: 14px;
+              background: rgba(17,24,39,.94); border: 2px solid #f59e0b; box-shadow: 0 8px 28px rgba(0,0,0,.55), 0 0 0 4px rgba(245,158,11,.18);
+              animation: afIn .25s ease-out; }
+  #askFloat .af-h { font-size: 12px; font-weight: 800; color: #fbbf24; text-align: center; white-space: nowrap; }
+  #askFloat .af-h b { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: #f59e0b; color: #111; }
+  #askFloat .af-b { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 7px; align-items: center; text-align: left;
+                    padding: 8px 10px; border: 0; border-radius: 10px; cursor: pointer; color: #111; font: 800 13px/1.25 inherit;
+                    background: linear-gradient(135deg, #fde047, #f59e0b); animation: afPulse 1.6s ease-in-out infinite; }
+  #askFloat .af-b:hover { filter: brightness(1.08); }
+  #askFloat .af-n { grid-row: span 2; width: 22px; height: 22px; border-radius: 6px; background: #111827; color: #fbbf24;
+                    display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  #askFloat .af-t, #askFloat .af-q { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #askFloat .af-q { grid-column: 2; font-size: 11px; font-weight: 600; opacity: .78; }
+  @keyframes afPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); } 50% { box-shadow: 0 0 0 4px rgba(251,191,36,.5); } }
+  @keyframes afIn { from { opacity: 0; margin-right: -14px; } to { opacity: 1; margin-right: 0; } }
+  .pane.askFlash { animation: askFlash 1.8s ease-out; }
+  @keyframes askFlash { 0%, 55% { box-shadow: 0 0 0 4px #f59e0b, 0 0 26px rgba(245,158,11,.85); } 100% { box-shadow: none; } }
+  #minimap .mm-cell.ask { border-color: #f59e0b !important; background: #78350f; }
+  #minimap .mm-cell.ask .mm-title::before { content: '🙋 '; }
+  @media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
+    #askFloat { right: 4px; max-width: 42vw; padding: 6px; gap: 5px; }
+    #askFloat .af-h { font-size: 11px; }
+    #askFloat .af-b { padding: 8px 8px; font-size: 12.5px; }
+    #askFloat .af-q { display: none; }
+    #askFloat .af-n { grid-row: auto; }
+  }
   /* 🔔 큰 알림 (flashToast big) — 화면 가운데, 초록, 톡 튀어나옴 */
   #ptToast.big { bottom: auto !important; top: 42% !important; transform: translate(-50%, -50%) !important;
                  width: max-content; max-width: min(90vw, 560px); word-break: keep-all; padding: 16px 26px !important; border-radius: 14px !important;
@@ -2718,8 +2746,8 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', mmMore:'More', mmLess:'Fold', mmMoreT:'Show all session titles', mmLessT:'Show one and a half rows', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
-  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', mmMore:'펼치기', mmLess:'접기', mmMoreT:'세션 제목 모두 보기', mmLessT:'한 줄 반만 보기', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', askWait:'Waiting for you', askGoT:'Go to this session', mmMore:'More', mmLess:'Fold', mmMoreT:'Show all session titles', mmLessT:'Show one and a half rows', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', askWait:'선택 기다림', askGoT:'이 세션으로 가기', mmMore:'펼치기', mmLess:'접기', mmMoreT:'세션 제목 모두 보기', mmLessT:'한 줄 반만 보기', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
   ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
   zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
   es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
@@ -7667,7 +7695,7 @@ function buildPane(sess, idx) {
   let qMenuKey = '', qMenuT = 0;
   const menuRead = () => {
     const buf = term.buffer.active, end = buf.baseY + term.rows, L = [];
-    for (let i = Math.max(0, end - 30); i < end; i++) { const l = buf.getLine(i); L.push(l ? l.translateToString(true) : ''); }
+    for (let i = Math.max(0, Math.min(end - 30, buf.baseY)); i < end; i++) { const l = buf.getLine(i); L.push(l ? l.translateToString(true) : ''); }
     const re = /^\s*([❯›>▶])?\s*(\d{1,2})[.)]\s+(\S.*?)\s*$/;
     let opts = [], q = '';
     for (let i = L.length - 1; i >= 0; i--) {
@@ -7698,7 +7726,9 @@ function buildPane(sess, idx) {
   };
   const menuSend = keys => { let t = 0; keys.forEach(k => { setTimeout(() => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: k })); }, t); t += 70; }); };
   const menuPaint = () => {
-    const m = isTouch ? menuRead() : null;
+    const mAll = menuRead();
+    askMark(el, sess, mAll && mAll.opts.length ? (mAll.q || '') : null);   // 🙋 오른쪽 떠 있는 「선택 기다림」 단추
+    const m = isTouch ? mAll : null;
     const key = m ? m.q + '|k|' + m.opts.map(o => (o.cur ? '*' : '') + o.n + o.text).join('|') : '';
     if (key === qMenuKey) return;
     qMenuKey = key;
@@ -7727,7 +7757,7 @@ function buildPane(sess, idx) {
     qMenu.appendChild(keys);
     qMenu.style.display = '';
   };
-  if (isTouch) term.onWriteParsed(() => { clearTimeout(qMenuT); qMenuT = setTimeout(menuPaint, 250); });
+  term.onWriteParsed(() => { clearTimeout(qMenuT); qMenuT = setTimeout(menuPaint, isTouch ? 250 : 400); });
   // ⛔ 취소 — 진행 중인 요청 중단 (터미널에 ESC 전송 = 터미널에서 ESC 누르는 것과 동일). 요청 내역엔 '중단' 스탬프.
   const doCancel = ev => {
     ev.stopPropagation();
@@ -10236,7 +10266,7 @@ function renderMinimap() {
     const p = panes.get(id);
     const i = els.indexOf(paneEl);
     const cell = document.createElement('div');
-    cell.className = 'mm-cell' + (paneEl.classList.contains('done') ? ' done' : '')
+    cell.className = 'mm-cell' + (paneEl.classList.contains('done') ? ' done' : '') + (askMap && askMap.has(id) ? ' ask' : '')
                    + (size > 1 ? (first ? ' grp grp-first' : ' grp') : '');
     cell.dataset.mm = id;
     cell.innerHTML = `<span class="mm-num">${i + 1}</span><span class="mm-title">${esc(p ? p.sess.title : '')}</span>`;
@@ -10255,6 +10285,52 @@ function renderMinimap() {
   mmCurId = undefined; mmSpy();   // 셀을 새로 그렸으니 현재 세션 강조 다시 칠하기
   saveOrder();   // 배열이 바뀔 때마다 현재 순서 기억 → 재시작 시 그대로 복원
   setTimeout(mmFlowDraw, 60);     // 탭 사이 화살표 (폰에서는 여기에만 그린다)
+}
+/* 🙋 선택 기다리는 세션 — AI 가 허용 여부 같은 선택창(「❯ 1. Yes / 2. No」)을 띄우고 기다리는 세션을 화면 오른쪽에 떠 있는
+   단추로 모아 보여 준다(세션마다 하나). 누르면 그 세션으로 간다. 세션이 많으면 어디서 기다리는지 몰라 한참 멈춰 있었다.
+   폰·PC 같음. 노트 모드는 왼쪽 책장에 따로 표시 (2026-11-23 CEO) */
+var askMap = new Map();   // var — 탭줄이 이 줄보다 먼저 그려질 수 있다
+function askMark(el, sess, q) {
+  const id = sess.id, had = askMap.has(id);
+  if (q === null) { if (!had) return; askMap.delete(id); }
+  else { if (had && askMap.get(id) === q) return; askMap.set(id, q); }
+  el.classList.toggle('asking', q !== null);
+  askFloatPaint();
+}
+function askGo(id) {
+  const p = panes.get(id); if (!p) return;
+  const wasZoom = !!zoomedId && zoomedId !== id;
+  if (wasZoom) closeZoom();
+  if (zoomedId === id) return;
+  setTimeout(() => {
+    const mm = document.getElementById('minimap');
+    const mmOn = mm && getComputedStyle(mm).display !== 'none';
+    if (mmOn) mmSetCurrent(id);
+    const y = p.el.getBoundingClientRect().top + window.scrollY - (mmOn ? mm.offsetHeight + 6 : 8);
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    p.el.classList.remove('askFlash'); void p.el.offsetWidth; p.el.classList.add('askFlash');
+    setTimeout(() => p.el.classList.remove('askFlash'), 1900);
+    if (!isMobileNow()) { try { p.term.focus({ preventScroll: true }); } catch (e) {} }   // PC: 바로 방향키·Enter 로 고를 수 있게 (폰은 자판이 뜨니 안 함)
+  }, wasZoom ? 150 : 0);
+}
+function askFloatPaint() {
+  for (const id of [...askMap.keys()]) if (!panes.has(id)) askMap.delete(id);
+  document.querySelectorAll('#minimap .mm-cell').forEach(c => c.classList.toggle('ask', askMap.has(c.dataset.mm)));
+  let box = document.getElementById('askFloat');
+  if (!askMap.size) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'askFloat'; document.body.appendChild(box); }
+  const order = [...document.querySelectorAll('#grid .pane')];
+  const list = [...askMap.entries()].map(([id, q]) => { const p = panes.get(id); return { id, q, p, n: order.indexOf(p.el) + 1 }; })
+    .sort((a, b) => (a.n || 999) - (b.n || 999));
+  box.innerHTML = '<div class="af-h">🙋 ' + esc(T.askWait || 'Waiting for you') + ' <b>' + list.length + '</b></div>';
+  list.forEach(o => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'af-b';
+    const ttl = (o.p.sess && o.p.sess.title) || '';
+    b.innerHTML = '<span class="af-n">' + (o.n || '·') + '</span><span class="af-t">' + esc(ttl) + '</span>' + (o.q ? '<small class="af-q">' + esc(o.q) + '</small>' : '');
+    b.title = ttl + (o.q ? '\n' + o.q : '') + '\n' + (T.askGoT || 'Go to this session');
+    b.onclick = ev => { ev.stopPropagation(); askGo(o.id); };
+    box.appendChild(b);
+  });
 }
 /* 📱 탭줄 접기 — 기본은 접힘(한 줄 반). 두 줄 반이 안 되는 짧은 탭줄이면 단추를 안 띄운다. 고른 상태는 이 기기에 기억 */
 function mmFoldPaint() {
