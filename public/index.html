@@ -2746,8 +2746,8 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', askWait:'Waiting for you', askGoT:'Go to this session', mmMore:'More', mmLess:'Fold', mmMoreT:'Show all session titles', mmLessT:'Show one and a half rows', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
-  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', askWait:'선택 기다림', askGoT:'이 세션으로 가기', mmMore:'펼치기', mmLess:'접기', mmMoreT:'세션 제목 모두 보기', mmLessT:'한 줄 반만 보기', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', upTooBig:'File too large', upMax:'max', askWait:'Waiting for you', askGoT:'Go to this session', mmMore:'More', mmLess:'Fold', mmMoreT:'Show all session titles', mmLessT:'Show one and a half rows', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', upTooBig:'파일이 너무 커요', upMax:'한 번에 최대', askWait:'선택 기다림', askGoT:'이 세션으로 가기', mmMore:'펼치기', mmLess:'접기', mmMoreT:'세션 제목 모두 보기', mmLessT:'한 줄 반만 보기', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
   ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
   zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
   es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
@@ -7959,27 +7959,76 @@ function buildPane(sess, idx) {
   term.onResize(schedSticky);   // 패널 여닫기 등 크기 변경 후에도 ⬇/📌 상태 재계산
 
   // 🖼 이미지 붙여넣기/첨부 — 서버 폴더에 저장 후 [이미지 #N] 칩으로 표시 (전송 시 경로로 확장)
+  /* 📎 올리기 — 파일 그대로 보낸다(진행 % 를 입력칸에 게이지로). 예전엔 base64 로 바꿔 JSON 에 담아 실제 약 22MB 가 한계였다(2026-11-24 CEO).
+     외부 주소(클라우드플레어 터널)는 한 번에 100MB 가 한계라 미리 알려 준다. 다른 PC 세션은 중계가 JSON 만 넘겨 예전 길(약 22MB). */
+  const upLimit = () => {
+    if (sess.id.includes('~')) return 22 * 1048576;
+    const h = location.hostname;
+    return /^(localhost|127\.|\[?::1|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) ? 512 * 1048576 : 100 * 1048576;
+  };
+  const mb = n => (n / 1048576 >= 10 ? Math.round(n / 1048576) : (n / 1048576).toFixed(1)) + 'MB';
+  async function uploadAttach(file, kind) {
+    const lim = upLimit();
+    if (file.size > lim) return { error: (T.upTooBig || 'File too large') + ' — ' + mb(file.size) + ' / ' + (T.upMax || 'max') + ' ' + mb(lim) };
+    qInput.disabled = true; const ph = qInput.placeholder, nm = file.name || '';
+    const paint = p => { qInput.placeholder = '⏳ ' + (T.imgUploading || 'uploading…') + (p != null ? ' ' + Math.floor(p * 100) + '%' : '') + (nm ? ' · ' + nm : '');
+      qInput.style.backgroundImage = p != null ? 'linear-gradient(90deg, rgba(139,92,246,.45) ' + (p * 100) + '%, transparent ' + (p * 100) + '%)' : ''; };
+    paint(0);
+    let r;
+    try {
+      if (sess.id.includes('~')) {   // 다른 PC 세션 — 예전 길
+        const b64 = await new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(file); });
+        paint(null);
+        r = await api('POST', '/api/sessions/' + sess.id + (kind === 'image' ? '/upload-image' : '/upload-file'), { data: b64, name: nm || (kind === 'image' ? 'paste.png' : 'file') });
+      } else {
+        r = await new Promise(done => {
+          const x = new XMLHttpRequest();
+          x.open('POST', '/api/sessions/' + sess.id + '/upload-raw?kind=' + kind + '&name=' + encodeURIComponent(nm || (kind === 'image' ? 'paste.png' : 'file')) + '&token=' + TOKEN);
+          x.setRequestHeader('Content-Type', 'application/octet-stream');
+          x.upload.onprogress = e => { if (e.lengthComputable && e.total) paint(e.loaded / e.total); };
+          x.onload = () => { let j = null; try { j = JSON.parse(x.responseText); } catch (e) {} done(j || { error: x.status === 413 ? (T.upTooBig || 'File too large') : 'HTTP ' + x.status }); };
+          x.onerror = () => done({ error: 'network' });
+          x.send(file);
+        });
+      }
+    } catch (e) { r = { error: String((e && e.message) || e) }; }
+    qInput.disabled = false; qInput.placeholder = ph; qInput.style.backgroundImage = '';
+    return r;
+  }
+  /* 📱 아이폰 사진(HEIC)은 JPG 로 바꿔 보낸다 — AI 가 HEIC 를 못 읽는다. 아이폰 사파리는 HEIC 를 그릴 줄 알아 화면에서 바꾼다.
+     아이폰 캔버스는 약 1,670만 화소가 한계라 48MP 사진은 줄인다. 못 그리는 브라우저면 그대로 보낸다 */
+  async function heicToJpeg(file) {
+    if (!/image\/hei[cf]/i.test(file.type || '') && !/\.hei[cf]$/i.test(file.name || '')) return file;
+    let url = '';
+    try {
+      url = URL.createObjectURL(file);
+      const img = new Image(); img.src = url; await img.decode();
+      const w = img.naturalWidth, h = img.naturalHeight; if (!w || !h) return file;
+      const k = Math.min(1, Math.sqrt(16000000 / (w * h)));
+      const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+      if (!blob || !blob.size) return file;
+      return new File([blob], (file.name || 'photo').replace(/\.hei[cf]$/i, '') + '.jpg', { type: 'image/jpeg' });
+    } catch (e) { return file; }
+    finally { if (url) URL.revokeObjectURL(url); }
+  }
   async function attachImage(file) {
     if (!file) return;
-    const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file); });
-    qInput.disabled = true; const ph = qInput.placeholder; qInput.placeholder = '⏳ ' + (T.imgUploading || 'uploading…');
-    const r = await api('POST', '/api/sessions/' + sess.id + '/upload-image', { data: b64, name: file.name || 'paste.png' });
-    qInput.disabled = false; qInput.placeholder = ph;
+    file = await heicToJpeg(file);
+    const r = await uploadAttach(file, 'image');
     if (r && r.path) {
       const token = '[' + T.imgChip + ' #' + (++attachN) + ']';
       attachMap.set(token, { type: 'image', value: r.path });
       insertToken(token);
-      addThumb(b64, token);   // 입력창 위에 33px 썸네일 표시 (모바일에서 무슨 이미지인지 확인)
+      addThumb(URL.createObjectURL(file), token);   // 입력창 위에 33px 썸네일 표시 (모바일에서 무슨 이미지인지 확인)
     } else alert((T.imgFail || 'Image upload failed') + ': ' + ((r && r.error) || ''));
   }
   // 📎 아무 파일 첨부 — 이미지는 썸네일 흐름으로, 그 외(txt·md·docx 등)는 서버 저장 후 [파일 #N] 칩 (전송 시 경로)
   async function attachFile(file) {
     if (!file) return;
-    if (file.type && file.type.startsWith('image/')) return attachImage(file);
-    const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file); });
-    qInput.disabled = true; const ph = qInput.placeholder; qInput.placeholder = '⏳ ' + (T.imgUploading || 'uploading…');
-    const r = await api('POST', '/api/sessions/' + sess.id + '/upload-file', { data: b64, name: file.name || 'file' });
-    qInput.disabled = false; qInput.placeholder = ph;
+    if ((file.type && file.type.startsWith('image/')) || /\.hei[cf]$/i.test(file.name || '')) return attachImage(file);   // HEIC 는 type 이 비어 올 때도 있다
+    const r = await uploadAttach(file, 'file');
     if (r && r.path) {
       const nm = (file.name || '').replace(/[\[\]]/g, '');   // 칩 괄호와 안 섞이게
       const token = '[' + (T.fileChip || 'File') + ' #' + (++attachN) + (nm ? ' ' + nm : '') + ']';

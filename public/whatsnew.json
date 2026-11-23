@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.87", "date": "2026-11-24",
+      "items": {
+        "en": ["📎 Attach bigger files: files are now sent as they are (no conversion), up to 100MB from outside (tunnel limit) and 512MB at home — before it was about 22MB. A % gauge fills the request box while sending.","📱 iPhone photos (HEIC) are turned into JPG before sending, so the AI can read them."],
+        "ko": ["📎 큰 파일도 첨부돼요: 파일을 그대로 보내서 밖에서는 100MB(터널 한계), 집 안에서는 512MB까지 (예전엔 약 22MB). 올리는 동안 요청칸에 % 게이지가 차요.","📱 아이폰 사진(HEIC)은 JPG 로 바꿔 보내서 AI 가 읽을 수 있어요."],
+        "ja": ["📎 大きなファイルも添付できます: ファイルをそのまま送り、外からは100MB(トンネルの上限)、家の中では512MBまで(以前は約22MB)。送信中は依頼欄に%ゲージが表示されます。","📱 iPhoneの写真(HEIC)はJPGに変換して送るので、AIが読めます。"],
+        "zh": ["📎 可以附加更大的文件：文件按原样发送，外网最多 100MB(隧道限制)，局域网最多 512MB(以前约 22MB)。上传时请求框里显示 % 进度。","📱 iPhone 照片(HEIC)会先转成 JPG 再发送，AI 才能读取。"],
+        "es": ["📎 Adjunta archivos más grandes: se envían tal cual, hasta 100MB desde fuera (límite del túnel) y 512MB en casa; antes era unos 22MB. Un indicador % llena la caja mientras se envía.","📱 Las fotos de iPhone (HEIC) se convierten a JPG antes de enviarse para que la IA pueda leerlas."],
+        "de": ["📎 Größere Anhänge: Dateien werden unverändert gesendet – bis 100MB von unterwegs (Tunnel-Grenze), 512MB im Heimnetz; vorher etwa 22MB. Beim Senden füllt sich eine %-Anzeige im Anfragefeld.","📱 iPhone-Fotos (HEIC) werden vor dem Senden in JPG umgewandelt, damit die KI sie lesen kann."],
+        "fr": ["📎 Pièces jointes plus grosses : les fichiers sont envoyés tels quels, jusqu’à 100MB depuis l’extérieur (limite du tunnel) et 512MB à la maison — avant, environ 22MB. Une jauge % remplit la zone pendant l’envoi.","📱 Les photos iPhone (HEIC) sont converties en JPG avant l’envoi pour que l’IA puisse les lire."],
+        "pt": ["📎 Anexe arquivos maiores: eles vão como estão, até 100MB de fora (limite do túnel) e 512MB em casa — antes era cerca de 22MB. Uma barra % enche a caixa durante o envio.","📱 Fotos do iPhone (HEIC) viram JPG antes do envio, para a IA conseguir ler."],
+        "ru": ["📎 Можно прикреплять файлы больше: они отправляются как есть — до 100MB извне (предел туннеля) и до 512MB дома; раньше около 22MB. Во время отправки в поле запроса заполняется шкала %.","📱 Фото iPhone (HEIC) перед отправкой превращаются в JPG, чтобы ИИ мог их прочитать."],
+        "hi": ["📎 बड़ी फ़ाइलें भी जोड़ें: फ़ाइल जैसी है वैसी भेजी जाती है — बाहर से 100MB (टनल सीमा) और घर पर 512MB तक; पहले लगभग 22MB। भेजते समय रिक्वेस्ट बॉक्स में % गेज भरता है।","📱 iPhone फ़ोटो (HEIC) भेजने से पहले JPG में बदली जाती हैं ताकि AI उन्हें पढ़ सके।"]
+      }
+    },
+    {
       "v": "1.90.86", "date": "2026-11-23",
       "items": {
         "en": ["📖 Note mode (phone): when the search box is open, swiping up anywhere on the screen closes it — not only on the search bar."],

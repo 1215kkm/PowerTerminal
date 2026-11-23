@@ -4155,7 +4155,55 @@ app.post('/api/sessions/:id/upload-image', (req, res) => {
   }
 });
 
+/* 📎 첨부를 파일 그대로 받는다 — 본문 = 파일 바이트(application/octet-stream), 이름·종류는 주소에.
+   예전 길(base64 를 JSON 에 담기)은 글자로 바꾸며 4/3 배로 불어나 30MB 한계 = 실제 파일 약 22MB 였다(2026-11-24 CEO: 폰 첨부 용량).
+   받는 대로 .ptpart 에 흘려 쓰고 다 받으면 이름을 바꾼다 — 큰 파일도 메모리에 다 올리지 않는다.
+   외부 주소(클라우드플레어 터널)는 한 요청 100MB 가 한계라 화면이 미리 막는다. 여기선 512MB 까지 */
+const UPLOAD_RAW_MAX = 512 * 1024 * 1024;
+app.post('/api/sessions/:id/upload-raw', (req, res) => {
+  const s = sessions.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'no session' });
+  const kind = req.query.kind === 'image' ? 'image' : 'file';
+  const raw = String(req.query.name || (kind === 'image' ? 'paste.png' : 'file'));
+  let full;
+  try {
+    const dir = path.join(s.path, '.pt-images');
+    fs.mkdirSync(dir, { recursive: true });
+    if (kind === 'image') {
+      const ext = (path.extname(raw).slice(1) || 'png').toLowerCase().replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '').slice(0, 8) || 'png';
+      full = path.join(dir, 'paste-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex') + '.' + ext);
+    } else {
+      const safe = raw.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').slice(-80) || 'file';
+      full = path.join(dir, Date.now().toString(36) + '-' + safe);
+    }
+  } catch (e) { return res.json({ error: String((e && e.message) || e) }); }
+  const part = full + '.ptpart', out = fs.createWriteStream(part);
+  let n = 0, done = false;
+  const fail = (msg, code) => {
+    if (done) return; done = true;
+    try { req.unpipe(out); } catch (e) {}
+    try { out.destroy(); } catch (e) {}
+    fs.unlink(part, () => {});
+    try { req.resume(); } catch (e) {}
+    if (!res.headersSent) res.status(code || 400).json({ error: msg });
+  };
+  req.on('data', c => { n += c.length; if (n > UPLOAD_RAW_MAX) fail('too big', 413); });
+  req.on('aborted', () => fail('aborted'));
+  out.on('error', e => fail(String((e && e.message) || e), 500));
+  out.on('finish', () => {
+    if (done) return; done = true;
+    if (!n) { fs.unlink(part, () => {}); return res.status(400).json({ error: 'no data' }); }
+    fs.rename(part, full, err => {
+      if (err) { fs.unlink(part, () => {}); return res.json({ error: err.message }); }
+      if (kind === 'image') { try { trimImages(s); } catch (e) {} }
+      res.json({ ok: true, path: full, size: n });
+    });
+  });
+  req.pipe(out);
+});
+
 // 📎 아무 파일 첨부(문서·텍스트 등) — 원본 이름을 살려 세션 폴더에 저장 → 절대경로 반환 (Claude가 읽음)
+// (지금은 다른 PC 세션 첨부에만 쓴다 — 중계가 JSON 본문만 넘긴다. 이 PC 세션은 위 upload-raw)
 app.post('/api/sessions/:id/upload-file', (req, res) => {
   const s = sessions.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({ error: 'no session' });
