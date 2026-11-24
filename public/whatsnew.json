@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.92", "date": "2026-11-24",
+      "items": {
+        "en": ["🔢 PC: the top-right buttons moved up, and right below them every open session now has a number chip — yellow = working, green = done, orange = waiting for your choice, grey = idle. Click one to jump to that session; if there are many, scroll the row sideways (mouse wheel works)."],
+        "ko": ["🔢 PC: 오른쪽 위 단추들을 위로 올리고, 그 바로 아래에 열린 세션 번호가 칩으로 나와요 — 노랑 = 진행 중 · 초록 = 완료 · 주황 = 선택 기다림 · 회색 = 쉬는 중. 누르면 그 세션으로 가고, 많으면 좌우로 밀어서 봐요 (마우스 휠도 돼요)."],
+        "ja": ["🔢 PC: 右上のボタンを上に移し、その下に開いているセッションの番号チップを並べました — 黄 = 作業中・緑 = 完了・オレンジ = 選択待ち・灰 = 待機。押すとそのセッションへ。多いときは横にスクロール(ホイール可)。"],
+        "zh": ["🔢 PC：右上角按钮上移，其下方列出所有打开会话的编号 — 黄 = 进行中、绿 = 完成、橙 = 等待选择、灰 = 空闲。点击跳转到该会话；数量多时可左右滑动(支持滚轮)。"],
+        "es": ["🔢 PC: los botones de arriba a la derecha suben y debajo aparece un número por cada sesión abierta — amarillo = trabajando, verde = terminado, naranja = espera tu elección, gris = inactiva. Clic para ir; si hay muchas, desliza la fila (rueda del ratón)."],
+        "de": ["🔢 PC: Die Knöpfe oben rechts rücken nach oben, darunter hat jede offene Sitzung eine Nummer — gelb = arbeitet, grün = fertig, orange = wartet auf dich, grau = ruht. Klick springt hin; bei vielen seitlich scrollen (Mausrad geht)."],
+        "fr": ["🔢 PC : les boutons en haut à droite montent et, juste dessous, chaque session ouverte a un numéro — jaune = en cours, vert = terminée, orange = attend votre choix, gris = au repos. Cliquez pour y aller ; s’il y en a beaucoup, faites défiler la rangée (molette)."],
+        "pt": ["🔢 PC: os botões do canto superior direito subiram e logo abaixo cada sessão aberta tem um número — amarelo = trabalhando, verde = concluída, laranja = esperando sua escolha, cinza = parada. Clique para ir; se forem muitas, role a fileira (roda do mouse)."],
+        "ru": ["🔢 ПК: кнопки справа вверху поднялись, а под ними у каждой открытой сессии есть номер — жёлтый = работает, зелёный = готово, оранжевый = ждёт выбора, серый = простаивает. Нажмите, чтобы перейти; если их много, прокрутите ряд вбок (колесо мыши)."],
+        "hi": ["🔢 PC: ऊपर दाएँ के बटन ऊपर गए और उनके ठीक नीचे हर खुले सेशन का नंबर — पीला = चल रहा, हरा = पूरा, नारंगी = आपके चुनाव का इंतज़ार, धूसर = खाली। दबाएँ तो वहीं पहुँचें; ज़्यादा हों तो पंक्ति को बगल में खिसकाएँ (माउस व्हील भी)।"]
+      }
+    },
+    {
       "v": "1.90.91", "date": "2026-11-24",
       "items": {
         "en": ["🎮 A GPU bar now sits between CPU and memory under the logo (and in note mode), for NVIDIA graphics cards. Tests and video rendering now draw on the graphics card, so this shows when it — not the CPU — is the busy one. Hover for the card, its memory and temperature, and which programs are using it."],

@@ -24,7 +24,23 @@
   header { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; padding: 8px 14px;
            border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 50; }
   #usageCol { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
-  #hdrBtns { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }   /* 버튼은 절대 안 밀림 */
+  #hdrBtns { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex: 0 0 auto; }   /* 버튼은 절대 안 밀림 */
+  /* 🔢 오른쪽 묶음 = 윗줄 단추 + 아랫줄 세션 번호 (2026-11-24 CEO) */
+  #hdrRight { display: flex; flex-direction: column; align-items: stretch; gap: 5px; flex: 0 0 auto; }   /* 줄어들면 단추가 여러 줄로 접힌다 — 폭은 단추 줄이 정하고 번호 줄은 그 안에서 민다 */
+  #hdrRight > #hdrNums { width: 0; min-width: 100%; }
+  #hdrNums { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; max-width: 100%; min-height: 22px; padding-bottom: 2px;
+             scrollbar-width: thin; scrollbar-color: #4b5563 transparent; overscroll-behavior-x: contain; }
+  #hdrNums:empty { display: none; }
+  #hdrNums > :first-child { margin-left: auto; }   /* 적으면 오른쪽 끝에 붙고, 넘치면 첫 칩부터 밀어서 본다 */
+  #hdrNums .hn { flex: 0 0 auto; min-width: 26px; height: 20px; padding: 0 6px; border-radius: 6px; border: 1px solid #4b5563; background: #1f2937;
+                 color: #9ca3af; font: 700 11.5px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
+  #hdrNums .hn:hover { border-color: var(--sky); color: #fff; }
+  #hdrNums .hn.busy { background: #facc15; border-color: #facc15; color: #1f2937; animation: hnPulse 1.4s ease-in-out infinite; }
+  #hdrNums .hn.done { background: #16a34a; border-color: #22c55e; color: #fff; }
+  #hdrNums .hn.ask { background: #f97316; border-color: #fdba74; color: #fff; animation: hnPulse .9s ease-in-out infinite; }
+  #hdrNums .hn.cur { outline: 2px solid var(--pink); outline-offset: 1px; }
+  @keyframes hnPulse { 50% { filter: brightness(1.25); } }
+  html.light #hdrNums .hn:not(.busy):not(.done):not(.ask) { background: #f3f4f6; border-color: #d1d5db; color: #4b5563; }
   header h1 { font-size: 16px; margin: 0;
               background: linear-gradient(90deg, var(--violet), var(--pink));
               -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -1785,7 +1801,8 @@
     /* 폰: 아래 order 규칙들은 전부 '헤더의 직계 자식'을 전제로 함.
        PC용 묶음(#hdrBtns/#usageCol)은 폰에선 자리를 없애서 그 안의 버튼·막대가
        다시 헤더의 직계 flex 항목처럼 줄배치에 참여하게 한다. */
-    #hdrBtns, #usageCol { display: contents; }
+    #hdrBtns, #usageCol, #hdrRight { display: contents; }
+    #hdrNums { display: none !important; }   /* 폰은 위 탭줄(#minimap)이 같은 일을 한다 */
     #usageGpt { order: 10; flex: 1 1 100%; flex-wrap: wrap; row-gap: 2px; white-space: normal; min-width: 0; }   /* 폰: 줄을 넘기지 않으면 화면 밖으로 13px 삐져나와 가로 스크롤이 생겼다 */
     #usageGpt > span { white-space: nowrap; }
     #usageAcc { order: 9; flex: 1 1 100%; }
@@ -1954,6 +1971,7 @@
   <button id="pcChip" type="button" onclick="openSettings()"></button>
   <span class="sp"></span>
   <!-- ④ 버튼들 — 항상 오른쪽 끝에 가로로 -->
+  <span id="hdrRight">
   <span id="hdrBtns">
   <button id="btnFeedback" onclick="openFeedback()" data-i18n-title="feedback"><span class="fic">✉</span><span class="flbl" data-i18n="feedbackShort">Request</span></button>
   <button id="btnFlowSort" onclick="flowSortPanes()" data-i18n-title="flowSortT">⇅</button>
@@ -1980,6 +1998,9 @@
   <!-- 🔁 루틴 — 실험 기능(⚙ 설정에서 켬). 켜면 ⏱ 자동 실행 자리를 이 단추가 대신한다 -->
   <button id="btnRoutines" onclick="openRoutinesIntro()" data-i18n="routBtn" data-i18n-title="routT" style="display:none">🔁 루틴</button>
   <button id="btnAdd" class="primary" onclick="openAdd()"><span class="plusBig">＋</span><span data-i18n="addSession">Session</span></button>
+  </span>
+  <!-- 🔢 열린 세션 번호 — 진행 중(노랑)·완료(초록)·쉼(회색)·선택 기다림(주황). 넘치면 좌우로 민다. 누르면 그 세션으로 -->
+  <div id="hdrNums" aria-label="sessions"></div>
   </span>
 </header>
 <div id="minimap"></div>
@@ -2746,8 +2767,8 @@ const QRGATE = {
 Object.keys(QRGATE).forEach(l => { if (I18N[l]) Object.assign(I18N[l], QRGATE[l]); });
 // 머리줄 [⏱ 자동 실행] 단추 · 남은 메모리 — 전 언어 (영어 화면에 한국어가 남아 있었다)
 const HDR2 = {
-  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', upTooBig:'File too large', upMax:'max', askWait:'Waiting for you', askGoT:'Go to this session', mmMore:'More', mmLess:'Fold', mmMoreT:'Show all session titles', mmLessT:'Show one and a half rows', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', gpuTopL:'Programs using the graphics card', gpuTopU:'work · memory', gpuReading:'Reading… (takes a few seconds)', gpuMemL:'GPU memory', gpuNote:'Tests and video rendering now draw on the graphics card — this shows when it, not the CPU, is the busy one. Orange / red only when the 1-minute average stays at 70% / 90% or more.', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
-  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', upTooBig:'파일이 너무 커요', upMax:'한 번에 최대', askWait:'선택 기다림', askGoT:'이 세션으로 가기', mmMore:'펼치기', mmLess:'접기', mmMoreT:'세션 제목 모두 보기', mmLessT:'한 줄 반만 보기', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', gpuTopL:'그래픽카드를 쓰는 프로그램', gpuTopU:'일하는 양 · 메모리', gpuReading:'읽는 중… (몇 초 걸려요)', gpuMemL:'그래픽카드 메모리', gpuNote:'화면 시험·영상 렌더를 그래픽카드로 돌리니, CPU 가 아니라 그래픽카드가 바쁜 때를 보려고 둔 막대예요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
+  en: { ramLbl:"Memory", ramVirtT:"incl. virtual memory", ramPhysT:"Physical RAM", ramPtT:"PowerTerminal sessions", ramTopT:"Top programs on this PC", cmPickFile:'Pick a file in the tree on the right →', schedBtn:'⏱ Auto-run', schedT:'Send requests to sessions at a set time, on repeat, or when the usage limit resets', ramLeft:'free', upTooBig:'File too large', upMax:'max', askWait:'Waiting for you', hnBusy:'Working', hnDone:'Done', hnIdle:'Idle', askGoT:'Go to this session', mmMore:'More', mmLess:'Fold', mmMoreT:'Show all session titles', mmLessT:'Show one and a half rows', cpuNowL:'now (10-second average)', cpu1mL:'1-minute average', cpuCoresL:'{n} cores', cpuNote:'A short spike to 100% is normal. It turns orange / red only when the 1-minute average stays at 70% / 90% or more.', cpuPtL:'PowerTerminal sessions', cpuTopL:'Programs using the CPU now', gpuTopL:'Programs using the graphics card', gpuTopU:'work · memory', gpuReading:'Reading… (takes a few seconds)', gpuMemL:'GPU memory', gpuNote:'Tests and video rendering now draw on the graphics card — this shows when it, not the CPU, is the busy one. Orange / red only when the 1-minute average stays at 70% / 90% or more.', routBtn:'🔁 Routines', routT:'At the set time, runs a chain of steps — a fresh session per step, each picking up where the last left off', setRoutinesL:'🔁 Routines (experimental)', setNotifyL:'📨 Outside address by email / Telegram', setNotifyH:'Each time PowerTerminal starts and the outside (LTE) address changes, the new address is sent to your own email or Telegram. No AI needed — set it up once.', setNotifyBtn:'Set up', setFeatL:'📋 Everything PowerTerminal can do', setFeatH:'All features one line each, plus every update so far.', setFeatBtn:'View', setRoutinesHint:'Puts a 🔁 Routines button where ⏱ Auto-run is in the top bar. A routine runs several steps in order at a set time, opening a new session for each step and handing the previous step’s result to the next. Still being tested — things may change.' },
+  ko: { ramLbl:"메모리", ramVirtT:"가상 메모리 포함", ramPhysT:"실제 RAM", ramPtT:"PowerTerminal 세션", ramTopT:"이 PC에서 많이 쓰는 프로그램", cmPickFile:'오른쪽 파일 트리에서 파일을 고르세요 →', schedBtn:'⏱ 자동 실행', schedT:'세션별 시각·반복·한도 초기화 예약', ramLeft:'남음', upTooBig:'파일이 너무 커요', upMax:'한 번에 최대', askWait:'선택 기다림', hnBusy:'진행 중', hnDone:'완료', hnIdle:'쉬는 중', askGoT:'이 세션으로 가기', mmMore:'펼치기', mmLess:'접기', mmMoreT:'세션 제목 모두 보기', mmLessT:'한 줄 반만 보기', cpuNowL:'지금(10초 평균)', cpu1mL:'1분 평균', cpuCoresL:'코어 {n}개', cpuNote:'잠깐 100% 까지 오르는 건 정상이에요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', cpuPtL:'PowerTerminal 세션', cpuTopL:'지금 CPU 를 쓰는 프로그램', gpuTopL:'그래픽카드를 쓰는 프로그램', gpuTopU:'일하는 양 · 메모리', gpuReading:'읽는 중… (몇 초 걸려요)', gpuMemL:'그래픽카드 메모리', gpuNote:'화면 시험·영상 렌더를 그래픽카드로 돌리니, CPU 가 아니라 그래픽카드가 바쁜 때를 보려고 둔 막대예요. 1분 평균이 70% 넘게 계속되면 주황, 90% 넘으면 빨강이 돼요.', routBtn:'🔁 루틴', routT:'시각이 되면 단계마다 세션을 새로 만들어 끝까지 이어서 진행', setRoutinesL:'🔁 루틴 (실험 기능)', setNotifyL:'📨 접속 주소를 메일·텔레그램으로 받기', setNotifyH:'PT 를 켤 때마다 바뀌는 외부(LTE) 접속 주소를 내 메일이나 텔레그램으로 보내 줘요. AI 는 필요 없어요 — 한 번만 설정하면 돼요.', setNotifyBtn:'설정하기', setFeatL:'📋 PowerTerminal 기능 모두 보기', setFeatH:'할 수 있는 것을 한 줄씩, 그리고 지금까지의 업데이트 기록.', setFeatBtn:'보기', setRoutinesHint:'머리줄의 ⏱ 자동 실행 자리에 🔁 루틴 단추가 생깁니다. 루틴은 정한 시각에 여러 단계를 차례로 — 단계마다 새 세션을 열고 앞 단계 결과를 다음 단계에 넘겨 — 끝까지 진행합니다. 아직 시험 중이라 바뀔 수 있어요.' },
   ja: { ramLbl:"メモリ", ramVirtT:"仮想メモリ込み", ramPhysT:"物理RAM", ramPtT:"PowerTerminal のセッション", ramTopT:"このPCでメモリを多く使うプログラム", cmPickFile:'右のファイルツリーからファイルを選んでください →', schedBtn:'⏱ 自動実行', schedT:'時刻・繰り返し・使用上限リセット時にセッションへ自動送信', ramLeft:'空き' },
   zh: { ramLbl:"内存", ramVirtT:"含虚拟内存", ramPhysT:"物理内存", ramPtT:"PowerTerminal 会话", ramTopT:"本机占用内存最多的程序", cmPickFile:'请在右侧文件树中选择文件 →', schedBtn:'⏱ 自动执行', schedT:'按设定时间、重复或用量重置时自动发送请求', ramLeft:'可用' },
   es: { ramLbl:"Memoria", ramVirtT:"con memoria virtual", ramPhysT:"RAM física", ramPtT:"Sesiones de PowerTerminal", ramTopT:"Programas que más usan en este PC", cmPickFile:'Elige un archivo en el árbol de la derecha →', schedBtn:'⏱ Ejecución auto', schedT:'Enviar solicitudes a una hora, en repetición o al reiniciarse el límite de uso', ramLeft:'libre' },
@@ -8545,6 +8566,7 @@ function setState(el, done, busy, announce) {
   el.classList.toggle('busy', nowBusy);   // 완료가 우선
   const mm = document.querySelector(`#minimap [data-mm="${el.dataset.id}"]`);
   if (mm) { mm.classList.toggle('done', !!done); mm.classList.toggle('busy', nowBusy); }
+  if (wasDone !== !!done || wasBusy !== nowBusy) hdrNumsPaint();   // 🔢 머리줄 번호 색
   // 🟠 작업 중 배지 경과초 — busy 동안 1초마다 갱신 (스피너 자체는 CSS로 계속 껌뻑임)
   if (nowBusy) {
     if (!el._workStart) el._workStart = Date.now();
@@ -8616,7 +8638,34 @@ function setState(el, done, busy, announce) {
 function renumber() {
   [...grid.children].forEach((el, i) => el.querySelector('.num').textContent = i + 1);
   renderMinimap();
+  hdrNumsPaint();
 }
+/* 🔢 PC 머리줄 세션 번호 — 칩 하나 = 열린 세션 하나(번호는 세션 머리의 번호와 같다). 색: 진행 중 노랑 · 완료 초록 · 쉼 회색 · 선택 기다림 주황 */
+function hdrNumsPaint() {
+  clearTimeout(hdrNumsPaint._t);
+  hdrNumsPaint._t = setTimeout(() => {
+    const box = document.getElementById('hdrNums'); if (!box) return;
+    const els = [...grid.children].filter(el => el.classList && el.classList.contains('pane'));
+    const key = els.map(el => el.dataset.id + (el.classList.contains('busy') ? 'b' : el.classList.contains('done') ? 'd' : '') + (askMap && askMap.has(el.dataset.id) ? 'a' : '')).join('|');
+    if (key === box._key) return; box._key = key;
+    const keepX = box.scrollLeft;
+    box.innerHTML = '';
+    els.forEach((el, i) => {
+      const id = el.dataset.id, p = panes.get(id), b = document.createElement('button');
+      b.type = 'button'; b.className = 'hn' + (askMap && askMap.has(id) ? ' ask' : el.classList.contains('busy') ? ' busy' : el.classList.contains('done') ? ' done' : '');
+      b.textContent = i + 1; b.dataset.id = id;
+      const st = askMap && askMap.has(id) ? (T.askWait || 'Waiting for you') : el.classList.contains('busy') ? (T.hnBusy || 'Working') : el.classList.contains('done') ? (T.hnDone || 'Done') : (T.hnIdle || 'Idle');
+      b.title = (i + 1) + '. ' + ((p && p.sess && p.sess.title) || '') + ' — ' + st;
+      b.onclick = ev => { ev.stopPropagation(); askGo(id); };
+      box.appendChild(b);
+    });
+    box.scrollLeft = keepX;
+  }, 60);
+}
+(() => {   // 휠을 굴려도 좌우로 밀리게 (번호 줄은 가로로만 넘친다)
+  const box = document.getElementById('hdrNums'); if (!box) return;
+  box.addEventListener('wheel', ev => { if (box.scrollWidth <= box.clientWidth || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return; ev.preventDefault(); box.scrollLeft += ev.deltaY; }, { passive: false });
+})();
 
 /* ---------- ◎ 세션 플로우 — "이 세션 다음엔 저 세션" 을 화살표로 이어 두는 흐름도 ----------
    화살표는 평소엔 하나도 안 보인다. 어떤 세션에 마우스를 올리거나 그 세션에 요청을 보낼 때만,
@@ -10390,7 +10439,7 @@ function askMark(el, sess, q) {
   if (q === null) { if (!had) return; askMap.delete(id); }
   else { if (had && askMap.get(id) === q) return; askMap.set(id, q); }
   el.classList.toggle('asking', q !== null);
-  askFloatPaint();
+  askFloatPaint(); hdrNumsPaint();
 }
 function askGo(id) {
   const p = panes.get(id); if (!p) return;
