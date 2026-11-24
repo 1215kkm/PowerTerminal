@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.90", "date": "2026-11-24",
+      "items": {
+        "en": ["⚙ Note mode now shows CPU and memory use at the top too (PC: top of the right panel, phone: start of the top tool row) — same rules as the main screen: orange/red only when it stays high. Hover or press for details."],
+        "ko": ["⚙ 노트 모드 위쪽에도 CPU·메모리 사용량이 보여요 (PC: 오른쪽 칸 맨 위, 폰: 위 도구 줄 앞). 본 화면과 같은 기준이라 계속 높을 때만 주황·빨강이에요. 올려 두거나 누르면 자세히 나와요."],
+        "ja": ["⚙ ノートモードの上部にもCPU・メモリ使用量が表示されます(PC: 右パネル上部、スマホ: 上のツール列の先頭)。メイン画面と同じ基準で、高い状態が続くときだけオレンジ・赤になります。"],
+        "zh": ["⚙ 笔记模式顶部也显示 CPU 和内存占用(PC：右侧面板顶部，手机：顶部工具栏开头)，规则与主界面相同：持续偏高时才变橙/红。悬停或点按可看详情。"],
+        "es": ["⚙ El modo nota también muestra el uso de CPU y memoria arriba (PC: parte superior del panel derecho; móvil: inicio de la fila de herramientas), con las mismas reglas que la pantalla principal."],
+        "de": ["⚙ Der Notizmodus zeigt jetzt oben ebenfalls CPU- und Speicherauslastung (PC: oben im rechten Bereich, Handy: Anfang der oberen Werkzeugleiste) – gleiche Regeln wie im Hauptbildschirm."],
+        "fr": ["⚙ Le mode note affiche aussi l’usage CPU et mémoire en haut (PC : haut du panneau droit, téléphone : début de la barre d’outils), avec les mêmes règles que l’écran principal."],
+        "pt": ["⚙ O modo nota também mostra o uso de CPU e memória no topo (PC: topo do painel direito; celular: início da barra de ferramentas), com as mesmas regras da tela principal."],
+        "ru": ["⚙ В режиме заметок вверху теперь тоже видны загрузка CPU и памяти (ПК: верх правой панели, телефон: начало верхней панели инструментов) — по тем же правилам, что и на главном экране."],
+        "hi": ["⚙ नोट मोड में भी ऊपर CPU और मेमोरी उपयोग दिखता है (PC: दाएँ पैनल के ऊपर, फ़ोन: ऊपर टूल पंक्ति की शुरुआत) — मुख्य स्क्रीन जैसे ही नियम।"]
+      }
+    },
+    {
       "v": "1.90.89", "date": "2026-11-24",
       "items": {
         "en": ["🎬 Note mode: tapping a video or audio path (mp4, mov, mp3…) now plays it right there in a player over the note, instead of opening a new tab. If it cannot play, it says why (no access key, file missing, or a format the browser cannot play), with Download and New tab buttons."],
