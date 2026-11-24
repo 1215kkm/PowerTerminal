@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.91", "date": "2026-11-24",
+      "items": {
+        "en": ["🎮 A GPU bar now sits between CPU and memory under the logo (and in note mode), for NVIDIA graphics cards. Tests and video rendering now draw on the graphics card, so this shows when it — not the CPU — is the busy one. Hover for the card, its memory and temperature, and which programs are using it."],
+        "ko": ["🎮 로고 밑 CPU·메모리 사이에 GPU 막대가 생겼어요 (노트 모드에도, NVIDIA 그래픽카드일 때). 화면 시험·영상 렌더를 그래픽카드로 돌리게 되어, CPU 가 아니라 그래픽카드가 바쁜 때를 볼 수 있어요. 마우스를 올리면 그래픽카드 메모리·온도와 그래픽카드를 쓰는 프로그램이 나와요."],
+        "ja": ["🎮 ロゴの下のCPUとメモリの間にGPUバーを追加しました(ノートモードにも、NVIDIAのグラフィックカードの場合)。マウスを乗せるとメモリ・温度と、GPUを使っているプログラムが表示されます。"],
+        "zh": ["🎮 Logo 下方 CPU 与内存之间新增 GPU 条(笔记模式也有，仅 NVIDIA 显卡)。悬停可看显存、温度以及正在使用显卡的程序。"],
+        "es": ["🎮 Nueva barra de GPU entre CPU y memoria bajo el logo (también en modo nota), para tarjetas NVIDIA. Al pasar el ratón muestra memoria, temperatura y qué programas la usan."],
+        "de": ["🎮 Neue GPU-Leiste zwischen CPU und Speicher unter dem Logo (auch im Notizmodus), für NVIDIA-Grafikkarten. Beim Überfahren: Grafikspeicher, Temperatur und welche Programme sie nutzen."],
+        "fr": ["🎮 Nouvelle barre GPU entre CPU et mémoire sous le logo (aussi en mode note), pour les cartes NVIDIA. Au survol : mémoire, température et programmes qui l’utilisent."],
+        "pt": ["🎮 Nova barra de GPU entre CPU e memória sob o logo (também no modo nota), para placas NVIDIA. Ao passar o mouse: memória, temperatura e programas que a usam."],
+        "ru": ["🎮 Под логотипом между CPU и памятью появилась шкала GPU (и в режиме заметок), для видеокарт NVIDIA. При наведении — видеопамять, температура и программы, которые её используют."],
+        "hi": ["🎮 लोगो के नीचे CPU और मेमोरी के बीच GPU बार जोड़ा (नोट मोड में भी, NVIDIA ग्राफ़िक्स कार्ड पर)। माउस रखने पर मेमोरी, तापमान और उसे इस्तेमाल करने वाले प्रोग्राम दिखते हैं।"]
+      }
+    },
+    {
       "v": "1.90.90", "date": "2026-11-24",
       "items": {
         "en": ["⚙ Note mode now shows CPU and memory use at the top too (PC: top of the right panel, phone: start of the top tool row) — same rules as the main screen: orange/red only when it stays high. Hover or press for details."],

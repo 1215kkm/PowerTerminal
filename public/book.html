@@ -185,7 +185,8 @@
   /* ⚙ CPU·메모리 — 본 화면 로고 밑 막대와 같은 기준(CPU 길이 = 10초 평균, 색 = 1분 평균 · 메모리 = 가상 메모리 포함) */
   .sysm { display:flex; flex-direction:column; gap:5px; padding:7px 8px; margin:0 0 4px; border-radius:9px; background:rgba(255,255,255,.05); border:1px solid #33363e; font:11.5px var(--ui); color:#cfd2db; }
   .sysm[hidden] { display:none; }
-  .sysm .sm-r { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; }
+  .sysm .sm-r { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; } .sysm .sm-r[hidden] { display:none; }
+  #smGpu .sm-t i { background:#a78bfa; }
   .sysm .sm-l { font-weight:700; color:#9aa0ad; min-width:30px; }
   .sysm .sm-t { height:7px; border-radius:4px; background:rgba(255,255,255,.1); overflow:hidden; }
   .sysm .sm-t i { display:block; height:100%; width:0; border-radius:4px; background:#38bdf8; transition:width .5s; }
@@ -560,7 +561,7 @@
   <!-- 오른쪽 도구 줄 -->
   <aside class="side" id="side">
     <div class="side-h"><span style="font-size:20px">📖</span><b id="sideTtl">Book</b></div>
-    <div class="sysm" id="sysm" hidden><div class="sm-r" id="smCpu"><span class="sm-l">CPU</span><span class="sm-t"><i></i></span><b></b></div><div class="sm-r" id="smRam"><span class="sm-l"></span><span class="sm-t"><i></i></span><b></b></div></div>
+    <div class="sysm" id="sysm" hidden><div class="sm-r" id="smCpu"><span class="sm-l">CPU</span><span class="sm-t"><i></i></span><b></b></div><div class="sm-r" id="smGpu" hidden><span class="sm-l">GPU</span><span class="sm-t"><i></i></span><b></b></div><div class="sm-r" id="smRam"><span class="sm-l"></span><span class="sm-t"><i></i></span><b></b></div></div>
     <a class="sbtn primary" id="back" href="/"></a>
     <button type="button" class="sbtn" id="darkTg"></button>
     <button class="sbtn" id="toEnd"></button>
@@ -1688,6 +1689,9 @@ async function sysPaint() {
   const now = Math.round(r.cpuNow), m1 = Math.round(r.cpu1m || 0);
   set('smCpu', now, m1 >= 90 ? 'hot' : m1 >= 70 ? 'warm' : '', now + '%',
     (KO ? 'CPU 지금 ' + now + '% · 1분 평균 ' + m1 + '% · 코어 ' : 'CPU now ' + now + '% · 1-minute average ' + m1 + '% · cores ') + (r.cores || '?') + (KO ? '\n잠깐 100% 는 괜찮아요 — 1분 평균이 계속 높을 때만 주황·빨강' : '\nShort spikes to 100% are fine — orange/red only when the 1-minute average stays high'));
+  { const g = r.gpu, row = $('smGpu'); row.hidden = !g;   // 🎮 그래픽카드 (NVIDIA 일 때만)
+    if (g) set('smGpu', g.now, g.m1 >= 90 ? 'hot' : g.m1 >= 70 ? 'warm' : '', g.now + '%<span class="sm-free"> · ' + gb(g.memUsed) + '/' + gb(g.memTotal) + '</span>',
+      'GPU ' + (KO ? '지금 ' : 'now ') + g.now + '% · ' + (KO ? '1분 평균 ' : '1-minute average ') + g.m1 + '%\n' + g.name + (g.temp != null ? ' · ' + g.temp + '°C' : '') + '\n' + (KO ? '그래픽카드 메모리 ' : 'GPU memory ') + gb(g.memUsed) + ' / ' + gb(g.memTotal)); }
   if (r.totalMem) {
     const useV = r.virtTotal > 0, tot = useV ? r.virtTotal : r.totalMem, free = useV ? r.virtFree : r.freeMem;
     const pct = Math.round((tot - free) / tot * 100);

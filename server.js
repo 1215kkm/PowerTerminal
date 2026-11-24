@@ -2146,6 +2146,56 @@ function cpuSample() {
 }
 cpuSample(); setInterval(cpuSample, 2000).unref();
 const cpuAvg = n => { const a = cpuHist.slice(-n); return a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0; };
+/* 🎮 그래픽카드(NVIDIA) — 5초마다 nvidia-smi 로 사용률·메모리·온도. 시험·렌더를 그래픽카드로 옮긴 뒤 「CPU 는 한가한데 왜 느리지」를 보려고 (2026-11-24 CEO).
+   nvidia-smi 가 없거나(다른 그래픽카드 · 맥) 3번 연속 실패하면 더는 묻지 않는다 — 그러면 막대도 안 뜬다 */
+const gpuHist = []; let gpuInfo = null, gpuFail = 0, gpuBusy = false;
+function gpuSample() {
+  if (gpuFail >= 3 || gpuBusy) return;
+  gpuBusy = true;
+  execFile('nvidia-smi', ['--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu', '--format=csv,noheader,nounits'], { timeout: 4000, windowsHide: true }, (err, out) => {
+    gpuBusy = false;
+    const line = !err && String(out || '').split(/\r?\n/).find(l => l.trim());
+    const f = line ? line.split(',').map(x => x.trim()) : [];
+    if (f.length < 5 || !isFinite(+f[1]) || !isFinite(+f[3])) { gpuFail++; return; }
+    gpuFail = 0;
+    gpuHist.push(Math.max(0, Math.min(100, +f[1]))); if (gpuHist.length > 12) gpuHist.shift();
+    gpuInfo = { name: f[0].replace(/^NVIDIA\s+/i, ''), memUsed: +f[2] * 1048576, memTotal: +f[3] * 1048576, temp: isFinite(+f[4]) ? +f[4] : null };
+  });
+}
+gpuSample(); setInterval(gpuSample, 5000).unref();
+const gpuAvg = n => { const a = gpuHist.slice(-n); return a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0; };
+const gpuNow = () => gpuInfo ? Object.assign({ now: gpuAvg(2), m1: gpuAvg(12) }, gpuInfo) : null;
+/* 그래픽카드를 쓰는 프로그램 — 윈도우 성능 정보(GPU 엔진·프로세스 메모리)라 1~3초 걸린다. 말풍선을 열 때만 묻고 15초 담아 둔다.
+   명령줄은 보내지 않고 「이름 · 스크립트 파일」만 (예: python · voice\server.py) */
+let gpuTop = { at: 0, data: null, busy: null };
+app.get('/api/gpu-top', (req, res) => {
+  if (process.platform !== 'win32' || !gpuInfo) return res.json({ list: [] });
+  if (gpuTop.data && Date.now() - gpuTop.at < 15000) return res.json(gpuTop.data);
+  if (!gpuTop.busy) gpuTop.busy = new Promise(done => {
+    const ps = "$u=@{};$m=@{};"
+      + "Get-CimInstance Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine|Where-Object{$_.UtilizationPercentage -gt 0}|ForEach-Object{if($_.Name -match 'pid_(\\d+)'){$k=[int]$matches[1];$u[$k]=[int]$u[$k]+[int]$_.UtilizationPercentage}};"
+      + "Get-CimInstance Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory|ForEach-Object{if($_.Name -match 'pid_(\\d+)'){$k=[int]$matches[1];$m[$k]=[double]$m[$k]+[double]$_.DedicatedUsage}};"
+      + "$ids=@(@($u.Keys)+@($m.Keys|Where-Object{$m[$_] -gt 104857600})|Select-Object -Unique);"
+      + "$o=foreach($i in $ids){$p=Get-CimInstance Win32_Process -Filter \"ProcessId=$i\";if($p){[pscustomobject]@{name=[string]$p.Name;cmd=[string]$p.CommandLine;util=[int]$u[$i];mem=[double]$m[$i]}}};"
+      + "ConvertTo-Json -Compress @($o)";
+    execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { timeout: 20000, windowsHide: true, maxBuffer: 1 << 22 }, (err, out) => {
+      let rows = []; try { const j = JSON.parse(String(out || '').trim() || '[]'); rows = Array.isArray(j) ? j : [j]; } catch (e) {}
+      const by = new Map();
+      for (const r of rows) {
+        if (!r || !r.name) continue;
+        const nm = String(r.name).replace(/\.exe$/i, '');
+        const sc = (String(r.cmd || '').match(/([^\\/"\s]+[\\/][^\\/"\s]+\.(?:py|mjs|cjs|js))(?=["\s]|$)/i) || [])[1];
+        const label = /^chrome-headless-shell$/i.test(nm) ? nm : nm + (sc && /^(python|pythonw|node)$/i.test(nm) ? ' · ' + sc.replace(/\//g, '\\') : '');
+        const g = by.get(label) || { name: label, util: 0, mem: 0, n: 0 }; g.util += r.util || 0; g.mem += r.mem || 0; g.n++; by.set(label, g);
+      }
+      const list = [...by.values()].map(g => ({ name: g.name, util: Math.min(100, g.util), mem: Math.round(g.mem), n: g.n }))
+        .filter(g => g.util > 0 || g.mem > 104857600).sort((a, b) => b.util - a.util || b.mem - a.mem).slice(0, 8);
+      gpuTop = { at: Date.now(), data: { list }, busy: null };
+      done();
+    });
+  });
+  gpuTop.busy.then(() => res.json(gpuTop.data || { list: [] }));
+});
 let cpuProcPrev = null;   // { at, t: Map(pid → CPU 시간 100ns) } — 지난번 프로세스 목록
 async function sessionMem() {
   if (memCache.data && Date.now() - memCache.at < 8000) return memCache.data;
@@ -2187,7 +2237,7 @@ async function sessionMem() {
   return memCache.busy;
 }
 app.get('/api/sessions-mem', async (req, res) => {
-  const m = Object.assign({}, await sessionMem(), { cpuNow: cpuAvg(5), cpu1m: cpuAvg(30), cores: os.cpus().length });   // CPU 평균은 캐시 없이 지금 값
+  const m = Object.assign({}, await sessionMem(), { cpuNow: cpuAvg(5), cpu1m: cpuAvg(30), cores: os.cpus().length, gpu: gpuNow() });   // CPU·GPU 평균은 캐시 없이 지금 값
   if (req.ptGuest) { const ss = {}; for (const [k, v] of Object.entries(m.sessions || {})) if (peersApi.canSess(req.ptGuest, k)) ss[k] = v; return res.json(Object.assign({}, m, { sessions: ss })); }
   if (peersApi && !req.headers['x-pt-token']) { try { const more = await peersApi.peerMem(); if (Object.keys(more).length) return res.json(Object.assign({}, m, { sessions: Object.assign({}, m.sessions, more) })); } catch (e) {} }
   res.json(m);
