@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.94", "date": "2026-11-24",
+      "items": {
+        "en": ["🔢 PC header chips: hovering now shows the number, the full session title and its state at once (no slow tooltip). Clicking a chip (or a “waiting for you” button) now stops just below the header, so the session head is no longer hidden behind it."],
+        "ko": ["🔢 PC 머리줄 칩: 마우스를 올리면 번호·세션 제목·상태가 바로 떠요 (느린 말풍선 없이). 칩(또는 「선택 기다림」 단추)을 누르면 머리줄 바로 아래에서 멈춰서, 세션 머리가 더는 가려지지 않아요."],
+        "ja": ["🔢 PCヘッダーのチップ: マウスを乗せると番号・タイトル・状態がすぐ表示されます。押すとヘッダーのすぐ下で止まり、セッションの頭が隠れなくなりました。"],
+        "zh": ["🔢 PC 顶栏标签：悬停即刻显示编号、完整标题和状态。点击后停在顶栏正下方，会话标题不再被遮住。"],
+        "es": ["🔢 Fichas de la cabecera (PC): al pasar el ratón aparecen al instante número, título y estado. Al hacer clic se detiene justo bajo la cabecera, sin taparla."],
+        "de": ["🔢 Kopfzeilen-Chips (PC): Beim Überfahren erscheinen Nummer, Titel und Status sofort. Ein Klick hält direkt unter der Kopfzeile – der Sitzungskopf wird nicht mehr verdeckt."],
+        "fr": ["🔢 Puces de l’en-tête (PC) : au survol, numéro, titre et état s’affichent tout de suite. Un clic s’arrête juste sous l’en-tête, la tête de session n’est plus cachée."],
+        "pt": ["🔢 Fichas do cabeçalho (PC): ao passar o mouse aparecem na hora número, título e estado. O clique para logo abaixo do cabeçalho, sem esconder a sessão."],
+        "ru": ["🔢 Метки в шапке (ПК): при наведении сразу видны номер, название и состояние. По нажатию прокрутка останавливается сразу под шапкой — заголовок сессии больше не скрыт."],
+        "hi": ["🔢 PC हेडर चिप्स: माउस रखते ही नंबर, पूरा शीर्षक और स्थिति दिखती है। क्लिक करने पर हेडर के ठीक नीचे रुकता है, सेशन का सिरा अब नहीं छिपता।"]
+      }
+    },
+    {
       "v": "1.90.93", "date": "2026-11-24",
       "items": {
         "en": ["🔢 PC header session chips now show the first two letters of each session title instead of a number; hover a chip and its number pops up just above it. The full title is in the tooltip."],

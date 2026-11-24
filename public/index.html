@@ -36,9 +36,10 @@
                  color: #9ca3af; font: 700 11.5px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
   #hdrNums .hn:hover { border-color: var(--sky); color: #fff; }
   #hdrNums .hn { letter-spacing: -.2px; }
-  #hnBadge { position: fixed; z-index: 70; transform: translateX(-50%); display: none; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 8px;
-             background: var(--pink); color: #fff; font: 800 10.5px/16px inherit; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.45); pointer-events: none; }
-  #hnBadge.on { display: block; }
+  #hnBadge { position: fixed; z-index: 70; transform: translateX(-50%); display: none; align-items: center; gap: 6px; height: 20px; padding: 0 8px 0 3px; border-radius: 10px;
+             background: #111827; border: 1px solid var(--pink); color: #f3f4f6; font: 700 11.5px/18px inherit; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,.5); pointer-events: none; }
+  #hnBadge b { min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px; background: var(--pink); color: #fff; font: 800 10px/14px inherit; text-align: center; }
+  #hnBadge.on { display: flex; }
   #hdrNums .hn.busy { background: #facc15; border-color: #facc15; color: #1f2937; animation: hnPulse 1.4s ease-in-out infinite; }
   #hdrNums .hn.done { background: #16a34a; border-color: #22c55e; color: #fff; }
   #hdrNums .hn.ask { background: #f97316; border-color: #fdba74; color: #fff; animation: hnPulse .9s ease-in-out infinite; }
@@ -8661,7 +8662,8 @@ function hdrNumsPaint() {
       const two = (ttl.match(/[\p{L}\p{N}][\s\S]*/u) || [''])[0].replace(/\s+/g, '');   // 앞의 이모지·기호는 건너뛰고 글자부터
       b.textContent = Array.from(two).slice(0, 2).join('') || String(i + 1); b.dataset.id = id; b.dataset.n = i + 1;
       const st = askMap && askMap.has(id) ? (T.askWait || 'Waiting for you') : el.classList.contains('busy') ? (T.hnBusy || 'Working') : el.classList.contains('done') ? (T.hnDone || 'Done') : (T.hnIdle || 'Idle');
-      b.title = (i + 1) + '. ' + ((p && p.sess && p.sess.title) || '') + ' — ' + st;
+      b.dataset.tip = ((p && p.sess && p.sess.title) || '') + ' · ' + st;   // 마우스를 올리면 바로 뜨는 이름표 (브라우저 말풍선은 늦어서 안 쓴다)
+      b.setAttribute('aria-label', (i + 1) + '. ' + b.dataset.tip);
       b.onclick = ev => { ev.stopPropagation(); askGo(id); };
       box.appendChild(b);
     });
@@ -8674,9 +8676,11 @@ function hdrNumsPaint() {
   const badge = document.createElement('span'); badge.id = 'hnBadge'; document.body.appendChild(badge);
   box.addEventListener('mouseover', ev => {
     const c = ev.target.closest && ev.target.closest('.hn'); if (!c) return;
-    badge.textContent = c.dataset.n; badge.classList.add('on');
-    const r = c.getBoundingClientRect();
-    badge.style.left = (r.left + r.width / 2) + 'px'; badge.style.top = (r.top - 13) + 'px';   // 칩 윗변에 3px 만 겹치게
+    badge.innerHTML = '<b></b><span></span>'; badge.firstChild.textContent = c.dataset.n; badge.lastChild.textContent = c.dataset.tip || '';
+    badge.classList.add('on');
+    const r = c.getBoundingClientRect(), w = badge.offsetWidth;
+    badge.style.left = Math.max(4 + w / 2, Math.min(innerWidth - 4 - w / 2, r.left + r.width / 2)) + 'px';   // 오른쪽 끝 칩이어도 화면 안에
+    badge.style.top = (r.top - badge.offsetHeight + 3) + 'px';   // 칩 윗변에 3px 만 겹치게
   });
   box.addEventListener('mouseleave', () => badge.classList.remove('on'));
   box.addEventListener('scroll', () => badge.classList.remove('on'), { passive: true });
@@ -10466,7 +10470,9 @@ function askGo(id) {
     const mm = document.getElementById('minimap');
     const mmOn = mm && getComputedStyle(mm).display !== 'none';
     if (mmOn) mmSetCurrent(id);
-    const y = p.el.getBoundingClientRect().top + window.scrollY - (mmOn ? mm.offsetHeight + 6 : 8);
+    /* 화면 위에 붙어 있는 것(PC 머리줄 · 폰 탭줄)만큼 덜 내려가야 세션 머리가 안 가려진다 (2026-11-24 CEO: 「헤더에 가려진다」) */
+    const stuck = el => { if (!el || getComputedStyle(el).display === 'none') return 0; const ps = getComputedStyle(el).position; return ps === 'sticky' || ps === 'fixed' ? el.offsetHeight : 0; };
+    const y = p.el.getBoundingClientRect().top + window.scrollY - stuck(document.querySelector('header')) - (mmOn ? (stuck(mm) || mm.offsetHeight) : 0) - 6;
     window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
     p.el.classList.remove('askFlash'); void p.el.offsetWidth; p.el.classList.add('askFlash');
     setTimeout(() => p.el.classList.remove('askFlash'), 1900);
