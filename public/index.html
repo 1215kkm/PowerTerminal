@@ -35,6 +35,10 @@
   #hdrNums .hn { flex: 0 0 auto; min-width: 26px; height: 20px; padding: 0 6px; border-radius: 6px; border: 1px solid #4b5563; background: #1f2937;
                  color: #9ca3af; font: 700 11.5px/18px inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
   #hdrNums .hn:hover { border-color: var(--sky); color: #fff; }
+  #hdrNums .hn { letter-spacing: -.2px; }
+  #hnBadge { position: fixed; z-index: 70; transform: translateX(-50%); display: none; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 8px;
+             background: var(--pink); color: #fff; font: 800 10.5px/16px inherit; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.45); pointer-events: none; }
+  #hnBadge.on { display: block; }
   #hdrNums .hn.busy { background: #facc15; border-color: #facc15; color: #1f2937; animation: hnPulse 1.4s ease-in-out infinite; }
   #hdrNums .hn.done { background: #16a34a; border-color: #22c55e; color: #fff; }
   #hdrNums .hn.ask { background: #f97316; border-color: #fdba74; color: #fff; animation: hnPulse .9s ease-in-out infinite; }
@@ -8653,7 +8657,9 @@ function hdrNumsPaint() {
     els.forEach((el, i) => {
       const id = el.dataset.id, p = panes.get(id), b = document.createElement('button');
       b.type = 'button'; b.className = 'hn' + (askMap && askMap.has(id) ? ' ask' : el.classList.contains('busy') ? ' busy' : el.classList.contains('done') ? ' done' : '');
-      b.textContent = i + 1; b.dataset.id = id;
+      const ttl = ((p && p.sess && p.sess.title) || '').trim();
+      const two = (ttl.match(/[\p{L}\p{N}][\s\S]*/u) || [''])[0].replace(/\s+/g, '');   // 앞의 이모지·기호는 건너뛰고 글자부터
+      b.textContent = Array.from(two).slice(0, 2).join('') || String(i + 1); b.dataset.id = id; b.dataset.n = i + 1;
       const st = askMap && askMap.has(id) ? (T.askWait || 'Waiting for you') : el.classList.contains('busy') ? (T.hnBusy || 'Working') : el.classList.contains('done') ? (T.hnDone || 'Done') : (T.hnIdle || 'Idle');
       b.title = (i + 1) + '. ' + ((p && p.sess && p.sess.title) || '') + ' — ' + st;
       b.onclick = ev => { ev.stopPropagation(); askGo(id); };
@@ -8664,6 +8670,16 @@ function hdrNumsPaint() {
 }
 (() => {   // 휠을 굴려도 좌우로 밀리게 (번호 줄은 가로로만 넘친다)
   const box = document.getElementById('hdrNums'); if (!box) return;
+  /* 마우스를 올린 칩 위에 번호 — 번호 줄은 좌우로 미는 칸이라(넘친 부분이 잘린다) 칩 안에 두면 위로 못 나온다. 화면에 따로 띄운다 */
+  const badge = document.createElement('span'); badge.id = 'hnBadge'; document.body.appendChild(badge);
+  box.addEventListener('mouseover', ev => {
+    const c = ev.target.closest && ev.target.closest('.hn'); if (!c) return;
+    badge.textContent = c.dataset.n; badge.classList.add('on');
+    const r = c.getBoundingClientRect();
+    badge.style.left = (r.left + r.width / 2) + 'px'; badge.style.top = (r.top - 13) + 'px';   // 칩 윗변에 3px 만 겹치게
+  });
+  box.addEventListener('mouseleave', () => badge.classList.remove('on'));
+  box.addEventListener('scroll', () => badge.classList.remove('on'), { passive: true });
   box.addEventListener('wheel', ev => { if (box.scrollWidth <= box.clientWidth || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return; ev.preventDefault(); box.scrollLeft += ev.deltaY; }, { passive: false });
 })();
 

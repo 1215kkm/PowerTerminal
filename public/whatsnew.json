@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.93", "date": "2026-11-24",
+      "items": {
+        "en": ["🔢 PC header session chips now show the first two letters of each session title instead of a number; hover a chip and its number pops up just above it. The full title is in the tooltip."],
+        "ko": ["🔢 PC 머리줄의 세션 칩에 번호 대신 세션 제목 앞 두 글자가 보여요. 마우스를 올리면 칩 바로 위에 번호가 살짝 겹쳐 떠요. 전체 제목은 말풍선에 나와요."],
+        "ja": ["🔢 PCのヘッダーのセッションチップは番号の代わりにタイトルの先頭2文字を表示。マウスを乗せるとチップのすぐ上に番号が出ます。"],
+        "zh": ["🔢 PC 顶栏的会话标签改为显示标题前两个字，鼠标悬停时编号会浮现在标签上方。完整标题见提示。"],
+        "es": ["🔢 Las fichas de sesión de la cabecera (PC) muestran ahora las dos primeras letras del título; al pasar el ratón aparece el número justo encima."],
+        "de": ["🔢 Die Sitzungs-Chips in der Kopfzeile (PC) zeigen jetzt die ersten zwei Buchstaben des Titels; beim Überfahren erscheint die Nummer direkt darüber."],
+        "fr": ["🔢 Les puces de session de l’en-tête (PC) affichent maintenant les deux premières lettres du titre ; au survol, le numéro apparaît juste au-dessus."],
+        "pt": ["🔢 As fichas de sessão do cabeçalho (PC) agora mostram as duas primeiras letras do título; ao passar o mouse, o número aparece logo acima."],
+        "ru": ["🔢 Метки сессий в шапке (ПК) теперь показывают первые две буквы названия; при наведении номер появляется прямо над меткой."],
+        "hi": ["🔢 PC हेडर की सेशन चिप्स अब नंबर की जगह शीर्षक के पहले दो अक्षर दिखाती हैं; माउस रखने पर नंबर ठीक ऊपर दिखता है।"]
+      }
+    },
+    {
       "v": "1.90.92", "date": "2026-11-24",
       "items": {
         "en": ["🔢 PC: the top-right buttons moved up, and right below them every open session now has a number chip — yellow = working, green = done, orange = waiting for your choice, grey = idle. Click one to jump to that session; if there are many, scroll the row sideways (mouse wheel works)."],
