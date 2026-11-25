@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.95", "date": "2026-11-25",
+      "items": {
+        "en": ["👤 PC header session chips now carry a small round badge with the AI account number the session uses — same colours as the 👤 account button on the session (account 1 grey, accounts 2+ brown). The hover label says it too."],
+        "ko": ["👤 PC 머리줄 세션 칩 오른쪽 위에 그 세션이 쓰는 AI 계정 번호가 작은 동그라미로 붙어요 — 세션 머리의 👤 계정 단추와 같은 색(1번 회색 · 2번부터 갈색). 마우스를 올리면 이름표에도 나와요."],
+        "ja": ["👤 PCヘッダーのセッションチップの右上に、そのセッションが使うAIアカウント番号を小さな丸で表示(セッションの👤ボタンと同じ色: 1番は灰、2番以降は茶)。"],
+        "zh": ["👤 PC 顶栏会话标签右上角新增小圆标，显示该会话使用的 AI 账号编号，颜色与会话上的 👤 账号按钮一致(1 号灰色，2 号起棕色)。"],
+        "es": ["👤 Las fichas de sesión de la cabecera (PC) llevan una pequeña insignia con el número de cuenta de IA que usa la sesión, con los colores del botón 👤 (cuenta 1 gris, 2+ marrón)."],
+        "de": ["👤 Die Sitzungs-Chips in der Kopfzeile (PC) tragen ein kleines rundes Abzeichen mit der KI-Kontonummer der Sitzung – gleiche Farben wie der 👤-Knopf (Konto 1 grau, ab 2 braun)."],
+        "fr": ["👤 Les puces de session de l’en-tête (PC) portent une petite pastille avec le numéro de compte IA utilisé, aux couleurs du bouton 👤 (compte 1 gris, 2+ marron)."],
+        "pt": ["👤 As fichas de sessão do cabeçalho (PC) têm um pequeno selo com o número da conta de IA usada, nas cores do botão 👤 (conta 1 cinza, 2+ marrom)."],
+        "ru": ["👤 Метки сессий в шапке (ПК) получили маленький круглый значок с номером аккаунта ИИ — тех же цветов, что кнопка 👤 у сессии (аккаунт 1 серый, со 2-го коричневый)."],
+        "hi": ["👤 PC हेडर की सेशन चिप्स पर अब छोटा गोल बैज है जो सेशन का AI अकाउंट नंबर दिखाता है — सेशन के 👤 बटन जैसे रंग (अकाउंट 1 धूसर, 2+ भूरा)।"]
+      }
+    },
+    {
       "v": "1.90.94", "date": "2026-11-24",
       "items": {
         "en": ["🔢 PC header chips: hovering now shows the number, the full session title and its state at once (no slow tooltip). Clicking a chip (or a “waiting for you” button) now stops just below the header, so the session head is no longer hidden behind it."],
