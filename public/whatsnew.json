@@ -429,6 +429,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.96", "date": "2026-11-25",
+      "items": {
+        "en": ["👤 The account badges on the PC header chips now appear only when your open sessions use more than one account; if they all use the same one, nothing is shown."],
+        "ko": ["👤 PC 머리줄 칩의 계정 배지는 열린 세션들이 계정을 둘 이상 섞어 쓸 때만 보여요. 모두 같은 계정이면 표시하지 않아요."],
+        "ja": ["👤 PCヘッダーのチップのアカウントバッジは、開いているセッションが複数のアカウントを使っているときだけ表示します。"],
+        "zh": ["👤 PC 顶栏标签上的账号圆标，只在打开的会话使用了多个账号时才显示；都用同一个账号时不显示。"],
+        "es": ["👤 Las insignias de cuenta en las fichas de la cabecera solo aparecen si tus sesiones abiertas usan más de una cuenta."],
+        "de": ["👤 Die Konto-Abzeichen an den Kopfzeilen-Chips erscheinen nur, wenn die offenen Sitzungen mehr als ein Konto nutzen."],
+        "fr": ["👤 Les pastilles de compte des puces de l’en-tête n’apparaissent que si vos sessions ouvertes utilisent plusieurs comptes."],
+        "pt": ["👤 Os selos de conta nas fichas do cabeçalho só aparecem quando as sessões abertas usam mais de uma conta."],
+        "ru": ["👤 Значки аккаунта на метках в шапке показываются, только если открытые сессии используют больше одного аккаунта."],
+        "hi": ["👤 हेडर चिप्स पर अकाउंट बैज तभी दिखते हैं जब खुले सेशन एक से ज़्यादा अकाउंट इस्तेमाल कर रहे हों।"]
+      }
+    },
+    {
       "v": "1.90.95", "date": "2026-11-25",
       "items": {
         "en": ["👤 PC header session chips now carry a small round badge with the AI account number the session uses — same colours as the 👤 account button on the session (account 1 grey, accounts 2+ brown). The hover label says it too."],

@@ -8660,6 +8660,7 @@ function hdrNumsPaint() {
     const key = els.map(el => el.dataset.id + (el.classList.contains('busy') ? 'b' : el.classList.contains('done') ? 'd' : '') + (askMap && askMap.has(el.dataset.id) ? 'a' : '') + accOf(el)).join('|');
     if (key === box._key) return; box._key = key;
     const keepX = box.scrollLeft;
+    const accMixed = new Set(els.map(accOf).filter(Boolean)).size > 1;   // 열린 세션이 모두 같은 계정이면 배지 없음
     box.innerHTML = '';
     els.forEach((el, i) => {
       const id = el.dataset.id, p = panes.get(id), b = document.createElement('button');
@@ -8667,7 +8668,7 @@ function hdrNumsPaint() {
       const ttl = ((p && p.sess && p.sess.title) || '').trim();
       const two = (ttl.match(/[\p{L}\p{N}][\s\S]*/u) || [''])[0].replace(/\s+/g, '');   // 앞의 이모지·기호는 건너뛰고 글자부터
       b.textContent = Array.from(two).slice(0, 2).join('') || String(i + 1); b.dataset.id = id; b.dataset.n = i + 1;
-      const acc = accOf(el);
+      const acc = accMixed ? accOf(el) : 0;
       if (acc) { const a = document.createElement('i'); a.className = 'hn-acc' + (acc > 1 ? ' on' : ''); a.textContent = acc; b.appendChild(a); }
       const st = askMap && askMap.has(id) ? (T.askWait || 'Waiting for you') : el.classList.contains('busy') ? (T.hnBusy || 'Working') : el.classList.contains('done') ? (T.hnDone || 'Done') : (T.hnIdle || 'Idle');
       b.dataset.tip = ((p && p.sess && p.sess.title) || '') + ' · ' + st + (acc ? ' · ' + (T.hnAcc || 'account {n}').replace('{n}', acc) : '');   // 마우스를 올리면 바로 뜨는 이름표 (브라우저 말풍선은 늦어서 안 쓴다)
