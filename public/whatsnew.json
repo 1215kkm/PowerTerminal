@@ -239,6 +239,18 @@
           "pt": "Caminhos de arquivos e imagens nas respostas abrem com um clique, até de outro PC.",
           "ru": "Пути к файлам и картинки в ответах открываются щелчком — даже с другого ПК.",
           "hi": "जवाबों में लिखे फ़ाइल पथ और चित्र एक क्लिक से खुलते हैं — दूसरे PC की फ़ाइलें भी।"
+        },
+        {
+          "en": "Share one session read-only with a 👀 view-only link — revoke it any time.",
+          "ko": "👀 보기 전용 링크로 세션 하나를 읽기만 하게 보여 줘요 — 언제든 끊기.",
+          "ja": "👀 閲覧専用リンクでセッションを1つだけ読み取り専用で共有 — いつでも無効化。",
+          "zh": "用 👀 只读链接分享一个会话，只能看——随时可取消。",
+          "es": "Comparte una sesión solo para leer con un 👀 enlace — revócalo cuando quieras.",
+          "de": "Eine Sitzung per 👀 Nur-Lese-Link teilen – jederzeit widerrufbar.",
+          "fr": "Partagez une session en lecture seule avec un 👀 lien — révocable à tout moment.",
+          "pt": "Compartilhe uma sessão só para leitura com um 👀 link — revogue quando quiser.",
+          "ru": "Делитесь одной сессией только для чтения по 👀 ссылке — отзыв в любой момент.",
+          "hi": "👀 सिर्फ़-देखने वाले लिंक से एक सेशन पढ़ने के लिए दिखाएँ — कभी भी रद्द करें।"
         }
       ]
     },
@@ -428,6 +440,21 @@
     }
   ],
   "releases": [
+    {
+      "v": "1.90.97", "date": "2026-11-27",
+      "items": {
+        "en": ["👀 View-only link for note mode: press 「👀 View-only link」 in a session's note mode to get a link that lets someone read just that session — they cannot send requests, press choices, upload files or see other sessions. 「Revoke link」 stops it at once."],
+        "ko": ["👀 노트 모드 보기 전용 링크: 세션의 노트 모드에서 「👀 보기 전용 링크」를 누르면, 받은 사람이 그 세션 하나만 읽을 수 있는 링크가 생겨요. 요청 보내기 · 선택 누르기 · 파일 올리기 · 다른 세션 보기는 못 해요. 「링크 끊기」를 누르면 바로 막혀요."],
+        "ja": ["👀 ノートモードの閲覧専用リンク：セッションのノートモードで「👀 閲覧専用リンク」を押すと、そのセッションだけを読めるリンクができます。依頼の送信・選択・アップロード・他のセッションの閲覧はできません。「リンクを無効化」ですぐ止められます。"],
+        "zh": ["👀 笔记模式只读链接：在会话的笔记模式里点「👀 只读链接」，生成一个只能阅读该会话的链接——对方不能发送请求、点选项、上传文件或查看其他会话。点「取消链接」立即失效。"],
+        "es": ["👀 Enlace de solo lectura para el modo nota: pulsa 「👀 Enlace de solo lectura」 y quien lo reciba podrá leer solo esa sesión, sin enviar peticiones, elegir opciones, subir archivos ni ver otras sesiones. 「Revocar」 lo corta al instante."],
+        "de": ["👀 Nur-Lese-Link für den Notizmodus: 「👀 Nur-Lese-Link」 erzeugt einen Link, mit dem jemand nur diese Sitzung lesen kann – keine Anfragen, keine Auswahl, kein Hochladen, keine anderen Sitzungen. 「Widerrufen」 sperrt ihn sofort."],
+        "fr": ["👀 Lien en lecture seule pour le mode note : 「👀 Lien lecture seule」 crée un lien qui permet seulement de lire cette session — ni requêtes, ni choix, ni envoi de fichiers, ni autres sessions. 「Révoquer」 le coupe aussitôt."],
+        "pt": ["👀 Link só de leitura no modo nota: 「👀 Link só de leitura」 cria um link para alguém ler apenas essa sessão — sem enviar pedidos, escolher opções, enviar arquivos ou ver outras sessões. 「Revogar」 corta na hora."],
+        "ru": ["👀 Ссылка только для чтения в режиме заметок: 「👀 Ссылка для просмотра」 даёт ссылку, по которой можно лишь читать эту сессию — без запросов, выбора, загрузки файлов и других сессий. 「Отозвать」 сразу закрывает доступ."],
+        "hi": ["👀 नोट मोड का सिर्फ़-देखने वाला लिंक: 「👀 सिर्फ़ देखने का लिंक」 दबाने पर ऐसा लिंक बनता है जिससे कोई सिर्फ़ वही सेशन पढ़ सके — अनुरोध भेजना, विकल्प चुनना, फ़ाइल अपलोड या दूसरे सेशन देखना नहीं। 「लिंक रद्द करें」 से तुरंत बंद।"]
+      }
+    },
     {
       "v": "1.90.96", "date": "2026-11-25",
       "items": {

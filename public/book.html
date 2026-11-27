@@ -464,6 +464,35 @@
   @media (max-width: 820px), (pointer: coarse) and (max-height: 520px) { #darkTg { min-width: 44px; font-size: 15px; } }
 
   /* ⬇ 내보내기: 가운데 창. 왼쪽 = 내보낼 요청 고르기(최신이 위), 오른쪽 = 형식(PDF · 그림 · Word · 원고 · 크라모북)과 실행 */
+  /* 👀 보기 전용 — 손님 화면은 읽기 도구만 남긴다 */
+  body.viewonly #ask, body.viewonly #qcard, body.viewonly #shelf, body.viewonly #back, body.viewonly #exp, body.viewonly #sysm,
+  body.viewonly #findBtn, body.viewonly #viewLk, body.viewonly #sideNote { display: none !important; }
+  body.viewonly .topmid .sub { color: #fbbf24; font-weight: 700; }
+  /* 👀 보기 전용 링크 창 (주인) */
+  .vlbg { position: fixed; inset: 0; z-index: 91; background: rgba(0,0,0,.5); display: none; }
+  .vl { position: fixed; z-index: 92; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+        display: none; flex-direction: column; background: #1f2126; color: #e8e9ee; border: 1px solid #3a3d46; border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.5); overflow: hidden; }
+  body.vlon .vlbg { display: block; } body.vlon .vl { display: flex; animation: vlIn .22s cubic-bezier(.22,.8,.3,1); }
+  @keyframes vlIn { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+  .vl .vlh { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 18px; border-bottom: 1px solid #33363e; }
+  .vl .vlh b { font-size: 16px; margin-right: auto; }
+  .vl .vlx { width: 44px; height: 44px; border: 1px solid #4b5060; border-radius: 10px; background: #3a3e48; color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; }
+  .vl .vlx:hover { background: #4b5060; }
+  .vl .vlb { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.6; }
+  .vl .vlwarn { background: #3b2a12; border: 1px solid #a16207; color: #fde68a; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .vl .vlrow { display: flex; gap: 8px; }
+  .vl .vlurl { flex: 1 1 auto; min-width: 0; height: 44px; border-radius: 10px; border: 1px solid #4b5060; background: #111317; color: #e8e9ee; padding: 0 12px; font: 14px Consolas, monospace; }
+  .vl button.vlbtn { height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #4b5060; background: #2a2d34; color: #fff; font: 700 14px var(--ui); cursor: pointer; white-space: nowrap; transition: transform .1s; }
+  .vl button.vlbtn:hover { background: #343844; } .vl button.vlbtn:active { transform: scale(.96); }
+  .vl button.vlbtn.go { background: var(--accent); border-color: var(--accent); } .vl button.vlbtn.go:hover { filter: brightness(1.12); }
+  .vl button.vlbtn.cut { color: #fca5a5; border-color: #7f1d1d; }
+  .vl button.vlbtn:disabled { opacity: .5; cursor: default; }
+  .vl .vlnote { color: #9aa0ad; font-size: 12.5px; }
+  .vl .vlst:empty { display: none; }
+  .vl .vlnow { display: flex; flex-direction: column; gap: 10px; }
+  .vbadge { display: block; text-align: center; font: 700 13px var(--ui); padding: 9px 12px; border-radius: 7px; background: #3b2a12; border: 1px solid #a16207; color: #fde68a; }
+  .vl .vlst { min-height: 20px; font-size: 13px; color: #c3c7d0; } .vl .vlst.ok { color: #6ee7b7; } .vl .vlst.bad { color: #fca5a5; }
+  .vl .vlf { padding: 12px 18px; border-top: 1px solid #33363e; display: flex; justify-content: flex-end; }
   .xpbg { position: fixed; inset: 0; z-index: 89; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s linear .25s; }
   .xp { position: fixed; z-index: 90; left: 50%; top: 50%; width: min(940px, 94vw); height: min(640px, 88vh); display: flex; flex-direction: column; background: #1f2126; color: #e8e9ee;
         border: 1px solid #3a3d46; border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.55); font: 13.5px var(--ui); opacity: 0; visibility: hidden;
@@ -572,6 +601,7 @@
     <button class="sbtn" id="thmBtn"></button>
     <div class="themes" id="themes"></div>
     <button class="sbtn" id="exp"></button>
+    <button class="sbtn" id="viewLk"></button>
     <div class="side-note" id="sideNote"></div>
   </aside>
 </div>
@@ -1500,6 +1530,7 @@ function fitTerm() {
 /* ❓ 선택창 읽기 — 메인 화면(폰)의 qMenu 와 같은 규칙: 「❯ 표시가 붙은 번호 줄」이 2개 이상 1,2,3… 으로 이어질 때,
    또는 「Enter to confirm」 안내 바로 위 「❯ 글 / 들여쓴 글」 묶음일 때만. AI 가 답에 쓴 그냥 번호 목록에는 ❯ 가 없어 안 뜬다. */
 let qcT = 0, qcKey = '';
+let VIEW = false;   // 👀 보기 전용 링크로 들어온 손님 — 읽기만
 function qcRead() {
   if (!term) return null;
   const buf = term.buffer.active, end = buf.baseY + term.rows, L = [];
@@ -1530,7 +1561,7 @@ function qcRead() {
 }
 function qcSend(keys) { let t = 0; keys.forEach(k => { setTimeout(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: k })); }, t); t += 70; }); }
 function qcPaint() {
-  const box = $('qcard'); if (!box) return;
+  const box = $('qcard'); if (!box || VIEW) return;
   const m = qcRead();
   const key = m ? m.q + '|' + m.opts.map(o => (o.cur ? '*' : '') + o.n + o.text).join('|') : '';
   if (key === qcKey) return; qcKey = key;
@@ -1594,7 +1625,7 @@ function apply(r) {
   if ((r.cols && r.cols !== ptyCols) || (r.rows && r.rows !== ptyRows)) { ptyCols = r.cols || ptyCols; ptyRows = r.rows || ptyRows; if (term) { try { term.resize(ptyCols, ptyRows); } catch (e) {} fitTerm(); } }
   for (const t of r.turns) { const k = turns.findIndex(x => x.i === t.i); if (k >= 0) turns[k] = t; else turns.push(t); }
   turns.sort((a, b) => a.i - b.i); start = turns.length ? turns[0].i : r.start;
-  $('ttl').textContent = r.title || ''; $('sub').textContent = r.path || ''; document.title = (r.title || 'Book') + ' — PowerTerminal';
+  $('ttl').textContent = r.title || ''; $('sub').textContent = VIEW ? (KO ? '👀 보기만 하는 화면 — 요청은 보낼 수 없어요' : '👀 View only — requests cannot be sent') : (r.path || ''); document.title = (r.title || 'Book') + ' — PowerTerminal';
 }
 // progress while the server reads the conversation file (large ones take a while the first time). Shown only if it is not instant.
 let loadStop = null;
@@ -1681,7 +1712,7 @@ async function poll() {
 setInterval(loadSessions, 4000);
 /* ⚙ CPU·메모리 — 10초마다 (본 화면과 같은 간격), 안 보이는 탭이면 쉰다 */
 async function sysPaint() {
-  if (document.hidden) return;
+  if (document.hidden || VIEW) return;
   const r = await api('GET', '/api/sessions-mem'); if (!r || r.cpuNow == null) return;
   const box = $('sysm'); box.hidden = false;
   const gb = n => (n / 1073741824 >= 10 ? Math.round(n / 1073741824) : (n / 1073741824).toFixed(1)) + 'GB';
@@ -1711,7 +1742,7 @@ inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !
 let upN = 0, upPh = '';
 inp.addEventListener('paste', e => {
   const imgs = [...((e.clipboardData && e.clipboardData.items) || [])].filter(it => it.type && it.type.startsWith('image/')).map(it => it.getAsFile()).filter(Boolean);
-  if (!imgs.length || !cur) return;
+  if (!imgs.length || !cur || VIEW) return;
   e.preventDefault();
   const id = cur.id, IMG = KO ? { up: '그림 올리는 중…', fail: '그림을 올리지 못했어요' } : { up: 'Uploading image…', fail: 'Could not upload the image' };
   (async () => {
@@ -1773,7 +1804,7 @@ function withCtx(text) {
 }
 askForm.addEventListener('submit', e => {
   e.preventDefault();
-  if (upN) return;                                           // 그림을 올리는 중에는 보내지 않는다
+  if (upN || VIEW) return;                                           // 그림을 올리는 중에는 보내지 않는다
   const typed = inp.value.trim();
   if (!typed || !cur || !ws || ws.readyState !== 1) return;
   const text = withCtx(typed); ctxOff = null;
@@ -2157,7 +2188,87 @@ askForm.addEventListener('submit', e => {
     return true;   // 스크롤할 게 없는 짧은 목록
   });
 }
+/* 👀 보기 전용 링크 (2026-11-27 CEO) — 이 세션의 노트 모드를 다른 사람이 읽기만 하게. 링크는 세션마다 하나, [링크 끊기]로 바로 무효. */
+(function viewLinkUi() {
+  const V = KO ? { btn: '👀 보기 전용 링크', ttl: '👀 보기 전용 링크', x: '닫기',
+      what: '이 링크를 받은 사람은 「{t}」 세션의 노트 모드를 읽기만 할 수 있어요. 요청 보내기 · 선택 누르기 · 파일 올리기 · 다른 세션 보기는 못 해요.',
+      warn: '⚠ 앞의 대화까지 모두 보여요. 비밀번호 · 개인정보가 대화에 없는지 먼저 확인하세요.',
+      make: '링크 만들기', copy: '복사', copied: '✅ 복사했어요 — 보여 줄 사람에게 붙여 넣어 보내세요.', cut: '링크 끊기', cutDone: '✅ 끊었어요 — 그 링크는 이제 열리지 않아요.',
+      lan: '같은 와이파이 안에서만 열려요. 밖에서 보게 하려면 PT 의 외부 접속을 켠 뒤 이 창을 다시 열어 새 주소를 복사하세요.',
+      net: '밖에서도 열리는 주소예요. PT 를 다시 켜면 외부 주소가 바뀔 수 있어요 — 그때는 이 창에서 다시 복사하세요.',
+      none: '아직 링크가 없어요.', fail: '못 했어요 — PT 메인 PC 에서만 만들 수 있어요.', loading: '확인하는 중…' }
+    : { btn: '👀 View-only link', ttl: '👀 View-only link', x: 'Close',
+      what: 'Anyone with this link can read the note mode of "{t}" only. They cannot send requests, press choices, upload files or see other sessions.',
+      warn: '⚠ Earlier conversation is visible too. Check that no passwords or personal data are in it.',
+      make: 'Create link', copy: 'Copy', copied: '✅ Copied — paste it to the person.', cut: 'Revoke link', cutDone: '✅ Revoked — that link no longer opens.',
+      lan: 'Opens only on the same Wi-Fi. To share outside, turn on PT remote access and reopen this window to copy the new address.',
+      net: 'This address works from outside. It may change when PT restarts — copy it again here then.',
+      none: 'No link yet.', fail: 'Could not do it — only the main PT PC can create links.', loading: 'Checking…' };
+  $('viewLk').textContent = V.btn;
+  const bg = document.createElement('div'); bg.className = 'vlbg';
+  const box = document.createElement('div'); box.className = 'vl'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+  box.innerHTML = '<div class="vlh"><b></b><button type="button" class="vlx" aria-label="close">✕</button></div>'
+    + '<div class="vlb"><div class="vlwhat"></div><div class="vlwarn"></div><div class="vlnow"></div><div class="vlst"></div></div>'
+    + '<div class="vlf"><button type="button" class="vlbtn vlclose"></button></div>';
+  document.body.append(bg, box);
+  const q = sel => box.querySelector(sel);
+  q('.vlh b').textContent = V.ttl; q('.vlx').title = V.x; q('.vlclose').textContent = V.x; q('.vlwarn').textContent = V.warn;
+  let busyNow = false;
+  const say = (t, k) => { q('.vlst').className = 'vlst' + (k ? ' ' + k : ''); q('.vlst').textContent = t || ''; };
+  function paint(link) {
+    const now = q('.vlnow'); now.innerHTML = '';
+    if (!link) {
+      const row = document.createElement('div'); row.className = 'vlrow';
+      row.innerHTML = '<span class="vlnote" style="flex:1;align-self:center"></span><button type="button" class="vlbtn go vlmake"></button>';
+      row.querySelector('.vlnote').textContent = V.none; row.querySelector('.vlmake').textContent = V.make;
+      row.querySelector('.vlmake').onclick = () => act('POST');
+      now.append(row); return;
+    }
+    const row = document.createElement('div'); row.className = 'vlrow';
+    row.innerHTML = '<input class="vlurl" readonly><button type="button" class="vlbtn go vlcopy"></button>';
+    const inpU = row.querySelector('.vlurl'); inpU.value = link.url; inpU.onfocus = () => inpU.select();
+    row.querySelector('.vlcopy').textContent = V.copy;
+    row.querySelector('.vlcopy').onclick = async () => {
+      let ok = false; try { await navigator.clipboard.writeText(link.url); ok = true; } catch (e) { try { inpU.select(); ok = document.execCommand('copy'); } catch (e2) {} }
+      say(ok ? V.copied : link.url, ok ? 'ok' : '');
+    };
+    const note = document.createElement('div'); note.className = 'vlnote'; note.textContent = link.lan ? V.lan : V.net;
+    const row2 = document.createElement('div'); row2.className = 'vlrow'; row2.style.justifyContent = 'flex-end';
+    row2.innerHTML = '<button type="button" class="vlbtn cut vlcut"></button>'; row2.querySelector('.vlcut').textContent = V.cut;
+    row2.querySelector('.vlcut').onclick = () => act('DELETE');
+    now.append(row, note, row2);
+  }
+  async function act(method) {
+    if (busyNow || !cur) return; busyNow = true; box.querySelectorAll('.vlnow button').forEach(b => b.disabled = true);
+    const r = await api(method, '/api/sessions/' + encodeURIComponent(cur.id) + '/view-link');
+    busyNow = false;
+    if (!r || r.error) { say(V.fail, 'bad'); box.querySelectorAll('.vlnow button').forEach(b => b.disabled = false); return; }
+    if (method === 'DELETE') { paint(null); say(V.cutDone, 'ok'); }
+    else { paint(r.link); say(''); }
+  }
+  async function open() {
+    if (!cur) return;
+    q('.vlwhat').textContent = V.what.replace('{t}', cur.title || cur.id); q('.vlnow').innerHTML = ''; say(V.loading);
+    document.body.classList.add('vlon'); q('.vlx').focus();
+    const r = await api('GET', '/api/sessions/' + encodeURIComponent(cur.id) + '/view-link');
+    if (!r || r.error) { say(V.fail, 'bad'); return; }
+    say(''); paint(r.link);
+  }
+  const close = () => document.body.classList.remove('vlon');
+  $('viewLk').onclick = open; q('.vlx').onclick = close; q('.vlclose').onclick = close; bg.onclick = close;
+  addEventListener('keydown', e => { if (!document.body.classList.contains('vlon')) return; if (e.key === 'Escape') close(); if (e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) e.stopPropagation(); }, true);   // 창이 떠 있는 동안 화살표 · 스페이스로 뒤 책장이 넘어가지 않게
+  box.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
+  bg.addEventListener('wheel', e => e.preventDefault(), { passive: false }); bg.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+})();
 (async () => {
+  const vm = await api('GET', '/api/view-me');
+  if (vm && vm.view) {   // 👀 보기 손님 — 읽기 도구만
+    VIEW = true; document.body.classList.add('viewonly');
+    const vb = document.createElement('span'); vb.className = 'sbtn vbadge'; vb.textContent = KO ? '👀 보기 전용' : '👀 View only';
+    vb.title = KO ? '이 화면은 읽기만 할 수 있어요 — 요청 보내기 · 선택 누르기는 주인만' : 'Read only — only the owner can send requests';
+    $('side').insertBefore(vb, $('side').children[1] || null);   // 폰은 위 가로 줄 맨 앞에 보인다
+    T.empty = KO ? '아직 대화가 없습니다.' : 'No conversation yet.';
+  }
   await loadSessions();
   const want = QS.get('s') || (() => { try { return localStorage.getItem('pt_book_last'); } catch (e) { return null; } })();
   const s = sessions.find(x => x.id === want) || sessions.find(x => (x.agent || 'claude') === 'claude') || sessions[0];

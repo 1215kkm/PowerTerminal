@@ -1987,9 +1987,42 @@ app.post('/api/pair', (req, res) => {
   res.status(401).json({ error: 'bad_code' });
 });
 
+/* 👀 보기 전용 링크 — 한 세션의 노트 모드를 다른 사람이 읽기만 한다 (2026-11-27 CEO). 열쇠 하나 = 세션 하나.
+   읽기(책 · 진행 표시 · 그 세션 폴더의 그림 · 동영상 · PDF)만 열고, 요청 보내기 · 선택 누르기 · 올리기 · 다른 세션 · 파일 탐색 ·
+   검색은 모두 막는다. 같은 PC(localhost)에서 열어도 보기 열쇠면 보기만. 주인이 [끊기] 하면 바로 막히고 열린 화면도 끊긴다. */
+const VFILE = dataFile('views.json');
+let views = (() => { try { const a = readJson(VFILE); return Array.isArray(a) ? a : []; } catch (e) { return []; } })();
+const saveViews = () => { try { fs.writeFileSync(VFILE, JSON.stringify(views, null, 2)); } catch (e) {} };
+const viewOf = t => (t && String(t).length >= 20 && views.find(v => v.token === t)) || null;
+const VIEW_FILE_RX = /\.(png|jpe?g|gif|webp|bmp|svg|pdf|mp4|m4v|webm|mov|mp3|m4a|wav|ogg|oga|aac)$/i;
+function viewAllowed(v, req) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  let p = req.path; try { p = decodeURIComponent(p); } catch (e) {}
+  if (p === '/book.html' || p === '/icon.svg' || p.startsWith('/vendor/')) return true;
+  if (p === '/api/view-me' || p === '/api/sessions') return true;
+  if (p === '/api/sessions/' + v.sid + '/book' || p === '/api/sessions/' + v.sid + '/book-progress') return true;
+  if (p === '/api/files/get') return String(req.query.sid || '') === v.sid && VIEW_FILE_RX.test(String(req.query.rel || ''));
+  return false;
+}
+function viewLink(v) {
+  let base = global.__tunnelUrl || '';
+  if (!base) {   // 같은 와이파이 주소(192.168 · 10 · 172.16~31)를 먼저 — VPN(100.x 등) 주소는 받은 사람이 못 연다
+    const ips = []; for (const addrs of Object.values(os.networkInterfaces())) for (const a of addrs) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
+    const rank = ip => /^192.168./.test(ip) ? 0 : /^10./.test(ip) ? 1 : /^172.(1[6-9]|2d|3[01])./.test(ip) ? 2 : 3;
+    const ip = ips.sort((x, y) => rank(x) - rank(y))[0]; base = 'http://' + (ip || 'localhost') + ':' + PORT; }
+  return { url: base.replace(/\/+$/, '') + '/book.html?s=' + encodeURIComponent(v.sid) + '&token=' + v.token, lan: !global.__tunnelUrl, at: v.at };
+}
+
 // 접속 검사: 이 PC(localhost)는 무조건 통과, 외부는 토큰(쿼리 ?token= 또는 쿠키) 필요
 app.use((req, res, next) => {
   const t = req.query.token || req.headers['x-pt-token'] || (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
+  // 👀 보기 전용 열쇠 — 그 세션의 노트 모드 읽기만. 쿠키는 안 남긴다(같은 브라우저의 주인 열쇠를 덮지 않게)
+  const view = t && t !== config.token ? viewOf(t) : null;
+  if (view) {
+    if (req.method === 'GET' && req.path === '/') return res.redirect('/book.html?s=' + encodeURIComponent(view.sid) + '&token=' + view.token);
+    if (!viewAllowed(view, req)) return res.status(403).json({ error: 'view_only' });
+    req.ptView = view; return next();
+  }
   // 👥 다른 PC 의 손님 열쇠 — 이 PC 가 그 PC 에게 준 세션만 (같은 PC 에서 와도 손님은 손님)
   const guest = t && t !== config.token && peersApi ? peersApi.guestOf(t) : null;
   if (guest) {
@@ -2317,11 +2350,29 @@ app.get('/api/sessions', async (req, res) => {
              ask: askOf(p) || undefined,   // 🙋 선택 기다림 (질문 글)
              usedBy: peersApi && !req.ptGuest ? peersApi.usedBy(s.id) : undefined };   // 👥 다른 PC 가 지금 쓰는 중
   });
+  if (req.ptView) { const s = mine.find(x => x.id === req.ptView.sid);   // 👀 보기 전용: 그 세션 하나, 꼭 필요한 칸만
+    return res.json(s ? [{ id: s.id, title: s.title, path: s.path, repo: s.repo, agent: s.agent, busy: s.busy, ask: s.ask }] : []); }
   if (req.ptGuest) return res.json(peersApi.filterSessions(req.ptGuest, mine));   // 손님: 이 PC 가 준 세션만
   // 🖥 다른 PC 세션도 섞는다(그 PC 가 요청한 게 아닐 때만 — 서로 섞으면 끝없이 돈다)
   let more = []; if (peersApi && !req.headers['x-pt-token']) { try { more = await peersApi.peerSessions(); } catch (e) {} }
   res.json(mine.concat(more));
 });
+
+// 👀 보기 전용 링크 — 만들기 · 보기 · 끊기 (주인만. 다른 PC 손님 · 보기 손님은 못 부른다)
+app.get('/api/view-me', (req, res) => res.json(req.ptView ? { view: true, sid: req.ptView.sid } : { view: false }));
+const viewOwner = (req, res) => { if (req.ptGuest || req.ptView) { res.status(403).json({ error: 'not_shared' }); return null; }
+  const sess = sessions.find(x => x.id === req.params.id); if (!sess) { res.status(404).json({ error: 'no session' }); return null; } return sess; };
+app.get('/api/sessions/:id/view-link', (req, res) => { const sess = viewOwner(req, res); if (!sess) return;
+  const v = views.find(x => x.sid === sess.id); res.json({ link: v ? viewLink(v) : null }); });
+app.post('/api/sessions/:id/view-link', (req, res) => { const sess = viewOwner(req, res); if (!sess) return;
+  views = views.filter(x => sessions.some(s2 => s2.id === x.sid));   // 지워진 세션의 열쇠는 정리
+  let v = views.find(x => x.sid === sess.id);
+  if (!v) { v = { token: crypto.randomBytes(18).toString('hex'), sid: sess.id, at: Date.now() }; views.push(v); saveViews(); }
+  res.json({ link: viewLink(v) }); });
+app.delete('/api/sessions/:id/view-link', (req, res) => { const sess = viewOwner(req, res); if (!sess) return;
+  const gone = views.filter(x => x.sid === sess.id).map(x => x.token); views = views.filter(x => x.sid !== sess.id); saveViews();
+  for (const p of ptys.values()) for (const w of [...(p.sockets || [])]) if (gone.includes(w._view)) { try { w.close(); } catch (e) {} }   // 열려 있던 보기 화면도 끊는다
+  res.json({ ok: true, cut: gone.length }); });
 
 // 폴더 탐색 (세션 추가 시 마우스로 폴더 고르기 — 폰에서도 동작)
 /* 모델마다 고를 수 있는 강도가 다르다(astra 는 ultra 까지, gpt-5.5 는 xhigh 까지). codex 가 받아 둔
@@ -5841,10 +5892,12 @@ wss.on('connection', (ws, req) => {
   const ck = (req.headers.cookie || '').split('cc_token=')[1]?.split(';')[0];
   const id = url.searchParams.get('id');
   const wt = url.searchParams.get('token') || ck;
-  const guest = wt && wt !== config.token && peersApi ? peersApi.guestOf(wt) : null;   // 👥 다른 PC 손님 — 준 세션만
+  const view = wt && wt !== config.token ? viewOf(wt) : null;   // 👀 보기 전용 — 그 세션 화면만 받고, 보내는 것은 버린다
+  if (view) { if (view.sid !== id) { ws.close(); return; } ws._view = view.token; }
+  const guest = !view && wt && wt !== config.token && peersApi ? peersApi.guestOf(wt) : null;   // 👥 다른 PC 손님 — 준 세션만
   if (guest) { if (!peersApi.canSess(guest, id)) { ws.close(); return; } }
-  else if (!isLocal(req.socket) && url.searchParams.get('token') !== config.token && ck !== config.token) { ws.close(); return; }
-  if (!guest && peersApi && peersApi.isPeerId(id)) return peersApi.wsBridge(ws, id);   // 🖥 다른 PC 세션 — 그 PC 의 터미널로 잇는다
+  else if (!view && !isLocal(req.socket) && url.searchParams.get('token') !== config.token && ck !== config.token) { ws.close(); return; }
+  if (!guest && !view && peersApi && peersApi.isPeerId(id)) return peersApi.wsBridge(ws, id);   // 🖥 다른 PC 세션 — 그 PC 의 터미널로 잇는다
   const sess = sessions.find(x => x.id === id);
   if (!sess) { ws.close(); return; }
   let p;
@@ -5863,6 +5916,7 @@ wss.on('connection', (ws, req) => {
   if (guideApi) guideApi.hello(ws, id);   // 🧭 이 세션의 도우미 안내(있으면)
 
   ws.on('message', raw => {
+    if (view) return;   // 👀 보기 손님은 입력 · 크기 바꾸기 모두 못 한다
     let m; try { m = JSON.parse(raw); } catch (e) { return; }
     if (m.type === 'in') {
       scheduler.input(id, m.data);
