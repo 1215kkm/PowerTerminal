@@ -441,6 +441,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.99", "date": "2026-11-28",
+      "items": {
+        "en": ["👤 GPT (Codex) sessions now show their account as G1, G2… in teal, so they are not confused with Claude accounts (brown) on the phone tabs and PC session chips."],
+        "ko": ["👤 GPT(Codex) 세션의 계정은 G1, G2…처럼 청록색으로 보여요. 폰 탭과 PC 머리줄 칩에서 Claude 계정(갈색)과 헷갈리지 않아요."],
+        "ja": ["👤 GPT（Codex）セッションのアカウントは G1、G2… と青緑で表示され、スマホのタブやPCのチップで Claude のアカウント（茶色）と区別できます。"],
+        "zh": ["👤 GPT（Codex）会话的账号显示为青绿色的 G1、G2…，在手机标签和电脑会话标签上不会与 Claude 账号（棕色）混淆。"],
+        "es": ["👤 Las sesiones de GPT (Codex) muestran su cuenta como G1, G2… en verde azulado, para no confundirlas con las cuentas de Claude (marrón) en las pestañas del móvil y del PC."],
+        "de": ["👤 GPT-(Codex-)Sitzungen zeigen ihr Konto als G1, G2… in Türkis – so sind sie auf Handy-Tabs und PC-Chips nicht mit Claude-Konten (braun) zu verwechseln."],
+        "fr": ["👤 Les sessions GPT (Codex) affichent leur compte en G1, G2… en bleu-vert, pour ne pas les confondre avec les comptes Claude (marron) sur les onglets du téléphone et du PC."],
+        "pt": ["👤 Sessões do GPT (Codex) mostram a conta como G1, G2… em verde-azulado, para não confundir com as contas do Claude (marrom) nas abas do celular e do PC."],
+        "ru": ["👤 Сессии GPT (Codex) показывают аккаунт как G1, G2… бирюзовым, чтобы не путать с аккаунтами Claude (коричневые) на вкладках телефона и ПК."],
+        "hi": ["👤 GPT (Codex) सेशन का खाता अब हरे-नीले रंग में G1, G2… दिखता है, ताकि फ़ोन टैब और PC पर Claude खातों (भूरे) से न उलझे।"]
+      }
+    },
+    {
       "v": "1.90.98", "date": "2026-11-28",
       "items": {
         "en": ["👤 Phone tabs now show which AI account each session uses (👤1, 👤2…), like the PC session chips. It appears once any session uses account 2 or higher; account 2+ is shown in brown."],

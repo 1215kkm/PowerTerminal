@@ -40,6 +40,8 @@
   #hdrNums .hn .hn-acc { position: absolute; top: -6px; right: -6px; min-width: 13px; height: 13px; padding: 0 2px; border-radius: 7px; box-sizing: border-box;
                          background: #374151; border: 1px solid #6b7280; color: #fff; font: 800 8.5px/11px inherit; font-style: normal; text-align: center; pointer-events: none; }
   #hdrNums .hn .hn-acc.on { background: #c2410c; border-color: #fdba74; }
+  #hdrNums .hn .hn-acc.gpt { letter-spacing: -.5px; padding: 0 1px; }   /* 「G2」 두 글자 — 바깥으로 빼면 오른쪽 끝 칩에서 잘린다 */
+  #hdrNums .hn .hn-acc.gpt.on { background: #0f766e; border-color: #5eead4; }   /* GPT 계정 2번부터 = 청록 (Claude 갈색과 구분) */
   #hnBadge { position: fixed; z-index: 70; transform: translateX(-50%); display: none; align-items: center; gap: 6px; height: 20px; padding: 0 8px 0 3px; border-radius: 10px;
              background: #111827; border: 1px solid var(--pink); color: #f3f4f6; font: 700 11.5px/18px inherit; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,.5); pointer-events: none; }
   #hnBadge b { min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px; background: var(--pink); color: #fff; font: 800 10px/14px inherit; text-align: center; }
@@ -1906,6 +1908,7 @@
     .mm-cell .mm-acc { flex: 0 0 auto; margin-left: auto; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
                        background: #374151; border: 1px solid #6b7280; color: #fff; font: 800 11px/16px inherit; font-style: normal; }
     .mm-cell .mm-acc.on { background: #c2410c; border-color: #fdba74; }
+    .mm-cell .mm-acc.gpt.on { background: #0f766e; border-color: #5eead4; }
     .mm-cell .mm-acc b { display: inline-block; font-weight: 400; filter: brightness(0) invert(1); margin-right: 1px; }
     .mm-cell.active { border-color: var(--pink); }
     /* 📱 지금 보고 있는 세션 = 보라 링 유지 (busy 하늘·done 초록 테두리와 별개라 안 겹침) */
@@ -6013,7 +6016,7 @@ function buildPane(sess, idx) {
         ${isClaude ? `<span class="advWrap" style="display:none"><select class="small advSel" title="${escA(T.advT || '')}"></select></span>` : ''}
         ${(isClaude || aiCur === 'codex') ? `<button class="small brBtn">🌐</button>` : ''}
         ${isClaude ? `<button class="small accBtn${sess.account > 1 ? ' on' : ''}" title="${escA(T.accT || '')}"><i>👤</i>${sess.account > 1 ? sess.account : ''}</button>`
-          : aiCur === 'codex' ? `<button class="small accBtn${sess.gptAccount > 1 ? ' on' : ''}" title="${escA(T.gaccT || '')}"><i>👤</i>${sess.gptAccount > 1 ? sess.gptAccount : ''}</button>` : ''}
+          : aiCur === 'codex' ? `<button class="small accBtn gpt${sess.gptAccount > 1 ? ' on' : ''}" title="${escA(T.gaccT || '')}"><i>👤</i>${sess.gptAccount > 1 ? sess.gptAccount : ''}</button>` : ''}
       </div>
     </div>
     <div class="pane-body">
@@ -8654,6 +8657,7 @@ function renumber() {
   hdrNumsPaint();
 }
 /* 👤 세션이 쓰는 AI 계정 — 세션 머리의 👤 단추가 있을 때만(Claude·GPT). 1 이면 기본 계정, 0 이면 계정 없는 세션 */
+function paneAccGpt(el) { const a = el.querySelector('.pane-head .accBtn'); return !!(a && a.classList.contains('gpt')); }
 function paneAcc(el) { const a = el.querySelector('.pane-head .accBtn'); return a ? (parseInt(a.textContent.replace(/\D/g, ''), 10) || 1) : 0; }
 function accShown(accs) { return accs.some(a => a > 1); }   // 모두 기본 계정이면 표시 안 함 — 2번 이상이 하나라도 있으면 다 보여 줘 비교되게
 /* 📱 폰 탭줄의 계정 표시 — 탭을 다시 그리지 않고 표시만 고친다 */
@@ -8664,9 +8668,10 @@ function mmAccPaint() {
     const n = show ? (accs.get(c.dataset.mm) || 0) : 0; let b = c.querySelector('.mm-acc');
     if (!n) { if (b) b.remove(); return; }
     if (!b) { b = document.createElement('i'); b.className = 'mm-acc'; c.appendChild(b); }
-    const key = String(n); if (b.dataset.n === key) return; b.dataset.n = key;
-    b.innerHTML = '<b>👤</b>' + n; b.classList.toggle('on', n > 1);
-    b.title = (T.hnAcc || 'account {n}').replace('{n}', n);
+    const pe = els.find(el => el.dataset.id === c.dataset.mm), g = !!(pe && paneAccGpt(pe));
+    const key = (g ? 'G' : '') + n; if (b.dataset.n === key) return; b.dataset.n = key;
+    b.innerHTML = '<b>👤</b>' + key; b.classList.toggle('on', n > 1); b.classList.toggle('gpt', g);
+    b.title = (g ? 'GPT ' : 'Claude ') + (T.hnAcc || 'account {n}').replace('{n}', n);
   });
 }
 /* 🔢 PC 머리줄 세션 번호 — 칩 하나 = 열린 세션 하나(번호는 세션 머리의 번호와 같다). 색: 진행 중 노랑 · 완료 초록 · 쉼 회색 · 선택 기다림 주황 */
@@ -8677,7 +8682,7 @@ function hdrNumsPaint() {
     const els = [...grid.children].filter(el => el.classList && el.classList.contains('pane'));
     const accOf = paneAcc;
     mmAccPaint();   // 📱 폰 탭줄의 계정 표시도 같이
-    const key = els.map(el => el.dataset.id + (el.classList.contains('busy') ? 'b' : el.classList.contains('done') ? 'd' : '') + (askMap && askMap.has(el.dataset.id) ? 'a' : '') + accOf(el)).join('|');
+    const key = els.map(el => el.dataset.id + (el.classList.contains('busy') ? 'b' : el.classList.contains('done') ? 'd' : '') + (askMap && askMap.has(el.dataset.id) ? 'a' : '') + accOf(el) + (paneAccGpt(el) ? 'g' : '')).join('|');
     if (key === box._key) return; box._key = key;
     const keepX = box.scrollLeft;
     const accMixed = accShown(els.map(accOf));   // 모두 기본 계정이면 배지 없음 (2번 계정만 쓸 때도 보이게)
@@ -8689,9 +8694,10 @@ function hdrNumsPaint() {
       const two = (ttl.match(/[\p{L}\p{N}][\s\S]*/u) || [''])[0].replace(/\s+/g, '');   // 앞의 이모지·기호는 건너뛰고 글자부터
       b.textContent = Array.from(two).slice(0, 2).join('') || String(i + 1); b.dataset.id = id; b.dataset.n = i + 1;
       const acc = accMixed ? accOf(el) : 0;
-      if (acc) { const a = document.createElement('i'); a.className = 'hn-acc' + (acc > 1 ? ' on' : ''); a.textContent = acc; b.appendChild(a); }
+      const gpt = acc && paneAccGpt(el);
+      if (acc) { const a = document.createElement('i'); a.className = 'hn-acc' + (acc > 1 ? ' on' : '') + (gpt ? ' gpt' : ''); a.textContent = (gpt ? 'G' : '') + acc; b.appendChild(a); }
       const st = askMap && askMap.has(id) ? (T.askWait || 'Waiting for you') : el.classList.contains('busy') ? (T.hnBusy || 'Working') : el.classList.contains('done') ? (T.hnDone || 'Done') : (T.hnIdle || 'Idle');
-      b.dataset.tip = ((p && p.sess && p.sess.title) || '') + ' · ' + st + (acc ? ' · ' + (T.hnAcc || 'account {n}').replace('{n}', acc) : '');   // 마우스를 올리면 바로 뜨는 이름표 (브라우저 말풍선은 늦어서 안 쓴다)
+      b.dataset.tip = ((p && p.sess && p.sess.title) || '') + ' · ' + st + (acc ? ' · ' + (gpt ? 'GPT ' : 'Claude ') + (T.hnAcc || 'account {n}').replace('{n}', acc) : '');   // 마우스를 올리면 바로 뜨는 이름표 (브라우저 말풍선은 늦어서 안 쓴다)
       b.setAttribute('aria-label', (i + 1) + '. ' + b.dataset.tip);
       b.onclick = ev => { ev.stopPropagation(); askGo(id); };
       box.appendChild(b);
