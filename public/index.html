@@ -1904,12 +1904,11 @@
     .mm-cell .mm-num { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 5px; font-size: 11px;
                        display: flex; align-items: center; justify-content: center; color: #fff;
                        background: linear-gradient(135deg, var(--violet), var(--pink)); }
-    .mm-cell .mm-title { overflow: hidden; text-overflow: ellipsis; }
-    .mm-cell .mm-acc { flex: 0 0 auto; margin-left: auto; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
-                       background: #374151; border: 1px solid #6b7280; color: #fff; font: 800 11px/16px inherit; font-style: normal; }
+    .mm-cell .mm-title { overflow: hidden; text-overflow: clip; }   /* 말줄임(…) 없이 — 그 자리만큼 글자를 더 보인다 */
+    .mm-cell .mm-acc { flex: 0 0 auto; margin-left: auto; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; box-sizing: border-box; text-align: center;
+                       background: #374151; border: 1px solid #6b7280; color: #fff; font: 800 11px/16px inherit; font-style: normal; letter-spacing: -.3px; }
     .mm-cell .mm-acc.on { background: #c2410c; border-color: #fdba74; }
     .mm-cell .mm-acc.gpt.on { background: #0f766e; border-color: #5eead4; }
-    .mm-cell .mm-acc b { display: inline-block; font-weight: 400; filter: brightness(0) invert(1); margin-right: 1px; }
     .mm-cell.active { border-color: var(--pink); }
     /* 📱 지금 보고 있는 세션 = 보라 링 유지 (busy 하늘·done 초록 테두리와 별개라 안 겹침) */
     .pane.current { box-shadow: 0 0 0 3px var(--violet); }
@@ -8670,7 +8669,7 @@ function mmAccPaint() {
     if (!b) { b = document.createElement('i'); b.className = 'mm-acc'; c.appendChild(b); }
     const pe = els.find(el => el.dataset.id === c.dataset.mm), g = !!(pe && paneAccGpt(pe));
     const key = (g ? 'G' : '') + n; if (b.dataset.n === key) return; b.dataset.n = key;
-    b.innerHTML = '<b>👤</b>' + key; b.classList.toggle('on', n > 1); b.classList.toggle('gpt', g);
+    b.textContent = key; b.classList.toggle('on', n > 1); b.classList.toggle('gpt', g);
     b.title = (g ? 'GPT ' : 'Claude ') + (T.hnAcc || 'account {n}').replace('{n}', n);
   });
 }

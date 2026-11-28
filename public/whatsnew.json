@@ -441,6 +441,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.100", "date": "2026-11-28",
+      "items": {
+        "en": ["Phone tabs: the account badge is now just the number (no 👤), and long session names are cut off without “…” so more of the name fits."],
+        "ko": ["폰 탭: 계정 표시는 👤 없이 숫자만 보이고, 긴 세션 이름은 「…」 없이 잘라서 이름이 더 많이 보여요."],
+        "ja": ["スマホのタブ：アカウント表示は 👤 なしの数字だけになり、長いセッション名は「…」なしで切るので名前がより多く見えます。"],
+        "zh": ["手机标签：账号标记只显示数字（去掉 👤），较长的会话名不再显示“…”，能看到更多文字。"],
+        "es": ["Pestañas del móvil: la cuenta se muestra solo con el número (sin 👤) y los nombres largos se cortan sin “…”, para que se vea más del nombre."],
+        "de": ["Handy-Tabs: Das Konto steht nur noch als Zahl (ohne 👤), lange Sitzungsnamen werden ohne „…“ abgeschnitten, damit mehr vom Namen sichtbar ist."],
+        "fr": ["Onglets du téléphone : le compte n’affiche plus que le numéro (sans 👤) et les noms longs sont coupés sans « … » pour en voir davantage."],
+        "pt": ["Abas do celular: a conta aparece só com o número (sem 👤) e nomes longos são cortados sem “…”, mostrando mais do nome."],
+        "ru": ["Вкладки на телефоне: аккаунт показан только числом (без 👤), а длинные названия обрезаются без «…», чтобы было видно больше."],
+        "hi": ["फ़ोन टैब: खाता अब सिर्फ़ नंबर से दिखता है (👤 नहीं), और लंबे सेशन नाम बिना “…” के कटते हैं ताकि नाम ज़्यादा दिखे।"]
+      }
+    },
+    {
       "v": "1.90.99", "date": "2026-11-28",
       "items": {
         "en": ["👤 GPT (Codex) sessions now show their account as G1, G2… in teal, so they are not confused with Claude accounts (brown) on the phone tabs and PC session chips."],
