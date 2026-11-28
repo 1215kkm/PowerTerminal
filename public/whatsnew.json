@@ -441,6 +441,21 @@
   ],
   "releases": [
     {
+      "v": "1.90.98", "date": "2026-11-28",
+      "items": {
+        "en": ["👤 Phone tabs now show which AI account each session uses (👤1, 👤2…), like the PC session chips. It appears once any session uses account 2 or higher; account 2+ is shown in brown."],
+        "ko": ["👤 폰 위쪽 탭에도 세션마다 쓰는 AI 계정 번호(👤1, 👤2…)가 보여요. PC 머리줄 칩과 같아요. 한 세션이라도 2번 이상 계정을 쓰면 나타나고, 2번부터는 갈색이에요."],
+        "ja": ["👤 スマホの上部タブにも、各セッションが使うAIアカウント番号（👤1、👤2…）が表示されます。PCのセッションチップと同じです。2番以降のアカウントを使うセッションがあると表示され、2番以降は茶色です。"],
+        "zh": ["👤 手机顶部标签也会显示每个会话使用的 AI 账号编号（👤1、👤2…），与电脑上的会话标签一致。只要有会话使用 2 号及以上账号就会显示，2 号起为棕色。"],
+        "es": ["👤 Las pestañas del móvil ahora muestran qué cuenta de IA usa cada sesión (👤1, 👤2…), como en el PC. Aparece en cuanto alguna sesión usa la cuenta 2 o superior; desde la 2 se ve en marrón."],
+        "de": ["👤 Die Tabs am Handy zeigen jetzt, welches KI-Konto jede Sitzung nutzt (👤1, 👤2…) – wie am PC. Erscheint, sobald eine Sitzung Konto 2 oder höher nutzt; ab Konto 2 braun."],
+        "fr": ["👤 Les onglets sur téléphone indiquent maintenant le compte IA de chaque session (👤1, 👤2…), comme sur PC. Cela s'affiche dès qu'une session utilise le compte 2 ou plus ; à partir du 2, en marron."],
+        "pt": ["👤 As abas no celular agora mostram qual conta de IA cada sessão usa (👤1, 👤2…), como no PC. Aparece quando alguma sessão usa a conta 2 ou maior; da 2 em diante, em marrom."],
+        "ru": ["👤 Вкладки на телефоне теперь показывают, какой аккаунт ИИ использует каждая сессия (👤1, 👤2…), как на ПК. Появляется, если хоть одна сессия на аккаунте 2 и выше; со 2-го — коричневым."],
+        "hi": ["👤 फ़ोन के ऊपर वाले टैब में अब हर सेशन का AI खाता नंबर (👤1, 👤2…) दिखता है, PC जैसा ही। कोई भी सेशन खाता 2 या उससे ऊपर इस्तेमाल करे तो दिखता है; 2 से भूरा रंग।"]
+      }
+    },
+    {
       "v": "1.90.97", "date": "2026-11-27",
       "items": {
         "en": ["👀 View-only link for note mode: press 「👀 View-only link」 in a session's note mode to get a link that lets someone read just that session — they cannot send requests, press choices, upload files or see other sessions. 「Revoke link」 stops it at once."],

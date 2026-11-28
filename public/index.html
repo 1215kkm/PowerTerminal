@@ -1903,6 +1903,10 @@
                        display: flex; align-items: center; justify-content: center; color: #fff;
                        background: linear-gradient(135deg, var(--violet), var(--pink)); }
     .mm-cell .mm-title { overflow: hidden; text-overflow: ellipsis; }
+    .mm-cell .mm-acc { flex: 0 0 auto; margin-left: auto; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+                       background: #374151; border: 1px solid #6b7280; color: #fff; font: 800 11px/16px inherit; font-style: normal; }
+    .mm-cell .mm-acc.on { background: #c2410c; border-color: #fdba74; }
+    .mm-cell .mm-acc b { display: inline-block; font-weight: 400; filter: brightness(0) invert(1); margin-right: 1px; }
     .mm-cell.active { border-color: var(--pink); }
     /* 📱 지금 보고 있는 세션 = 보라 링 유지 (busy 하늘·done 초록 테두리와 별개라 안 겹침) */
     .pane.current { box-shadow: 0 0 0 3px var(--violet); }
@@ -8649,18 +8653,34 @@ function renumber() {
   renderMinimap();
   hdrNumsPaint();
 }
+/* 👤 세션이 쓰는 AI 계정 — 세션 머리의 👤 단추가 있을 때만(Claude·GPT). 1 이면 기본 계정, 0 이면 계정 없는 세션 */
+function paneAcc(el) { const a = el.querySelector('.pane-head .accBtn'); return a ? (parseInt(a.textContent.replace(/\D/g, ''), 10) || 1) : 0; }
+function accShown(accs) { return accs.some(a => a > 1); }   // 모두 기본 계정이면 표시 안 함 — 2번 이상이 하나라도 있으면 다 보여 줘 비교되게
+/* 📱 폰 탭줄의 계정 표시 — 탭을 다시 그리지 않고 표시만 고친다 */
+function mmAccPaint() {
+  const els = [...grid.children].filter(el => el.classList && el.classList.contains('pane'));
+  const accs = new Map(els.map(el => [el.dataset.id, paneAcc(el)])), show = accShown([...accs.values()]);
+  document.querySelectorAll('#minimap .mm-cell').forEach(c => {
+    const n = show ? (accs.get(c.dataset.mm) || 0) : 0; let b = c.querySelector('.mm-acc');
+    if (!n) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('i'); b.className = 'mm-acc'; c.appendChild(b); }
+    const key = String(n); if (b.dataset.n === key) return; b.dataset.n = key;
+    b.innerHTML = '<b>👤</b>' + n; b.classList.toggle('on', n > 1);
+    b.title = (T.hnAcc || 'account {n}').replace('{n}', n);
+  });
+}
 /* 🔢 PC 머리줄 세션 번호 — 칩 하나 = 열린 세션 하나(번호는 세션 머리의 번호와 같다). 색: 진행 중 노랑 · 완료 초록 · 쉼 회색 · 선택 기다림 주황 */
 function hdrNumsPaint() {
   clearTimeout(hdrNumsPaint._t);
   hdrNumsPaint._t = setTimeout(() => {
     const box = document.getElementById('hdrNums'); if (!box) return;
     const els = [...grid.children].filter(el => el.classList && el.classList.contains('pane'));
-    // 이 세션이 쓰는 AI 계정 — 세션 머리의 👤 단추가 있을 때만(Claude·GPT). 1 이면 기본 계정
-    const accOf = el => { const a = el.querySelector('.pane-head .accBtn'); return a ? (parseInt(a.textContent.replace(/\D/g, ''), 10) || 1) : 0; };
+    const accOf = paneAcc;
+    mmAccPaint();   // 📱 폰 탭줄의 계정 표시도 같이
     const key = els.map(el => el.dataset.id + (el.classList.contains('busy') ? 'b' : el.classList.contains('done') ? 'd' : '') + (askMap && askMap.has(el.dataset.id) ? 'a' : '') + accOf(el)).join('|');
     if (key === box._key) return; box._key = key;
     const keepX = box.scrollLeft;
-    const accMixed = new Set(els.map(accOf).filter(Boolean)).size > 1;   // 열린 세션이 모두 같은 계정이면 배지 없음
+    const accMixed = accShown(els.map(accOf));   // 모두 기본 계정이면 배지 없음 (2번 계정만 쓸 때도 보이게)
     box.innerHTML = '';
     els.forEach((el, i) => {
       const id = el.dataset.id, p = panes.get(id), b = document.createElement('button');
@@ -10453,6 +10473,7 @@ function renderMinimap() {
     };
     mm.appendChild(cell);
   });
+  mmAccPaint();   // 👤 계정 표시
   mmFoldPaint();
   applyLayout();
   mmCurId = undefined; mmSpy();   // 셀을 새로 그렸으니 현재 세션 강조 다시 칠하기
